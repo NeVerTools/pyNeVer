@@ -1,0 +1,12 @@
+build/
+dist/
+pyNeVer.egg-info/
+**/MNIST
+*.pyc
+*.ipynb_checkpoints/
+.idea/*
+**/logs/*
+!**/logs/placeholder.txt
+temp*
+**/data/*
+!**/data/placeholder.txt

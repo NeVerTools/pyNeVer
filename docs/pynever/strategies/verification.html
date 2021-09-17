@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>pynever.strategies.verification API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pynever.strategies.verification</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import abc
+import logging
+import time
+from typing import List, Optional
+
+import pynever.networks as networks
+import pynever.nodes as nodes
+import pynever.strategies.abstraction as abst
+import pynever.utilities as util
+from pynever.tensor import Tensor
+import pynever.strategies.processing as processing
+
+logger_name = &#34;pynever.strategies.verification&#34;
+
+
+class Property(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a generic property for a NeuralNetwork.
+    &#34;&#34;&#34;
+
+
+class SMTLIBProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a generic property for a NeuralNetwork expressed as a SMTLIB query.
+
+    Attributes
+    ----------
+    smtlib_path : str
+        Filepath for the SMTLIB file in which the property is defined.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, smtlib_path: str):
+        self.smtlib_path = smtlib_path
+
+
+class LocalRobustnessProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a local robustness property for a NeuralNetwork.
+    Formally the property check if the counterexample (i.e., the adversarial example) exists, therefore
+    when the verification strategy check such property it should return True if the adversarial example exist and
+    false otherwise.
+
+    Attributes
+    ----------
+    data : Tensor
+        Original data used to determine the local robustness.
+    target : int
+        If targeted is True then it is the desired target for the adversarial, otherwise it is the correct target of
+        data.
+    targeted : bool
+        Flag which is True if the robustness property is targeted, False otherwise.
+    norm : str
+        Norm type used to determine the local robustness. At present the only acceptable value is Linf.
+    epsilon : float
+        Magnitude of the acceptable perturbation.
+    bounds: list
+        List of (lower_bound, upper_bound) for the data.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, data: Tensor, target: int, targeted: bool, norm: str, epsilon: float, bounds: list):
+        self.data = data
+        self.target = target
+        self.targeted = targeted
+        if norm != &#34;Linf&#34;:
+            raise NotImplementedError
+        self.norm = norm
+        self.epsilon = epsilon
+        self.bounds = bounds
+
+
+class NeVerProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
+    out_coef_mat * y &lt;= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
+    At present the input set must be defined as in_coef_mat * x &lt;= in_bias_mat
+
+    Attributes
+    ----------
+    in_coef_mat: Tensor
+        Matrix of the coefficients for the input constraints.
+    in_bias_mat: Tensor
+        Matrix of the biases for the input constraints.
+    out_coef_mat: List[Tensor]
+        Matrixes of the coefficients for the output constraints.
+    out_bias_mat: List[Tensor]
+        Matrixes of the biases for the output constraints.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, in_coef_mat: Tensor, in_bias_mat: Tensor, out_coef_mat: List[Tensor],
+                 out_bias_mat: List[Tensor]):
+        self.in_coef_mat = in_coef_mat
+        self.in_bias_mat = in_bias_mat
+        self.out_coef_mat = out_coef_mat
+        self.out_bias_mat = out_bias_mat
+
+    def to_smt_file(self, filepath: str):
+
+        infix_constraints = []
+
+        
+
+class VerificationStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Verification Strategy.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument
+        using a verification strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+        &#34;&#34;&#34;
+        Verify that the neural network of interest satisfy the property given as argument
+        using a verification strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to train.
+        prop : Dataset
+            The property which the neural network must satisfy.
+
+        Returns
+        ----------
+        bool
+            True is the neural network satisfy the property, False otherwise.
+
+        &#34;&#34;&#34;
+        pass
+
+
+class NeverVerification(VerificationStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the Never verification strategy.
+
+    Attributes
+    ----------
+
+    refinement_heuristic : str
+        Heuristic used to decide the refinement level of the ReLU abstraction.
+        At present can be only one of the following:
+        - given_flags: the neuron to be refined are selected referring to the list given in params
+        - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
+          the abstraction would incur using the coarse over_approximation.
+
+    params : List
+        Parameters for the heuristic of interest.
+        If the heuristic is given_flags then params is a list whose first element is the list of refinement flags.
+        If the heuristic is best_n_neurons then params is a list whose first element is the number of neurons to refine.
+
+    refinement_level : int
+        Refinement level for the sigmoid abstraction.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument.
+    &#34;&#34;&#34;
+
+    def __init__(self, heuristic: str = &#34;best_n_neurons&#34;, params: List = [0],
+                 refinement_level: int = None):
+
+        self.heuristic = heuristic
+        self.params = params
+        self.refinement_level = refinement_level
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+
+        if not isinstance(network, networks.SequentialNetwork):
+            raise Exception(&#34;Only sequential networks are supported at present&#34;)
+
+        logger = logging.getLogger(logger_name)
+        abst_networks = abst.AbsSeqNetwork(&#34;Abstract Network&#34;)
+
+        current_node = network.get_first_node()
+        while current_node is not None:
+
+            if isinstance(current_node, nodes.FullyConnectedNode):
+                abst_networks.add_node(abst.AbsFullyConnectedNode(&#34;ABST_&#34; + current_node.identifier, current_node))
+
+            elif isinstance(current_node, nodes.ReLUNode):
+                abst_networks.add_node(abst.AbsReLUNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                        self.heuristic, self.params))
+
+            elif isinstance(current_node, nodes.SigmoidNode):
+                abst_networks.add_node(abst.AbsSigmoidNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                           self.refinement_level))
+
+            else:
+                raise Exception(f&#34;Node type: {current_node.__class__} not supported&#34;)
+
+            current_node = network.get_next_node(current_node)
+
+        ver_start_time = time.perf_counter()
+        if isinstance(prop, NeVerProperty):
+
+            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+            input_starset = abst.StarSet({input_star})
+            current_node = abst_networks.get_first_node()
+            output_starset = input_starset
+            while current_node is not None:
+                time_start = time.perf_counter()
+                output_starset = current_node.forward(output_starset)
+                time_end = time.perf_counter()
+
+                logger.info(f&#34;Computing starset for layer {current_node.identifier}. Current starset has dimension &#34;
+                            f&#34;{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.&#34;)
+
+                current_node = abst_networks.get_next_node(current_node)
+
+            out_coef_mat = prop.out_coef_mat
+            out_bias_mat = prop.out_bias_mat
+
+        else:
+            raise NotImplementedError
+
+        or_verified = []
+        for i in range(len(out_coef_mat)):
+
+            verified = True
+            for star in output_starset.stars:
+                out_coef = out_coef_mat[i]
+                out_bias = out_bias_mat[i]
+                temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                if not temp_star.check_if_empty():
+                    verified = False
+                    # print(f&#34;Star {k}: Unsafe&#34;)
+
+            or_verified.append(verified)
+
+        final_verified = any(or_verified)
+
+        ver_end_time = time.perf_counter()
+        logger.info(f&#34;Verification Result: {final_verified}.&#34;)
+        logger.info(f&#34;Verification Time: {ver_end_time - ver_start_time}\n&#34;)
+
+        return final_verified
+
+
+class NeverVerificationRef(VerificationStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the Never verification strategy with counter example guided refinement.
+
+    Attributes
+    ----------
+    log_filepath: str
+        Filepath for saving the log files of the verification procedure.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument.
+    &#34;&#34;&#34;
+
+    def __init__(self, log_filepath: str):
+
+        self.log_filepath = log_filepath
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+
+        assert isinstance(network, networks.SequentialNetwork), &#34;Only sequential networks are supported at present&#34;
+        abst_networks = abst.AbsSeqNetwork(&#34;Abstract Network&#34;)
+
+        current_node = network.get_first_node()
+        while current_node is not None:
+
+            if isinstance(current_node, nodes.FullyConnectedNode):
+                abst_networks.add_node(abst.AbsFullyConnectedNode(&#34;ABST_&#34; + current_node.identifier, current_node))
+
+            elif isinstance(current_node, nodes.ReLUNode):
+                abst_networks.add_node(abst.AbsReLUNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                        refinement_flags=[False for m in
+                                                                          range(current_node.num_features)]))
+
+            # elif isinstance(current_node, nodes.SigmoidNode):
+            #    abst_networks.add_node(abst.AbsSigmoidNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+            #                                               self.refinement_level))
+
+            else:
+                raise NotImplementedError
+
+            current_node = network.get_next_node(current_node)
+
+        with open(self.log_filepath, &#34;w&#34;) as log_file:
+            areas_log = self.log_filepath.replace(&#34;.txt&#34;, &#34;_areas.txt&#34;)
+            with open(areas_log, &#34;w&#34;) as area_log_file:
+
+                if isinstance(prop, NeVerProperty):
+
+                    input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+                    input_starset = abst.StarSet({input_star})
+                    current_node = abst_networks.get_first_node()
+                    output_starset = input_starset
+                    while current_node is not None:
+                        time_start = time.perf_counter()
+                        output_starset = current_node.forward(output_starset)
+                        time_end = time.perf_counter()
+
+                        print(f&#34;Computing starset for layer {current_node.identifier}. Current starset has dimension &#34;
+                              f&#34;{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.&#34;)
+                        log_file.write(f&#34;Computing starset for layer {current_node.identifier}. &#34;
+                                       f&#34;Current starset has dimension {len(output_starset.stars)}.&#34;
+                                       f&#34;Time to compute: {time_end - time_start}s.\n&#34;)
+
+                        current_node = abst_networks.get_next_node(current_node)
+
+                    out_coef_mat = prop.out_coef_mat
+                    out_bias_mat = prop.out_bias_mat
+
+                else:
+                    raise NotImplementedError
+
+                verified = True
+                for i in range(len(out_coef_mat)):
+
+                    for star in output_starset.stars:
+                        out_coef = out_coef_mat[i]
+                        out_bias = out_bias_mat[i]
+                        temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                        if not temp_star.check_if_empty():
+
+                            # In this case we trigger the search for the counter example and the following refinement
+                            # It could be useful to compute more than 1 sample and to make the mean of the saliency
+                            # values?
+                            out_sample = temp_star.get_samples(1)[0]
+                            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+                            # Finding a good starting input can be critical for the search. How can be sure that we
+                            # take a good starting input?
+                            # Could we take a set of starting input and searching in parallel?
+                            starting_input = input_star.get_samples(1)[0]
+                            # The parameter to determine are max_iter, rate and threshold which correspond to the
+                            # max number of gradient step, the learning rate, and the acceptable error respectively.
+                            found, ref_in, ref_out = util.input_search(network, out_sample, starting_input,
+                                                                       max_iter=1000, rate=0.1, threshold=1e-6)
+
+                            # We need to check if the output is in the unsafe region and if the input is in the input
+                            # boundaries defined by the properties. To do so we build two temporary star in order to
+                            # leverage the check_alpha_inside method.
+
+                            in_input_set = input_star.check_alpha_inside(ref_in)
+                            temp_out_star = abst.Star(out_coef, out_bias)
+                            in_unsafe_zone = temp_out_star.check_alpha_inside(ref_out)
+
+                            # At this point we need to analyse the input found to understand what kind of counterexample
+                            # we are working with.
+                            # If found is false than the input point found is not close to the desired output. Should
+                            # we still analize it? With what criterion?
+
+                            if not in_input_set and in_unsafe_zone:
+                                # It means that the input point corresponding to the output point of interest it is not
+                                # in the input set of the property. This can be considered as a spurious counterexample.
+                                pass
+
+                            elif in_input_set and in_unsafe_zone:
+                                # In this case the sample is a real counterexample and therefore the property is proved
+                                # to be unsafe.
+                                verified = False
+
+                            elif in_input_set and not in_unsafe_zone:
+                                # In this case the sample is compliant with the property, therefore there is nothing
+                                # to do with it. It still means that the search didn&#39;t manage to find the correct point
+                                # can we do something with this information?
+                                pass
+
+                            elif not in_input_set and not in_unsafe_zone:
+                                # The point found is not in the input set of the property and the corresponding output
+                                # is not in the unsafe zone. Again it is not clear what we can do with it.
+                                pass
+
+                            # Once we have checked the counterexample property we need to compute the saliency values.
+
+                            verified = False
+                            # print(f&#34;Star {k}: Unsafe&#34;)
+
+                log_file.write(f&#34;Verification Result: {verified}.\n&#34;)
+
+        return verified
+
+
+def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
+
+    with open(filepath, &#34;w&#34;) as f:
+
+        input_matrix = prt.in_coef_mat
+        input_biases = prt.in_bias_mat
+        list_out_matrixes = prt.out_coef_mat
+        list_out_biases = prt.out_bias_mat
+
+        for i in range(len(input_matrix[0])):
+            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(list_out_matrixes[0][0])):
+            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(input_matrix)):
+
+            vars_coef = input_matrix[i, :]
+            bias = input_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {input_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        s = &#34;&#34;
+        for i in range(len(list_out_matrixes)):
+
+            out_matrix = list_out_matrixes[i]
+            out_biases = list_out_biases[i]
+            s = s + &#34;(&#34;
+            for j in range(len(out_matrix)):
+                vars_coef = out_matrix[j, :]
+                bias = out_biases[j][0]
+                s = s + &#34;((&#34;
+                for k in range(len(vars_coef)):
+                    var_coef = vars_coef[k]
+                    if var_coef != 0:
+                        s = s + f&#34;({float(var_coef)} * {output_prefix}_{k})&#34;
+                        if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                            s = s + &#34; + &#34;
+
+                s = s + f&#34;) &lt;= ({float(bias)}))&#34;
+                if j &lt; len(out_matrix) - 1:
+                    s = s + &#34; &amp; &#34;
+
+            s = s + &#34;)&#34;
+            if i &lt; len(list_out_matrixes) - 1:
+                s = s + &#34; | &#34;
+
+        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+        smt_s = smt_s.replace(&#34;&amp;&#34;, &#34;and&#34;)
+        smt_s = smt_s.replace(&#34;|&#34;, &#34;or&#34;)
+        f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+def temp_never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
+
+    with open(filepath, &#34;w&#34;) as f:
+
+        input_matrix = prt.in_coef_mat
+        input_biases = prt.in_bias_mat
+        out_matrix = prt.out_coef_mat[0]
+        out_biases = prt.out_bias_mat[0]
+
+        for i in range(len(input_matrix[0])):
+            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(out_matrix[0])):
+            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(input_matrix)):
+
+            vars_coef = input_matrix[i, :]
+            bias = input_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {input_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        for i in range(len(out_matrix)):
+
+            vars_coef = out_matrix[i, :]
+            bias = out_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {output_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+        smt_s = smt_s.replace(&#34;&amp;&#34;, &#34;and&#34;)
+        smt_s = smt_s.replace(&#34;|&#34;, &#34;or&#34;)
+        f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="pynever.strategies.verification.never2smt"><code class="name flex">
+<span>def <span class="ident">never2smt</span></span>(<span>prt: <a title="pynever.strategies.verification.NeVerProperty" href="#pynever.strategies.verification.NeVerProperty">NeVerProperty</a>, input_prefix: str, output_prefix: str, filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
+
+    with open(filepath, &#34;w&#34;) as f:
+
+        input_matrix = prt.in_coef_mat
+        input_biases = prt.in_bias_mat
+        list_out_matrixes = prt.out_coef_mat
+        list_out_biases = prt.out_bias_mat
+
+        for i in range(len(input_matrix[0])):
+            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(list_out_matrixes[0][0])):
+            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(input_matrix)):
+
+            vars_coef = input_matrix[i, :]
+            bias = input_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {input_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        s = &#34;&#34;
+        for i in range(len(list_out_matrixes)):
+
+            out_matrix = list_out_matrixes[i]
+            out_biases = list_out_biases[i]
+            s = s + &#34;(&#34;
+            for j in range(len(out_matrix)):
+                vars_coef = out_matrix[j, :]
+                bias = out_biases[j][0]
+                s = s + &#34;((&#34;
+                for k in range(len(vars_coef)):
+                    var_coef = vars_coef[k]
+                    if var_coef != 0:
+                        s = s + f&#34;({float(var_coef)} * {output_prefix}_{k})&#34;
+                        if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                            s = s + &#34; + &#34;
+
+                s = s + f&#34;) &lt;= ({float(bias)}))&#34;
+                if j &lt; len(out_matrix) - 1:
+                    s = s + &#34; &amp; &#34;
+
+            s = s + &#34;)&#34;
+            if i &lt; len(list_out_matrixes) - 1:
+                s = s + &#34; | &#34;
+
+        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+        smt_s = smt_s.replace(&#34;&amp;&#34;, &#34;and&#34;)
+        smt_s = smt_s.replace(&#34;|&#34;, &#34;or&#34;)
+        f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)</code></pre>
+</details>
+</dd>
+<dt id="pynever.strategies.verification.temp_never2smt"><code class="name flex">
+<span>def <span class="ident">temp_never2smt</span></span>(<span>prt: <a title="pynever.strategies.verification.NeVerProperty" href="#pynever.strategies.verification.NeVerProperty">NeVerProperty</a>, input_prefix: str, output_prefix: str, filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def temp_never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
+
+    with open(filepath, &#34;w&#34;) as f:
+
+        input_matrix = prt.in_coef_mat
+        input_biases = prt.in_bias_mat
+        out_matrix = prt.out_coef_mat[0]
+        out_biases = prt.out_bias_mat[0]
+
+        for i in range(len(input_matrix[0])):
+            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(out_matrix[0])):
+            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+
+        for i in range(len(input_matrix)):
+
+            vars_coef = input_matrix[i, :]
+            bias = input_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {input_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        for i in range(len(out_matrix)):
+
+            vars_coef = out_matrix[i, :]
+            bias = out_biases[i][0]
+            s = &#34;(&#34;
+            for k in range(len(vars_coef)):
+                var_coef = vars_coef[k]
+                if var_coef != 0:
+                    s = s + f&#34;({float(var_coef)} * {output_prefix}_{k})&#34;
+                    if k &lt; len(vars_coef) - 1 and any(vars_coef[k + 1:]):
+                        s = s + &#34; + &#34;
+
+            s = s + f&#34;) &lt;= ({float(bias)})&#34;
+            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+            f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)
+
+        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
+        smt_s = smt_s.replace(&#34;&amp;&#34;, &#34;and&#34;)
+        smt_s = smt_s.replace(&#34;|&#34;, &#34;or&#34;)
+        f.write(f&#34;(assert {smt_s})&#34; + &#34;\n&#34;)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pynever.strategies.verification.LocalRobustnessProperty"><code class="flex name class">
+<span>class <span class="ident">LocalRobustnessProperty</span></span>
+<span>(</span><span>data: <a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>, target: int, targeted: bool, norm: str, epsilon: float, bounds: list)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A concrete class used to represent a local robustness property for a NeuralNetwork.
+Formally the property check if the counterexample (i.e., the adversarial example) exists, therefore
+when the verification strategy check such property it should return True if the adversarial example exist and
+false otherwise.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>Tensor</code></dt>
+<dd>Original data used to determine the local robustness.</dd>
+<dt><strong><code>target</code></strong> :&ensp;<code>int</code></dt>
+<dd>If targeted is True then it is the desired target for the adversarial, otherwise it is the correct target of
+data.</dd>
+<dt><strong><code>targeted</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag which is True if the robustness property is targeted, False otherwise.</dd>
+<dt><strong><code>norm</code></strong> :&ensp;<code>str</code></dt>
+<dd>Norm type used to determine the local robustness. At present the only acceptable value is Linf.</dd>
+<dt><strong><code>epsilon</code></strong> :&ensp;<code>float</code></dt>
+<dd>Magnitude of the acceptable perturbation.</dd>
+<dt><strong><code>bounds</code></strong> :&ensp;<code>list</code></dt>
+<dd>List of (lower_bound, upper_bound) for the data.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LocalRobustnessProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a local robustness property for a NeuralNetwork.
+    Formally the property check if the counterexample (i.e., the adversarial example) exists, therefore
+    when the verification strategy check such property it should return True if the adversarial example exist and
+    false otherwise.
+
+    Attributes
+    ----------
+    data : Tensor
+        Original data used to determine the local robustness.
+    target : int
+        If targeted is True then it is the desired target for the adversarial, otherwise it is the correct target of
+        data.
+    targeted : bool
+        Flag which is True if the robustness property is targeted, False otherwise.
+    norm : str
+        Norm type used to determine the local robustness. At present the only acceptable value is Linf.
+    epsilon : float
+        Magnitude of the acceptable perturbation.
+    bounds: list
+        List of (lower_bound, upper_bound) for the data.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, data: Tensor, target: int, targeted: bool, norm: str, epsilon: float, bounds: list):
+        self.data = data
+        self.target = target
+        self.targeted = targeted
+        if norm != &#34;Linf&#34;:
+            raise NotImplementedError
+        self.norm = norm
+        self.epsilon = epsilon
+        self.bounds = bounds</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.Property" href="#pynever.strategies.verification.Property">Property</a></li>
+<li>abc.ABC</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.verification.NeVerProperty"><code class="flex name class">
+<span>class <span class="ident">NeVerProperty</span></span>
+<span>(</span><span>in_coef_mat: <a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>, in_bias_mat: <a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>, out_coef_mat: List[<a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>], out_bias_mat: List[<a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
+out_coef_mat * y &lt;= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
+At present the input set must be defined as in_coef_mat * x &lt;= in_bias_mat</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>in_coef_mat</code></strong> :&ensp;<code>Tensor</code></dt>
+<dd>Matrix of the coefficients for the input constraints.</dd>
+<dt><strong><code>in_bias_mat</code></strong> :&ensp;<code>Tensor</code></dt>
+<dd>Matrix of the biases for the input constraints.</dd>
+<dt><strong><code>out_coef_mat</code></strong> :&ensp;<code>List[Tensor]</code></dt>
+<dd>Matrixes of the coefficients for the output constraints.</dd>
+<dt><strong><code>out_bias_mat</code></strong> :&ensp;<code>List[Tensor]</code></dt>
+<dd>Matrixes of the biases for the output constraints.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NeVerProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
+    out_coef_mat * y &lt;= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
+    At present the input set must be defined as in_coef_mat * x &lt;= in_bias_mat
+
+    Attributes
+    ----------
+    in_coef_mat: Tensor
+        Matrix of the coefficients for the input constraints.
+    in_bias_mat: Tensor
+        Matrix of the biases for the input constraints.
+    out_coef_mat: List[Tensor]
+        Matrixes of the coefficients for the output constraints.
+    out_bias_mat: List[Tensor]
+        Matrixes of the biases for the output constraints.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, in_coef_mat: Tensor, in_bias_mat: Tensor, out_coef_mat: List[Tensor],
+                 out_bias_mat: List[Tensor]):
+        self.in_coef_mat = in_coef_mat
+        self.in_bias_mat = in_bias_mat
+        self.out_coef_mat = out_coef_mat
+        self.out_bias_mat = out_bias_mat
+
+    def to_smt_file(self, filepath: str):
+
+        infix_constraints = []</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.Property" href="#pynever.strategies.verification.Property">Property</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.verification.NeVerProperty.to_smt_file"><code class="name flex">
+<span>def <span class="ident">to_smt_file</span></span>(<span>self, filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_smt_file(self, filepath: str):
+
+    infix_constraints = []</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.verification.NeverVerification"><code class="flex name class">
+<span>class <span class="ident">NeverVerification</span></span>
+<span>(</span><span>heuristic: str = 'best_n_neurons', params: List = [0], refinement_level: int = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class used to represent the Never verification strategy.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>refinement_heuristic</code></strong> :&ensp;<code>str</code></dt>
+<dd>Heuristic used to decide the refinement level of the ReLU abstraction.
+At present can be only one of the following:
+- given_flags: the neuron to be refined are selected referring to the list given in params
+- best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
+the abstraction would incur using the coarse over_approximation.</dd>
+<dt><strong><code>params</code></strong> :&ensp;<code>List</code></dt>
+<dd>Parameters for the heuristic of interest.
+If the heuristic is given_flags then params is a list whose first element is the list of refinement flags.
+If the heuristic is best_n_neurons then params is a list whose first element is the number of neurons to refine.</dd>
+<dt><strong><code>refinement_level</code></strong> :&ensp;<code>int</code></dt>
+<dd>Refinement level for the sigmoid abstraction.</dd>
+</dl>
+<h2 id="methods">Methods</h2>
+<p>verify(NeuralNetwork, Property)
+Verify that the neural network of interest satisfy the property given as argument.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NeverVerification(VerificationStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the Never verification strategy.
+
+    Attributes
+    ----------
+
+    refinement_heuristic : str
+        Heuristic used to decide the refinement level of the ReLU abstraction.
+        At present can be only one of the following:
+        - given_flags: the neuron to be refined are selected referring to the list given in params
+        - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
+          the abstraction would incur using the coarse over_approximation.
+
+    params : List
+        Parameters for the heuristic of interest.
+        If the heuristic is given_flags then params is a list whose first element is the list of refinement flags.
+        If the heuristic is best_n_neurons then params is a list whose first element is the number of neurons to refine.
+
+    refinement_level : int
+        Refinement level for the sigmoid abstraction.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument.
+    &#34;&#34;&#34;
+
+    def __init__(self, heuristic: str = &#34;best_n_neurons&#34;, params: List = [0],
+                 refinement_level: int = None):
+
+        self.heuristic = heuristic
+        self.params = params
+        self.refinement_level = refinement_level
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+
+        if not isinstance(network, networks.SequentialNetwork):
+            raise Exception(&#34;Only sequential networks are supported at present&#34;)
+
+        logger = logging.getLogger(logger_name)
+        abst_networks = abst.AbsSeqNetwork(&#34;Abstract Network&#34;)
+
+        current_node = network.get_first_node()
+        while current_node is not None:
+
+            if isinstance(current_node, nodes.FullyConnectedNode):
+                abst_networks.add_node(abst.AbsFullyConnectedNode(&#34;ABST_&#34; + current_node.identifier, current_node))
+
+            elif isinstance(current_node, nodes.ReLUNode):
+                abst_networks.add_node(abst.AbsReLUNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                        self.heuristic, self.params))
+
+            elif isinstance(current_node, nodes.SigmoidNode):
+                abst_networks.add_node(abst.AbsSigmoidNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                           self.refinement_level))
+
+            else:
+                raise Exception(f&#34;Node type: {current_node.__class__} not supported&#34;)
+
+            current_node = network.get_next_node(current_node)
+
+        ver_start_time = time.perf_counter()
+        if isinstance(prop, NeVerProperty):
+
+            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+            input_starset = abst.StarSet({input_star})
+            current_node = abst_networks.get_first_node()
+            output_starset = input_starset
+            while current_node is not None:
+                time_start = time.perf_counter()
+                output_starset = current_node.forward(output_starset)
+                time_end = time.perf_counter()
+
+                logger.info(f&#34;Computing starset for layer {current_node.identifier}. Current starset has dimension &#34;
+                            f&#34;{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.&#34;)
+
+                current_node = abst_networks.get_next_node(current_node)
+
+            out_coef_mat = prop.out_coef_mat
+            out_bias_mat = prop.out_bias_mat
+
+        else:
+            raise NotImplementedError
+
+        or_verified = []
+        for i in range(len(out_coef_mat)):
+
+            verified = True
+            for star in output_starset.stars:
+                out_coef = out_coef_mat[i]
+                out_bias = out_bias_mat[i]
+                temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                if not temp_star.check_if_empty():
+                    verified = False
+                    # print(f&#34;Star {k}: Unsafe&#34;)
+
+            or_verified.append(verified)
+
+        final_verified = any(or_verified)
+
+        ver_end_time = time.perf_counter()
+        logger.info(f&#34;Verification Result: {final_verified}.&#34;)
+        logger.info(f&#34;Verification Time: {ver_end_time - ver_start_time}\n&#34;)
+
+        return final_verified</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.VerificationStrategy" href="#pynever.strategies.verification.VerificationStrategy">VerificationStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="pynever.strategies.verification.VerificationStrategy" href="#pynever.strategies.verification.VerificationStrategy">VerificationStrategy</a></b></code>:
+<ul class="hlist">
+<li><code><a title="pynever.strategies.verification.VerificationStrategy.verify" href="#pynever.strategies.verification.VerificationStrategy.verify">verify</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.verification.NeverVerificationRef"><code class="flex name class">
+<span>class <span class="ident">NeverVerificationRef</span></span>
+<span>(</span><span>log_filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class used to represent the Never verification strategy with counter example guided refinement.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>log_filepath</code></strong> :&ensp;<code>str</code></dt>
+<dd>Filepath for saving the log files of the verification procedure.</dd>
+</dl>
+<h2 id="methods">Methods</h2>
+<p>verify(NeuralNetwork, Property)
+Verify that the neural network of interest satisfy the property given as argument.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NeverVerificationRef(VerificationStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the Never verification strategy with counter example guided refinement.
+
+    Attributes
+    ----------
+    log_filepath: str
+        Filepath for saving the log files of the verification procedure.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument.
+    &#34;&#34;&#34;
+
+    def __init__(self, log_filepath: str):
+
+        self.log_filepath = log_filepath
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+
+        assert isinstance(network, networks.SequentialNetwork), &#34;Only sequential networks are supported at present&#34;
+        abst_networks = abst.AbsSeqNetwork(&#34;Abstract Network&#34;)
+
+        current_node = network.get_first_node()
+        while current_node is not None:
+
+            if isinstance(current_node, nodes.FullyConnectedNode):
+                abst_networks.add_node(abst.AbsFullyConnectedNode(&#34;ABST_&#34; + current_node.identifier, current_node))
+
+            elif isinstance(current_node, nodes.ReLUNode):
+                abst_networks.add_node(abst.AbsReLUNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+                                                        refinement_flags=[False for m in
+                                                                          range(current_node.num_features)]))
+
+            # elif isinstance(current_node, nodes.SigmoidNode):
+            #    abst_networks.add_node(abst.AbsSigmoidNode(&#34;ABST_&#34; + current_node.identifier, current_node,
+            #                                               self.refinement_level))
+
+            else:
+                raise NotImplementedError
+
+            current_node = network.get_next_node(current_node)
+
+        with open(self.log_filepath, &#34;w&#34;) as log_file:
+            areas_log = self.log_filepath.replace(&#34;.txt&#34;, &#34;_areas.txt&#34;)
+            with open(areas_log, &#34;w&#34;) as area_log_file:
+
+                if isinstance(prop, NeVerProperty):
+
+                    input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+                    input_starset = abst.StarSet({input_star})
+                    current_node = abst_networks.get_first_node()
+                    output_starset = input_starset
+                    while current_node is not None:
+                        time_start = time.perf_counter()
+                        output_starset = current_node.forward(output_starset)
+                        time_end = time.perf_counter()
+
+                        print(f&#34;Computing starset for layer {current_node.identifier}. Current starset has dimension &#34;
+                              f&#34;{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.&#34;)
+                        log_file.write(f&#34;Computing starset for layer {current_node.identifier}. &#34;
+                                       f&#34;Current starset has dimension {len(output_starset.stars)}.&#34;
+                                       f&#34;Time to compute: {time_end - time_start}s.\n&#34;)
+
+                        current_node = abst_networks.get_next_node(current_node)
+
+                    out_coef_mat = prop.out_coef_mat
+                    out_bias_mat = prop.out_bias_mat
+
+                else:
+                    raise NotImplementedError
+
+                verified = True
+                for i in range(len(out_coef_mat)):
+
+                    for star in output_starset.stars:
+                        out_coef = out_coef_mat[i]
+                        out_bias = out_bias_mat[i]
+                        temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                        if not temp_star.check_if_empty():
+
+                            # In this case we trigger the search for the counter example and the following refinement
+                            # It could be useful to compute more than 1 sample and to make the mean of the saliency
+                            # values?
+                            out_sample = temp_star.get_samples(1)[0]
+                            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+                            # Finding a good starting input can be critical for the search. How can be sure that we
+                            # take a good starting input?
+                            # Could we take a set of starting input and searching in parallel?
+                            starting_input = input_star.get_samples(1)[0]
+                            # The parameter to determine are max_iter, rate and threshold which correspond to the
+                            # max number of gradient step, the learning rate, and the acceptable error respectively.
+                            found, ref_in, ref_out = util.input_search(network, out_sample, starting_input,
+                                                                       max_iter=1000, rate=0.1, threshold=1e-6)
+
+                            # We need to check if the output is in the unsafe region and if the input is in the input
+                            # boundaries defined by the properties. To do so we build two temporary star in order to
+                            # leverage the check_alpha_inside method.
+
+                            in_input_set = input_star.check_alpha_inside(ref_in)
+                            temp_out_star = abst.Star(out_coef, out_bias)
+                            in_unsafe_zone = temp_out_star.check_alpha_inside(ref_out)
+
+                            # At this point we need to analyse the input found to understand what kind of counterexample
+                            # we are working with.
+                            # If found is false than the input point found is not close to the desired output. Should
+                            # we still analize it? With what criterion?
+
+                            if not in_input_set and in_unsafe_zone:
+                                # It means that the input point corresponding to the output point of interest it is not
+                                # in the input set of the property. This can be considered as a spurious counterexample.
+                                pass
+
+                            elif in_input_set and in_unsafe_zone:
+                                # In this case the sample is a real counterexample and therefore the property is proved
+                                # to be unsafe.
+                                verified = False
+
+                            elif in_input_set and not in_unsafe_zone:
+                                # In this case the sample is compliant with the property, therefore there is nothing
+                                # to do with it. It still means that the search didn&#39;t manage to find the correct point
+                                # can we do something with this information?
+                                pass
+
+                            elif not in_input_set and not in_unsafe_zone:
+                                # The point found is not in the input set of the property and the corresponding output
+                                # is not in the unsafe zone. Again it is not clear what we can do with it.
+                                pass
+
+                            # Once we have checked the counterexample property we need to compute the saliency values.
+
+                            verified = False
+                            # print(f&#34;Star {k}: Unsafe&#34;)
+
+                log_file.write(f&#34;Verification Result: {verified}.\n&#34;)
+
+        return verified</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.VerificationStrategy" href="#pynever.strategies.verification.VerificationStrategy">VerificationStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="pynever.strategies.verification.VerificationStrategy" href="#pynever.strategies.verification.VerificationStrategy">VerificationStrategy</a></b></code>:
+<ul class="hlist">
+<li><code><a title="pynever.strategies.verification.VerificationStrategy.verify" href="#pynever.strategies.verification.VerificationStrategy.verify">verify</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.verification.Property"><code class="flex name class">
+<span>class <span class="ident">Property</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent a generic property for a NeuralNetwork.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Property(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a generic property for a NeuralNetwork.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.LocalRobustnessProperty" href="#pynever.strategies.verification.LocalRobustnessProperty">LocalRobustnessProperty</a></li>
+<li><a title="pynever.strategies.verification.NeVerProperty" href="#pynever.strategies.verification.NeVerProperty">NeVerProperty</a></li>
+<li><a title="pynever.strategies.verification.SMTLIBProperty" href="#pynever.strategies.verification.SMTLIBProperty">SMTLIBProperty</a></li>
+</ul>
+</dd>
+<dt id="pynever.strategies.verification.SMTLIBProperty"><code class="flex name class">
+<span>class <span class="ident">SMTLIBProperty</span></span>
+<span>(</span><span>smtlib_path: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A concrete class used to represent a generic property for a NeuralNetwork expressed as a SMTLIB query.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>smtlib_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>Filepath for the SMTLIB file in which the property is defined.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SMTLIBProperty(Property):
+    &#34;&#34;&#34;
+    A concrete class used to represent a generic property for a NeuralNetwork expressed as a SMTLIB query.
+
+    Attributes
+    ----------
+    smtlib_path : str
+        Filepath for the SMTLIB file in which the property is defined.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, smtlib_path: str):
+        self.smtlib_path = smtlib_path</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.Property" href="#pynever.strategies.verification.Property">Property</a></li>
+<li>abc.ABC</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.verification.VerificationStrategy"><code class="flex name class">
+<span>class <span class="ident">VerificationStrategy</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent a Verification Strategy.</p>
+<h2 id="methods">Methods</h2>
+<p>verify(NeuralNetwork, Property)
+Verify that the neural network of interest satisfy the property given as argument
+using a verification strategy determined in the concrete children.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VerificationStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Verification Strategy.
+
+    Methods
+    ----------
+    verify(NeuralNetwork, Property)
+        Verify that the neural network of interest satisfy the property given as argument
+        using a verification strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+        &#34;&#34;&#34;
+        Verify that the neural network of interest satisfy the property given as argument
+        using a verification strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to train.
+        prop : Dataset
+            The property which the neural network must satisfy.
+
+        Returns
+        ----------
+        bool
+            True is the neural network satisfy the property, False otherwise.
+
+        &#34;&#34;&#34;
+        pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.verification.NeverVerification" href="#pynever.strategies.verification.NeverVerification">NeverVerification</a></li>
+<li><a title="pynever.strategies.verification.NeverVerificationRef" href="#pynever.strategies.verification.NeverVerificationRef">NeverVerificationRef</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.verification.VerificationStrategy.verify"><code class="name flex">
+<span>def <span class="ident">verify</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, prop: <a title="pynever.strategies.verification.Property" href="#pynever.strategies.verification.Property">Property</a>) ‑> (<class 'bool'>, typing.Union[<a title="pynever.tensor.Tensor" href="../tensor.html#pynever.tensor.Tensor">Tensor</a>, NoneType])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Verify that the neural network of interest satisfy the property given as argument
+using a verification strategy determined in the concrete children.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to train.</dd>
+<dt><strong><code>prop</code></strong> :&ensp;<code>Dataset</code></dt>
+<dd>The property which the neural network must satisfy.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True is the neural network satisfy the property, False otherwise.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abc.abstractmethod
+def verify(self, network: networks.NeuralNetwork, prop: Property) -&gt; (bool, Optional[Tensor]):
+    &#34;&#34;&#34;
+    Verify that the neural network of interest satisfy the property given as argument
+    using a verification strategy determined in the concrete children.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to train.
+    prop : Dataset
+        The property which the neural network must satisfy.
+
+    Returns
+    ----------
+    bool
+        True is the neural network satisfy the property, False otherwise.
+
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pynever.strategies" href="index.html">pynever.strategies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="pynever.strategies.verification.never2smt" href="#pynever.strategies.verification.never2smt">never2smt</a></code></li>
+<li><code><a title="pynever.strategies.verification.temp_never2smt" href="#pynever.strategies.verification.temp_never2smt">temp_never2smt</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pynever.strategies.verification.LocalRobustnessProperty" href="#pynever.strategies.verification.LocalRobustnessProperty">LocalRobustnessProperty</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.NeVerProperty" href="#pynever.strategies.verification.NeVerProperty">NeVerProperty</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.verification.NeVerProperty.to_smt_file" href="#pynever.strategies.verification.NeVerProperty.to_smt_file">to_smt_file</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.NeverVerification" href="#pynever.strategies.verification.NeverVerification">NeverVerification</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.NeverVerificationRef" href="#pynever.strategies.verification.NeverVerificationRef">NeverVerificationRef</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.Property" href="#pynever.strategies.verification.Property">Property</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.SMTLIBProperty" href="#pynever.strategies.verification.SMTLIBProperty">SMTLIBProperty</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.verification.VerificationStrategy" href="#pynever.strategies.verification.VerificationStrategy">VerificationStrategy</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.verification.VerificationStrategy.verify" href="#pynever.strategies.verification.VerificationStrategy.verify">verify</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

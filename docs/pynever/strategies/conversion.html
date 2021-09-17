@@ -1,0 +1,3750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>pynever.strategies.conversion API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pynever.strategies.conversion</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import abc
+import copy
+
+import numpy as np
+import onnx
+import onnx.numpy_helper
+import torch
+
+import pynever.networks as networks
+import pynever.nodes as nodes
+import pynever.pytorch_layers as pyt_l
+
+
+class AlternativeRepresentation(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent an alternative representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    up_to_date : bool, optional
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, up_to_date: bool = True):
+        self.identifier = identifier
+        self.up_to_date = up_to_date
+
+
+class ONNXNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a ONNX representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    onnx_network : onnx.ModelProto
+        Real ONNX network.
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, onnx_network: onnx.ModelProto, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+        self.onnx_network = copy.deepcopy(onnx_network)
+
+
+class PyTorchNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a PyTorch representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    pytorch_network : torch.nn.Module
+        Real PyTorch network.
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, pytorch_network: torch.nn.Module, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+        self.pytorch_network = copy.deepcopy(pytorch_network)
+
+
+class TensorflowNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a Tensorflow representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+
+
+class ConversionStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Conversion Strategy.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to an alternative representation determined in the concrete children.
+    to_neural_network(AlternativeRepresentation)
+        Convert the alternative representation of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; AlternativeRepresentation:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to an alternative representation determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        AlternativeRepresentation
+            The alternative representation resulting from the conversion of the original network.
+        &#34;&#34;&#34;
+        pass
+
+    @abc.abstractmethod
+    def to_neural_network(self, alt_rep: AlternativeRepresentation) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the alternative representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : AlternativeRepresentation
+            The Alternative Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of Alternative Representation.
+        &#34;&#34;&#34;
+        pass
+
+
+class ONNXConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for ONNX models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a ONNXNetwork model.
+    to_neural_network(ONNXNetwork)
+        Convert the ONNXNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    @staticmethod
+    def __add_onnx_relu(current_input: str, current_output: str, onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Relu&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_sigmoid(current_input: str, current_output: str, onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Sigmoid&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_linear(current_node: nodes.FullyConnectedNode, current_input: str, current_output: str,
+                          onnx_nodes: list, input_info: list, initializers: list):
+
+        input_weight = current_node.identifier + &#34;_weight&#34;
+
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+                                                               [current_node.out_features,
+                                                                current_node.in_features])
+
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.T, input_weight)
+
+        if current_node.has_bias:
+            input_bias = current_node.identifier + &#34;_bias&#34;
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                                 [current_node.out_features])
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+
+            onnx_node = onnx.helper.make_node(
+                &#39;Gemm&#39;,
+                inputs=[current_input, input_weight, input_bias],
+                outputs=[current_output],
+                alpha=1.0,
+                beta=1.0,
+                transA=0,
+                transB=0
+            )
+
+            input_info.append(bias_value_info)
+            initializers.append(bias_tensor)
+
+        else:
+            onnx_node = onnx.helper.make_node(
+                &#39;Gemm&#39;,
+                inputs=[current_input, input_weight],
+                outputs=[current_output],
+                alpha=1.0,
+                beta=1.0,
+                transA=0,
+                transB=0
+            )
+
+        input_info.append(weight_value_info)
+        initializers.append(weight_tensor)
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_batchnorm(current_node: nodes.BatchNormNode, current_input: str, current_output: str,
+                             onnx_nodes: list, input_info: list, initializers: list):
+
+        input_scale = current_node.identifier + &#34;_scale&#34;
+        input_bias = current_node.identifier + &#34;_bias&#34;
+        input_mean = current_node.identifier + &#34;_mean&#34;
+        input_var = current_node.identifier + &#34;_var&#34;
+
+        scale_value_info = onnx.helper.make_tensor_value_info(input_scale, onnx.TensorProto.FLOAT,
+                                                              [current_node.num_features])
+        bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                             [current_node.num_features])
+        mean_value_info = onnx.helper.make_tensor_value_info(input_mean, onnx.TensorProto.FLOAT,
+                                                             [current_node.num_features])
+        var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.FLOAT,
+                                                            [current_node.num_features])
+
+        scale_tensor = onnx.numpy_helper.from_array(current_node.weight, input_scale)
+        bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean, input_mean)
+        var_tensor = onnx.numpy_helper.from_array(current_node.running_var, input_var)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;BatchNormalization&#39;,
+            inputs=[current_input, input_scale, input_bias, input_mean, input_var],
+            outputs=[current_output],
+            epsilon=current_node.eps,
+            momentum=current_node.momentum,
+            training_mode=int(current_node.track_running_stats)
+        )
+
+        input_info.append(scale_value_info)
+        input_info.append(bias_value_info)
+        input_info.append(mean_value_info)
+        input_info.append(var_value_info)
+
+        initializers.append(scale_tensor)
+        initializers.append(bias_tensor)
+        initializers.append(mean_tensor)
+        initializers.append(var_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_conv(current_node: nodes.ConvNode, current_input: str, current_output: str,
+                        onnx_nodes: list, input_info: list, initializers: list):
+
+        weight_size = list(current_node.weight.shape)
+        input_weight = current_node.identifier + &#34;_weight&#34;
+
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+                                                               weight_size)
+
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight, input_weight)
+
+        if current_node.has_bias:
+
+            input_bias = current_node.identifier + &#34;_bias&#34;
+            bias_size = list(current_node.bias.shape)
+
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                                 bias_size)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+
+            onnx_node = onnx.helper.make_node(
+                &#39;Conv&#39;,
+                inputs=[current_input, input_weight, input_bias],
+                outputs=[current_output],
+                kernel_shape=list(current_node.kernel_size),
+                strides=list(current_node.stride),
+                dilations=list(current_node.dilation),
+                groups=current_node.groups,
+                pads=list(current_node.padding)
+            )
+
+            input_info.append(bias_value_info)
+            initializers.append(bias_tensor)
+
+        else:
+            onnx_node = onnx.helper.make_node(
+                &#39;Conv&#39;,
+                inputs=[current_input, input_weight],
+                outputs=[current_output],
+                kernel_shape=list(current_node.kernel_size),
+                strides=list(current_node.stride),
+                dilations=list(current_node.dilation),
+                groups=current_node.groups,
+                pads=list(current_node.padding)
+            )
+
+        input_info.append(weight_value_info)
+        initializers.append(weight_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_averagepool(current_node: nodes.AveragePoolNode, current_input: str, current_output: str,
+                               onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;AveragePool&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            ceil_mode=int(current_node.ceil_mode),
+            count_include_pad=int(current_node.count_include_pad),
+            kernel_shape=list(current_node.kernel_size),
+            strides=list(current_node.stride),
+            pads=list(current_node.padding)
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_maxpool(current_node: nodes.MaxPoolNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # N.B. we do not support the attribute storage_order of ONNX
+        # ONNX does not support the return_indices parameters
+
+        onnx_node = onnx.helper.make_node(
+            &#39;MaxPool&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            ceil_mode=int(current_node.ceil_mode),
+            dilations=current_node.dilation,
+            kernel_shape=list(current_node.kernel_size),
+            strides=list(current_node.stride),
+            pads=list(current_node.padding)
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_lrn(current_node: nodes.LRNNode, current_input: str, current_output: str,
+                       onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;LRN&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            alpha=current_node.alpha,
+            beta=current_node.beta,
+            bias=current_node.k,
+            size=current_node.size
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_softmax(current_node: nodes.SoftMaxNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # Since our representation do not consider the batch dimension we need to scale the axis by 1
+        # when we pass to the onnx representation.
+        temp_axis = current_node.axis + 1
+        onnx_node = onnx.helper.make_node(
+            &#39;Softmax&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            axis=temp_axis
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_unsqueeze(current_node: nodes.UnsqueezeNode, current_input: str, current_output: str,
+                             onnx_nodes: list, input_info: list, initializers: list):
+
+        axes_size = [len(current_node.axes)]
+        input_axes = current_node.identifier + &#34;_axes&#34;
+
+        axes_value_info = onnx.helper.make_tensor_value_info(input_axes, onnx.TensorProto.INT64,
+                                                             axes_size)
+
+        # Since our representation do not consider the batch dimension we need to scale all the axes
+        # by 1 when we pass to the onnx representation.
+        temp_axes = [e + 1 for e in current_node.axes]
+        axes_tensor = onnx.numpy_helper.from_array(np.array(temp_axes), input_axes)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Unsqueeze&#39;,
+            inputs=[current_input, input_axes],
+            outputs=[current_output]
+        )
+
+        input_info.append(axes_value_info)
+        initializers.append(axes_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_reshape(current_node: nodes.ReshapeNode, current_input: str, current_output: str,
+                           onnx_nodes: list, input_info: list, initializers: list):
+
+        # Need to add the batch dimension to the shape
+        temp_shape = [1]
+        for e in current_node.shape:
+            temp_shape.append(e)
+        shape_size = [len(current_node.shape)]
+        input_shape = current_node.identifier + &#34;_shape&#34;
+
+        shape_value_info = onnx.helper.make_tensor_value_info(input_shape, onnx.TensorProto.INT64,
+                                                              shape_size)
+
+        shape_tensor = onnx.numpy_helper.from_array(np.array(temp_shape), input_shape)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Reshape&#39;,
+            inputs=[current_input, input_shape],
+            outputs=[current_output],
+            allow_zero=int(current_node.allow_zero)
+        )
+
+        input_info.append(shape_value_info)
+        initializers.append(shape_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_flatten(current_node: nodes.FlattenNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # Since our representation do not consider the batch dimension we need to scale the axis by 1
+        # when we pass to the onnx representation.
+        temp_axis = current_node.axis + 1
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Flatten&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            axis=temp_axis
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_dropout(current_node: nodes.DropoutNode, current_input: str, current_output: str,
+                           onnx_nodes: list, input_info: list, initializers: list):
+
+        # N.B. we do not support the seed attribute and the training_mode input.
+
+        ratio_size = [1]
+        input_ratio = current_node.identifier + &#34;_ratio&#34;
+
+        ratio_value_info = onnx.helper.make_tensor_value_info(input_ratio, onnx.TensorProto.FLOAT,
+                                                              ratio_size)
+
+        ratio_tensor = onnx.numpy_helper.from_array(np.array([current_node.p]), input_ratio)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Dropout&#39;,
+            inputs=[current_input, input_ratio],
+            outputs=[current_output]
+        )
+
+        input_info.append(ratio_value_info)
+        initializers.append(ratio_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; ONNXNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a ONNX representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        ONNXNetwork
+            The ONNX representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+        alt_net = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, ONNXNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, PyTorchNetwork):
+                            pytorch_cv = PyTorchConverter()
+                            network = pytorch_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+
+                current_node = None
+                previous_output = network.input_id
+                input_info = []
+                output_info = []
+                initializers = []
+                onnx_nodes = []
+
+                while network.get_next_node(current_node) is not None:
+
+                    current_node = network.get_next_node(current_node)
+                    current_input = previous_output
+                    current_output = current_node.identifier
+
+                    input_dim = [1]
+                    for e in current_node.in_dim:
+                        input_dim.append(e)
+
+                    output_dim = [1]
+                    for e in current_node.out_dim:
+                        output_dim.append(e)
+
+                    input_value_info = onnx.helper.make_tensor_value_info(current_input, onnx.TensorProto.FLOAT,
+                                                                          input_dim)
+                    output_value_info = onnx.helper.make_tensor_value_info(current_output, onnx.TensorProto.FLOAT,
+                                                                           output_dim)
+
+                    input_info.append(input_value_info)
+                    output_info.append(output_value_info)
+
+                    if isinstance(current_node, nodes.ReLUNode):
+                        self.__add_onnx_relu(current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.SigmoidNode):
+                        self.__add_onnx_sigmoid(current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.FullyConnectedNode):
+                        self.__add_onnx_linear(current_node, current_input, current_output, onnx_nodes, input_info,
+                                               initializers)
+
+                    elif isinstance(current_node, nodes.BatchNormNode):
+                        self.__add_onnx_batchnorm(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                  initializers)
+
+                    elif isinstance(current_node, nodes.ConvNode):
+                        self.__add_onnx_conv(current_node, current_input, current_output, onnx_nodes, input_info,
+                                             initializers)
+
+                    elif isinstance(current_node, nodes.AveragePoolNode):
+                        self.__add_onnx_averagepool(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.MaxPoolNode):
+                        self.__add_onnx_maxpool(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.LRNNode):
+                        self.__add_onnx_lrn(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.SoftMaxNode):
+                        self.__add_onnx_softmax(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.UnsqueezeNode):
+                        self.__add_onnx_unsqueeze(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                  initializers)
+
+                    elif isinstance(current_node, nodes.ReshapeNode):
+                        self.__add_onnx_reshape(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                initializers)
+
+                    elif isinstance(current_node, nodes.FlattenNode):
+                        self.__add_onnx_flatten(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.DropoutNode):
+                        self.__add_onnx_dropout(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                initializers)
+
+                    else:
+                        raise NotImplementedError
+
+                    previous_output = current_output
+
+                onnx_graph = onnx.helper.make_graph(
+                    nodes=onnx_nodes,
+                    name=network.identifier,
+                    inputs=[input_info[0]],
+                    outputs=[output_info[-1]],
+                    initializer=initializers,
+                    value_info=input_info
+                )
+
+                onnx_network = onnx.helper.make_model(graph=onnx_graph)
+                alt_net = ONNXNetwork(network.identifier, onnx_network)
+
+            else:
+                raise NotImplementedError
+
+        return alt_net
+
+    def to_neural_network(self, alt_rep: ONNXNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the ONNX representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : ONNXNetwork
+            The ONNX Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of ONNX Representation.
+
+        &#34;&#34;&#34;
+
+        identifier = alt_rep.identifier
+        network = networks.SequentialNetwork(identifier, alt_rep.onnx_network.graph.input[0].name)
+
+        parameters = {}
+        for initializer in alt_rep.onnx_network.graph.initializer:
+            parameters[initializer.name] = onnx.numpy_helper.to_array(initializer)
+
+        shape_info = {}
+        for i in alt_rep.onnx_network.graph.input:
+            shape = []
+            for dim in i.type.tensor_type.shape.dim:
+                shape.append(dim.dim_value)
+            shape_info[i.name] = shape
+
+        node_index = 1
+        in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name][1:])
+
+        for node in alt_rep.onnx_network.graph.node:
+
+            if node.op_type == &#34;Relu&#34;:
+
+                # We assume that the real input of the node is always the first element of node.input
+                # and the first element of the shape is the batch placeholder
+
+                network.add_node(nodes.ReLUNode(node.output[0], in_dim))
+
+            elif node.op_type == &#34;Sigmoid&#34;:
+
+                network.add_node(nodes.SigmoidNode(node.output[0], in_dim))
+
+            elif node.op_type == &#34;Gemm&#34;:
+                # We assume that the weight tensor is always the second element of node.input and the bias tensor
+                # is always the third.
+                # N.B: We do not support the attributes transA and transB,
+                # therefore we need to transpose the weight vector.
+
+                if (node.attribute[2].name == &#39;transA&#39; or node.attribute[2].name == &#39;transB&#39;) and \
+                        node.attribute[2].i == 0:
+                    weight = parameters[node.input[1]].T
+                else:
+                    weight = parameters[node.input[1]]
+                if len(node.input) &lt;= 2:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = parameters[node.input[2]]
+                in_features = weight.shape[1]
+                out_features = weight.shape[0]
+                network.add_node(nodes.FullyConnectedNode(node.output[0], in_dim,
+                                                          out_features, weight, bias, has_bias))
+            elif node.op_type == &#34;BatchNormalization&#34;:
+                # We assume that the real input is always the first element of node.input, the weight tensor
+                # is always the second, the bias tensor is always the third, the running_mean always the fourth
+                # and the running_var always the fifth.
+
+                weight = parameters[node.input[1]]
+                bias = parameters[node.input[2]]
+                running_mean = parameters[node.input[3]]
+                running_var = parameters[node.input[4]]
+                # We assume that eps is always the first attribute and momentum is always the second.
+                eps = node.attribute[0].f
+                momentum = node.attribute[1].f
+                network.add_node(nodes.BatchNormNode(node.output[0], in_dim, weight,
+                                                     bias, running_mean, running_var, eps, momentum))
+
+            elif node.op_type == &#34;Conv&#34;:
+                # We assume that the real input is always the first element of node.input, the weight tensor
+                # is always the second and the bias tensor is always the third.
+
+                weight = parameters[node.input[1]]
+                if len(node.input) &lt;= 2:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = parameters[node.input[2]]
+
+                out_channels = weight.shape[0]
+                # We assume that the attribute are in the following order: dilation, groups, kernel_shape, pads and
+                # strides
+                dilation = tuple(node.attribute[0].ints)
+                groups = node.attribute[1].i
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.ConvNode(node.output[0], in_dim, out_channels, kernel_size,
+                                                stride, padding, dilation, groups, has_bias, bias, weight))
+
+            elif node.op_type == &#34;AveragePool&#34;:
+
+                # We assume that the attribute are in the following order: ceil_mode, count_include_pad,
+                # kernel_shape, pads and strides
+                ceil_mode = bool(node.attribute[0].i)
+                count_include_pad = bool(node.attribute[1].i)
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.AveragePoolNode(node.output[0], in_dim, kernel_size, stride,
+                                                       padding, ceil_mode, count_include_pad))
+
+            elif node.op_type == &#34;MaxPool&#34;:
+
+                # We assume that the attribute are in the following order: ceil_mode, dilation,
+                # kernel_shape, pads and strides
+                ceil_mode = bool(node.attribute[0].i)
+                dilation = tuple(node.attribute[1].ints)
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.MaxPoolNode(node.output[0], in_dim, kernel_size, stride, padding,
+                                                   dilation, ceil_mode))
+
+            elif node.op_type == &#34;LRN&#34;:
+
+                alpha = node.attribute[0].f
+                beta = node.attribute[1].f
+                k = node.attribute[2].f
+                size = node.attribute[3].i
+
+                network.add_node(nodes.LRNNode(node.output[0], in_dim, size, alpha, beta, k))
+
+            elif node.op_type == &#34;Softmax&#34;:
+
+                # Since the ONNX representation consider the batch dimension we need to scale the axis by 1
+                # when we pass to our representation.
+                axis = node.attribute[0].i - 1
+                network.add_node(nodes.SoftMaxNode(node.output[0], in_dim, axis))
+
+            elif node.op_type == &#34;Unsqueeze&#34;:
+
+                temp_axes = tuple(parameters[node.input[1]])
+                # Since our representation do not consider the batch dimension we need to scale all the axes
+                # by 1 when we pass to the onnx representation.
+                axes = tuple([e - 1 for e in temp_axes])
+                network.add_node(nodes.UnsqueezeNode(node.output[0], in_dim, axes))
+
+            elif node.op_type == &#34;Reshape&#34;:
+
+                shape = tuple(parameters[node.input[1]])
+                # We need to eliminate the first dimension corresponding to the batch dimension
+                shape = shape[1:]
+                allow_zero = node.attribute[0].i
+                network.add_node(nodes.ReshapeNode(node.output[0], in_dim, shape, allow_zero))
+
+            elif node.op_type == &#34;Flatten&#34;:
+
+                # We need to scale the axis value since our representation does not have the batch dimension
+                axis = node.attribute[0].i - 1
+                network.add_node(nodes.FlattenNode(node.output[0], in_dim, axis))
+
+            elif node.op_type == &#34;Dropout&#34;:
+
+                ratio = parameters[node.input[1]][0]
+                network.add_node(nodes.DropoutNode(node.output[0], in_dim, ratio))
+
+            else:
+                raise NotImplementedError
+
+            node_index += 1
+            in_dim = network.get_last_node().out_dim
+
+        return network
+
+
+class PyTorchConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for PyTorch models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a PyTorchNetwork model.
+    to_neural_network(PyTorchNetwork)
+        Convert the PyTorchNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; PyTorchNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a PyTorch representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        PyTorchNetwork
+            The PyTorch representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+        alt_net = None
+        pytorch_network = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, PyTorchNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, ONNXNetwork):
+                            onnx_cv = ONNXConverter()
+                            network = onnx_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+                pytorch_layers = []
+                for layer in network.nodes.values():
+
+                    new_layer = None
+                    if isinstance(layer, nodes.ReLUNode):
+                        new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.SigmoidNode):
+                        new_layer = pyt_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.FullyConnectedNode):
+
+                        if layer.bias is not None:
+                            has_bias = True
+                        else:
+                            has_bias = False
+
+                        new_layer = pyt_l.Linear(layer.identifier, layer.in_dim, layer.out_dim,
+                                                 in_features=layer.in_features, out_features=layer.out_features,
+                                                 bias=has_bias)
+
+                        weight = torch.from_numpy(layer.weight)
+                        new_layer.weight.data = weight
+
+                        if has_bias:
+                            bias = torch.from_numpy(layer.bias)
+                            new_layer.bias.data = bias
+
+                    elif isinstance(layer, nodes.BatchNormNode):
+
+                        if len(layer.in_dim) == 1 or len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.BatchNorm1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.BatchNorm2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.BatchNorm3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support batchnorm layer for input with more than&#34;
+                                            &#34;4 or less than 1 dimension excluding the batch dimension&#34;)
+
+                        new_layer.weight.data = torch.from_numpy(layer.weight)
+                        new_layer.bias.data = torch.from_numpy(layer.bias)
+                        new_layer.running_mean.data = torch.from_numpy(layer.running_mean)
+                        new_layer.running_var.data = torch.from_numpy(layer.running_var)
+
+                    elif isinstance(layer, nodes.ConvNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric. Padding mode is not supported in our representation therefore we let it be
+                        # set to the default value.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.Conv1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.Conv2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.Conv3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                        new_layer.weight.data = torch.from_numpy(layer.weight)
+                        if layer.has_bias:
+                            new_layer.bias.data = torch.from_numpy(layer.bias)
+
+                    elif isinstance(layer, nodes.AveragePoolNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.AvgPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.AvgPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.AvgPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                    elif isinstance(layer, nodes.MaxPoolNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.MaxPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.MaxPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.MaxPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                    elif isinstance(layer, nodes.LRNNode):
+
+                        new_layer = pyt_l.LocalResponseNorm(layer.identifier, layer.in_dim, layer.out_dim,
+                                                            layer.size, layer.alpha, layer.beta, layer.k)
+
+                    elif isinstance(layer, nodes.SoftMaxNode):
+
+                        # We need to scale the axis by one since our representation does not support the batch dimension
+                        new_layer = pyt_l.Softmax(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                    elif isinstance(layer, nodes.UnsqueezeNode):
+
+                        # Our representation does not consider batch dimension, therefore we need to scale
+                        # the axes values.
+                        axes = tuple([e + 1 for e in layer.axes])
+                        new_layer = pyt_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axes)
+
+                    elif isinstance(layer, nodes.ReshapeNode):
+
+                        # Pytorch does not support the allow_zero attribute and the corresponding reshape with 0
+                        # dimensions.
+                        if layer.allow_zero:
+                            raise Exception(&#34;allow_zero not supported by pytorch&#34;)
+
+                        # Our representation does not consider batch dimension, therefore we need to add it to
+                        # the shape.
+                        shape = [1]
+                        for e in layer.shape:
+                            shape.append(e)
+                        shape = tuple(shape)
+
+                        new_layer = pyt_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
+
+                    elif isinstance(layer, nodes.FlattenNode):
+
+                        # We need to scale the axis by one since our representation does not support the batch dimension
+                        new_layer = pyt_l.Flatten(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                    elif isinstance(layer, nodes.DropoutNode):
+
+                        new_layer = pyt_l.Dropout(layer.identifier, layer.in_dim, layer.out_dim, layer.p)
+
+                    else:
+                        raise NotImplementedError
+
+                    if new_layer is not None:
+                        pytorch_layers.append(new_layer)
+
+                pytorch_network = pyt_l.Sequential(network.identifier, network.input_id, pytorch_layers)
+
+            if alt_net is None and pytorch_network is None:
+                print(&#34;WARNING: network to convert is not valid, the alternative representation is None&#34;)
+
+            identifier = network.identifier
+            alt_net = PyTorchNetwork(identifier=identifier, pytorch_network=pytorch_network)
+
+        return alt_net
+
+    def to_neural_network(self, alt_rep: PyTorchNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the PyTorch representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : PyTorchNetwork
+            The PyTorch Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of PyTorch Representation.
+
+        &#34;&#34;&#34;
+
+        identifier = alt_rep.identifier
+        network = networks.SequentialNetwork(identifier, alt_rep.pytorch_network.input_id)
+
+        node_index = 0
+        alt_rep.pytorch_network.cpu()
+        for m in alt_rep.pytorch_network.modules():
+
+            new_node = None
+
+            if isinstance(m, pyt_l.ReLU):
+                new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+
+            elif isinstance(m, pyt_l.Sigmoid):
+                new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+
+            elif isinstance(m, pyt_l.Linear):
+                out_features = m.out_features
+                weight = m.weight.detach().numpy()
+                bias = None
+                has_bias = False
+                if m.bias is not None:
+                    bias = m.bias.detach().numpy()
+                    has_bias = True
+                new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+
+            elif isinstance(m, pyt_l.BatchNorm1d) or isinstance(m, pyt_l.BatchNorm2d) or \
+                    isinstance(m, pyt_l.BatchNorm3d):
+
+                eps = m.eps
+                momentum = m.momentum
+                track_running_stats = m.track_running_stats
+                affine = m.affine
+
+                weight = m.weight.detach().numpy()
+                bias = m.bias.detach().numpy()
+                running_mean = m.running_mean.numpy()
+                running_var = m.running_var.numpy()
+
+                new_node = nodes.BatchNormNode(m.identifier, m.in_dim, weight,
+                                               bias, running_mean, running_var, eps, momentum, affine,
+                                               track_running_stats)
+
+            elif isinstance(m, pyt_l.Conv1d) or isinstance(m, pyt_l.Conv2d) or isinstance(m, pyt_l.Conv3d):
+
+                out_channels = m.out_channels
+                kernel_size = m.kernel_size
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                dilation = m.dilation
+                groups = m.groups
+                weight = m.weight.detach().numpy()
+                if m.bias is None:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = m.bias.detach().numpy()
+
+                new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
+                                          stride, padding, dilation, groups, has_bias, bias, weight)
+
+            elif isinstance(m, pyt_l.AvgPool1d) or isinstance(m, pyt_l.AvgPool2d) or \
+                    isinstance(m, pyt_l.AvgPool3d):
+
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                kernel_size = m.kernel_size
+                ceil_mode = m.ceil_mode
+                count_include_pad = m.count_include_pad
+
+                new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
+                                                 ceil_mode, count_include_pad)
+
+            elif isinstance(m, pyt_l.MaxPool1d) or isinstance(m, pyt_l.MaxPool2d) or \
+                    isinstance(m, pyt_l.MaxPool3d):
+
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                kernel_size = m.kernel_size
+                ceil_mode = m.ceil_mode
+                dilation = m.dilation
+                return_indices = m.return_indices
+
+                new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
+                                             ceil_mode, return_indices)
+
+            elif isinstance(m, pyt_l.LocalResponseNorm):
+
+                new_node = nodes.LRNNode(m.identifier, m.in_dim, m.size, m.alpha, m.beta, m.k)
+
+            elif isinstance(m, pyt_l.Softmax):
+
+                new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.dim - 1)
+
+            elif isinstance(m, pyt_l.Unsqueeze):
+
+                axes = tuple([e - 1 for e in m.axes])
+                new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axes)
+
+            elif isinstance(m, pyt_l.Reshape):
+
+                shape = m.shape[1:]
+                new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
+
+            elif isinstance(m, pyt_l.Flatten):
+
+                new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
+
+            elif isinstance(m, pyt_l.Dropout):
+
+                new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.p)
+
+            elif isinstance(m, pyt_l.Sequential):
+                pass
+
+            else:
+                raise NotImplementedError
+
+            if new_node is not None:
+                node_index += 1
+                network.add_node(new_node)
+
+        return network
+
+
+class TensorflowConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for Tensorflow models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a TensorflowNetwork model.
+    to_neural_network(ONNXNetwork)
+        Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; TensorflowNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a Tensorflow representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        TensorflowNetwork
+            The Tensorflow representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+    def to_neural_network(self, alt_rep: TensorflowNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the Tensorflow representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : TensorflowNetwork
+            The Tensorflow Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of Tensorflow Representation.
+
+        &#34;&#34;&#34;</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pynever.strategies.conversion.AlternativeRepresentation"><code class="flex name class">
+<span>class <span class="ident">AlternativeRepresentation</span></span>
+<span>(</span><span>identifier: str, up_to_date: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent an alternative representation for a neural network.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>identifier</code></strong> :&ensp;<code>str</code></dt>
+<dd>identifier for the alternative representation</dd>
+<dt><strong><code>up_to_date</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>flag which indicates if the alternative representation is up to date with respect
+to the internal representation of the network (optional: True).</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AlternativeRepresentation(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent an alternative representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    up_to_date : bool, optional
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, up_to_date: bool = True):
+        self.identifier = identifier
+        self.up_to_date = up_to_date</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a></li>
+<li><a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a></li>
+<li><a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a></li>
+</ul>
+</dd>
+<dt id="pynever.strategies.conversion.ConversionStrategy"><code class="flex name class">
+<span>class <span class="ident">ConversionStrategy</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent a Conversion Strategy.</p>
+<h2 id="methods">Methods</h2>
+<p>from_neural_network(NeuralNetwork)
+Convert the neural network of interest to an alternative representation determined in the concrete children.
+to_neural_network(AlternativeRepresentation)
+Convert the alternative representation of interest to our internal representation of a Neural Network.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ConversionStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Conversion Strategy.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to an alternative representation determined in the concrete children.
+    to_neural_network(AlternativeRepresentation)
+        Convert the alternative representation of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; AlternativeRepresentation:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to an alternative representation determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        AlternativeRepresentation
+            The alternative representation resulting from the conversion of the original network.
+        &#34;&#34;&#34;
+        pass
+
+    @abc.abstractmethod
+    def to_neural_network(self, alt_rep: AlternativeRepresentation) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the alternative representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : AlternativeRepresentation
+            The Alternative Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of Alternative Representation.
+        &#34;&#34;&#34;
+        pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.ONNXConverter" href="#pynever.strategies.conversion.ONNXConverter">ONNXConverter</a></li>
+<li><a title="pynever.strategies.conversion.PyTorchConverter" href="#pynever.strategies.conversion.PyTorchConverter">PyTorchConverter</a></li>
+<li><a title="pynever.strategies.conversion.TensorflowConverter" href="#pynever.strategies.conversion.TensorflowConverter">TensorflowConverter</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.conversion.ConversionStrategy.from_neural_network"><code class="name flex">
+<span>def <span class="ident">from_neural_network</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>) ‑> <a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the neural network of interest to an alternative representation determined in the concrete children.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></code></dt>
+<dd>The alternative representation resulting from the conversion of the original network.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abc.abstractmethod
+def from_neural_network(self, network: networks.NeuralNetwork) -&gt; AlternativeRepresentation:
+    &#34;&#34;&#34;
+    Convert the neural network of interest to an alternative representation determined in the concrete children.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to convert.
+
+    Returns
+    ----------
+    AlternativeRepresentation
+        The alternative representation resulting from the conversion of the original network.
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</dd>
+<dt id="pynever.strategies.conversion.ConversionStrategy.to_neural_network"><code class="name flex">
+<span>def <span class="ident">to_neural_network</span></span>(<span>self, alt_rep: <a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a>) ‑> <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the alternative representation of interest to the internal one.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>alt_rep</code></strong> :&ensp;<code><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></code></dt>
+<dd>The Alternative Representation to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>NeuralNetwork</code></dt>
+<dd>The Neural Network resulting from the conversion of Alternative Representation.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abc.abstractmethod
+def to_neural_network(self, alt_rep: AlternativeRepresentation) -&gt; networks.NeuralNetwork:
+    &#34;&#34;&#34;
+    Convert the alternative representation of interest to the internal one.
+
+    Parameters
+    ----------
+    alt_rep : AlternativeRepresentation
+        The Alternative Representation to convert.
+
+    Returns
+    ----------
+    NeuralNetwork
+        The Neural Network resulting from the conversion of Alternative Representation.
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.conversion.ONNXConverter"><code class="flex name class">
+<span>class <span class="ident">ONNXConverter</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>A class used to represent the conversion strategy for ONNX models.</p>
+<h2 id="methods">Methods</h2>
+<p>from_neural_network(NeuralNetwork)
+Convert the neural network of interest to a ONNXNetwork model.
+to_neural_network(ONNXNetwork)
+Convert the ONNXNetwork of interest to our internal representation of a Neural Network.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ONNXConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for ONNX models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a ONNXNetwork model.
+    to_neural_network(ONNXNetwork)
+        Convert the ONNXNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    @staticmethod
+    def __add_onnx_relu(current_input: str, current_output: str, onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Relu&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_sigmoid(current_input: str, current_output: str, onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Sigmoid&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_linear(current_node: nodes.FullyConnectedNode, current_input: str, current_output: str,
+                          onnx_nodes: list, input_info: list, initializers: list):
+
+        input_weight = current_node.identifier + &#34;_weight&#34;
+
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+                                                               [current_node.out_features,
+                                                                current_node.in_features])
+
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.T, input_weight)
+
+        if current_node.has_bias:
+            input_bias = current_node.identifier + &#34;_bias&#34;
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                                 [current_node.out_features])
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+
+            onnx_node = onnx.helper.make_node(
+                &#39;Gemm&#39;,
+                inputs=[current_input, input_weight, input_bias],
+                outputs=[current_output],
+                alpha=1.0,
+                beta=1.0,
+                transA=0,
+                transB=0
+            )
+
+            input_info.append(bias_value_info)
+            initializers.append(bias_tensor)
+
+        else:
+            onnx_node = onnx.helper.make_node(
+                &#39;Gemm&#39;,
+                inputs=[current_input, input_weight],
+                outputs=[current_output],
+                alpha=1.0,
+                beta=1.0,
+                transA=0,
+                transB=0
+            )
+
+        input_info.append(weight_value_info)
+        initializers.append(weight_tensor)
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_batchnorm(current_node: nodes.BatchNormNode, current_input: str, current_output: str,
+                             onnx_nodes: list, input_info: list, initializers: list):
+
+        input_scale = current_node.identifier + &#34;_scale&#34;
+        input_bias = current_node.identifier + &#34;_bias&#34;
+        input_mean = current_node.identifier + &#34;_mean&#34;
+        input_var = current_node.identifier + &#34;_var&#34;
+
+        scale_value_info = onnx.helper.make_tensor_value_info(input_scale, onnx.TensorProto.FLOAT,
+                                                              [current_node.num_features])
+        bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                             [current_node.num_features])
+        mean_value_info = onnx.helper.make_tensor_value_info(input_mean, onnx.TensorProto.FLOAT,
+                                                             [current_node.num_features])
+        var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.FLOAT,
+                                                            [current_node.num_features])
+
+        scale_tensor = onnx.numpy_helper.from_array(current_node.weight, input_scale)
+        bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean, input_mean)
+        var_tensor = onnx.numpy_helper.from_array(current_node.running_var, input_var)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;BatchNormalization&#39;,
+            inputs=[current_input, input_scale, input_bias, input_mean, input_var],
+            outputs=[current_output],
+            epsilon=current_node.eps,
+            momentum=current_node.momentum,
+            training_mode=int(current_node.track_running_stats)
+        )
+
+        input_info.append(scale_value_info)
+        input_info.append(bias_value_info)
+        input_info.append(mean_value_info)
+        input_info.append(var_value_info)
+
+        initializers.append(scale_tensor)
+        initializers.append(bias_tensor)
+        initializers.append(mean_tensor)
+        initializers.append(var_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_conv(current_node: nodes.ConvNode, current_input: str, current_output: str,
+                        onnx_nodes: list, input_info: list, initializers: list):
+
+        weight_size = list(current_node.weight.shape)
+        input_weight = current_node.identifier + &#34;_weight&#34;
+
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+                                                               weight_size)
+
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight, input_weight)
+
+        if current_node.has_bias:
+
+            input_bias = current_node.identifier + &#34;_bias&#34;
+            bias_size = list(current_node.bias.shape)
+
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+                                                                 bias_size)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+
+            onnx_node = onnx.helper.make_node(
+                &#39;Conv&#39;,
+                inputs=[current_input, input_weight, input_bias],
+                outputs=[current_output],
+                kernel_shape=list(current_node.kernel_size),
+                strides=list(current_node.stride),
+                dilations=list(current_node.dilation),
+                groups=current_node.groups,
+                pads=list(current_node.padding)
+            )
+
+            input_info.append(bias_value_info)
+            initializers.append(bias_tensor)
+
+        else:
+            onnx_node = onnx.helper.make_node(
+                &#39;Conv&#39;,
+                inputs=[current_input, input_weight],
+                outputs=[current_output],
+                kernel_shape=list(current_node.kernel_size),
+                strides=list(current_node.stride),
+                dilations=list(current_node.dilation),
+                groups=current_node.groups,
+                pads=list(current_node.padding)
+            )
+
+        input_info.append(weight_value_info)
+        initializers.append(weight_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_averagepool(current_node: nodes.AveragePoolNode, current_input: str, current_output: str,
+                               onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;AveragePool&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            ceil_mode=int(current_node.ceil_mode),
+            count_include_pad=int(current_node.count_include_pad),
+            kernel_shape=list(current_node.kernel_size),
+            strides=list(current_node.stride),
+            pads=list(current_node.padding)
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_maxpool(current_node: nodes.MaxPoolNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # N.B. we do not support the attribute storage_order of ONNX
+        # ONNX does not support the return_indices parameters
+
+        onnx_node = onnx.helper.make_node(
+            &#39;MaxPool&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            ceil_mode=int(current_node.ceil_mode),
+            dilations=current_node.dilation,
+            kernel_shape=list(current_node.kernel_size),
+            strides=list(current_node.stride),
+            pads=list(current_node.padding)
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_lrn(current_node: nodes.LRNNode, current_input: str, current_output: str,
+                       onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            &#39;LRN&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            alpha=current_node.alpha,
+            beta=current_node.beta,
+            bias=current_node.k,
+            size=current_node.size
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_softmax(current_node: nodes.SoftMaxNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # Since our representation do not consider the batch dimension we need to scale the axis by 1
+        # when we pass to the onnx representation.
+        temp_axis = current_node.axis + 1
+        onnx_node = onnx.helper.make_node(
+            &#39;Softmax&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            axis=temp_axis
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_unsqueeze(current_node: nodes.UnsqueezeNode, current_input: str, current_output: str,
+                             onnx_nodes: list, input_info: list, initializers: list):
+
+        axes_size = [len(current_node.axes)]
+        input_axes = current_node.identifier + &#34;_axes&#34;
+
+        axes_value_info = onnx.helper.make_tensor_value_info(input_axes, onnx.TensorProto.INT64,
+                                                             axes_size)
+
+        # Since our representation do not consider the batch dimension we need to scale all the axes
+        # by 1 when we pass to the onnx representation.
+        temp_axes = [e + 1 for e in current_node.axes]
+        axes_tensor = onnx.numpy_helper.from_array(np.array(temp_axes), input_axes)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Unsqueeze&#39;,
+            inputs=[current_input, input_axes],
+            outputs=[current_output]
+        )
+
+        input_info.append(axes_value_info)
+        initializers.append(axes_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_reshape(current_node: nodes.ReshapeNode, current_input: str, current_output: str,
+                           onnx_nodes: list, input_info: list, initializers: list):
+
+        # Need to add the batch dimension to the shape
+        temp_shape = [1]
+        for e in current_node.shape:
+            temp_shape.append(e)
+        shape_size = [len(current_node.shape)]
+        input_shape = current_node.identifier + &#34;_shape&#34;
+
+        shape_value_info = onnx.helper.make_tensor_value_info(input_shape, onnx.TensorProto.INT64,
+                                                              shape_size)
+
+        shape_tensor = onnx.numpy_helper.from_array(np.array(temp_shape), input_shape)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Reshape&#39;,
+            inputs=[current_input, input_shape],
+            outputs=[current_output],
+            allow_zero=int(current_node.allow_zero)
+        )
+
+        input_info.append(shape_value_info)
+        initializers.append(shape_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_flatten(current_node: nodes.FlattenNode, current_input: str, current_output: str,
+                           onnx_nodes: list):
+
+        # Since our representation do not consider the batch dimension we need to scale the axis by 1
+        # when we pass to the onnx representation.
+        temp_axis = current_node.axis + 1
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Flatten&#39;,
+            inputs=[current_input],
+            outputs=[current_output],
+            axis=temp_axis
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_dropout(current_node: nodes.DropoutNode, current_input: str, current_output: str,
+                           onnx_nodes: list, input_info: list, initializers: list):
+
+        # N.B. we do not support the seed attribute and the training_mode input.
+
+        ratio_size = [1]
+        input_ratio = current_node.identifier + &#34;_ratio&#34;
+
+        ratio_value_info = onnx.helper.make_tensor_value_info(input_ratio, onnx.TensorProto.FLOAT,
+                                                              ratio_size)
+
+        ratio_tensor = onnx.numpy_helper.from_array(np.array([current_node.p]), input_ratio)
+
+        onnx_node = onnx.helper.make_node(
+            &#39;Dropout&#39;,
+            inputs=[current_input, input_ratio],
+            outputs=[current_output]
+        )
+
+        input_info.append(ratio_value_info)
+        initializers.append(ratio_tensor)
+
+        onnx_nodes.append(onnx_node)
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; ONNXNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a ONNX representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        ONNXNetwork
+            The ONNX representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+        alt_net = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, ONNXNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, PyTorchNetwork):
+                            pytorch_cv = PyTorchConverter()
+                            network = pytorch_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+
+                current_node = None
+                previous_output = network.input_id
+                input_info = []
+                output_info = []
+                initializers = []
+                onnx_nodes = []
+
+                while network.get_next_node(current_node) is not None:
+
+                    current_node = network.get_next_node(current_node)
+                    current_input = previous_output
+                    current_output = current_node.identifier
+
+                    input_dim = [1]
+                    for e in current_node.in_dim:
+                        input_dim.append(e)
+
+                    output_dim = [1]
+                    for e in current_node.out_dim:
+                        output_dim.append(e)
+
+                    input_value_info = onnx.helper.make_tensor_value_info(current_input, onnx.TensorProto.FLOAT,
+                                                                          input_dim)
+                    output_value_info = onnx.helper.make_tensor_value_info(current_output, onnx.TensorProto.FLOAT,
+                                                                           output_dim)
+
+                    input_info.append(input_value_info)
+                    output_info.append(output_value_info)
+
+                    if isinstance(current_node, nodes.ReLUNode):
+                        self.__add_onnx_relu(current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.SigmoidNode):
+                        self.__add_onnx_sigmoid(current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.FullyConnectedNode):
+                        self.__add_onnx_linear(current_node, current_input, current_output, onnx_nodes, input_info,
+                                               initializers)
+
+                    elif isinstance(current_node, nodes.BatchNormNode):
+                        self.__add_onnx_batchnorm(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                  initializers)
+
+                    elif isinstance(current_node, nodes.ConvNode):
+                        self.__add_onnx_conv(current_node, current_input, current_output, onnx_nodes, input_info,
+                                             initializers)
+
+                    elif isinstance(current_node, nodes.AveragePoolNode):
+                        self.__add_onnx_averagepool(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.MaxPoolNode):
+                        self.__add_onnx_maxpool(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.LRNNode):
+                        self.__add_onnx_lrn(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.SoftMaxNode):
+                        self.__add_onnx_softmax(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.UnsqueezeNode):
+                        self.__add_onnx_unsqueeze(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                  initializers)
+
+                    elif isinstance(current_node, nodes.ReshapeNode):
+                        self.__add_onnx_reshape(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                initializers)
+
+                    elif isinstance(current_node, nodes.FlattenNode):
+                        self.__add_onnx_flatten(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.DropoutNode):
+                        self.__add_onnx_dropout(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                initializers)
+
+                    else:
+                        raise NotImplementedError
+
+                    previous_output = current_output
+
+                onnx_graph = onnx.helper.make_graph(
+                    nodes=onnx_nodes,
+                    name=network.identifier,
+                    inputs=[input_info[0]],
+                    outputs=[output_info[-1]],
+                    initializer=initializers,
+                    value_info=input_info
+                )
+
+                onnx_network = onnx.helper.make_model(graph=onnx_graph)
+                alt_net = ONNXNetwork(network.identifier, onnx_network)
+
+            else:
+                raise NotImplementedError
+
+        return alt_net
+
+    def to_neural_network(self, alt_rep: ONNXNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the ONNX representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : ONNXNetwork
+            The ONNX Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of ONNX Representation.
+
+        &#34;&#34;&#34;
+
+        identifier = alt_rep.identifier
+        network = networks.SequentialNetwork(identifier, alt_rep.onnx_network.graph.input[0].name)
+
+        parameters = {}
+        for initializer in alt_rep.onnx_network.graph.initializer:
+            parameters[initializer.name] = onnx.numpy_helper.to_array(initializer)
+
+        shape_info = {}
+        for i in alt_rep.onnx_network.graph.input:
+            shape = []
+            for dim in i.type.tensor_type.shape.dim:
+                shape.append(dim.dim_value)
+            shape_info[i.name] = shape
+
+        node_index = 1
+        in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name][1:])
+
+        for node in alt_rep.onnx_network.graph.node:
+
+            if node.op_type == &#34;Relu&#34;:
+
+                # We assume that the real input of the node is always the first element of node.input
+                # and the first element of the shape is the batch placeholder
+
+                network.add_node(nodes.ReLUNode(node.output[0], in_dim))
+
+            elif node.op_type == &#34;Sigmoid&#34;:
+
+                network.add_node(nodes.SigmoidNode(node.output[0], in_dim))
+
+            elif node.op_type == &#34;Gemm&#34;:
+                # We assume that the weight tensor is always the second element of node.input and the bias tensor
+                # is always the third.
+                # N.B: We do not support the attributes transA and transB,
+                # therefore we need to transpose the weight vector.
+
+                if (node.attribute[2].name == &#39;transA&#39; or node.attribute[2].name == &#39;transB&#39;) and \
+                        node.attribute[2].i == 0:
+                    weight = parameters[node.input[1]].T
+                else:
+                    weight = parameters[node.input[1]]
+                if len(node.input) &lt;= 2:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = parameters[node.input[2]]
+                in_features = weight.shape[1]
+                out_features = weight.shape[0]
+                network.add_node(nodes.FullyConnectedNode(node.output[0], in_dim,
+                                                          out_features, weight, bias, has_bias))
+            elif node.op_type == &#34;BatchNormalization&#34;:
+                # We assume that the real input is always the first element of node.input, the weight tensor
+                # is always the second, the bias tensor is always the third, the running_mean always the fourth
+                # and the running_var always the fifth.
+
+                weight = parameters[node.input[1]]
+                bias = parameters[node.input[2]]
+                running_mean = parameters[node.input[3]]
+                running_var = parameters[node.input[4]]
+                # We assume that eps is always the first attribute and momentum is always the second.
+                eps = node.attribute[0].f
+                momentum = node.attribute[1].f
+                network.add_node(nodes.BatchNormNode(node.output[0], in_dim, weight,
+                                                     bias, running_mean, running_var, eps, momentum))
+
+            elif node.op_type == &#34;Conv&#34;:
+                # We assume that the real input is always the first element of node.input, the weight tensor
+                # is always the second and the bias tensor is always the third.
+
+                weight = parameters[node.input[1]]
+                if len(node.input) &lt;= 2:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = parameters[node.input[2]]
+
+                out_channels = weight.shape[0]
+                # We assume that the attribute are in the following order: dilation, groups, kernel_shape, pads and
+                # strides
+                dilation = tuple(node.attribute[0].ints)
+                groups = node.attribute[1].i
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.ConvNode(node.output[0], in_dim, out_channels, kernel_size,
+                                                stride, padding, dilation, groups, has_bias, bias, weight))
+
+            elif node.op_type == &#34;AveragePool&#34;:
+
+                # We assume that the attribute are in the following order: ceil_mode, count_include_pad,
+                # kernel_shape, pads and strides
+                ceil_mode = bool(node.attribute[0].i)
+                count_include_pad = bool(node.attribute[1].i)
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.AveragePoolNode(node.output[0], in_dim, kernel_size, stride,
+                                                       padding, ceil_mode, count_include_pad))
+
+            elif node.op_type == &#34;MaxPool&#34;:
+
+                # We assume that the attribute are in the following order: ceil_mode, dilation,
+                # kernel_shape, pads and strides
+                ceil_mode = bool(node.attribute[0].i)
+                dilation = tuple(node.attribute[1].ints)
+                kernel_size = tuple(node.attribute[2].ints)
+                padding = tuple(node.attribute[3].ints)
+                stride = tuple(node.attribute[4].ints)
+
+                network.add_node(nodes.MaxPoolNode(node.output[0], in_dim, kernel_size, stride, padding,
+                                                   dilation, ceil_mode))
+
+            elif node.op_type == &#34;LRN&#34;:
+
+                alpha = node.attribute[0].f
+                beta = node.attribute[1].f
+                k = node.attribute[2].f
+                size = node.attribute[3].i
+
+                network.add_node(nodes.LRNNode(node.output[0], in_dim, size, alpha, beta, k))
+
+            elif node.op_type == &#34;Softmax&#34;:
+
+                # Since the ONNX representation consider the batch dimension we need to scale the axis by 1
+                # when we pass to our representation.
+                axis = node.attribute[0].i - 1
+                network.add_node(nodes.SoftMaxNode(node.output[0], in_dim, axis))
+
+            elif node.op_type == &#34;Unsqueeze&#34;:
+
+                temp_axes = tuple(parameters[node.input[1]])
+                # Since our representation do not consider the batch dimension we need to scale all the axes
+                # by 1 when we pass to the onnx representation.
+                axes = tuple([e - 1 for e in temp_axes])
+                network.add_node(nodes.UnsqueezeNode(node.output[0], in_dim, axes))
+
+            elif node.op_type == &#34;Reshape&#34;:
+
+                shape = tuple(parameters[node.input[1]])
+                # We need to eliminate the first dimension corresponding to the batch dimension
+                shape = shape[1:]
+                allow_zero = node.attribute[0].i
+                network.add_node(nodes.ReshapeNode(node.output[0], in_dim, shape, allow_zero))
+
+            elif node.op_type == &#34;Flatten&#34;:
+
+                # We need to scale the axis value since our representation does not have the batch dimension
+                axis = node.attribute[0].i - 1
+                network.add_node(nodes.FlattenNode(node.output[0], in_dim, axis))
+
+            elif node.op_type == &#34;Dropout&#34;:
+
+                ratio = parameters[node.input[1]][0]
+                network.add_node(nodes.DropoutNode(node.output[0], in_dim, ratio))
+
+            else:
+                raise NotImplementedError
+
+            node_index += 1
+            in_dim = network.get_last_node().out_dim
+
+        return network</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.ConversionStrategy" href="#pynever.strategies.conversion.ConversionStrategy">ConversionStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.conversion.ONNXConverter.from_neural_network"><code class="name flex">
+<span>def <span class="ident">from_neural_network</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>) ‑> <a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the neural network of interest to a ONNX representation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a></code></dt>
+<dd>The ONNX representation resulting from the conversion of the original network.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_neural_network(self, network: networks.NeuralNetwork) -&gt; ONNXNetwork:
+    &#34;&#34;&#34;
+    Convert the neural network of interest to a ONNX representation.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to convert.
+
+    Returns
+    ----------
+    ONNXNetwork
+        The ONNX representation resulting from the conversion of the original network.
+
+    &#34;&#34;&#34;
+
+    alt_net = None
+    for alt_rep in network.alt_rep_cache:
+        if isinstance(alt_rep, ONNXNetwork) and alt_rep.up_to_date:
+            alt_net = alt_rep
+
+    if alt_net is None:
+
+        if not network.up_to_date:
+
+            for alt_rep in network.alt_rep_cache:
+
+                if alt_rep.up_to_date:
+
+                    if isinstance(alt_rep, PyTorchNetwork):
+                        pytorch_cv = PyTorchConverter()
+                        network = pytorch_cv.to_neural_network(alt_rep)
+
+                    else:
+                        raise NotImplementedError
+                    break
+
+        if isinstance(network, networks.SequentialNetwork):
+
+            current_node = None
+            previous_output = network.input_id
+            input_info = []
+            output_info = []
+            initializers = []
+            onnx_nodes = []
+
+            while network.get_next_node(current_node) is not None:
+
+                current_node = network.get_next_node(current_node)
+                current_input = previous_output
+                current_output = current_node.identifier
+
+                input_dim = [1]
+                for e in current_node.in_dim:
+                    input_dim.append(e)
+
+                output_dim = [1]
+                for e in current_node.out_dim:
+                    output_dim.append(e)
+
+                input_value_info = onnx.helper.make_tensor_value_info(current_input, onnx.TensorProto.FLOAT,
+                                                                      input_dim)
+                output_value_info = onnx.helper.make_tensor_value_info(current_output, onnx.TensorProto.FLOAT,
+                                                                       output_dim)
+
+                input_info.append(input_value_info)
+                output_info.append(output_value_info)
+
+                if isinstance(current_node, nodes.ReLUNode):
+                    self.__add_onnx_relu(current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.SigmoidNode):
+                    self.__add_onnx_sigmoid(current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.FullyConnectedNode):
+                    self.__add_onnx_linear(current_node, current_input, current_output, onnx_nodes, input_info,
+                                           initializers)
+
+                elif isinstance(current_node, nodes.BatchNormNode):
+                    self.__add_onnx_batchnorm(current_node, current_input, current_output, onnx_nodes, input_info,
+                                              initializers)
+
+                elif isinstance(current_node, nodes.ConvNode):
+                    self.__add_onnx_conv(current_node, current_input, current_output, onnx_nodes, input_info,
+                                         initializers)
+
+                elif isinstance(current_node, nodes.AveragePoolNode):
+                    self.__add_onnx_averagepool(current_node, current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.MaxPoolNode):
+                    self.__add_onnx_maxpool(current_node, current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.LRNNode):
+                    self.__add_onnx_lrn(current_node, current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.SoftMaxNode):
+                    self.__add_onnx_softmax(current_node, current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.UnsqueezeNode):
+                    self.__add_onnx_unsqueeze(current_node, current_input, current_output, onnx_nodes, input_info,
+                                              initializers)
+
+                elif isinstance(current_node, nodes.ReshapeNode):
+                    self.__add_onnx_reshape(current_node, current_input, current_output, onnx_nodes, input_info,
+                                            initializers)
+
+                elif isinstance(current_node, nodes.FlattenNode):
+                    self.__add_onnx_flatten(current_node, current_input, current_output, onnx_nodes)
+
+                elif isinstance(current_node, nodes.DropoutNode):
+                    self.__add_onnx_dropout(current_node, current_input, current_output, onnx_nodes, input_info,
+                                            initializers)
+
+                else:
+                    raise NotImplementedError
+
+                previous_output = current_output
+
+            onnx_graph = onnx.helper.make_graph(
+                nodes=onnx_nodes,
+                name=network.identifier,
+                inputs=[input_info[0]],
+                outputs=[output_info[-1]],
+                initializer=initializers,
+                value_info=input_info
+            )
+
+            onnx_network = onnx.helper.make_model(graph=onnx_graph)
+            alt_net = ONNXNetwork(network.identifier, onnx_network)
+
+        else:
+            raise NotImplementedError
+
+    return alt_net</code></pre>
+</details>
+</dd>
+<dt id="pynever.strategies.conversion.ONNXConverter.to_neural_network"><code class="name flex">
+<span>def <span class="ident">to_neural_network</span></span>(<span>self, alt_rep: <a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a>) ‑> <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the ONNX representation of interest to the internal one.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>alt_rep</code></strong> :&ensp;<code><a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a></code></dt>
+<dd>The ONNX Representation to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>NeuralNetwork</code></dt>
+<dd>The Neural Network resulting from the conversion of ONNX Representation.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_neural_network(self, alt_rep: ONNXNetwork) -&gt; networks.NeuralNetwork:
+    &#34;&#34;&#34;
+    Convert the ONNX representation of interest to the internal one.
+
+    Parameters
+    ----------
+    alt_rep : ONNXNetwork
+        The ONNX Representation to convert.
+
+    Returns
+    ----------
+    NeuralNetwork
+        The Neural Network resulting from the conversion of ONNX Representation.
+
+    &#34;&#34;&#34;
+
+    identifier = alt_rep.identifier
+    network = networks.SequentialNetwork(identifier, alt_rep.onnx_network.graph.input[0].name)
+
+    parameters = {}
+    for initializer in alt_rep.onnx_network.graph.initializer:
+        parameters[initializer.name] = onnx.numpy_helper.to_array(initializer)
+
+    shape_info = {}
+    for i in alt_rep.onnx_network.graph.input:
+        shape = []
+        for dim in i.type.tensor_type.shape.dim:
+            shape.append(dim.dim_value)
+        shape_info[i.name] = shape
+
+    node_index = 1
+    in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name][1:])
+
+    for node in alt_rep.onnx_network.graph.node:
+
+        if node.op_type == &#34;Relu&#34;:
+
+            # We assume that the real input of the node is always the first element of node.input
+            # and the first element of the shape is the batch placeholder
+
+            network.add_node(nodes.ReLUNode(node.output[0], in_dim))
+
+        elif node.op_type == &#34;Sigmoid&#34;:
+
+            network.add_node(nodes.SigmoidNode(node.output[0], in_dim))
+
+        elif node.op_type == &#34;Gemm&#34;:
+            # We assume that the weight tensor is always the second element of node.input and the bias tensor
+            # is always the third.
+            # N.B: We do not support the attributes transA and transB,
+            # therefore we need to transpose the weight vector.
+
+            if (node.attribute[2].name == &#39;transA&#39; or node.attribute[2].name == &#39;transB&#39;) and \
+                    node.attribute[2].i == 0:
+                weight = parameters[node.input[1]].T
+            else:
+                weight = parameters[node.input[1]]
+            if len(node.input) &lt;= 2:
+                has_bias = False
+                bias = None
+            else:
+                has_bias = True
+                bias = parameters[node.input[2]]
+            in_features = weight.shape[1]
+            out_features = weight.shape[0]
+            network.add_node(nodes.FullyConnectedNode(node.output[0], in_dim,
+                                                      out_features, weight, bias, has_bias))
+        elif node.op_type == &#34;BatchNormalization&#34;:
+            # We assume that the real input is always the first element of node.input, the weight tensor
+            # is always the second, the bias tensor is always the third, the running_mean always the fourth
+            # and the running_var always the fifth.
+
+            weight = parameters[node.input[1]]
+            bias = parameters[node.input[2]]
+            running_mean = parameters[node.input[3]]
+            running_var = parameters[node.input[4]]
+            # We assume that eps is always the first attribute and momentum is always the second.
+            eps = node.attribute[0].f
+            momentum = node.attribute[1].f
+            network.add_node(nodes.BatchNormNode(node.output[0], in_dim, weight,
+                                                 bias, running_mean, running_var, eps, momentum))
+
+        elif node.op_type == &#34;Conv&#34;:
+            # We assume that the real input is always the first element of node.input, the weight tensor
+            # is always the second and the bias tensor is always the third.
+
+            weight = parameters[node.input[1]]
+            if len(node.input) &lt;= 2:
+                has_bias = False
+                bias = None
+            else:
+                has_bias = True
+                bias = parameters[node.input[2]]
+
+            out_channels = weight.shape[0]
+            # We assume that the attribute are in the following order: dilation, groups, kernel_shape, pads and
+            # strides
+            dilation = tuple(node.attribute[0].ints)
+            groups = node.attribute[1].i
+            kernel_size = tuple(node.attribute[2].ints)
+            padding = tuple(node.attribute[3].ints)
+            stride = tuple(node.attribute[4].ints)
+
+            network.add_node(nodes.ConvNode(node.output[0], in_dim, out_channels, kernel_size,
+                                            stride, padding, dilation, groups, has_bias, bias, weight))
+
+        elif node.op_type == &#34;AveragePool&#34;:
+
+            # We assume that the attribute are in the following order: ceil_mode, count_include_pad,
+            # kernel_shape, pads and strides
+            ceil_mode = bool(node.attribute[0].i)
+            count_include_pad = bool(node.attribute[1].i)
+            kernel_size = tuple(node.attribute[2].ints)
+            padding = tuple(node.attribute[3].ints)
+            stride = tuple(node.attribute[4].ints)
+
+            network.add_node(nodes.AveragePoolNode(node.output[0], in_dim, kernel_size, stride,
+                                                   padding, ceil_mode, count_include_pad))
+
+        elif node.op_type == &#34;MaxPool&#34;:
+
+            # We assume that the attribute are in the following order: ceil_mode, dilation,
+            # kernel_shape, pads and strides
+            ceil_mode = bool(node.attribute[0].i)
+            dilation = tuple(node.attribute[1].ints)
+            kernel_size = tuple(node.attribute[2].ints)
+            padding = tuple(node.attribute[3].ints)
+            stride = tuple(node.attribute[4].ints)
+
+            network.add_node(nodes.MaxPoolNode(node.output[0], in_dim, kernel_size, stride, padding,
+                                               dilation, ceil_mode))
+
+        elif node.op_type == &#34;LRN&#34;:
+
+            alpha = node.attribute[0].f
+            beta = node.attribute[1].f
+            k = node.attribute[2].f
+            size = node.attribute[3].i
+
+            network.add_node(nodes.LRNNode(node.output[0], in_dim, size, alpha, beta, k))
+
+        elif node.op_type == &#34;Softmax&#34;:
+
+            # Since the ONNX representation consider the batch dimension we need to scale the axis by 1
+            # when we pass to our representation.
+            axis = node.attribute[0].i - 1
+            network.add_node(nodes.SoftMaxNode(node.output[0], in_dim, axis))
+
+        elif node.op_type == &#34;Unsqueeze&#34;:
+
+            temp_axes = tuple(parameters[node.input[1]])
+            # Since our representation do not consider the batch dimension we need to scale all the axes
+            # by 1 when we pass to the onnx representation.
+            axes = tuple([e - 1 for e in temp_axes])
+            network.add_node(nodes.UnsqueezeNode(node.output[0], in_dim, axes))
+
+        elif node.op_type == &#34;Reshape&#34;:
+
+            shape = tuple(parameters[node.input[1]])
+            # We need to eliminate the first dimension corresponding to the batch dimension
+            shape = shape[1:]
+            allow_zero = node.attribute[0].i
+            network.add_node(nodes.ReshapeNode(node.output[0], in_dim, shape, allow_zero))
+
+        elif node.op_type == &#34;Flatten&#34;:
+
+            # We need to scale the axis value since our representation does not have the batch dimension
+            axis = node.attribute[0].i - 1
+            network.add_node(nodes.FlattenNode(node.output[0], in_dim, axis))
+
+        elif node.op_type == &#34;Dropout&#34;:
+
+            ratio = parameters[node.input[1]][0]
+            network.add_node(nodes.DropoutNode(node.output[0], in_dim, ratio))
+
+        else:
+            raise NotImplementedError
+
+        node_index += 1
+        in_dim = network.get_last_node().out_dim
+
+    return network</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.conversion.ONNXNetwork"><code class="flex name class">
+<span>class <span class="ident">ONNXNetwork</span></span>
+<span>(</span><span>identifier: str, onnx_network: onnx.onnx_ml_pb2.ModelProto, up_to_date: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An class used to represent a ONNX representation for a neural network.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>identifier</code></strong> :&ensp;<code>str</code></dt>
+<dd>identifier for the alternative representation</dd>
+<dt><strong><code>onnx_network</code></strong> :&ensp;<code>onnx.ModelProto</code></dt>
+<dd>Real ONNX network.</dd>
+<dt><strong><code>up_to_date</code></strong> :&ensp;<code>bool</code></dt>
+<dd>flag which indicates if the alternative representation is up to date with respect
+to the internal representation of the network (optional: True).</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ONNXNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a ONNX representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    onnx_network : onnx.ModelProto
+        Real ONNX network.
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, onnx_network: onnx.ModelProto, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+        self.onnx_network = copy.deepcopy(onnx_network)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></li>
+<li>abc.ABC</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.conversion.PyTorchConverter"><code class="flex name class">
+<span>class <span class="ident">PyTorchConverter</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>A class used to represent the conversion strategy for PyTorch models.</p>
+<h2 id="methods">Methods</h2>
+<p>from_neural_network(NeuralNetwork)
+Convert the neural network of interest to a PyTorchNetwork model.
+to_neural_network(PyTorchNetwork)
+Convert the PyTorchNetwork of interest to our internal representation of a Neural Network.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PyTorchConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for PyTorch models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a PyTorchNetwork model.
+    to_neural_network(PyTorchNetwork)
+        Convert the PyTorchNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; PyTorchNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a PyTorch representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        PyTorchNetwork
+            The PyTorch representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+        alt_net = None
+        pytorch_network = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, PyTorchNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, ONNXNetwork):
+                            onnx_cv = ONNXConverter()
+                            network = onnx_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+                pytorch_layers = []
+                for layer in network.nodes.values():
+
+                    new_layer = None
+                    if isinstance(layer, nodes.ReLUNode):
+                        new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.SigmoidNode):
+                        new_layer = pyt_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.FullyConnectedNode):
+
+                        if layer.bias is not None:
+                            has_bias = True
+                        else:
+                            has_bias = False
+
+                        new_layer = pyt_l.Linear(layer.identifier, layer.in_dim, layer.out_dim,
+                                                 in_features=layer.in_features, out_features=layer.out_features,
+                                                 bias=has_bias)
+
+                        weight = torch.from_numpy(layer.weight)
+                        new_layer.weight.data = weight
+
+                        if has_bias:
+                            bias = torch.from_numpy(layer.bias)
+                            new_layer.bias.data = bias
+
+                    elif isinstance(layer, nodes.BatchNormNode):
+
+                        if len(layer.in_dim) == 1 or len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.BatchNorm1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.BatchNorm2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.BatchNorm3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                          num_features=layer.num_features,
+                                                          eps=layer.eps, momentum=layer.momentum,
+                                                          affine=layer.affine,
+                                                          track_running_stats=layer.track_running_stats)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support batchnorm layer for input with more than&#34;
+                                            &#34;4 or less than 1 dimension excluding the batch dimension&#34;)
+
+                        new_layer.weight.data = torch.from_numpy(layer.weight)
+                        new_layer.bias.data = torch.from_numpy(layer.bias)
+                        new_layer.running_mean.data = torch.from_numpy(layer.running_mean)
+                        new_layer.running_var.data = torch.from_numpy(layer.running_var)
+
+                    elif isinstance(layer, nodes.ConvNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric. Padding mode is not supported in our representation therefore we let it be
+                        # set to the default value.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.Conv1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.Conv2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.Conv3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                     layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                     layer.stride, padding, layer.dilation, layer.groups,
+                                                     layer.has_bias)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                        new_layer.weight.data = torch.from_numpy(layer.weight)
+                        if layer.has_bias:
+                            new_layer.bias.data = torch.from_numpy(layer.bias)
+
+                    elif isinstance(layer, nodes.AveragePoolNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.AvgPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.AvgPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.AvgPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.ceil_mode, layer.count_include_pad)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                    elif isinstance(layer, nodes.MaxPoolNode):
+
+                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # symmetric.
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = pyt_l.MaxPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = pyt_l.MaxPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = pyt_l.MaxPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.kernel_size, layer.stride, padding,
+                                                        layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                        else:
+                            raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                            &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                    elif isinstance(layer, nodes.LRNNode):
+
+                        new_layer = pyt_l.LocalResponseNorm(layer.identifier, layer.in_dim, layer.out_dim,
+                                                            layer.size, layer.alpha, layer.beta, layer.k)
+
+                    elif isinstance(layer, nodes.SoftMaxNode):
+
+                        # We need to scale the axis by one since our representation does not support the batch dimension
+                        new_layer = pyt_l.Softmax(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                    elif isinstance(layer, nodes.UnsqueezeNode):
+
+                        # Our representation does not consider batch dimension, therefore we need to scale
+                        # the axes values.
+                        axes = tuple([e + 1 for e in layer.axes])
+                        new_layer = pyt_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axes)
+
+                    elif isinstance(layer, nodes.ReshapeNode):
+
+                        # Pytorch does not support the allow_zero attribute and the corresponding reshape with 0
+                        # dimensions.
+                        if layer.allow_zero:
+                            raise Exception(&#34;allow_zero not supported by pytorch&#34;)
+
+                        # Our representation does not consider batch dimension, therefore we need to add it to
+                        # the shape.
+                        shape = [1]
+                        for e in layer.shape:
+                            shape.append(e)
+                        shape = tuple(shape)
+
+                        new_layer = pyt_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
+
+                    elif isinstance(layer, nodes.FlattenNode):
+
+                        # We need to scale the axis by one since our representation does not support the batch dimension
+                        new_layer = pyt_l.Flatten(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                    elif isinstance(layer, nodes.DropoutNode):
+
+                        new_layer = pyt_l.Dropout(layer.identifier, layer.in_dim, layer.out_dim, layer.p)
+
+                    else:
+                        raise NotImplementedError
+
+                    if new_layer is not None:
+                        pytorch_layers.append(new_layer)
+
+                pytorch_network = pyt_l.Sequential(network.identifier, network.input_id, pytorch_layers)
+
+            if alt_net is None and pytorch_network is None:
+                print(&#34;WARNING: network to convert is not valid, the alternative representation is None&#34;)
+
+            identifier = network.identifier
+            alt_net = PyTorchNetwork(identifier=identifier, pytorch_network=pytorch_network)
+
+        return alt_net
+
+    def to_neural_network(self, alt_rep: PyTorchNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the PyTorch representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : PyTorchNetwork
+            The PyTorch Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of PyTorch Representation.
+
+        &#34;&#34;&#34;
+
+        identifier = alt_rep.identifier
+        network = networks.SequentialNetwork(identifier, alt_rep.pytorch_network.input_id)
+
+        node_index = 0
+        alt_rep.pytorch_network.cpu()
+        for m in alt_rep.pytorch_network.modules():
+
+            new_node = None
+
+            if isinstance(m, pyt_l.ReLU):
+                new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+
+            elif isinstance(m, pyt_l.Sigmoid):
+                new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+
+            elif isinstance(m, pyt_l.Linear):
+                out_features = m.out_features
+                weight = m.weight.detach().numpy()
+                bias = None
+                has_bias = False
+                if m.bias is not None:
+                    bias = m.bias.detach().numpy()
+                    has_bias = True
+                new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+
+            elif isinstance(m, pyt_l.BatchNorm1d) or isinstance(m, pyt_l.BatchNorm2d) or \
+                    isinstance(m, pyt_l.BatchNorm3d):
+
+                eps = m.eps
+                momentum = m.momentum
+                track_running_stats = m.track_running_stats
+                affine = m.affine
+
+                weight = m.weight.detach().numpy()
+                bias = m.bias.detach().numpy()
+                running_mean = m.running_mean.numpy()
+                running_var = m.running_var.numpy()
+
+                new_node = nodes.BatchNormNode(m.identifier, m.in_dim, weight,
+                                               bias, running_mean, running_var, eps, momentum, affine,
+                                               track_running_stats)
+
+            elif isinstance(m, pyt_l.Conv1d) or isinstance(m, pyt_l.Conv2d) or isinstance(m, pyt_l.Conv3d):
+
+                out_channels = m.out_channels
+                kernel_size = m.kernel_size
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                dilation = m.dilation
+                groups = m.groups
+                weight = m.weight.detach().numpy()
+                if m.bias is None:
+                    has_bias = False
+                    bias = None
+                else:
+                    has_bias = True
+                    bias = m.bias.detach().numpy()
+
+                new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
+                                          stride, padding, dilation, groups, has_bias, bias, weight)
+
+            elif isinstance(m, pyt_l.AvgPool1d) or isinstance(m, pyt_l.AvgPool2d) or \
+                    isinstance(m, pyt_l.AvgPool3d):
+
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                kernel_size = m.kernel_size
+                ceil_mode = m.ceil_mode
+                count_include_pad = m.count_include_pad
+
+                new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
+                                                 ceil_mode, count_include_pad)
+
+            elif isinstance(m, pyt_l.MaxPool1d) or isinstance(m, pyt_l.MaxPool2d) or \
+                    isinstance(m, pyt_l.MaxPool3d):
+
+                stride = m.stride
+                temp_padding = list(m.padding)
+                for e in m.padding:
+                    temp_padding.append(e)
+                padding = tuple(temp_padding)
+                kernel_size = m.kernel_size
+                ceil_mode = m.ceil_mode
+                dilation = m.dilation
+                return_indices = m.return_indices
+
+                new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
+                                             ceil_mode, return_indices)
+
+            elif isinstance(m, pyt_l.LocalResponseNorm):
+
+                new_node = nodes.LRNNode(m.identifier, m.in_dim, m.size, m.alpha, m.beta, m.k)
+
+            elif isinstance(m, pyt_l.Softmax):
+
+                new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.dim - 1)
+
+            elif isinstance(m, pyt_l.Unsqueeze):
+
+                axes = tuple([e - 1 for e in m.axes])
+                new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axes)
+
+            elif isinstance(m, pyt_l.Reshape):
+
+                shape = m.shape[1:]
+                new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
+
+            elif isinstance(m, pyt_l.Flatten):
+
+                new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
+
+            elif isinstance(m, pyt_l.Dropout):
+
+                new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.p)
+
+            elif isinstance(m, pyt_l.Sequential):
+                pass
+
+            else:
+                raise NotImplementedError
+
+            if new_node is not None:
+                node_index += 1
+                network.add_node(new_node)
+
+        return network</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.ConversionStrategy" href="#pynever.strategies.conversion.ConversionStrategy">ConversionStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.conversion.PyTorchConverter.from_neural_network"><code class="name flex">
+<span>def <span class="ident">from_neural_network</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>) ‑> <a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the neural network of interest to a PyTorch representation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a></code></dt>
+<dd>The PyTorch representation resulting from the conversion of the original network.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_neural_network(self, network: networks.NeuralNetwork) -&gt; PyTorchNetwork:
+    &#34;&#34;&#34;
+    Convert the neural network of interest to a PyTorch representation.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to convert.
+
+    Returns
+    ----------
+    PyTorchNetwork
+        The PyTorch representation resulting from the conversion of the original network.
+
+    &#34;&#34;&#34;
+
+    alt_net = None
+    pytorch_network = None
+    for alt_rep in network.alt_rep_cache:
+        if isinstance(alt_rep, PyTorchNetwork) and alt_rep.up_to_date:
+            alt_net = alt_rep
+
+    if alt_net is None:
+
+        if not network.up_to_date:
+
+            for alt_rep in network.alt_rep_cache:
+
+                if alt_rep.up_to_date:
+
+                    if isinstance(alt_rep, ONNXNetwork):
+                        onnx_cv = ONNXConverter()
+                        network = onnx_cv.to_neural_network(alt_rep)
+
+                    else:
+                        raise NotImplementedError
+                    break
+
+        if isinstance(network, networks.SequentialNetwork):
+            pytorch_layers = []
+            for layer in network.nodes.values():
+
+                new_layer = None
+                if isinstance(layer, nodes.ReLUNode):
+                    new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
+
+                elif isinstance(layer, nodes.SigmoidNode):
+                    new_layer = pyt_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+
+                elif isinstance(layer, nodes.FullyConnectedNode):
+
+                    if layer.bias is not None:
+                        has_bias = True
+                    else:
+                        has_bias = False
+
+                    new_layer = pyt_l.Linear(layer.identifier, layer.in_dim, layer.out_dim,
+                                             in_features=layer.in_features, out_features=layer.out_features,
+                                             bias=has_bias)
+
+                    weight = torch.from_numpy(layer.weight)
+                    new_layer.weight.data = weight
+
+                    if has_bias:
+                        bias = torch.from_numpy(layer.bias)
+                        new_layer.bias.data = bias
+
+                elif isinstance(layer, nodes.BatchNormNode):
+
+                    if len(layer.in_dim) == 1 or len(layer.in_dim) == 2:
+
+                        new_layer = pyt_l.BatchNorm1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                      num_features=layer.num_features,
+                                                      eps=layer.eps, momentum=layer.momentum,
+                                                      affine=layer.affine,
+                                                      track_running_stats=layer.track_running_stats)
+                    elif len(layer.in_dim) == 3:
+
+                        new_layer = pyt_l.BatchNorm2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                      num_features=layer.num_features,
+                                                      eps=layer.eps, momentum=layer.momentum,
+                                                      affine=layer.affine,
+                                                      track_running_stats=layer.track_running_stats)
+
+                    elif len(layer.in_dim) == 4:
+
+                        new_layer = pyt_l.BatchNorm3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                      num_features=layer.num_features,
+                                                      eps=layer.eps, momentum=layer.momentum,
+                                                      affine=layer.affine,
+                                                      track_running_stats=layer.track_running_stats)
+
+                    else:
+                        raise Exception(&#34;Pytorch does not support batchnorm layer for input with more than&#34;
+                                        &#34;4 or less than 1 dimension excluding the batch dimension&#34;)
+
+                    new_layer.weight.data = torch.from_numpy(layer.weight)
+                    new_layer.bias.data = torch.from_numpy(layer.bias)
+                    new_layer.running_mean.data = torch.from_numpy(layer.running_mean)
+                    new_layer.running_var.data = torch.from_numpy(layer.running_var)
+
+                elif isinstance(layer, nodes.ConvNode):
+
+                    # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                    # symmetric. Padding mode is not supported in our representation therefore we let it be
+                    # set to the default value.
+                    padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                    if len(layer.in_dim) == 2:
+
+                        new_layer = pyt_l.Conv1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                 layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                 layer.stride, padding, layer.dilation, layer.groups,
+                                                 layer.has_bias)
+
+                    elif len(layer.in_dim) == 3:
+
+                        new_layer = pyt_l.Conv2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                 layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                 layer.stride, padding, layer.dilation, layer.groups,
+                                                 layer.has_bias)
+
+                    elif len(layer.in_dim) == 4:
+
+                        new_layer = pyt_l.Conv3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                 layer.in_channels, layer.out_channels, layer.kernel_size,
+                                                 layer.stride, padding, layer.dilation, layer.groups,
+                                                 layer.has_bias)
+
+                    else:
+                        raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                        &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                    new_layer.weight.data = torch.from_numpy(layer.weight)
+                    if layer.has_bias:
+                        new_layer.bias.data = torch.from_numpy(layer.bias)
+
+                elif isinstance(layer, nodes.AveragePoolNode):
+
+                    # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                    # symmetric.
+                    padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                    if len(layer.in_dim) == 2:
+
+                        new_layer = pyt_l.AvgPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.ceil_mode, layer.count_include_pad)
+
+                    elif len(layer.in_dim) == 3:
+
+                        new_layer = pyt_l.AvgPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.ceil_mode, layer.count_include_pad)
+
+                    elif len(layer.in_dim) == 4:
+
+                        new_layer = pyt_l.AvgPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.ceil_mode, layer.count_include_pad)
+
+                    else:
+                        raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                        &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                elif isinstance(layer, nodes.MaxPoolNode):
+
+                    # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                    # symmetric.
+                    padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                    if len(layer.in_dim) == 2:
+
+                        new_layer = pyt_l.MaxPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                    elif len(layer.in_dim) == 3:
+
+                        new_layer = pyt_l.MaxPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                    elif len(layer.in_dim) == 4:
+
+                        new_layer = pyt_l.MaxPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.kernel_size, layer.stride, padding,
+                                                    layer.dilation, layer.return_indices, layer.ceil_mode)
+
+                    else:
+                        raise Exception(&#34;Pytorch does not support Conv layer for input with more than&#34;
+                                        &#34;4 or less than 2 dimension excluding the batch dimension&#34;)
+
+                elif isinstance(layer, nodes.LRNNode):
+
+                    new_layer = pyt_l.LocalResponseNorm(layer.identifier, layer.in_dim, layer.out_dim,
+                                                        layer.size, layer.alpha, layer.beta, layer.k)
+
+                elif isinstance(layer, nodes.SoftMaxNode):
+
+                    # We need to scale the axis by one since our representation does not support the batch dimension
+                    new_layer = pyt_l.Softmax(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                elif isinstance(layer, nodes.UnsqueezeNode):
+
+                    # Our representation does not consider batch dimension, therefore we need to scale
+                    # the axes values.
+                    axes = tuple([e + 1 for e in layer.axes])
+                    new_layer = pyt_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axes)
+
+                elif isinstance(layer, nodes.ReshapeNode):
+
+                    # Pytorch does not support the allow_zero attribute and the corresponding reshape with 0
+                    # dimensions.
+                    if layer.allow_zero:
+                        raise Exception(&#34;allow_zero not supported by pytorch&#34;)
+
+                    # Our representation does not consider batch dimension, therefore we need to add it to
+                    # the shape.
+                    shape = [1]
+                    for e in layer.shape:
+                        shape.append(e)
+                    shape = tuple(shape)
+
+                    new_layer = pyt_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
+
+                elif isinstance(layer, nodes.FlattenNode):
+
+                    # We need to scale the axis by one since our representation does not support the batch dimension
+                    new_layer = pyt_l.Flatten(layer.identifier, layer.in_dim, layer.out_dim, layer.axis + 1)
+
+                elif isinstance(layer, nodes.DropoutNode):
+
+                    new_layer = pyt_l.Dropout(layer.identifier, layer.in_dim, layer.out_dim, layer.p)
+
+                else:
+                    raise NotImplementedError
+
+                if new_layer is not None:
+                    pytorch_layers.append(new_layer)
+
+            pytorch_network = pyt_l.Sequential(network.identifier, network.input_id, pytorch_layers)
+
+        if alt_net is None and pytorch_network is None:
+            print(&#34;WARNING: network to convert is not valid, the alternative representation is None&#34;)
+
+        identifier = network.identifier
+        alt_net = PyTorchNetwork(identifier=identifier, pytorch_network=pytorch_network)
+
+    return alt_net</code></pre>
+</details>
+</dd>
+<dt id="pynever.strategies.conversion.PyTorchConverter.to_neural_network"><code class="name flex">
+<span>def <span class="ident">to_neural_network</span></span>(<span>self, alt_rep: <a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a>) ‑> <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the PyTorch representation of interest to the internal one.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>alt_rep</code></strong> :&ensp;<code><a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a></code></dt>
+<dd>The PyTorch Representation to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>NeuralNetwork</code></dt>
+<dd>The Neural Network resulting from the conversion of PyTorch Representation.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_neural_network(self, alt_rep: PyTorchNetwork) -&gt; networks.NeuralNetwork:
+    &#34;&#34;&#34;
+    Convert the PyTorch representation of interest to the internal one.
+
+    Parameters
+    ----------
+    alt_rep : PyTorchNetwork
+        The PyTorch Representation to convert.
+
+    Returns
+    ----------
+    NeuralNetwork
+        The Neural Network resulting from the conversion of PyTorch Representation.
+
+    &#34;&#34;&#34;
+
+    identifier = alt_rep.identifier
+    network = networks.SequentialNetwork(identifier, alt_rep.pytorch_network.input_id)
+
+    node_index = 0
+    alt_rep.pytorch_network.cpu()
+    for m in alt_rep.pytorch_network.modules():
+
+        new_node = None
+
+        if isinstance(m, pyt_l.ReLU):
+            new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+
+        elif isinstance(m, pyt_l.Sigmoid):
+            new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+
+        elif isinstance(m, pyt_l.Linear):
+            out_features = m.out_features
+            weight = m.weight.detach().numpy()
+            bias = None
+            has_bias = False
+            if m.bias is not None:
+                bias = m.bias.detach().numpy()
+                has_bias = True
+            new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+
+        elif isinstance(m, pyt_l.BatchNorm1d) or isinstance(m, pyt_l.BatchNorm2d) or \
+                isinstance(m, pyt_l.BatchNorm3d):
+
+            eps = m.eps
+            momentum = m.momentum
+            track_running_stats = m.track_running_stats
+            affine = m.affine
+
+            weight = m.weight.detach().numpy()
+            bias = m.bias.detach().numpy()
+            running_mean = m.running_mean.numpy()
+            running_var = m.running_var.numpy()
+
+            new_node = nodes.BatchNormNode(m.identifier, m.in_dim, weight,
+                                           bias, running_mean, running_var, eps, momentum, affine,
+                                           track_running_stats)
+
+        elif isinstance(m, pyt_l.Conv1d) or isinstance(m, pyt_l.Conv2d) or isinstance(m, pyt_l.Conv3d):
+
+            out_channels = m.out_channels
+            kernel_size = m.kernel_size
+            stride = m.stride
+            temp_padding = list(m.padding)
+            for e in m.padding:
+                temp_padding.append(e)
+            padding = tuple(temp_padding)
+            dilation = m.dilation
+            groups = m.groups
+            weight = m.weight.detach().numpy()
+            if m.bias is None:
+                has_bias = False
+                bias = None
+            else:
+                has_bias = True
+                bias = m.bias.detach().numpy()
+
+            new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
+                                      stride, padding, dilation, groups, has_bias, bias, weight)
+
+        elif isinstance(m, pyt_l.AvgPool1d) or isinstance(m, pyt_l.AvgPool2d) or \
+                isinstance(m, pyt_l.AvgPool3d):
+
+            stride = m.stride
+            temp_padding = list(m.padding)
+            for e in m.padding:
+                temp_padding.append(e)
+            padding = tuple(temp_padding)
+            kernel_size = m.kernel_size
+            ceil_mode = m.ceil_mode
+            count_include_pad = m.count_include_pad
+
+            new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
+                                             ceil_mode, count_include_pad)
+
+        elif isinstance(m, pyt_l.MaxPool1d) or isinstance(m, pyt_l.MaxPool2d) or \
+                isinstance(m, pyt_l.MaxPool3d):
+
+            stride = m.stride
+            temp_padding = list(m.padding)
+            for e in m.padding:
+                temp_padding.append(e)
+            padding = tuple(temp_padding)
+            kernel_size = m.kernel_size
+            ceil_mode = m.ceil_mode
+            dilation = m.dilation
+            return_indices = m.return_indices
+
+            new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
+                                         ceil_mode, return_indices)
+
+        elif isinstance(m, pyt_l.LocalResponseNorm):
+
+            new_node = nodes.LRNNode(m.identifier, m.in_dim, m.size, m.alpha, m.beta, m.k)
+
+        elif isinstance(m, pyt_l.Softmax):
+
+            new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.dim - 1)
+
+        elif isinstance(m, pyt_l.Unsqueeze):
+
+            axes = tuple([e - 1 for e in m.axes])
+            new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axes)
+
+        elif isinstance(m, pyt_l.Reshape):
+
+            shape = m.shape[1:]
+            new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
+
+        elif isinstance(m, pyt_l.Flatten):
+
+            new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
+
+        elif isinstance(m, pyt_l.Dropout):
+
+            new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.p)
+
+        elif isinstance(m, pyt_l.Sequential):
+            pass
+
+        else:
+            raise NotImplementedError
+
+        if new_node is not None:
+            node_index += 1
+            network.add_node(new_node)
+
+    return network</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.conversion.PyTorchNetwork"><code class="flex name class">
+<span>class <span class="ident">PyTorchNetwork</span></span>
+<span>(</span><span>identifier: str, pytorch_network: torch.nn.modules.module.Module, up_to_date: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An class used to represent a PyTorch representation for a neural network.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>identifier</code></strong> :&ensp;<code>str</code></dt>
+<dd>identifier for the alternative representation</dd>
+<dt><strong><code>pytorch_network</code></strong> :&ensp;<code>torch.nn.Module</code></dt>
+<dd>Real PyTorch network.</dd>
+<dt><strong><code>up_to_date</code></strong> :&ensp;<code>bool</code></dt>
+<dd>flag which indicates if the alternative representation is up to date with respect
+to the internal representation of the network (optional: True).</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PyTorchNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a PyTorch representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    pytorch_network : torch.nn.Module
+        Real PyTorch network.
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, pytorch_network: torch.nn.Module, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+        self.pytorch_network = copy.deepcopy(pytorch_network)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></li>
+<li>abc.ABC</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.conversion.TensorflowConverter"><code class="flex name class">
+<span>class <span class="ident">TensorflowConverter</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>A class used to represent the conversion strategy for Tensorflow models.</p>
+<h2 id="methods">Methods</h2>
+<p>from_neural_network(NeuralNetwork)
+Convert the neural network of interest to a TensorflowNetwork model.
+to_neural_network(ONNXNetwork)
+Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorflowConverter(ConversionStrategy):
+    &#34;&#34;&#34;
+    A class used to represent the conversion strategy for Tensorflow models.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a TensorflowNetwork model.
+    to_neural_network(ONNXNetwork)
+        Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
+
+    &#34;&#34;&#34;
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -&gt; TensorflowNetwork:
+        &#34;&#34;&#34;
+        Convert the neural network of interest to a Tensorflow representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        TensorflowNetwork
+            The Tensorflow representation resulting from the conversion of the original network.
+
+        &#34;&#34;&#34;
+
+    def to_neural_network(self, alt_rep: TensorflowNetwork) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Convert the Tensorflow representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : TensorflowNetwork
+            The Tensorflow Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of Tensorflow Representation.
+
+        &#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.ConversionStrategy" href="#pynever.strategies.conversion.ConversionStrategy">ConversionStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.conversion.TensorflowConverter.from_neural_network"><code class="name flex">
+<span>def <span class="ident">from_neural_network</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>) ‑> <a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the neural network of interest to a Tensorflow representation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a></code></dt>
+<dd>The Tensorflow representation resulting from the conversion of the original network.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_neural_network(self, network: networks.NeuralNetwork) -&gt; TensorflowNetwork:
+    &#34;&#34;&#34;
+    Convert the neural network of interest to a Tensorflow representation.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to convert.
+
+    Returns
+    ----------
+    TensorflowNetwork
+        The Tensorflow representation resulting from the conversion of the original network.
+
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+<dt id="pynever.strategies.conversion.TensorflowConverter.to_neural_network"><code class="name flex">
+<span>def <span class="ident">to_neural_network</span></span>(<span>self, alt_rep: <a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a>) ‑> <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert the Tensorflow representation of interest to the internal one.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>alt_rep</code></strong> :&ensp;<code><a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a></code></dt>
+<dd>The Tensorflow Representation to convert.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>NeuralNetwork</code></dt>
+<dd>The Neural Network resulting from the conversion of Tensorflow Representation.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_neural_network(self, alt_rep: TensorflowNetwork) -&gt; networks.NeuralNetwork:
+    &#34;&#34;&#34;
+    Convert the Tensorflow representation of interest to the internal one.
+
+    Parameters
+    ----------
+    alt_rep : TensorflowNetwork
+        The Tensorflow Representation to convert.
+
+    Returns
+    ----------
+    NeuralNetwork
+        The Neural Network resulting from the conversion of Tensorflow Representation.
+
+    &#34;&#34;&#34;</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.conversion.TensorflowNetwork"><code class="flex name class">
+<span>class <span class="ident">TensorflowNetwork</span></span>
+<span>(</span><span>identifier: str, up_to_date: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An class used to represent a Tensorflow representation for a neural network.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>identifier</code></strong> :&ensp;<code>str</code></dt>
+<dd>identifier for the alternative representation</dd>
+<dt><strong><code>up_to_date</code></strong> :&ensp;<code>bool</code></dt>
+<dd>flag which indicates if the alternative representation is up to date with respect
+to the internal representation of the network (optional: True).</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorflowNetwork(AlternativeRepresentation):
+    &#34;&#34;&#34;
+    An class used to represent a Tensorflow representation for a neural network.
+
+    Attributes
+    ----------
+    identifier : str
+        identifier for the alternative representation
+    up_to_date : bool
+        flag which indicates if the alternative representation is up to date with respect
+        to the internal representation of the network (optional: True).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, identifier: str, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></li>
+<li>abc.ABC</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pynever.strategies" href="index.html">pynever.strategies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pynever.strategies.conversion.AlternativeRepresentation" href="#pynever.strategies.conversion.AlternativeRepresentation">AlternativeRepresentation</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.ConversionStrategy" href="#pynever.strategies.conversion.ConversionStrategy">ConversionStrategy</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.conversion.ConversionStrategy.from_neural_network" href="#pynever.strategies.conversion.ConversionStrategy.from_neural_network">from_neural_network</a></code></li>
+<li><code><a title="pynever.strategies.conversion.ConversionStrategy.to_neural_network" href="#pynever.strategies.conversion.ConversionStrategy.to_neural_network">to_neural_network</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.ONNXConverter" href="#pynever.strategies.conversion.ONNXConverter">ONNXConverter</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.conversion.ONNXConverter.from_neural_network" href="#pynever.strategies.conversion.ONNXConverter.from_neural_network">from_neural_network</a></code></li>
+<li><code><a title="pynever.strategies.conversion.ONNXConverter.to_neural_network" href="#pynever.strategies.conversion.ONNXConverter.to_neural_network">to_neural_network</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.ONNXNetwork" href="#pynever.strategies.conversion.ONNXNetwork">ONNXNetwork</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.PyTorchConverter" href="#pynever.strategies.conversion.PyTorchConverter">PyTorchConverter</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.conversion.PyTorchConverter.from_neural_network" href="#pynever.strategies.conversion.PyTorchConverter.from_neural_network">from_neural_network</a></code></li>
+<li><code><a title="pynever.strategies.conversion.PyTorchConverter.to_neural_network" href="#pynever.strategies.conversion.PyTorchConverter.to_neural_network">to_neural_network</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.PyTorchNetwork" href="#pynever.strategies.conversion.PyTorchNetwork">PyTorchNetwork</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.TensorflowConverter" href="#pynever.strategies.conversion.TensorflowConverter">TensorflowConverter</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.conversion.TensorflowConverter.from_neural_network" href="#pynever.strategies.conversion.TensorflowConverter.from_neural_network">from_neural_network</a></code></li>
+<li><code><a title="pynever.strategies.conversion.TensorflowConverter.to_neural_network" href="#pynever.strategies.conversion.TensorflowConverter.to_neural_network">to_neural_network</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.conversion.TensorflowNetwork" href="#pynever.strategies.conversion.TensorflowNetwork">TensorflowNetwork</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

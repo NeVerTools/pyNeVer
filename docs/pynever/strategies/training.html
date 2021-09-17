@@ -1,0 +1,1348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>pynever.strategies.training API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pynever.strategies.training</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import abc
+import pynever.networks as networks
+import pynever.datasets as datasets
+import pynever.strategies.conversion as cv
+import os
+import shutil
+import torch
+import torch.optim.lr_scheduler as schedulers
+import torch.utils.data as tdt
+import math
+import numpy as np
+from typing import Callable, Dict
+import logging
+
+logger_name = &#34;pynever.strategies.training&#34;
+
+
+class TrainingStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Training Strategy.
+
+    Methods
+    ----------
+    train(NeuralNetwork, Dataset)
+        Train the neural network of interest using a training strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Train the neural network of interest using a testing strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to train.
+        dataset : Dataset
+            The dataset to use to train the neural network.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the training of the original network using the training strategy and the
+            dataset.
+
+        &#34;&#34;&#34;
+        pass
+
+
+class TestingStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Testing Strategy.
+
+    Methods
+    ----------
+    test(NeuralNetwork, Dataset)
+        Test the neural network of interest using a testing strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; float:
+        &#34;&#34;&#34;
+        Test the neural network of interest using a testing strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to test.
+        dataset : Dataset
+            The dataset to use to test the neural network.
+
+        Returns
+        ----------
+        float
+            A measure of the correctness of the networks dependant on the concrete children
+
+        &#34;&#34;&#34;
+        pass
+
+
+class PytorchTraining(TrainingStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the training strategy based on the Pytorch learning framework.
+    It supports different optimization algorithm, schedulers, loss function and others based on
+    the attributes provided at instantiation time.
+
+    Attributes
+    ----------
+    optimizer_con : type
+        Reference to the class constructor for the Optimizer of choice for the training strategy.
+
+    opt_params : Dict
+        Dictionary of the parameters to pass to the constructor of the optimizer excluding the first which is always
+        assumed to be the parameters to optimize
+
+    loss_function : Callable
+        Loss function for the training strategy. We assume it to take as parameters two pytorch Tensor
+        corresponding to the output of the network and the target. Other parameter should be given as attribute of
+        the callable object.
+
+    n_epochs : int
+        Number of epochs for the training procedure.
+
+    validation_percentage : float
+        Percentage of the dataset to use as the validation set
+
+    train_batch_size : int
+        Dimension for the train batch size for the training procedure
+
+    validation_batch_size : int
+        Dimension for the validation batch size for the training procedure
+
+    scheduler_con : type, Optional
+        Reference to the class constructor for the Scheduler for the learning rate of choice for the training strategy
+        (default: None)
+
+    sch_params : Dict, Optional
+        Dictionary of the parameters to pass to the constructor of the scheduler excluding the first which is always
+        assumed to be the optimizer whose learning rate must be updated. (default: None)
+
+    precision_metric : Callable, Optional
+        Function for measuring the precision of the neural network. It is used to choose the best model and to control
+        the Plateau Scheduler and the early stopping. We assume it to take as parameters two pytorch Tensor
+        corresponding to the output of the network and the target.It should produce a float value and such value should
+        decrease for increasing correctness of the network (as the traditional loss value).
+        Optional supplementary parameters should be given as attributes of the object. (default: None)
+
+    network_transform : Callable, Optional
+        We provide the possibility to define a function which will be applied to the network after
+        the computation of backward and before the optimizer step. In practice we use it for the manipulation
+        needed to the pruning oriented training. It should take a pytorch module (i.e., the neural network) as
+        input and optional supplementary parameters () should be given as attributes of the object. (default: None)
+
+    cuda : bool, Optional
+        Whether to use the cuda library for the procedure (default: False).
+
+    train_patience : int, Optional
+        The number of epochs in which the loss may not decrease before the
+        training procedure is interrupted with early stopping (default: None).
+
+    checkpoints_root : str, Optional
+        Where to store the checkpoints of the training strategy. (default: &#39;&#39;)
+
+    verbose_rate : int, Optional
+        After how many batch the strategy prints information about how the training is going.
+
+
+    &#34;&#34;&#34;
+
+    def __init__(self, optimizer_con: type, opt_params: Dict, loss_function: Callable, n_epochs: int,
+                 validation_percentage: float, train_batch_size: int, validation_batch_size: int,
+                 scheduler_con: type = None, sch_params: Dict = None, precision_metric: Callable = None,
+                 network_transform: Callable = None, cuda: bool = False, train_patience: int = None,
+                 checkpoints_root: str = &#39;&#39;, verbose_rate: int = None):
+
+        TrainingStrategy.__init__(self)
+
+        self.optimizer_con = optimizer_con
+        self.opt_params = opt_params
+        self.scheduler_con = scheduler_con
+        self.sch_params = sch_params
+        self.loss_function = loss_function
+
+        if precision_metric is None:
+            precision_metric = loss_function
+        self.precision_metric = precision_metric
+
+        self.n_epochs = n_epochs
+        self.validation_percentage = validation_percentage
+        self.train_batch_size = train_batch_size
+        self.validation_batch_size = validation_batch_size
+        self.network_transform = network_transform
+        self.cuda = cuda
+
+        if train_patience is None:
+            train_patience = n_epochs + 1
+
+        self.train_patience = train_patience
+        self.checkpoints_root = checkpoints_root
+        self.verbose_rate = verbose_rate
+
+    def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; networks.NeuralNetwork:
+
+        pytorch_converter = cv.PyTorchConverter()
+        py_net = pytorch_converter.from_neural_network(network)
+
+        py_net = self.__training(py_net, dataset)
+
+        network.alt_rep_cache.clear()
+        network.alt_rep_cache.append(py_net)
+        network.up_to_date = False
+
+        return network
+
+    def __training(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -&gt; cv.PyTorchNetwork:
+
+        &#34;&#34;&#34;
+        Training procedure for the PyTorchNetwork.
+
+        Parameters
+        ----------
+        net : PyTorchNetwork
+            The PyTorchNetwork to train.
+        dataset : Dataset
+            The dataset to use for the training of the PyTorchNetwork
+
+        Returns
+        ----------
+        PyTorchNetwork
+            The trained PyTorchNetwork.
+
+        &#34;&#34;&#34;
+
+        # If the training should be done with the GPU we set the model to cuda.
+        if self.cuda:
+            net.pytorch_network.cuda()
+        else:
+            net.pytorch_network.cpu()
+
+        logger = logging.getLogger(logger_name)
+
+        # We set all the values of the network to double.
+        net.pytorch_network.double()
+
+        # We build the optimizer and the scheduler
+        optimizer = self.optimizer_con(net.pytorch_network.parameters(), **self.opt_params)
+
+        if self.scheduler_con is not None:
+            scheduler = self.scheduler_con(optimizer, **self.sch_params)
+        else:
+            scheduler = None
+
+        # We split the dataset in training set and validation set.
+        validation_len = int(dataset.__len__() * self.validation_percentage)
+        training_len = dataset.__len__() - validation_len
+        training_set, validation_set = tdt.random_split(dataset, (training_len, validation_len))
+
+        # We instantiate the data loaders
+        train_loader = tdt.DataLoader(training_set, self.train_batch_size)
+        validation_loader = tdt.DataLoader(validation_set, self.validation_batch_size)
+
+        if self.verbose_rate is None:
+            self.verbose_rate = int(len(train_loader) / 4)
+
+        # If a checkpoint exist, we load the checkpoint of interest
+        checkpoints_path = self.checkpoints_root + net.identifier + &#39;.pth.tar&#39;
+        best_model_path = self.checkpoints_root + net.identifier + &#39;_best.pth.tar&#39;
+
+        if os.path.isfile(checkpoints_path):
+
+            logger.info(f&#34;Loading Checkpoint: &#39;{checkpoints_path}&#39;&#34;)
+            checkpoint = torch.load(checkpoints_path)
+            start_epoch = checkpoint[&#39;epoch&#39;]
+            net.pytorch_network.load_state_dict(checkpoint[&#39;network_state_dict&#39;])
+            optimizer.load_state_dict(checkpoint[&#39;optimizer_state_dict&#39;])
+            best_loss_score = checkpoint[&#39;best_loss_score&#39;]
+            epochs_without_decrease = checkpoint[&#39;epochs_without_decrease&#39;]
+            logger.info(f&#34;Loaded Checkpoint: &#39;{checkpoints_path}&#39;&#34;)
+            logger.info(f&#34;Epoch: {start_epoch}, Best Loss Score: {best_loss_score}&#34;)
+
+        else:
+            # Otherwise we initialize the values of interest
+            logger.info(f&#34;No Checkpoint was found at &#39;{checkpoints_path}&#39;&#34;)
+            # best_loss_score is set to a high number so that the first epoch will replace it
+            best_loss_score = 999999
+            epochs_without_decrease = 0
+            start_epoch = 0
+
+        # history_score is used to keep track of the evolution of training loss and validation loss
+        history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
+
+        # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
+        # epochs until termination we consider all the batches
+        for epoch in range(start_epoch, self.n_epochs):
+
+            if epochs_without_decrease &gt; self.train_patience:
+                break
+
+            # We set the network to train mode.
+            net.pytorch_network.train()
+            avg_loss = 0
+
+            # For each batch we compute one learning step
+            for batch_idx, (data, target) in enumerate(train_loader):
+
+                if self.cuda:
+                    data, target = data.cuda(), target.cuda()
+
+                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                if target.dtype == torch.float:
+                    target = target.double()
+                data = data.double()
+                optimizer.zero_grad()
+                output = net.pytorch_network(data)
+                loss = self.loss_function(output, target)
+                avg_loss += loss.data.item()
+                loss.backward()
+
+                if self.network_transform is not None:
+                    self.network_transform(net)
+
+                optimizer.step()
+
+                if batch_idx % self.verbose_rate == 0:
+                    logger.info(&#39;Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}&#39;.format(
+                        epoch, batch_idx * len(data), len(training_set),
+                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                        loss.data.item()))
+
+            # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
+            avg_loss = avg_loss / batch_idx
+            history_score[epoch - start_epoch][0] = avg_loss
+
+            # EPOCH TEST
+
+            net.pytorch_network.eval()
+            net.pytorch_network.double()
+            validation_loss = 0
+            with torch.no_grad():
+
+                for batch_idx, (data, target) in enumerate(validation_loader):
+
+                    if self.cuda:
+                        data, target = data.cuda(), target.cuda()
+
+                    data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                    if target.dtype == torch.float:
+                        target = target.double()
+                    data = data.double()
+                    output = net.pytorch_network(data)
+                    loss = self.precision_metric(output, target)
+                    validation_loss += loss.data.item()
+
+            # validation_loss = validation_loss / float(math.floor(len(validation_set) / self.validation_batch_size))
+            validation_loss = validation_loss / batch_idx
+            logger.info(&#39;\nValidation Set Metric Value: {:.4f}\n&#39;.format(validation_loss))
+
+            if validation_loss &lt; best_loss_score:
+                epochs_without_decrease = 0
+                best_loss_score = validation_loss
+            else:
+                epochs_without_decrease += 1
+
+            # We need to distinguish among different scheduler because not all the pytorch scheduler present the same
+            # interface.
+            if scheduler is not None:
+                if isinstance(scheduler, schedulers.ReduceLROnPlateau):
+                    scheduler.step(validation_loss)
+                elif scheduler is not None:
+                    scheduler.step()
+
+            # CHECKPOINT
+
+            history_score[epoch - start_epoch][1] = validation_loss
+            is_best = validation_loss &lt; best_loss_score
+
+            state = {
+                &#39;epoch&#39;: epoch + 1,
+                &#39;network_state_dict&#39;: net.pytorch_network.state_dict(),
+                &#39;optimizer_state_dict&#39;: optimizer.state_dict(),
+                &#39;best_loss_score&#39;: best_loss_score,
+                &#39;epochs_without_decrease&#39;: epochs_without_decrease
+            }
+
+            torch.save(state, checkpoints_path)
+            if is_best:
+                shutil.copyfile(checkpoints_path, best_model_path)
+
+        if os.path.isfile(best_model_path):
+            best_checkpoint = torch.load(best_model_path)
+            net.pytorch_network.load_state_dict(best_checkpoint[&#39;network_state_dict&#39;])
+
+        logger.info(f&#34;Best Loss Score: {best_loss_score}&#34;)
+
+        return net
+
+
+class PytorchTesting(TestingStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the testing strategy based on the Pytorch learning framework.
+    It supports different metrics measure for the correctness of the neural network.
+
+    Attributes
+    ----------
+
+    metric : Callable
+        Function for measuring the precision/correctness of the neural network.
+
+    metric_params : Dict
+        Supplementary parameters for the metric other than the output and the target (which should always be the first
+        two parameters of the metric. It is assumed that it produce a float value and such value
+        decrease for increasing correctness of the network (as the traditional loss value).
+
+    test_batch_size : int
+        Dimension for the test batch size for the testing procedure
+
+    cuda : bool, Optional
+        Whether to use the cuda library for the procedure (default: False).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, metric: Callable, metric_params: Dict, test_batch_size: int, cuda: bool = False):
+
+        TestingStrategy.__init__(self)
+        self.metric = metric
+        self.metric_params = metric_params
+        self.test_batch_size = test_batch_size
+        self.cuda = cuda
+
+    def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; float:
+
+        pytorch_converter = cv.PyTorchConverter()
+        py_net = pytorch_converter.from_neural_network(network)
+
+        measure = self.__testing(py_net, dataset)
+
+        return measure
+
+    def __testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -&gt; float:
+
+        if self.cuda:
+            net.pytorch_network.cuda()
+        else:
+            net.pytorch_network.cpu()
+
+        # We set all the values of the network to double.
+        net.pytorch_network.double()
+
+        # We instantiate the data loader
+        test_loader = tdt.DataLoader(dataset, self.test_batch_size)
+
+        net.pytorch_network.eval()
+        test_loss = 0
+        with torch.no_grad():
+
+            for batch_idx, (data, target) in enumerate(test_loader):
+
+                if self.cuda:
+                    data, target = data.cuda(), target.cuda()
+
+                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                if target.dtype == torch.float:
+                    target = target.double()
+                data = data.double()
+                output = net.pytorch_network(data)
+                loss = self.metric(output, target, **self.metric_params)
+                test_loss += loss.data.item()
+
+        # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
+        test_loss = test_loss / batch_idx
+
+        return test_loss
+
+
+class PytorchMetrics:
+
+    @staticmethod
+    def inaccuracy(output: torch.Tensor, target: torch.Tensor) -&gt; float:
+        &#34;&#34;&#34;
+        Function to compute the inaccuracy of a prediction. It assumes that the task is classification, the output is
+        a Tensor of shape (n, d) where d is the number of possible classes. The target is a Tensor of shape (n, 1) of
+        int whose elements correspond to the correct class for the n-th sample. The index of the output element with
+        the greater value (considering the n-th Tensor) correspond to the class predicted. We consider the inaccuracy
+        metric instead than the accuracy because our metric functions must follow the rule: &#34;lower value equals to
+        better network&#34; like the loss functions.
+
+        Parameters
+        ----------
+        output : torch.Tensor
+            Output predicted by the network. It should be a Tensor of shape (n, d)
+        target : torch.Tensor
+            Correct class for the prediction. It should be a Tensor of shape (n, 1)
+
+        Returns
+        -------
+        float
+            Number of correct prediction / number of sample analyzed
+        &#34;&#34;&#34;
+
+        pred = output.data.max(1, keepdim=True)[1]
+        acc = pred.eq(target.data.view_as(pred)).cpu().sum() / len(target)
+        return 1 - acc</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pynever.strategies.training.PytorchMetrics"><code class="flex name class">
+<span>class <span class="ident">PytorchMetrics</span></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PytorchMetrics:
+
+    @staticmethod
+    def inaccuracy(output: torch.Tensor, target: torch.Tensor) -&gt; float:
+        &#34;&#34;&#34;
+        Function to compute the inaccuracy of a prediction. It assumes that the task is classification, the output is
+        a Tensor of shape (n, d) where d is the number of possible classes. The target is a Tensor of shape (n, 1) of
+        int whose elements correspond to the correct class for the n-th sample. The index of the output element with
+        the greater value (considering the n-th Tensor) correspond to the class predicted. We consider the inaccuracy
+        metric instead than the accuracy because our metric functions must follow the rule: &#34;lower value equals to
+        better network&#34; like the loss functions.
+
+        Parameters
+        ----------
+        output : torch.Tensor
+            Output predicted by the network. It should be a Tensor of shape (n, d)
+        target : torch.Tensor
+            Correct class for the prediction. It should be a Tensor of shape (n, 1)
+
+        Returns
+        -------
+        float
+            Number of correct prediction / number of sample analyzed
+        &#34;&#34;&#34;
+
+        pred = output.data.max(1, keepdim=True)[1]
+        acc = pred.eq(target.data.view_as(pred)).cpu().sum() / len(target)
+        return 1 - acc</code></pre>
+</details>
+<h3>Static methods</h3>
+<dl>
+<dt id="pynever.strategies.training.PytorchMetrics.inaccuracy"><code class="name flex">
+<span>def <span class="ident">inaccuracy</span></span>(<span>output: torch.Tensor, target: torch.Tensor) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Function to compute the inaccuracy of a prediction. It assumes that the task is classification, the output is
+a Tensor of shape (n, d) where d is the number of possible classes. The target is a Tensor of shape (n, 1) of
+int whose elements correspond to the correct class for the n-th sample. The index of the output element with
+the greater value (considering the n-th Tensor) correspond to the class predicted. We consider the inaccuracy
+metric instead than the accuracy because our metric functions must follow the rule: "lower value equals to
+better network" like the loss functions.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>output</code></strong> :&ensp;<code>torch.Tensor</code></dt>
+<dd>Output predicted by the network. It should be a Tensor of shape (n, d)</dd>
+<dt><strong><code>target</code></strong> :&ensp;<code>torch.Tensor</code></dt>
+<dd>Correct class for the prediction. It should be a Tensor of shape (n, 1)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float</code></dt>
+<dd>Number of correct prediction / number of sample analyzed</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def inaccuracy(output: torch.Tensor, target: torch.Tensor) -&gt; float:
+    &#34;&#34;&#34;
+    Function to compute the inaccuracy of a prediction. It assumes that the task is classification, the output is
+    a Tensor of shape (n, d) where d is the number of possible classes. The target is a Tensor of shape (n, 1) of
+    int whose elements correspond to the correct class for the n-th sample. The index of the output element with
+    the greater value (considering the n-th Tensor) correspond to the class predicted. We consider the inaccuracy
+    metric instead than the accuracy because our metric functions must follow the rule: &#34;lower value equals to
+    better network&#34; like the loss functions.
+
+    Parameters
+    ----------
+    output : torch.Tensor
+        Output predicted by the network. It should be a Tensor of shape (n, d)
+    target : torch.Tensor
+        Correct class for the prediction. It should be a Tensor of shape (n, 1)
+
+    Returns
+    -------
+    float
+        Number of correct prediction / number of sample analyzed
+    &#34;&#34;&#34;
+
+    pred = output.data.max(1, keepdim=True)[1]
+    acc = pred.eq(target.data.view_as(pred)).cpu().sum() / len(target)
+    return 1 - acc</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.training.PytorchTesting"><code class="flex name class">
+<span>class <span class="ident">PytorchTesting</span></span>
+<span>(</span><span>metric: Callable, metric_params: Dict, test_batch_size: int, cuda: bool = False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class used to represent the testing strategy based on the Pytorch learning framework.
+It supports different metrics measure for the correctness of the neural network.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>metric</code></strong> :&ensp;<code>Callable</code></dt>
+<dd>Function for measuring the precision/correctness of the neural network.</dd>
+<dt><strong><code>metric_params</code></strong> :&ensp;<code>Dict</code></dt>
+<dd>Supplementary parameters for the metric other than the output and the target (which should always be the first
+two parameters of the metric. It is assumed that it produce a float value and such value
+decrease for increasing correctness of the network (as the traditional loss value).</dd>
+<dt><strong><code>test_batch_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>Dimension for the test batch size for the testing procedure</dd>
+<dt><strong><code>cuda</code></strong> :&ensp;<code>bool, Optional</code></dt>
+<dd>Whether to use the cuda library for the procedure (default: False).</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PytorchTesting(TestingStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the testing strategy based on the Pytorch learning framework.
+    It supports different metrics measure for the correctness of the neural network.
+
+    Attributes
+    ----------
+
+    metric : Callable
+        Function for measuring the precision/correctness of the neural network.
+
+    metric_params : Dict
+        Supplementary parameters for the metric other than the output and the target (which should always be the first
+        two parameters of the metric. It is assumed that it produce a float value and such value
+        decrease for increasing correctness of the network (as the traditional loss value).
+
+    test_batch_size : int
+        Dimension for the test batch size for the testing procedure
+
+    cuda : bool, Optional
+        Whether to use the cuda library for the procedure (default: False).
+
+    &#34;&#34;&#34;
+
+    def __init__(self, metric: Callable, metric_params: Dict, test_batch_size: int, cuda: bool = False):
+
+        TestingStrategy.__init__(self)
+        self.metric = metric
+        self.metric_params = metric_params
+        self.test_batch_size = test_batch_size
+        self.cuda = cuda
+
+    def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; float:
+
+        pytorch_converter = cv.PyTorchConverter()
+        py_net = pytorch_converter.from_neural_network(network)
+
+        measure = self.__testing(py_net, dataset)
+
+        return measure
+
+    def __testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -&gt; float:
+
+        if self.cuda:
+            net.pytorch_network.cuda()
+        else:
+            net.pytorch_network.cpu()
+
+        # We set all the values of the network to double.
+        net.pytorch_network.double()
+
+        # We instantiate the data loader
+        test_loader = tdt.DataLoader(dataset, self.test_batch_size)
+
+        net.pytorch_network.eval()
+        test_loss = 0
+        with torch.no_grad():
+
+            for batch_idx, (data, target) in enumerate(test_loader):
+
+                if self.cuda:
+                    data, target = data.cuda(), target.cuda()
+
+                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                if target.dtype == torch.float:
+                    target = target.double()
+                data = data.double()
+                output = net.pytorch_network(data)
+                loss = self.metric(output, target, **self.metric_params)
+                test_loss += loss.data.item()
+
+        # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
+        test_loss = test_loss / batch_idx
+
+        return test_loss</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.training.TestingStrategy" href="#pynever.strategies.training.TestingStrategy">TestingStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="pynever.strategies.training.TestingStrategy" href="#pynever.strategies.training.TestingStrategy">TestingStrategy</a></b></code>:
+<ul class="hlist">
+<li><code><a title="pynever.strategies.training.TestingStrategy.test" href="#pynever.strategies.training.TestingStrategy.test">test</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.training.PytorchTraining"><code class="flex name class">
+<span>class <span class="ident">PytorchTraining</span></span>
+<span>(</span><span>optimizer_con: type, opt_params: Dict, loss_function: Callable, n_epochs: int, validation_percentage: float, train_batch_size: int, validation_batch_size: int, scheduler_con: type = None, sch_params: Dict = None, precision_metric: Callable = None, network_transform: Callable = None, cuda: bool = False, train_patience: int = None, checkpoints_root: str = '', verbose_rate: int = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class used to represent the training strategy based on the Pytorch learning framework.
+It supports different optimization algorithm, schedulers, loss function and others based on
+the attributes provided at instantiation time.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>optimizer_con</code></strong> :&ensp;<code>type</code></dt>
+<dd>Reference to the class constructor for the Optimizer of choice for the training strategy.</dd>
+<dt><strong><code>opt_params</code></strong> :&ensp;<code>Dict</code></dt>
+<dd>Dictionary of the parameters to pass to the constructor of the optimizer excluding the first which is always
+assumed to be the parameters to optimize</dd>
+<dt><strong><code>loss_function</code></strong> :&ensp;<code>Callable</code></dt>
+<dd>Loss function for the training strategy. We assume it to take as parameters two pytorch Tensor
+corresponding to the output of the network and the target. Other parameter should be given as attribute of
+the callable object.</dd>
+<dt><strong><code>n_epochs</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of epochs for the training procedure.</dd>
+<dt><strong><code>validation_percentage</code></strong> :&ensp;<code>float</code></dt>
+<dd>Percentage of the dataset to use as the validation set</dd>
+<dt><strong><code>train_batch_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>Dimension for the train batch size for the training procedure</dd>
+<dt><strong><code>validation_batch_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>Dimension for the validation batch size for the training procedure</dd>
+<dt><strong><code>scheduler_con</code></strong> :&ensp;<code>type, Optional</code></dt>
+<dd>Reference to the class constructor for the Scheduler for the learning rate of choice for the training strategy
+(default: None)</dd>
+<dt><strong><code>sch_params</code></strong> :&ensp;<code>Dict, Optional</code></dt>
+<dd>Dictionary of the parameters to pass to the constructor of the scheduler excluding the first which is always
+assumed to be the optimizer whose learning rate must be updated. (default: None)</dd>
+<dt><strong><code>precision_metric</code></strong> :&ensp;<code>Callable, Optional</code></dt>
+<dd>Function for measuring the precision of the neural network. It is used to choose the best model and to control
+the Plateau Scheduler and the early stopping. We assume it to take as parameters two pytorch Tensor
+corresponding to the output of the network and the target.It should produce a float value and such value should
+decrease for increasing correctness of the network (as the traditional loss value).
+Optional supplementary parameters should be given as attributes of the object. (default: None)</dd>
+<dt><strong><code>network_transform</code></strong> :&ensp;<code>Callable, Optional</code></dt>
+<dd>We provide the possibility to define a function which will be applied to the network after
+the computation of backward and before the optimizer step. In practice we use it for the manipulation
+needed to the pruning oriented training. It should take a pytorch module (i.e., the neural network) as
+input and optional supplementary parameters () should be given as attributes of the object. (default: None)</dd>
+<dt><strong><code>cuda</code></strong> :&ensp;<code>bool, Optional</code></dt>
+<dd>Whether to use the cuda library for the procedure (default: False).</dd>
+<dt><strong><code>train_patience</code></strong> :&ensp;<code>int, Optional</code></dt>
+<dd>The number of epochs in which the loss may not decrease before the
+training procedure is interrupted with early stopping (default: None).</dd>
+<dt><strong><code>checkpoints_root</code></strong> :&ensp;<code>str, Optional</code></dt>
+<dd>Where to store the checkpoints of the training strategy. (default: '')</dd>
+<dt><strong><code>verbose_rate</code></strong> :&ensp;<code>int, Optional</code></dt>
+<dd>After how many batch the strategy prints information about how the training is going.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PytorchTraining(TrainingStrategy):
+    &#34;&#34;&#34;
+    Class used to represent the training strategy based on the Pytorch learning framework.
+    It supports different optimization algorithm, schedulers, loss function and others based on
+    the attributes provided at instantiation time.
+
+    Attributes
+    ----------
+    optimizer_con : type
+        Reference to the class constructor for the Optimizer of choice for the training strategy.
+
+    opt_params : Dict
+        Dictionary of the parameters to pass to the constructor of the optimizer excluding the first which is always
+        assumed to be the parameters to optimize
+
+    loss_function : Callable
+        Loss function for the training strategy. We assume it to take as parameters two pytorch Tensor
+        corresponding to the output of the network and the target. Other parameter should be given as attribute of
+        the callable object.
+
+    n_epochs : int
+        Number of epochs for the training procedure.
+
+    validation_percentage : float
+        Percentage of the dataset to use as the validation set
+
+    train_batch_size : int
+        Dimension for the train batch size for the training procedure
+
+    validation_batch_size : int
+        Dimension for the validation batch size for the training procedure
+
+    scheduler_con : type, Optional
+        Reference to the class constructor for the Scheduler for the learning rate of choice for the training strategy
+        (default: None)
+
+    sch_params : Dict, Optional
+        Dictionary of the parameters to pass to the constructor of the scheduler excluding the first which is always
+        assumed to be the optimizer whose learning rate must be updated. (default: None)
+
+    precision_metric : Callable, Optional
+        Function for measuring the precision of the neural network. It is used to choose the best model and to control
+        the Plateau Scheduler and the early stopping. We assume it to take as parameters two pytorch Tensor
+        corresponding to the output of the network and the target.It should produce a float value and such value should
+        decrease for increasing correctness of the network (as the traditional loss value).
+        Optional supplementary parameters should be given as attributes of the object. (default: None)
+
+    network_transform : Callable, Optional
+        We provide the possibility to define a function which will be applied to the network after
+        the computation of backward and before the optimizer step. In practice we use it for the manipulation
+        needed to the pruning oriented training. It should take a pytorch module (i.e., the neural network) as
+        input and optional supplementary parameters () should be given as attributes of the object. (default: None)
+
+    cuda : bool, Optional
+        Whether to use the cuda library for the procedure (default: False).
+
+    train_patience : int, Optional
+        The number of epochs in which the loss may not decrease before the
+        training procedure is interrupted with early stopping (default: None).
+
+    checkpoints_root : str, Optional
+        Where to store the checkpoints of the training strategy. (default: &#39;&#39;)
+
+    verbose_rate : int, Optional
+        After how many batch the strategy prints information about how the training is going.
+
+
+    &#34;&#34;&#34;
+
+    def __init__(self, optimizer_con: type, opt_params: Dict, loss_function: Callable, n_epochs: int,
+                 validation_percentage: float, train_batch_size: int, validation_batch_size: int,
+                 scheduler_con: type = None, sch_params: Dict = None, precision_metric: Callable = None,
+                 network_transform: Callable = None, cuda: bool = False, train_patience: int = None,
+                 checkpoints_root: str = &#39;&#39;, verbose_rate: int = None):
+
+        TrainingStrategy.__init__(self)
+
+        self.optimizer_con = optimizer_con
+        self.opt_params = opt_params
+        self.scheduler_con = scheduler_con
+        self.sch_params = sch_params
+        self.loss_function = loss_function
+
+        if precision_metric is None:
+            precision_metric = loss_function
+        self.precision_metric = precision_metric
+
+        self.n_epochs = n_epochs
+        self.validation_percentage = validation_percentage
+        self.train_batch_size = train_batch_size
+        self.validation_batch_size = validation_batch_size
+        self.network_transform = network_transform
+        self.cuda = cuda
+
+        if train_patience is None:
+            train_patience = n_epochs + 1
+
+        self.train_patience = train_patience
+        self.checkpoints_root = checkpoints_root
+        self.verbose_rate = verbose_rate
+
+    def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; networks.NeuralNetwork:
+
+        pytorch_converter = cv.PyTorchConverter()
+        py_net = pytorch_converter.from_neural_network(network)
+
+        py_net = self.__training(py_net, dataset)
+
+        network.alt_rep_cache.clear()
+        network.alt_rep_cache.append(py_net)
+        network.up_to_date = False
+
+        return network
+
+    def __training(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -&gt; cv.PyTorchNetwork:
+
+        &#34;&#34;&#34;
+        Training procedure for the PyTorchNetwork.
+
+        Parameters
+        ----------
+        net : PyTorchNetwork
+            The PyTorchNetwork to train.
+        dataset : Dataset
+            The dataset to use for the training of the PyTorchNetwork
+
+        Returns
+        ----------
+        PyTorchNetwork
+            The trained PyTorchNetwork.
+
+        &#34;&#34;&#34;
+
+        # If the training should be done with the GPU we set the model to cuda.
+        if self.cuda:
+            net.pytorch_network.cuda()
+        else:
+            net.pytorch_network.cpu()
+
+        logger = logging.getLogger(logger_name)
+
+        # We set all the values of the network to double.
+        net.pytorch_network.double()
+
+        # We build the optimizer and the scheduler
+        optimizer = self.optimizer_con(net.pytorch_network.parameters(), **self.opt_params)
+
+        if self.scheduler_con is not None:
+            scheduler = self.scheduler_con(optimizer, **self.sch_params)
+        else:
+            scheduler = None
+
+        # We split the dataset in training set and validation set.
+        validation_len = int(dataset.__len__() * self.validation_percentage)
+        training_len = dataset.__len__() - validation_len
+        training_set, validation_set = tdt.random_split(dataset, (training_len, validation_len))
+
+        # We instantiate the data loaders
+        train_loader = tdt.DataLoader(training_set, self.train_batch_size)
+        validation_loader = tdt.DataLoader(validation_set, self.validation_batch_size)
+
+        if self.verbose_rate is None:
+            self.verbose_rate = int(len(train_loader) / 4)
+
+        # If a checkpoint exist, we load the checkpoint of interest
+        checkpoints_path = self.checkpoints_root + net.identifier + &#39;.pth.tar&#39;
+        best_model_path = self.checkpoints_root + net.identifier + &#39;_best.pth.tar&#39;
+
+        if os.path.isfile(checkpoints_path):
+
+            logger.info(f&#34;Loading Checkpoint: &#39;{checkpoints_path}&#39;&#34;)
+            checkpoint = torch.load(checkpoints_path)
+            start_epoch = checkpoint[&#39;epoch&#39;]
+            net.pytorch_network.load_state_dict(checkpoint[&#39;network_state_dict&#39;])
+            optimizer.load_state_dict(checkpoint[&#39;optimizer_state_dict&#39;])
+            best_loss_score = checkpoint[&#39;best_loss_score&#39;]
+            epochs_without_decrease = checkpoint[&#39;epochs_without_decrease&#39;]
+            logger.info(f&#34;Loaded Checkpoint: &#39;{checkpoints_path}&#39;&#34;)
+            logger.info(f&#34;Epoch: {start_epoch}, Best Loss Score: {best_loss_score}&#34;)
+
+        else:
+            # Otherwise we initialize the values of interest
+            logger.info(f&#34;No Checkpoint was found at &#39;{checkpoints_path}&#39;&#34;)
+            # best_loss_score is set to a high number so that the first epoch will replace it
+            best_loss_score = 999999
+            epochs_without_decrease = 0
+            start_epoch = 0
+
+        # history_score is used to keep track of the evolution of training loss and validation loss
+        history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
+
+        # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
+        # epochs until termination we consider all the batches
+        for epoch in range(start_epoch, self.n_epochs):
+
+            if epochs_without_decrease &gt; self.train_patience:
+                break
+
+            # We set the network to train mode.
+            net.pytorch_network.train()
+            avg_loss = 0
+
+            # For each batch we compute one learning step
+            for batch_idx, (data, target) in enumerate(train_loader):
+
+                if self.cuda:
+                    data, target = data.cuda(), target.cuda()
+
+                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                if target.dtype == torch.float:
+                    target = target.double()
+                data = data.double()
+                optimizer.zero_grad()
+                output = net.pytorch_network(data)
+                loss = self.loss_function(output, target)
+                avg_loss += loss.data.item()
+                loss.backward()
+
+                if self.network_transform is not None:
+                    self.network_transform(net)
+
+                optimizer.step()
+
+                if batch_idx % self.verbose_rate == 0:
+                    logger.info(&#39;Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}&#39;.format(
+                        epoch, batch_idx * len(data), len(training_set),
+                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                        loss.data.item()))
+
+            # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
+            avg_loss = avg_loss / batch_idx
+            history_score[epoch - start_epoch][0] = avg_loss
+
+            # EPOCH TEST
+
+            net.pytorch_network.eval()
+            net.pytorch_network.double()
+            validation_loss = 0
+            with torch.no_grad():
+
+                for batch_idx, (data, target) in enumerate(validation_loader):
+
+                    if self.cuda:
+                        data, target = data.cuda(), target.cuda()
+
+                    data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
+                    if target.dtype == torch.float:
+                        target = target.double()
+                    data = data.double()
+                    output = net.pytorch_network(data)
+                    loss = self.precision_metric(output, target)
+                    validation_loss += loss.data.item()
+
+            # validation_loss = validation_loss / float(math.floor(len(validation_set) / self.validation_batch_size))
+            validation_loss = validation_loss / batch_idx
+            logger.info(&#39;\nValidation Set Metric Value: {:.4f}\n&#39;.format(validation_loss))
+
+            if validation_loss &lt; best_loss_score:
+                epochs_without_decrease = 0
+                best_loss_score = validation_loss
+            else:
+                epochs_without_decrease += 1
+
+            # We need to distinguish among different scheduler because not all the pytorch scheduler present the same
+            # interface.
+            if scheduler is not None:
+                if isinstance(scheduler, schedulers.ReduceLROnPlateau):
+                    scheduler.step(validation_loss)
+                elif scheduler is not None:
+                    scheduler.step()
+
+            # CHECKPOINT
+
+            history_score[epoch - start_epoch][1] = validation_loss
+            is_best = validation_loss &lt; best_loss_score
+
+            state = {
+                &#39;epoch&#39;: epoch + 1,
+                &#39;network_state_dict&#39;: net.pytorch_network.state_dict(),
+                &#39;optimizer_state_dict&#39;: optimizer.state_dict(),
+                &#39;best_loss_score&#39;: best_loss_score,
+                &#39;epochs_without_decrease&#39;: epochs_without_decrease
+            }
+
+            torch.save(state, checkpoints_path)
+            if is_best:
+                shutil.copyfile(checkpoints_path, best_model_path)
+
+        if os.path.isfile(best_model_path):
+            best_checkpoint = torch.load(best_model_path)
+            net.pytorch_network.load_state_dict(best_checkpoint[&#39;network_state_dict&#39;])
+
+        logger.info(f&#34;Best Loss Score: {best_loss_score}&#34;)
+
+        return net</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.training.TrainingStrategy" href="#pynever.strategies.training.TrainingStrategy">TrainingStrategy</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="pynever.strategies.training.TrainingStrategy" href="#pynever.strategies.training.TrainingStrategy">TrainingStrategy</a></b></code>:
+<ul class="hlist">
+<li><code><a title="pynever.strategies.training.TrainingStrategy.train" href="#pynever.strategies.training.TrainingStrategy.train">train</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="pynever.strategies.training.TestingStrategy"><code class="flex name class">
+<span>class <span class="ident">TestingStrategy</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent a Testing Strategy.</p>
+<h2 id="methods">Methods</h2>
+<p>test(NeuralNetwork, Dataset)
+Test the neural network of interest using a testing strategy determined in the concrete children.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestingStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Testing Strategy.
+
+    Methods
+    ----------
+    test(NeuralNetwork, Dataset)
+        Test the neural network of interest using a testing strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; float:
+        &#34;&#34;&#34;
+        Test the neural network of interest using a testing strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to test.
+        dataset : Dataset
+            The dataset to use to test the neural network.
+
+        Returns
+        ----------
+        float
+            A measure of the correctness of the networks dependant on the concrete children
+
+        &#34;&#34;&#34;
+        pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.training.PytorchTesting" href="#pynever.strategies.training.PytorchTesting">PytorchTesting</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.training.TestingStrategy.test"><code class="name flex">
+<span>def <span class="ident">test</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, dataset: <a title="pynever.datasets.Dataset" href="../datasets.html#pynever.datasets.Dataset">Dataset</a>) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Test the neural network of interest using a testing strategy determined in the concrete children.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to test.</dd>
+<dt><strong><code>dataset</code></strong> :&ensp;<code>Dataset</code></dt>
+<dd>The dataset to use to test the neural network.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float</code></dt>
+<dd>A measure of the correctness of the networks dependant on the concrete children</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abc.abstractmethod
+def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; float:
+    &#34;&#34;&#34;
+    Test the neural network of interest using a testing strategy determined in the concrete children.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to test.
+    dataset : Dataset
+        The dataset to use to test the neural network.
+
+    Returns
+    ----------
+    float
+        A measure of the correctness of the networks dependant on the concrete children
+
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pynever.strategies.training.TrainingStrategy"><code class="flex name class">
+<span>class <span class="ident">TrainingStrategy</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>An abstract class used to represent a Training Strategy.</p>
+<h2 id="methods">Methods</h2>
+<p>train(NeuralNetwork, Dataset)
+Train the neural network of interest using a training strategy determined in the concrete children.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TrainingStrategy(abc.ABC):
+    &#34;&#34;&#34;
+    An abstract class used to represent a Training Strategy.
+
+    Methods
+    ----------
+    train(NeuralNetwork, Dataset)
+        Train the neural network of interest using a training strategy determined in the concrete children.
+
+    &#34;&#34;&#34;
+
+    @abc.abstractmethod
+    def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; networks.NeuralNetwork:
+        &#34;&#34;&#34;
+        Train the neural network of interest using a testing strategy determined in the concrete children.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to train.
+        dataset : Dataset
+            The dataset to use to train the neural network.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the training of the original network using the training strategy and the
+            dataset.
+
+        &#34;&#34;&#34;
+        pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pynever.strategies.training.PytorchTraining" href="#pynever.strategies.training.PytorchTraining">PytorchTraining</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pynever.strategies.training.TrainingStrategy.train"><code class="name flex">
+<span>def <span class="ident">train</span></span>(<span>self, network: <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, dataset: <a title="pynever.datasets.Dataset" href="../datasets.html#pynever.datasets.Dataset">Dataset</a>) ‑> <a title="pynever.networks.NeuralNetwork" href="../networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Train the neural network of interest using a testing strategy determined in the concrete children.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>network</code></strong> :&ensp;<code>NeuralNetwork</code></dt>
+<dd>The neural network to train.</dd>
+<dt><strong><code>dataset</code></strong> :&ensp;<code>Dataset</code></dt>
+<dd>The dataset to use to train the neural network.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>NeuralNetwork</code></dt>
+<dd>The Neural Network resulting from the training of the original network using the training strategy and the
+dataset.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abc.abstractmethod
+def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -&gt; networks.NeuralNetwork:
+    &#34;&#34;&#34;
+    Train the neural network of interest using a testing strategy determined in the concrete children.
+
+    Parameters
+    ----------
+    network : NeuralNetwork
+        The neural network to train.
+    dataset : Dataset
+        The dataset to use to train the neural network.
+
+    Returns
+    ----------
+    NeuralNetwork
+        The Neural Network resulting from the training of the original network using the training strategy and the
+        dataset.
+
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pynever.strategies" href="index.html">pynever.strategies</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pynever.strategies.training.PytorchMetrics" href="#pynever.strategies.training.PytorchMetrics">PytorchMetrics</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.training.PytorchMetrics.inaccuracy" href="#pynever.strategies.training.PytorchMetrics.inaccuracy">inaccuracy</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.training.PytorchTesting" href="#pynever.strategies.training.PytorchTesting">PytorchTesting</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.training.PytorchTraining" href="#pynever.strategies.training.PytorchTraining">PytorchTraining</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.training.TestingStrategy" href="#pynever.strategies.training.TestingStrategy">TestingStrategy</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.training.TestingStrategy.test" href="#pynever.strategies.training.TestingStrategy.test">test</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pynever.strategies.training.TrainingStrategy" href="#pynever.strategies.training.TrainingStrategy">TrainingStrategy</a></code></h4>
+<ul class="">
+<li><code><a title="pynever.strategies.training.TrainingStrategy.train" href="#pynever.strategies.training.TrainingStrategy.train">train</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
