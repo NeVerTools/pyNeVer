@@ -46,7 +46,7 @@ class NeuralNetwork(abc.ABC):
     edges : dict &lt;str, list &lt;str&gt;&gt;
         Dictionary of identifiers of LayerNodes, it contains for each nodes identified by the keys, the list of nodes
         connected to it.
-    alt_rep_cache : dict &lt;str, AlternativeRepresentation&gt;
+    alt_rep_cache : List&lt;AlternativeRepresentation&gt;
         Dictionary of containing str keys and AlternativeRepresentation values, it contains the
         AlternativeRepresentations of out network.
     up_to_date : bool
@@ -183,12 +183,8 @@ class SequentialNetwork(NeuralNetwork):
         return current_node
 
     def __repr__(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f&#34;{self.identifier} : {body.__str__()}&#34;
-
-    def to_string(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f&#34;{self.identifier} : {body.__str__()}&#34;</code></pre>
+        body = [node.__str__() for node in self.nodes.values()]
+        return f&#34;{self.identifier} : {body}&#34;</code></pre>
 </details>
 </section>
 <section>
@@ -217,7 +213,7 @@ the identifier of the node of interest is used as a key in the nodes dictionary.
 <dt><strong><code>edges</code></strong> :&ensp;<code>dict &lt;str, list &lt;str&gt;&gt;</code></dt>
 <dd>Dictionary of identifiers of LayerNodes, it contains for each nodes identified by the keys, the list of nodes
 connected to it.</dd>
-<dt><strong><code>alt_rep_cache</code></strong> :&ensp;<code>dict &lt;str, AlternativeRepresentation&gt;</code></dt>
+<dt><strong><code>alt_rep_cache</code></strong> :&ensp;<code>List&lt;AlternativeRepresentation&gt;</code></dt>
 <dd>Dictionary of containing str keys and AlternativeRepresentation values, it contains the
 AlternativeRepresentations of out network.</dd>
 <dt><strong><code>up_to_date</code></strong> :&ensp;<code>bool</code></dt>
@@ -245,7 +241,7 @@ AlternativeRepresentations.</dd>
     edges : dict &lt;str, list &lt;str&gt;&gt;
         Dictionary of identifiers of LayerNodes, it contains for each nodes identified by the keys, the list of nodes
         connected to it.
-    alt_rep_cache : dict &lt;str, AlternativeRepresentation&gt;
+    alt_rep_cache : List&lt;AlternativeRepresentation&gt;
         Dictionary of containing str keys and AlternativeRepresentation values, it contains the
         AlternativeRepresentations of out network.
     up_to_date : bool
@@ -417,12 +413,8 @@ Procedure to extract the last node of the sequential Neural Network.</p></div>
         return current_node
 
     def __repr__(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f&#34;{self.identifier} : {body.__str__()}&#34;
-
-    def to_string(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f&#34;{self.identifier} : {body.__str__()}&#34;</code></pre>
+        body = [node.__str__() for node in self.nodes.values()]
+        return f&#34;{self.identifier} : {body}&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -570,20 +562,6 @@ The next node of the network.</p></div>
     return next_node</code></pre>
 </details>
 </dd>
-<dt id="pynever.networks.SequentialNetwork.to_string"><code class="name flex">
-<span>def <span class="ident">to_string</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_string(self):
-    body = [node.to_string() for node in self.nodes.values()]
-    return f&#34;{self.identifier} : {body.__str__()}&#34;</code></pre>
-</details>
-</dd>
 </dl>
 </dd>
 </dl>
@@ -612,7 +590,6 @@ The next node of the network.</p></div>
 <li><code><a title="pynever.networks.SequentialNetwork.get_first_node" href="#pynever.networks.SequentialNetwork.get_first_node">get_first_node</a></code></li>
 <li><code><a title="pynever.networks.SequentialNetwork.get_last_node" href="#pynever.networks.SequentialNetwork.get_last_node">get_last_node</a></code></li>
 <li><code><a title="pynever.networks.SequentialNetwork.get_next_node" href="#pynever.networks.SequentialNetwork.get_next_node">get_next_node</a></code></li>
-<li><code><a title="pynever.networks.SequentialNetwork.to_string" href="#pynever.networks.SequentialNetwork.to_string">to_string</a></code></li>
 </ul>
 </li>
 </ul>

@@ -27,16 +27,23 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import copy
+import logging
+
+import numpy.random
 
 import pynever.strategies.conversion as cv
 import pynever.nodes as nodes
 import pynever.networks as networks
+import pynever.strategies.abstraction as abst
 import torch
 import torch.nn.functional as funct
 from pynever.tensor import Tensor
 import numpy as np
 import pynever.pytorch_layers as ptl
+from typing import List
+from ortools.constraint_solver import pywrapcp
 
+logger_name = &#34;pynever.utilities&#34;
 
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -&gt; ptl.Linear:
     &#34;&#34;&#34;
@@ -68,10 +75,15 @@ def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -&gt; pt
     fused_weight = torch.diag(torch.div(bn_weight, torch.sqrt(bn_running_var + bn_eps)))
     fused_weight = torch.matmul(fused_weight, l_weight)
 
+    has_bias = linear.bias is not None
     fused_linear = ptl.Linear(linear.identifier, linear.in_dim, linear.out_dim, linear.in_features, linear.out_features,
-                              linear.bias)
-    fused_linear.weight = fused_weight
-    fused_linear.bias = fused_bias
+                              has_bias)
+
+    p_fused_weight = torch.nn.Parameter(fused_weight, requires_grad=False)
+    p_fused_bias = torch.nn.Parameter(fused_bias, requires_grad=False)
+
+    fused_linear.weight = p_fused_weight
+    fused_linear.bias = p_fused_bias
 
     return fused_linear
 
@@ -112,7 +124,7 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -&gt; networks.
         elif isinstance(current_node, ptl.Linear):
             new_modules.append(copy.deepcopy(current_node))
 
-        elif isinstance(current_node, nodes.ReLUNode):
+        elif isinstance(current_node, ptl.ReLU):
             new_modules.append(copy.deepcopy(current_node))
 
         else:
@@ -120,7 +132,10 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -&gt; networks.
 
         current_index = current_index + 1
 
-    temp_pynet = ptl.Sequential(py_net.pytorch_network.identifier, py_net.pytorch_network.input_id, *new_modules)
+    if not isinstance(modules[current_index], ptl.BatchNorm1d):
+        new_modules.append(copy.deepcopy(modules[current_index]))
+
+    temp_pynet = ptl.Sequential(py_net.pytorch_network.identifier, py_net.pytorch_network.input_id, new_modules)
     combined_pynet = cv.PyTorchNetwork(py_net.identifier, temp_pynet)
     combined_network = cv.PyTorchConverter().to_neural_network(combined_pynet)
 
@@ -461,8 +476,19 @@ def parse_nnet(filepath: str) -&gt; (list, list, list, list, list, list):
         return new_weights, new_biases, inputMeans, inputRanges, outputMean, outputRange
 
 
-def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int, rate: float,
-                 threshold: float = 1e-5):
+def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int,
+                 threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD, opt_params: dict = None,
+                 scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau, scheduler_params: dict = None,
+                 max_iter_no_change: int = None):
+
+    logger = logging.getLogger(logger_name)
+    logger.info(f&#34;SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n&#34;)
+
+    if opt_params is None:
+        opt_params = dict(lr=0.1, momentum=0.5)
+
+    if max_iter_no_change is None:
+        max_iter_no_change = int(max_iter / 10)
 
     py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
     py_ref_output = torch.from_numpy(ref_output)
@@ -470,34 +496,174 @@ def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: T
     current_input = py_start_input
     current_input.requires_grad = True
 
-    optim = torch.optim.SGD(params=[current_input], lr=rate)
+    optim = optimizer_con([current_input], **opt_params)
 
-    real_output = py_net(current_input)
-    py_ref_output = torch.unsqueeze(py_ref_output, 0)
-    real_output = torch.unsqueeze(real_output, 0)
-    dist = funct.pairwise_distance(real_output, py_ref_output, p=2)
+    if scheduler_params is None:
+        scheduler = scheduler_con(optim)
+    else:
+        scheduler = scheduler_con(optim, **scheduler_params)
+
+    dist = torch.Tensor([threshold + 10])
     iteration = 0
-
+    iter_no_change = 0
+    last_dist = dist
     while dist &gt; threshold and iteration &lt; max_iter:
-        #current_input.requires_grad = True
+
+        current_output = py_net(current_input)
+        current_output = torch.unsqueeze(current_output, 0)
+        dist = funct.pairwise_distance(py_ref_output, current_output, p=2)
+
+        if abs(dist.item() - last_dist.item()) &lt; 0.000001:
+            iter_no_change += 1
+
+        if iter_no_change &gt; max_iter_no_change:
+            logger.debug(&#34;Early Stopping&#34;)
+            break
+
         optim.zero_grad()
         dist.backward()
         optim.step()
-        real_output = py_net(current_input)
-        real_output = torch.unsqueeze(real_output, 0)
-        dist = funct.pairwise_distance(py_ref_output, real_output, p=2)
-        print(f&#34;Loss: {dist}&#34;)
-        print(f&#34;Current Input: {current_input}&#34;)
-        print(f&#34;Current Output: {real_output}&#34;)
-        print(f&#34;Grad: {current_input.grad}&#34;)
-        print(f&#34;Ref Output: {ref_output}&#34;)
+        scheduler.step(dist)
+
+        logger.debug(f&#34;Iter {iteration}, PW_Dist = {dist.item()}&#34;)
+        logger.debug(f&#34;Current Input: {current_input.data}&#34;)
+        logger.debug(f&#34;Current Output: {current_output.data}&#34;)
+        logger.debug(f&#34;Current Reference Output: {py_ref_output.data}\n&#34;)
+        last_dist = dist
         iteration = iteration + 1
 
     correct = False
     if dist &lt;= threshold:
         correct = True
 
-    return correct, np.array(current_input), np.array(real_output)
+    return correct, current_input.detach().numpy(), current_output.detach().numpy()
+
+
+def input_search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int,
+                       scale_coeff: float, iter_change_scale: int, iter_early_stop: int, adjustment_rate: float = 0.1,
+                       num_samples: int = 1000, threshold: float = 1e-5):
+
+    logger = logging.getLogger(logger_name)
+    #logger.info(f&#34;SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n&#34;)
+
+    scale = np.ones(start_input.shape) * scale_coeff
+
+    iteration = 0
+    iter_no_change = 0
+    best_dist = 999999
+    current_input = start_input
+    current_output = None
+
+    while iteration &lt; max_iter and best_dist &gt; threshold:
+
+        #logger.debug(f&#34;BEGINNING ITER: {iteration}&#34;)
+
+        current_input, current_output, current_dist = search_cloud(net, ref_output, current_input, num_samples, scale)
+
+        #logger.debug(f&#34;BEST_SAMPLE: {current_input.squeeze()}&#34;)
+        #logger.debug(f&#34;BEST_DIST: {current_dist}&#34;)
+        #logger.debug(f&#34;BEST_OUTPUT: {current_output.squeeze()}&#34;)
+
+        if current_dist &lt; best_dist:
+            iter_no_change = 0
+        else:
+            iter_no_change += 1
+
+        if iter_no_change &gt; iter_change_scale:
+            scale = scale * adjustment_rate
+
+        if iter_no_change &gt; iter_early_stop:
+            break
+
+        iteration += 1
+
+    correct = False
+    if best_dist &lt;= threshold:
+        correct = True
+
+    #logger.debug(f&#34;BEST_SAMPLE: {current_input.squeeze()}&#34;)
+    logger.debug(f&#34;BEST_DIST: {current_dist}&#34;)
+    #logger.debug(f&#34;BEST_OUTPUT: {current_output.squeeze()}&#34;)
+
+    return correct, current_input, current_output
+
+
+def search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, num_samples: int, scale: Tensor):
+
+    py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
+    py_ref_output = torch.from_numpy(ref_output).squeeze()
+    py_current_input = torch.from_numpy(start_input).squeeze()
+    py_current_output = py_net(py_current_input)
+    best_dist = torch.dist(py_ref_output, py_current_output, p=2)
+    current_input = start_input
+    best_sample = start_input
+
+    for i in range(num_samples):
+
+        sample = np.random.normal(loc=current_input, scale=scale, size=current_input.shape)
+        py_sample = torch.from_numpy(sample).squeeze()
+        py_output = py_net(py_sample)
+        temp_dist = torch.dist(py_ref_output, py_output, p=2)
+        if temp_dist.item() &lt; best_dist.item():
+            best_sample = sample
+            best_dist = temp_dist
+
+    current_input = best_sample
+    current_output = py_net(torch.from_numpy(current_input).squeeze()).detach().numpy()
+    current_output = np.expand_dims(current_output, axis=1)
+    current_dist = best_dist.item()
+
+    return current_input, current_output, current_dist
+
+
+def input_search_lbl(net: networks.SequentialNetwork, ref_output: Tensor, starset_list: List[abst.StarSet],
+                     max_iter: int, threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD,
+                     opt_params: dict = None, scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau,
+                     scheduler_params: dict = None, max_iter_no_change: int = None):
+
+    logger = logging.getLogger(logger_name)
+    logger.info(f&#34;LAYER-BY-LAYER SEARCH of Input Point corresponding to Output: {ref_output}.&#34;)
+
+    current_node = net.get_first_node()
+    node_list = []
+    while current_node is not None:
+        node_list.append(current_node)
+        current_node = net.get_next_node(current_node)
+
+    node_list.reverse()
+    starset_list.reverse()
+    temp_ref_output = ref_output
+
+    for i in range(len(node_list)):
+
+        temp_net = networks.SequentialNetwork(&#34;temp&#34;, &#34;temp&#34;)
+        temp_net.add_node(copy.deepcopy(node_list[i]))
+        temp_start_input = list(starset_list[i].stars)[0].get_samples(1)[0]
+        temp_start_input = temp_start_input.squeeze()
+        temp_ref_output = temp_ref_output.squeeze()
+
+        logger.info(f&#34;ANALYZING LAYER: {node_list[i].identifier}. Starting Input = {temp_start_input}, &#34;
+                    f&#34;Reference Output = {temp_ref_output}&#34;)
+
+        temp_correct, temp_current_input, temp_current_output = input_search(temp_net, temp_ref_output,
+                                                                             temp_start_input, max_iter, threshold,
+                                                                             optimizer_con, opt_params, scheduler_con,
+                                                                             scheduler_params, max_iter_no_change)
+
+        logger.info(f&#34;ENDED LAYER SEARCH. FOUND = {temp_correct}, INPUT = {temp_current_input}, &#34;
+                    f&#34;OUTPUT = {temp_current_output}&#34;)
+
+        if not temp_correct:
+            logger.info(f&#34;Search Failed at layer: {node_list[i].identifier}&#34;)
+            return False, None, None
+
+        temp_ref_output = temp_current_input
+
+    py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
+    py_current_input = torch.from_numpy(temp_current_input)
+    py_current_output = py_net(py_current_input)
+
+    return temp_correct, py_current_input.detach().numpy(), py_current_output.detach().numpy()
 
 
 def compute_saliency(net: networks.NeuralNetwork, ref_input: Tensor):
@@ -617,10 +783,15 @@ The Linear resulting from the fusion of the two input nodes.</p></div>
     fused_weight = torch.diag(torch.div(bn_weight, torch.sqrt(bn_running_var + bn_eps)))
     fused_weight = torch.matmul(fused_weight, l_weight)
 
+    has_bias = linear.bias is not None
     fused_linear = ptl.Linear(linear.identifier, linear.in_dim, linear.out_dim, linear.in_features, linear.out_features,
-                              linear.bias)
-    fused_linear.weight = fused_weight
-    fused_linear.bias = fused_bias
+                              has_bias)
+
+    p_fused_weight = torch.nn.Parameter(fused_weight, requires_grad=False)
+    p_fused_bias = torch.nn.Parameter(fused_bias, requires_grad=False)
+
+    fused_linear.weight = p_fused_weight
+    fused_linear.bias = p_fused_bias
 
     return fused_linear</code></pre>
 </details>
@@ -680,7 +851,7 @@ Corresponding Sequential Network with the combined nodes.</p></div>
         elif isinstance(current_node, ptl.Linear):
             new_modules.append(copy.deepcopy(current_node))
 
-        elif isinstance(current_node, nodes.ReLUNode):
+        elif isinstance(current_node, ptl.ReLU):
             new_modules.append(copy.deepcopy(current_node))
 
         else:
@@ -688,7 +859,10 @@ Corresponding Sequential Network with the combined nodes.</p></div>
 
         current_index = current_index + 1
 
-    temp_pynet = ptl.Sequential(py_net.pytorch_network.identifier, py_net.pytorch_network.input_id, *new_modules)
+    if not isinstance(modules[current_index], ptl.BatchNorm1d):
+        new_modules.append(copy.deepcopy(modules[current_index]))
+
+    temp_pynet = ptl.Sequential(py_net.pytorch_network.identifier, py_net.pytorch_network.input_id, new_modules)
     combined_pynet = cv.PyTorchNetwork(py_net.identifier, temp_pynet)
     combined_network = cv.PyTorchConverter().to_neural_network(combined_pynet)
 
@@ -921,7 +1095,7 @@ It assumes that the data and target are from a classification task.</p>
 </details>
 </dd>
 <dt id="pynever.utilities.input_search"><code class="name flex">
-<span>def <span class="ident">input_search</span></span>(<span>net: <a title="pynever.networks.NeuralNetwork" href="networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, ref_output: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, start_input: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, max_iter: int, rate: float, threshold: float = 1e-05)</span>
+<span>def <span class="ident">input_search</span></span>(<span>net: <a title="pynever.networks.NeuralNetwork" href="networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, ref_output: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, start_input: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, max_iter: int, threshold: float = 1e-05, optimizer_con: type = torch.optim.sgd.SGD, opt_params: dict = None, scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau, scheduler_params: dict = None, max_iter_no_change: int = None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -929,8 +1103,19 @@ It assumes that the data and target are from a classification task.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int, rate: float,
-                 threshold: float = 1e-5):
+<pre><code class="python">def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int,
+                 threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD, opt_params: dict = None,
+                 scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau, scheduler_params: dict = None,
+                 max_iter_no_change: int = None):
+
+    logger = logging.getLogger(logger_name)
+    logger.info(f&#34;SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n&#34;)
+
+    if opt_params is None:
+        opt_params = dict(lr=0.1, momentum=0.5)
+
+    if max_iter_no_change is None:
+        max_iter_no_change = int(max_iter / 10)
 
     py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
     py_ref_output = torch.from_numpy(ref_output)
@@ -938,34 +1123,164 @@ It assumes that the data and target are from a classification task.</p>
     current_input = py_start_input
     current_input.requires_grad = True
 
-    optim = torch.optim.SGD(params=[current_input], lr=rate)
+    optim = optimizer_con([current_input], **opt_params)
 
-    real_output = py_net(current_input)
-    py_ref_output = torch.unsqueeze(py_ref_output, 0)
-    real_output = torch.unsqueeze(real_output, 0)
-    dist = funct.pairwise_distance(real_output, py_ref_output, p=2)
+    if scheduler_params is None:
+        scheduler = scheduler_con(optim)
+    else:
+        scheduler = scheduler_con(optim, **scheduler_params)
+
+    dist = torch.Tensor([threshold + 10])
     iteration = 0
-
+    iter_no_change = 0
+    last_dist = dist
     while dist &gt; threshold and iteration &lt; max_iter:
-        #current_input.requires_grad = True
+
+        current_output = py_net(current_input)
+        current_output = torch.unsqueeze(current_output, 0)
+        dist = funct.pairwise_distance(py_ref_output, current_output, p=2)
+
+        if abs(dist.item() - last_dist.item()) &lt; 0.000001:
+            iter_no_change += 1
+
+        if iter_no_change &gt; max_iter_no_change:
+            logger.debug(&#34;Early Stopping&#34;)
+            break
+
         optim.zero_grad()
         dist.backward()
         optim.step()
-        real_output = py_net(current_input)
-        real_output = torch.unsqueeze(real_output, 0)
-        dist = funct.pairwise_distance(py_ref_output, real_output, p=2)
-        print(f&#34;Loss: {dist}&#34;)
-        print(f&#34;Current Input: {current_input}&#34;)
-        print(f&#34;Current Output: {real_output}&#34;)
-        print(f&#34;Grad: {current_input.grad}&#34;)
-        print(f&#34;Ref Output: {ref_output}&#34;)
+        scheduler.step(dist)
+
+        logger.debug(f&#34;Iter {iteration}, PW_Dist = {dist.item()}&#34;)
+        logger.debug(f&#34;Current Input: {current_input.data}&#34;)
+        logger.debug(f&#34;Current Output: {current_output.data}&#34;)
+        logger.debug(f&#34;Current Reference Output: {py_ref_output.data}\n&#34;)
+        last_dist = dist
         iteration = iteration + 1
 
     correct = False
     if dist &lt;= threshold:
         correct = True
 
-    return correct, np.array(current_input), np.array(real_output)</code></pre>
+    return correct, current_input.detach().numpy(), current_output.detach().numpy()</code></pre>
+</details>
+</dd>
+<dt id="pynever.utilities.input_search_cloud"><code class="name flex">
+<span>def <span class="ident">input_search_cloud</span></span>(<span>net: <a title="pynever.networks.NeuralNetwork" href="networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, ref_output: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, start_input: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, max_iter: int, scale_coeff: float, iter_change_scale: int, iter_early_stop: int, adjustment_rate: float = 0.1, num_samples: int = 1000, threshold: float = 1e-05)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def input_search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int,
+                       scale_coeff: float, iter_change_scale: int, iter_early_stop: int, adjustment_rate: float = 0.1,
+                       num_samples: int = 1000, threshold: float = 1e-5):
+
+    logger = logging.getLogger(logger_name)
+    #logger.info(f&#34;SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n&#34;)
+
+    scale = np.ones(start_input.shape) * scale_coeff
+
+    iteration = 0
+    iter_no_change = 0
+    best_dist = 999999
+    current_input = start_input
+    current_output = None
+
+    while iteration &lt; max_iter and best_dist &gt; threshold:
+
+        #logger.debug(f&#34;BEGINNING ITER: {iteration}&#34;)
+
+        current_input, current_output, current_dist = search_cloud(net, ref_output, current_input, num_samples, scale)
+
+        #logger.debug(f&#34;BEST_SAMPLE: {current_input.squeeze()}&#34;)
+        #logger.debug(f&#34;BEST_DIST: {current_dist}&#34;)
+        #logger.debug(f&#34;BEST_OUTPUT: {current_output.squeeze()}&#34;)
+
+        if current_dist &lt; best_dist:
+            iter_no_change = 0
+        else:
+            iter_no_change += 1
+
+        if iter_no_change &gt; iter_change_scale:
+            scale = scale * adjustment_rate
+
+        if iter_no_change &gt; iter_early_stop:
+            break
+
+        iteration += 1
+
+    correct = False
+    if best_dist &lt;= threshold:
+        correct = True
+
+    #logger.debug(f&#34;BEST_SAMPLE: {current_input.squeeze()}&#34;)
+    logger.debug(f&#34;BEST_DIST: {current_dist}&#34;)
+    #logger.debug(f&#34;BEST_OUTPUT: {current_output.squeeze()}&#34;)
+
+    return correct, current_input, current_output</code></pre>
+</details>
+</dd>
+<dt id="pynever.utilities.input_search_lbl"><code class="name flex">
+<span>def <span class="ident">input_search_lbl</span></span>(<span>net: <a title="pynever.networks.SequentialNetwork" href="networks.html#pynever.networks.SequentialNetwork">SequentialNetwork</a>, ref_output: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, starset_list: List[<a title="pynever.strategies.abstraction.StarSet" href="strategies/abstraction.html#pynever.strategies.abstraction.StarSet">StarSet</a>], max_iter: int, threshold: float = 1e-05, optimizer_con: type = torch.optim.sgd.SGD, opt_params: dict = None, scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau, scheduler_params: dict = None, max_iter_no_change: int = None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def input_search_lbl(net: networks.SequentialNetwork, ref_output: Tensor, starset_list: List[abst.StarSet],
+                     max_iter: int, threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD,
+                     opt_params: dict = None, scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau,
+                     scheduler_params: dict = None, max_iter_no_change: int = None):
+
+    logger = logging.getLogger(logger_name)
+    logger.info(f&#34;LAYER-BY-LAYER SEARCH of Input Point corresponding to Output: {ref_output}.&#34;)
+
+    current_node = net.get_first_node()
+    node_list = []
+    while current_node is not None:
+        node_list.append(current_node)
+        current_node = net.get_next_node(current_node)
+
+    node_list.reverse()
+    starset_list.reverse()
+    temp_ref_output = ref_output
+
+    for i in range(len(node_list)):
+
+        temp_net = networks.SequentialNetwork(&#34;temp&#34;, &#34;temp&#34;)
+        temp_net.add_node(copy.deepcopy(node_list[i]))
+        temp_start_input = list(starset_list[i].stars)[0].get_samples(1)[0]
+        temp_start_input = temp_start_input.squeeze()
+        temp_ref_output = temp_ref_output.squeeze()
+
+        logger.info(f&#34;ANALYZING LAYER: {node_list[i].identifier}. Starting Input = {temp_start_input}, &#34;
+                    f&#34;Reference Output = {temp_ref_output}&#34;)
+
+        temp_correct, temp_current_input, temp_current_output = input_search(temp_net, temp_ref_output,
+                                                                             temp_start_input, max_iter, threshold,
+                                                                             optimizer_con, opt_params, scheduler_con,
+                                                                             scheduler_params, max_iter_no_change)
+
+        logger.info(f&#34;ENDED LAYER SEARCH. FOUND = {temp_correct}, INPUT = {temp_current_input}, &#34;
+                    f&#34;OUTPUT = {temp_current_output}&#34;)
+
+        if not temp_correct:
+            logger.info(f&#34;Search Failed at layer: {node_list[i].identifier}&#34;)
+            return False, None, None
+
+        temp_ref_output = temp_current_input
+
+    py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
+    py_current_input = torch.from_numpy(temp_current_input)
+    py_current_output = py_net(py_current_input)
+
+    return temp_correct, py_current_input.detach().numpy(), py_current_output.detach().numpy()</code></pre>
 </details>
 </dd>
 <dt id="pynever.utilities.net_update"><code class="name flex">
@@ -1260,6 +1575,43 @@ while the int correspond to the desired target for the related data.</p></div>
         return new_weights, new_biases, inputMeans, inputRanges, outputMean, outputRange</code></pre>
 </details>
 </dd>
+<dt id="pynever.utilities.search_cloud"><code class="name flex">
+<span>def <span class="ident">search_cloud</span></span>(<span>net: <a title="pynever.networks.NeuralNetwork" href="networks.html#pynever.networks.NeuralNetwork">NeuralNetwork</a>, ref_output: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, start_input: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>, num_samples: int, scale: <a title="pynever.tensor.Tensor" href="tensor.html#pynever.tensor.Tensor">Tensor</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, num_samples: int, scale: Tensor):
+
+    py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
+    py_ref_output = torch.from_numpy(ref_output).squeeze()
+    py_current_input = torch.from_numpy(start_input).squeeze()
+    py_current_output = py_net(py_current_input)
+    best_dist = torch.dist(py_ref_output, py_current_output, p=2)
+    current_input = start_input
+    best_sample = start_input
+
+    for i in range(num_samples):
+
+        sample = np.random.normal(loc=current_input, scale=scale, size=current_input.shape)
+        py_sample = torch.from_numpy(sample).squeeze()
+        py_output = py_net(py_sample)
+        temp_dist = torch.dist(py_ref_output, py_output, p=2)
+        if temp_dist.item() &lt; best_dist.item():
+            best_sample = sample
+            best_dist = temp_dist
+
+    current_input = best_sample
+    current_output = py_net(torch.from_numpy(current_input).squeeze()).detach().numpy()
+    current_output = np.expand_dims(current_output, axis=1)
+    current_dist = best_dist.item()
+
+    return current_input, current_output, current_dist</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -1284,10 +1636,13 @@ while the int correspond to the desired target for the related data.</p></div>
 <li><code><a title="pynever.utilities.generate_targeted_linf_robustness_query" href="#pynever.utilities.generate_targeted_linf_robustness_query">generate_targeted_linf_robustness_query</a></code></li>
 <li><code><a title="pynever.utilities.generate_untargeted_linf_robustness_query" href="#pynever.utilities.generate_untargeted_linf_robustness_query">generate_untargeted_linf_robustness_query</a></code></li>
 <li><code><a title="pynever.utilities.input_search" href="#pynever.utilities.input_search">input_search</a></code></li>
+<li><code><a title="pynever.utilities.input_search_cloud" href="#pynever.utilities.input_search_cloud">input_search_cloud</a></code></li>
+<li><code><a title="pynever.utilities.input_search_lbl" href="#pynever.utilities.input_search_lbl">input_search_lbl</a></code></li>
 <li><code><a title="pynever.utilities.net_update" href="#pynever.utilities.net_update">net_update</a></code></li>
 <li><code><a title="pynever.utilities.parse_acas_property" href="#pynever.utilities.parse_acas_property">parse_acas_property</a></code></li>
 <li><code><a title="pynever.utilities.parse_linf_robustness_smtlib" href="#pynever.utilities.parse_linf_robustness_smtlib">parse_linf_robustness_smtlib</a></code></li>
 <li><code><a title="pynever.utilities.parse_nnet" href="#pynever.utilities.parse_nnet">parse_nnet</a></code></li>
+<li><code><a title="pynever.utilities.search_cloud" href="#pynever.utilities.search_cloud">search_cloud</a></code></li>
 </ul>
 </li>
 </ul>
