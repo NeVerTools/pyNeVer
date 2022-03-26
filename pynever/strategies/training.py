@@ -5,11 +5,14 @@ import pynever.strategies.conversion as cv
 import os
 import shutil
 import torch
+import torch.optim as opt
 import torch.optim.lr_scheduler as schedulers
 import torch.utils.data as tdt
 import math
 import numpy as np
-from typing import Callable, Dict
+import torch.nn as nn
+import torch.nn.functional as funct
+from typing import Callable, Dict, Union, Optional, Sequence, Collection
 import logging
 
 logger_name = "pynever.strategies.training"

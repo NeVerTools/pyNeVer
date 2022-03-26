@@ -1,10 +1,13 @@
 import abc
+
+from numpy import ndarray
+
 import pynever.nodes as nodes
 import uuid
 import numpy as np
 import multiprocessing
 import itertools
-from typing import Set, List, Union
+from typing import Set, List, Union, Tuple
 import math
 import scipy.spatial.distance as dist
 import time
@@ -118,6 +121,10 @@ class Star:
         self.ubs = ubs
         self.is_empty = is_empty
 
+        # Private Attributes used for the sampling of the star.
+        self.__auxiliary_points = None
+        self.__current_point = None
+
     def check_if_empty(self) -> bool:
         """
         Function used to check if the set of points defined by the star is empty.
@@ -207,7 +214,7 @@ class Star:
 
     def check_alpha_inside(self, alpha_point: Tensor) -> bool:
         """
-        Function which checks if the point passed as input is valid with respect to the constraints defined by the
+        Function which checks if the alpha point passed as input is valid with respect to the constraints defined by the
         predicate matrix and bias of the star.
 
         Parameters
@@ -227,16 +234,46 @@ class Star:
         test = np.all(tests)
         return test
 
-    def get_samples(self, num_samples: int) -> List[Tensor]:
+    def check_point_inside(self, point: Tensor, epsilon: float) -> bool:
+        """
+        Function which checks if the point passed as input is valid with respect to the constraints defined by the
+        predicate matrix and bias of the star.
 
-        # As first thing we need to get a valid starting point:
-        # assert not self.check_if_empty(), "Empty Set: impossible to sample."
-        if self.check_if_empty():
-            return []
+        Parameters
+        ----------
+        point : Tensor
+            Point whose validity is to test.
+        epsilon : float
+            Acceptable deviation from real point.
 
-        auxiliary_points = self.__get_auxiliary_points()
+        Returns
+        -------
+        bool
+            The result of the check as a boolean (True if the point is valid, False otherwise)
 
-        """solver, alphas, constraints = self.__get_predicate_lp_solver()
+        """
+
+        solver = pywraplp.Solver.CreateSolver('GLOP')
+        alphas = []
+        for j in range(self.basis_matrix.shape[1]):
+            new_alpha = solver.NumVar(-solver.infinity(), solver.infinity(), f'alpha_{j}')
+            alphas.append(new_alpha)
+
+        constraints = []
+        for k in range(self.predicate_matrix.shape[0]):
+            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0])
+            for j in range(self.predicate_matrix.shape[1]):
+                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j])
+            constraints.append(new_constraint)
+
+        for i in range(self.basis_matrix.shape[0]):
+            lb = point[i][0] - self.center[i][0] - epsilon
+            ub = point[i][0] - self.center[i][0] + epsilon
+            new_constraint = solver.Constraint(lb, ub)
+            for j in range(self.basis_matrix.shape[1]):
+                new_constraint.SetCoefficient(alphas[j], self.basis_matrix[i, j])
+            constraints.append(new_constraint)
+
         objective = solver.Objective()
         for j in range(self.predicate_matrix.shape[1]):
             objective.SetCoefficient(alphas[j], 0)
@@ -244,13 +281,27 @@ class Star:
 
         objective.SetMinimization()
         status = solver.Solve()
-        starting_point = np.zeros((len(alphas), 1))
-        assert status == pywraplp.Solver.OPTIMAL, "ERROR in solver: impossible to find starting point"
-        for i in range(len(alphas)):
-            starting_point[i] = alphas[i].solution_value()"""
-        starting_point = self.__get_starting_point()
 
-        current_point = np.array(starting_point)
+        return status == pywraplp.Solver.FEASIBLE or status == pywraplp.Solver.OPTIMAL
+
+    def get_samples(self, num_samples: int, reset_auxiliary: bool = False, new_start: bool = False) -> List[Tensor]:
+
+        # As first thing we need to get a valid starting point:
+        # assert not self.check_if_empty(), "Empty Set: impossible to sample."
+        if self.check_if_empty():
+            return []
+
+        if self.__auxiliary_points is None or reset_auxiliary:
+            auxiliary_points = self.__get_auxiliary_points()
+        else:
+            auxiliary_points = self.__auxiliary_points
+
+        if self.__current_point is None or new_start:
+            starting_point = self.__get_starting_point()
+            current_point = np.array(starting_point)
+        else:
+            current_point = self.__current_point
+
         # We begin the iterative process to generate the samples of interest.
         samples = []
         while len(samples) < num_samples:
@@ -277,9 +328,11 @@ class Star:
 
             increment = np.random.uniform(low=lam_lower, high=lam_upper)
             next_point = current_point + increment * direction
-            current_point = next_point
-            star_point = self.center + np.matmul(self.basis_matrix, current_point)
-            samples.append(star_point)
+            if self.check_alpha_inside(next_point):
+                current_point = next_point
+                star_point = self.center + np.matmul(self.basis_matrix, current_point)
+                samples.append(star_point)
+                self.__current_point = current_point
 
         return samples
 
@@ -380,9 +433,9 @@ class Star:
         assert status == pywraplp.Solver.OPTIMAL, "It was impossible to compute the Chebyshev center of the predicate."
 
         for alpha in alphas:
-            print(alpha.solution_value())
+            #print(alpha.solution_value())
             starting_point.append([alpha.solution_value()])
-        print(radius.solution_value())
+        #print(radius.solution_value())
 
         starting_point = np.array(starting_point)
 
@@ -577,37 +630,43 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
     return abs_output
 
 
-def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Set[Star]:
+def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple[Set[Star], ndarray]:
     """
     Utility function for the management of the forward for AbsReLUNode. It is outside
     the class scope since multiprocessing does not support parallelization with
     function internal to classes.
     """
 
-    assert heuristic == "given_flags" or heuristic == "best_n_neurons", "Heuristic Selected is not valid"
+    assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel",\
+        "Heuristic Selected is not valid"
 
     temp_abs_input = {star}
     if star.check_if_empty():
-        return set()
+        return set(), None
     else:
 
-        if heuristic == "best_n_neurons":
+        n_areas = []
+        for i in range(star.center.shape[0]):
+            lb, ub = star.get_bounds(i)
+            if lb < 0 and ub > 0:
+                n_areas.append(-lb * ub / 2.0)
+            else:
+                n_areas.append(0)
+
+        n_areas = np.array(n_areas)
+
+        if heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel":
 
             n_neurons = params[0]
 
             if n_neurons > 0:
-                n_areas = []
-                for i in range(star.center.shape[0]):
-                    lb, ub = star.get_bounds(i)
-                    if lb < 0 and ub > 0:
-                        n_areas.append(-lb * ub / 2.0)
-                    else:
-                        n_areas.append(0)
 
-                n_areas = np.array(n_areas)
                 # We compute the ordered indexes of the neurons with decreasing values of the areas.
                 # Our idea is that a greater value for the area correspond to greater loss of precision if the
                 # star is not refined for the corresponding neuron.
+                if heuristic == "best_n_neurons_rel":
+                    relevances = params[1]
+                    n_areas = n_areas * relevances
 
                 sorted_indexes = np.flip(np.argsort(n_areas))
                 index_to_refine = sorted_indexes[:n_neurons]
@@ -622,7 +681,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Set[S
                     refinement_flags.append(False)
 
         elif heuristic == "given_flags":
-            refinement_flags = params[0]
+            refinement_flags = params
 
         else:
             raise NotImplementedError
@@ -630,7 +689,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Set[S
         for i in range(star.center.shape[0]):
             temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i])
 
-        return temp_abs_input
+        return temp_abs_input, n_areas
 
 
 def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
@@ -929,11 +988,15 @@ class AbsReLUNode(AbsLayerNode):
         - given_flags: the neuron to be refined are selected referring to the list given in params
         - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
           the abstraction would incur using the coarse over_approximation.
+        - best_n_neurons_rel: for each star the n best neuron to refine are selected based on the loss of precision
+          the abstraction would incur using the coarse over_approximation together with the neuron relevances values.
 
-    params : Dict
+    params : List
         Parameters for the heuristic of interest.
-        If the heuristic is given_flags then params is a Dict whose first element is the list of refinement flags.
-        If the heuristic is best_n_neurons then params is a list whose first element is the number of neurons to refine.
+        If the heuristic is given_flags then params is a List whose first element is the list of refinement flags.
+        If the heuristic is best_n_neurons then params is a List whose first element is the number of neurons to refine.
+        If the heuristic is best_n_neurons_rel then params is a List whose first element is a tuple containing
+        the number of neurons to refine and a list containing the relevances of the neurons.
 
     Methods
     ----------
@@ -953,6 +1016,7 @@ class AbsReLUNode(AbsLayerNode):
 
         self.heuristic = heuristic
         self.params = params
+        self.n_areas = None
 
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
@@ -991,9 +1055,6 @@ class AbsReLUNode(AbsLayerNode):
 
     def __parallel_starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        #with open(abstraction_logfile, "a") as f:
-        #    f.write("Node: " + self.identifier + "\n")
-
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
         parallel_results = my_pool.starmap(mixed_single_relu_forward, zip(abs_input.stars,
                                                                           itertools.repeat(self.heuristic),
@@ -1002,10 +1063,15 @@ class AbsReLUNode(AbsLayerNode):
 
         abs_output = StarSet()
 
-        for result in parallel_results:
-
-            star_set = result
+        tot_areas = np.zeros(self.ref_node.in_dim)
+        num_areas = 0
+        for star_set, areas in parallel_results:
+            if star_set != set():
+                num_areas = num_areas + 1
+                tot_areas = tot_areas + areas
             abs_output.stars = abs_output.stars.union(star_set)
+
+        self.n_areas = tot_areas / num_areas
 
         return abs_output
 
@@ -1015,11 +1081,16 @@ class AbsReLUNode(AbsLayerNode):
         """
 
         abs_output = StarSet()
+        tot_areas = np.zeros(self.ref_node.in_dim)
+        num_areas = 0
         for star in abs_input.stars:
 
-            result = mixed_single_relu_forward(star, self.heuristic, self.params)
-
+            result, areas = mixed_single_relu_forward(star, self.heuristic, self.params)
             abs_output.stars = abs_output.stars.union(result)
+            tot_areas = tot_areas + areas
+            num_areas = num_areas + 1
+
+        self.n_areas = tot_areas / num_areas
 
         return abs_output
 
@@ -1114,6 +1185,8 @@ class AbsSigmoidNode(AbsLayerNode):
         LayerNode di riferimento per l'abstract transformer.
 
     refinement_level : Union[int, List[int]]
+        Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
+        the neurons of the layers, otherwise it is a list containing the refinement levels for each layers.
 
     Methods
     ----------

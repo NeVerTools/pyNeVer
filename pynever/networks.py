@@ -18,7 +18,7 @@ class NeuralNetwork(abc.ABC):
     edges : dict <str, list <str>>
         Dictionary of identifiers of LayerNodes, it contains for each nodes identified by the keys, the list of nodes
         connected to it.
-    alt_rep_cache : dict <str, AlternativeRepresentation>
+    alt_rep_cache : List<AlternativeRepresentation>
         Dictionary of containing str keys and AlternativeRepresentation values, it contains the
         AlternativeRepresentations of out network.
     up_to_date : bool
@@ -155,9 +155,5 @@ class SequentialNetwork(NeuralNetwork):
         return current_node
 
     def __repr__(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f"{self.identifier} : {body.__str__()}"
-
-    def to_string(self):
-        body = [node.to_string() for node in self.nodes.values()]
-        return f"{self.identifier} : {body.__str__()}"
+        body = [node.__str__() for node in self.nodes.values()]
+        return f"{self.identifier} : {body}"

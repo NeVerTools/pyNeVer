@@ -179,7 +179,7 @@ class ONNXConverter(ConversionStrategy):
 
         input_weight = current_node.identifier + "_weight"
 
-        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.DOUBLE,
                                                                [current_node.out_features,
                                                                 current_node.in_features])
 
@@ -187,7 +187,7 @@ class ONNXConverter(ConversionStrategy):
 
         if current_node.has_bias:
             input_bias = current_node.identifier + "_bias"
-            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  [current_node.out_features])
             bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
 
@@ -228,13 +228,13 @@ class ONNXConverter(ConversionStrategy):
         input_mean = current_node.identifier + "_mean"
         input_var = current_node.identifier + "_var"
 
-        scale_value_info = onnx.helper.make_tensor_value_info(input_scale, onnx.TensorProto.FLOAT,
+        scale_value_info = onnx.helper.make_tensor_value_info(input_scale, onnx.TensorProto.DOUBLE,
                                                               [current_node.num_features])
-        bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+        bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                              [current_node.num_features])
-        mean_value_info = onnx.helper.make_tensor_value_info(input_mean, onnx.TensorProto.FLOAT,
+        mean_value_info = onnx.helper.make_tensor_value_info(input_mean, onnx.TensorProto.DOUBLE,
                                                              [current_node.num_features])
-        var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.FLOAT,
+        var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.DOUBLE,
                                                             [current_node.num_features])
 
         scale_tensor = onnx.numpy_helper.from_array(current_node.weight, input_scale)
@@ -270,7 +270,7 @@ class ONNXConverter(ConversionStrategy):
         weight_size = list(current_node.weight.shape)
         input_weight = current_node.identifier + "_weight"
 
-        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.FLOAT,
+        weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.DOUBLE,
                                                                weight_size)
 
         weight_tensor = onnx.numpy_helper.from_array(current_node.weight, input_weight)
@@ -280,7 +280,7 @@ class ONNXConverter(ConversionStrategy):
             input_bias = current_node.identifier + "_bias"
             bias_size = list(current_node.bias.shape)
 
-            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.FLOAT,
+            bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  bias_size)
             bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
 
@@ -464,7 +464,7 @@ class ONNXConverter(ConversionStrategy):
         ratio_size = [1]
         input_ratio = current_node.identifier + "_ratio"
 
-        ratio_value_info = onnx.helper.make_tensor_value_info(input_ratio, onnx.TensorProto.FLOAT,
+        ratio_value_info = onnx.helper.make_tensor_value_info(input_ratio, onnx.TensorProto.DOUBLE,
                                                               ratio_size)
 
         ratio_tensor = onnx.numpy_helper.from_array(np.array([current_node.p]), input_ratio)
@@ -540,9 +540,9 @@ class ONNXConverter(ConversionStrategy):
                     for e in current_node.out_dim:
                         output_dim.append(e)
 
-                    input_value_info = onnx.helper.make_tensor_value_info(current_input, onnx.TensorProto.FLOAT,
+                    input_value_info = onnx.helper.make_tensor_value_info(current_input, onnx.TensorProto.DOUBLE,
                                                                           input_dim)
-                    output_value_info = onnx.helper.make_tensor_value_info(current_output, onnx.TensorProto.FLOAT,
+                    output_value_info = onnx.helper.make_tensor_value_info(current_output, onnx.TensorProto.DOUBLE,
                                                                            output_dim)
 
                     input_info.append(input_value_info)

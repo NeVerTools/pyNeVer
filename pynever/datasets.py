@@ -2,7 +2,7 @@ import abc
 import numpy as np
 import torchvision as tv
 import torch.utils.data as tdata
-from typing import Callable, Optional, Tuple, Any
+from typing import Callable, Optional, Tuple, Any, Dict
 
 
 class Dataset(abc.ABC):

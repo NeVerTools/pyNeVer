@@ -43,7 +43,7 @@ test_dataset = dt.TorchFMNIST("data/", False, transform)
 
 # Initialization of the training and pruning parameters
 cuda = False  # If possible the experiment should be run with cuda, otherwise it will take quite some time.
-epochs = 20
+epochs = 2
 train_batch_size = 128
 validation_batch_size = 64
 test_batch_size = 64
@@ -55,6 +55,7 @@ validation_percentage = 0.3
 scheduler_patience = 5
 l1_decay = 0.0001
 weight_decay = 0.0001
+checkpoint_root = "checkpoints/"
 
 # Creation of the trainers needed for baseline training and fine tuned pruning.
 opt_params_pr = {"lr": learning_rate}
@@ -64,22 +65,26 @@ opt_params = {"lr": learning_rate, "weight_decay": weight_decay}
 trainer_wp = training.PytorchTraining(opt.Adam, opt_params_pr, nn.CrossEntropyLoss(), epochs, validation_percentage,
                                       train_batch_size, validation_batch_size, opt.lr_scheduler.ReduceLROnPlateau,
                                       scheduler_params, training.PytorchMetrics.inaccuracy,
-                                      pruning.WPTransform(l1_decay, True, cuda))
+                                      pruning.WPTransform(l1_decay, True, cuda), cuda, checkpoints_root=checkpoint_root)
 
 trainer_ns = training.PytorchTraining(opt.Adam, opt_params_pr, nn.CrossEntropyLoss(), epochs, validation_percentage,
                                       train_batch_size, validation_batch_size, opt.lr_scheduler.ReduceLROnPlateau,
                                       scheduler_params, training.PytorchMetrics.inaccuracy,
-                                      pruning.NSTransform(batch_norm_decay, True, cuda))
+                                      pruning.NSTransform(batch_norm_decay, True, cuda), cuda,
+                                      checkpoints_root=checkpoint_root)
 
 trainer_baseline = training.PytorchTraining(opt.Adam, opt_params, nn.CrossEntropyLoss(), epochs, validation_percentage,
                                             train_batch_size, validation_batch_size, opt.lr_scheduler.ReduceLROnPlateau,
-                                            scheduler_params, training.PytorchMetrics.inaccuracy)
+                                            scheduler_params, training.PytorchMetrics.inaccuracy, cuda=cuda,
+                                            checkpoints_root=checkpoint_root)
 
 # Training and pruning of the networks of interest
 baseline_net = copy.deepcopy(small_net)
+baseline_net.identifier = "Baseline"
 baseline_net = trainer_baseline.train(baseline_net, train_dataset)
 
 sparse_net = copy.deepcopy(small_net)
+sparse_net.identifier = "Sparse"
 trainer_ns.network_transform.fine_tuning = False
 sparse_net = trainer_ns.train(sparse_net, train_dataset)
 trainer_ns.network_transform.fine_tuning = True
@@ -88,9 +93,11 @@ wp_pruner = pruning.WeightPruning(weight_sparsity_rate, trainer_wp, pre_training
 ns_pruner = pruning.NetworkSlimming(neuron_sparsity_rate, trainer_ns, pre_training=False)
 
 wp_pruned_net = copy.deepcopy(small_net)
+wp_pruned_net.identifier = "WP_PRUNED"
 wp_pruned_net = wp_pruner.prune(wp_pruned_net, train_dataset)
 
 ns_pruned_net = copy.deepcopy(sparse_net)
+ns_pruned_net.identifier = "NS_PRUNED"
 ns_pruned_net = ns_pruner.prune(ns_pruned_net, train_dataset)
 
 tester = training.PytorchTesting(training.PytorchMetrics.inaccuracy, {}, test_batch_size, cuda)

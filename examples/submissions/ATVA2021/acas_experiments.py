@@ -25,8 +25,13 @@ networks_ids = [["1_1", "1_3", "2_3", "4_3", "5_1"], ["1_1", "1_3", "3_2", "4_2"
 
 """verification_parameters = [["given_flags", [[False for i in range(50)]]], ["best_n_neurons", [1]],
                            ["given_flags", [[True for i in range(50)]]]]"""
-verification_parameters = [["best_n_neurons", [0]], ["best_n_neurons", [1]],
-                           ["best_n_neurons", [100]]]
+"""verification_parameters = [["best_n_neurons", [[0], [0], [0], [0], [0], [0]]],
+                           ["best_n_neurons", [[1], [1], [1], [1], [1], [1]]],
+                           ["best_n_neurons", [[100], [100], [100], [100], [100], [100]]]]"""
+
+verification_parameters = [["best_n_neurons", [[0], [0], [0], [0], [0], [0]]],
+                           ["best_n_neurons", [[1], [1], [1], [1], [1], [1]]]]
+
 param_set_id = ["Over-Approx", "Mixed", "Complete"]
 
 # Loggers and Handler definition

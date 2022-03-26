@@ -1,14 +1,19 @@
 import abc
 import logging
+import operator
 import time
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction as abst
-import pynever.utilities as util
+import pynever.utilities as utils
 from pynever.tensor import Tensor
 import pynever.strategies.processing as processing
+import pynever.strategies.conversion as conv
+import torch
+import pynever.pytorch_layers as pyt_layers
+import numpy as np
 
 logger_name = "pynever.strategies.verification"
 
@@ -100,7 +105,6 @@ class NeVerProperty(Property):
 
         infix_constraints = []
 
-        
 
 class VerificationStrategy(abc.ABC):
     """
@@ -143,7 +147,7 @@ class NeverVerification(VerificationStrategy):
     Attributes
     ----------
 
-    refinement_heuristic : str
+    heuristic : str
         Heuristic used to decide the refinement level of the ReLU abstraction.
         At present can be only one of the following:
         - given_flags: the neuron to be refined are selected referring to the list given in params
@@ -164,7 +168,7 @@ class NeverVerification(VerificationStrategy):
         Verify that the neural network of interest satisfy the property given as argument.
     """
 
-    def __init__(self, heuristic: str = "best_n_neurons", params: List = [0],
+    def __init__(self, heuristic: str = "best_n_neurons", params: List = None,
                  refinement_level: int = None):
 
         self.heuristic = heuristic
@@ -180,14 +184,25 @@ class NeverVerification(VerificationStrategy):
         abst_networks = abst.AbsSeqNetwork("Abstract Network")
 
         current_node = network.get_first_node()
+        relu_count = 0
         while current_node is not None:
 
             if isinstance(current_node, nodes.FullyConnectedNode):
                 abst_networks.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
 
             elif isinstance(current_node, nodes.ReLUNode):
+
+                if self.params is None and self.heuristic == "best_n_neurons":
+                    temp_params = [0]
+                elif self.params is None and self.heuristic == "given_flags":
+                    temp_params = [False for i in range(len(current_node.in_dim[0]))]
+                else:
+                    temp_params = self.params[relu_count]
+
                 abst_networks.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
-                                                        self.heuristic, self.params))
+                                                        self.heuristic, temp_params))
+
+                relu_count += 1
 
             elif isinstance(current_node, nodes.SigmoidNode):
                 abst_networks.add_node(abst.AbsSigmoidNode("ABST_" + current_node.identifier, current_node,
@@ -231,7 +246,6 @@ class NeverVerification(VerificationStrategy):
                 temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
                 if not temp_star.check_if_empty():
                     verified = False
-                    # print(f"Star {k}: Unsafe")
 
             or_verified.append(verified)
 
@@ -250,8 +264,17 @@ class NeverVerificationRef(VerificationStrategy):
 
     Attributes
     ----------
-    log_filepath: str
-        Filepath for saving the log files of the verification procedure.
+    max_neurons : int
+        Maximum number of neuron to refine.
+
+    input_search_params : Dict
+        Parameters for the counter-example search.
+
+    precision : float
+        Acceptable threshold for the counter-example search.
+
+    rel_ref : bool
+        Flag for choosing between the RO and PS refinement methodologies.
 
     Methods
     ----------
@@ -259,129 +282,197 @@ class NeverVerificationRef(VerificationStrategy):
         Verify that the neural network of interest satisfy the property given as argument.
     """
 
-    def __init__(self, log_filepath: str):
+    def __init__(self, max_neurons: int, input_search_params: dict, precision: float = 0.005, rel_ref: bool = True):
 
-        self.log_filepath = log_filepath
+        self.max_neurons = max_neurons
+        self.input_search_params = input_search_params
+        self.precision = precision
+        self.heuristic = "best_n_neurons"
+        self.params = None
+        self.logger = logging.getLogger(logger_name)
+        self.rel_ref = rel_ref
 
-    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+    @staticmethod
+    def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
-        assert isinstance(network, networks.SequentialNetwork), "Only sequential networks are supported at present"
-        abst_networks = abst.AbsSeqNetwork("Abstract Network")
+        if not isinstance(network, networks.SequentialNetwork):
+            raise Exception("Only sequential networks are supported at present")
+
+        abst_network = abst.AbsSeqNetwork("Abstract Network")
 
         current_node = network.get_first_node()
+        relu_count = 0
         while current_node is not None:
 
             if isinstance(current_node, nodes.FullyConnectedNode):
-                abst_networks.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
+                abst_network.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
 
             elif isinstance(current_node, nodes.ReLUNode):
-                abst_networks.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
-                                                        refinement_flags=[False for m in
-                                                                          range(current_node.num_features)]))
 
-            # elif isinstance(current_node, nodes.SigmoidNode):
-            #    abst_networks.add_node(abst.AbsSigmoidNode("ABST_" + current_node.identifier, current_node,
-            #                                               self.refinement_level))
+                if params is None and heuristic == "best_n_neurons":
+                    temp_params = [0]
+                elif params is None and heuristic == "given_flags":
+                    temp_params = [False for i in range(len(current_node.in_dim[0]))]
+                else:
+                    temp_params = params[relu_count]
+
+                abst_network.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
+                                                       heuristic, temp_params))
+
+                relu_count += 1
 
             else:
-                raise NotImplementedError
+                raise Exception(f"Node type: {current_node.__class__} not supported")
 
             current_node = network.get_next_node(current_node)
 
-        with open(self.log_filepath, "w") as log_file:
-            areas_log = self.log_filepath.replace(".txt", "_areas.txt")
-            with open(areas_log, "w") as area_log_file:
+        return abst_network
 
-                if isinstance(prop, NeVerProperty):
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty) -> (abst.StarSet, List):
 
-                    input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
-                    input_starset = abst.StarSet({input_star})
-                    current_node = abst_networks.get_first_node()
-                    output_starset = input_starset
-                    while current_node is not None:
-                        time_start = time.perf_counter()
-                        output_starset = current_node.forward(output_starset)
-                        time_end = time.perf_counter()
+        input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+        input_starset = abst.StarSet({input_star})
+        current_node = abst_network.get_first_node()
+        output_starset = input_starset
+        n_areas = []
+        while current_node is not None:
+            time_start = time.perf_counter()
+            output_starset = current_node.forward(output_starset)
+            time_end = time.perf_counter()
+            if isinstance(current_node, abst.AbsReLUNode):
+                n_areas.append(current_node.n_areas)
+            self.logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
+                             f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
 
-                        print(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
-                              f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
-                        log_file.write(f"Computing starset for layer {current_node.identifier}. "
-                                       f"Current starset has dimension {len(output_starset.stars)}."
-                                       f"Time to compute: {time_end - time_start}s.\n")
+            current_node = abst_network.get_next_node(current_node)
 
-                        current_node = abst_networks.get_next_node(current_node)
+        return output_starset, n_areas
 
-                    out_coef_mat = prop.out_coef_mat
-                    out_bias_mat = prop.out_bias_mat
+    def __compute_ref_flags(self, network: networks.NeuralNetwork, input_sample: Tensor, n_areas: List) -> List:
 
-                else:
-                    raise NotImplementedError
+        lrp_a = LRPAnalyzer()
+        relevances = lrp_a.analyze(network, input_sample)
+        relevances = relevances[1:len(relevances) - 1]
+        ref_guides = []
 
-                verified = True
-                for i in range(len(out_coef_mat)):
+        for i in range(len(relevances)):
+            neuron_ref_value = abs(relevances[i] * n_areas[i])
+            ref_guides.append(neuron_ref_value.tolist())
 
-                    for star in output_starset.stars:
-                        out_coef = out_coef_mat[i]
-                        out_bias = out_bias_mat[i]
-                        temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
-                        if not temp_star.check_if_empty():
+        ref_guides_array = np.array(ref_guides)
+        temp_list = []
+        for i in range(ref_guides_array.shape[0]):
+            for j in range(ref_guides_array.shape[1]):
+                temp_element = ((i, j), ref_guides_array[i, j])
+                temp_list.append(temp_element)
 
-                            # In this case we trigger the search for the counter example and the following refinement
-                            # It could be useful to compute more than 1 sample and to make the mean of the saliency
-                            # values?
-                            out_sample = temp_star.get_samples(1)[0]
-                            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
-                            # Finding a good starting input can be critical for the search. How can be sure that we
-                            # take a good starting input?
-                            # Could we take a set of starting input and searching in parallel?
-                            starting_input = input_star.get_samples(1)[0]
-                            # The parameter to determine are max_iter, rate and threshold which correspond to the
-                            # max number of gradient step, the learning rate, and the acceptable error respectively.
-                            found, ref_in, ref_out = util.input_search(network, out_sample, starting_input,
-                                                                       max_iter=1000, rate=0.1, threshold=1e-6)
+        temp_list.sort(key=operator.itemgetter(1))
+        temp_list.reverse()
 
-                            # We need to check if the output is in the unsafe region and if the input is in the input
-                            # boundaries defined by the properties. To do so we build two temporary star in order to
-                            # leverage the check_alpha_inside method.
+        ref_flags = np.zeros(ref_guides_array.shape)
+        ref_flags = ref_flags.astype(np.bool)
+        i = 0
+        while temp_list[i][1] != 0 and i < self.max_neurons:
+            ref_flags[temp_list[i][0]] = True
+            i += 1
 
-                            in_input_set = input_star.check_alpha_inside(ref_in)
-                            temp_out_star = abst.Star(out_coef, out_bias)
-                            in_unsafe_zone = temp_out_star.check_alpha_inside(ref_out)
+        ref_flags = ref_flags.tolist()
 
-                            # At this point we need to analyse the input found to understand what kind of counterexample
-                            # we are working with.
-                            # If found is false than the input point found is not close to the desired output. Should
-                            # we still analize it? With what criterion?
+        return ref_flags
 
-                            if not in_input_set and in_unsafe_zone:
-                                # It means that the input point corresponding to the output point of interest it is not
-                                # in the input set of the property. This can be considered as a spurious counterexample.
-                                pass
+    def __compute_rel_params(self, network: networks.NeuralNetwork, input_sample: Tensor) -> List:
 
-                            elif in_input_set and in_unsafe_zone:
-                                # In this case the sample is a real counterexample and therefore the property is proved
-                                # to be unsafe.
-                                verified = False
+        lrp_a = LRPAnalyzer()
+        relevances = lrp_a.analyze(network, input_sample)
+        relevances = relevances[1:len(relevances) - 1]
+        for i in range(len(relevances)):
+            relevances[i] = (self.max_neurons, abs(relevances[i]))
 
-                            elif in_input_set and not in_unsafe_zone:
-                                # In this case the sample is compliant with the property, therefore there is nothing
-                                # to do with it. It still means that the search didn't manage to find the correct point
-                                # can we do something with this information?
-                                pass
+        return relevances
 
-                            elif not in_input_set and not in_unsafe_zone:
-                                # The point found is not in the input set of the property and the corresponding output
-                                # is not in the unsafe zone. Again it is not clear what we can do with it.
-                                pass
+    def __ref_step(self, network: networks.NeuralNetwork, current_star: abst.Star, starting_point: Tensor,
+                   input_star: abst.Star, n_areas: List, only_rel: bool, prop: NeVerProperty,
+                   out_coef: Tensor, out_bias: Tensor) -> (bool, Optional[Tensor]):
 
-                            # Once we have checked the counterexample property we need to compute the saliency values.
+        samples = current_star.get_samples(1)
+        for sample in samples:
+            self.logger.debug(f"Sample from current_star is correct: "
+                              f"{current_star.check_point_inside(sample, 0)}")
 
-                            verified = False
-                            # print(f"Star {k}: Unsafe")
+        correct, current_input, current_output = utils.input_search_cloud(network, samples[0],
+                                                                          starting_point,
+                                                                          **self.input_search_params)
 
-                log_file.write(f"Verification Result: {verified}.\n")
+        point_in_unsafe = current_star.check_point_inside(current_output, self.precision)
+        concrete_counter_found = input_star.check_point_inside(current_input, self.precision)
+        self.logger.debug(f"Point in Unsafe Zone: {point_in_unsafe}")
+        self.logger.debug(f"Concrete Counter-example: {concrete_counter_found}")
 
-        return verified
+        if point_in_unsafe and concrete_counter_found:
+            return False, current_input
+
+        if only_rel:
+            rel_params = self.__compute_rel_params(network, current_input)
+            ref_abst_net = self.__build_abst_network(network, heuristic="best_n_neurons_rel", params=rel_params)
+        else:
+            ref_flags = self.__compute_ref_flags(network, current_input, n_areas)
+            ref_abst_net = self.__build_abst_network(network, heuristic="given_flags", params=ref_flags)
+
+        ref_output, trash = self.__compute_output_starset(ref_abst_net, prop)
+
+        verified = True
+        for ref_star in ref_output.stars:
+            temp_ref_star = abst.intersect_with_halfspace(ref_star, out_coef, out_bias)
+            if not temp_ref_star.check_if_empty():
+                verified = False
+
+        return verified, None
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        ver_start_time = time.perf_counter()
+
+        if isinstance(prop, NeVerProperty):
+
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+
+            out_coef_mat = prop.out_coef_mat
+            out_bias_mat = prop.out_bias_mat
+
+        else:
+            raise Exception("Only NeVerProperty are supported at present")
+
+        input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+        starting_point = input_star.get_samples(1)[0]
+
+        or_verified = []
+        for i in range(len(out_coef_mat)):
+
+            verified = True
+            for star in output_starset.stars:
+
+                out_coef = out_coef_mat[i]
+                out_bias = out_bias_mat[i]
+                temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                if not temp_star.check_if_empty():
+
+                    verified, counterexample = self.__ref_step(network, temp_star, starting_point, input_star,
+                                                               n_areas, self.rel_ref, prop, out_coef, out_bias)
+
+                    if counterexample is not None:
+                        return verified, counterexample
+
+            or_verified.append(verified)
+
+        final_verified = any(or_verified)
+
+        ver_end_time = time.perf_counter()
+        self.logger.info(f"Verification Result: {final_verified}.")
+        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
+
+        return final_verified, None
 
 
 def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
@@ -496,3 +587,118 @@ def temp_never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, fi
         smt_s = smt_s.replace("&", "and")
         smt_s = smt_s.replace("|", "or")
         f.write(f"(assert {smt_s})" + "\n")
+
+
+class LRPAnalyzer:
+    """
+    Class used to represent the Layer-wise Relevance Propagation Algorithm used in the counter-example
+    guided refinement. At present only works for fully connected layers and relu activation functions.
+
+    Attributes
+    ----------
+
+    lrp_rule: Callable, optional
+        Rule used for the LRP propagation: it should be a function which, when applied to the fully connected layers,
+        modify the weights as needed. It should work with our version of the Linear pytorch layers. (default: None)
+
+    epsilon: float, optional
+        term used to avoid division by zero errors and to guarantee the behaviour 0/0 = 0. (default: 1e-9)
+
+    Methods
+    ----------
+    analyze(NeuralNetwork, Tensor)
+        Analyze the Neural Network with respect to the input Tensor of interest. It returns a list of list containing
+        the relevance value for the hidden layers ReLU neurons.
+
+    """
+
+    def __init__(self, lrp_rule: Callable = None, epsilon: float = 1e-9):
+
+        self.lrp_rule = lrp_rule
+        self.epsilon = epsilon
+
+    def analyze(self, network: networks.NeuralNetwork, sample: Tensor) -> List:
+        """
+        Analyze the Neural Network with respect to the input Tensor of interest. It returns a list of list containing
+        the relevance value for the hidden layers ReLU neurons.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The network to analyze to extract the relevances of the ReLU neurons.
+        sample : Tensor
+            The data sample which is used to compute the relevances.
+
+        Returns
+        -------
+        List
+            List containing the relevances for each neuron of each ReLU hidden layer.
+
+        """
+
+        pyt_net = conv.PyTorchConverter().from_neural_network(network).pytorch_network
+        pyt_net.float()
+        pyt_sample = torch.Tensor(sample).squeeze()
+
+        pyt_net.eval()
+        activations = []
+        layers = []
+
+        current_activations = pyt_sample
+        activations.append(current_activations)
+
+        last_module = 0
+        for m in pyt_net.modules():
+            last_module = last_module + 1
+
+        m_index = 0
+        for m in pyt_net.modules():
+
+            if isinstance(m, pyt_layers.Linear):
+
+                current_activations = m(current_activations)
+                if self.lrp_rule is None:
+                    layers.append(m)
+                else:
+                    layers.append(self.lrp_rule(m))
+
+            elif isinstance(m, pyt_layers.ReLU) and m_index < last_module - 1:
+
+                current_activations = m(current_activations)
+                activations.append(current_activations)
+
+            m_index += 1
+
+        activations.reverse()
+        layers.reverse()
+
+        # We begin with setting the relevances to the values of the output
+        relevances = [pyt_net(pyt_sample)]
+        current_relevance = relevances[0]
+        for i in range(len(activations)):
+            current_relevance = self.__rel_prop_mat(activations[i], layers[i], current_relevance)
+            relevances.append(current_relevance)
+
+        for i in range(len(relevances)):
+            relevances[i] = relevances[i].detach().numpy()
+
+        relevances.reverse()
+        return relevances
+
+    def __rel_prop(self, activation: torch.Tensor, layer: pyt_layers.Linear, p_rel: torch.Tensor) -> torch.Tensor:
+
+        activation = activation.clone().detach().requires_grad_(True)
+        activation.retain_grad()
+        z = self.epsilon + layer.forward(activation)
+        s = p_rel / z
+        (z * s.data).sum().backward()
+        c = activation.grad
+        return activation * c
+
+    def __rel_prop_mat(self, activation: torch.Tensor, layer: pyt_layers.Linear, p_rel: torch.Tensor) -> torch.Tensor:
+
+        activation = activation.clone().detach()
+        z = self.epsilon + torch.matmul(activation, torch.transpose(layer.weight, 0, 1))
+        s = p_rel / z
+        c = torch.matmul(s, layer.weight)
+        return activation * c
