@@ -1,19 +1,18 @@
 import abc
-import pynever.networks as networks
-import pynever.datasets as datasets
-import pynever.strategies.conversion as cv
+import logging
+import math
 import os
 import shutil
+from typing import Callable, Dict
+
+import numpy as np
 import torch
-import torch.optim as opt
 import torch.optim.lr_scheduler as schedulers
 import torch.utils.data as tdt
-import math
-import numpy as np
-import torch.nn as nn
-import torch.nn.functional as funct
-from typing import Callable, Dict, Union, Optional, Sequence, Collection
-import logging
+
+import pynever.datasets as datasets
+import pynever.networks as networks
+import pynever.strategies.conversion as cv
 
 logger_name = "pynever.strategies.training"
 
@@ -182,6 +181,12 @@ class PytorchTraining(TrainingStrategy):
 
         self.train_patience = train_patience
         self.checkpoints_root = checkpoints_root
+
+        # Sanitize checkpoints root as a path
+        if len(self.checkpoints_root) > 0 and self.checkpoints_root[-1] != '/':
+            if self.checkpoints_root[-1] != '\\':
+                self.checkpoints_root = self.checkpoints_root + '/'
+
         self.verbose_rate = verbose_rate
 
     def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -> networks.NeuralNetwork:
