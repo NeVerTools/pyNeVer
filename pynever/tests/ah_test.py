@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from pysmt.shortcuts import Symbol, GE, Real, Equals, Plus, Times, Minus, LE, Solver
 from pysmt.typing import REAL
@@ -91,44 +93,44 @@ def to_smt_containment(inbody: abst.Star, circumbody: abst.Star) -> tuple:
 
 # INPUT STARSET DEFINITION
 C_1 = np.zeros((5, 2))
-C_1[0, 0] = 1
-C_1[1, 0] = -1
+C_1[0, 0] = -1
+C_1[1, 1] = -1
+C_1[2, 0] = 1
 C_1[2, 1] = 1
-C_1[3, 1] = -1
-C_1[4, 0] = 1
-C_1[4, 1] = 1
+C_1[3, 0] = -1
+C_1[4, 1] = -1
 
 d_1 = np.ones((5, 1))
+d_1[3, 0] = 0
 d_1[4, 0] = 0
 
 star_1 = abst.Star(C_1, d_1)
-star_1.basis_matrix[0, 0] = 0
-star_1.basis_matrix[0, 1] = 0
-star_1.basis_matrix[1, 0] = 1
-star_1.basis_matrix[1, 1] = -1
 
 C_2 = np.zeros((5, 2))
-C_2[0, 0] = 1
-C_2[1, 0] = -1
+C_2[0, 0] = -1
+C_2[1, 1] = -1
+C_2[2, 0] = 1
 C_2[2, 1] = 1
-C_2[3, 1] = -1
-C_2[4, 0] = -1
+C_2[3, 0] = 1
 C_2[4, 1] = -1
 
 d_2 = np.ones((5, 1))
+d_2[3, 0] = 0
 d_2[4, 0] = 0
 
 star_2 = abst.Star(C_2, d_2)
-star_2.basis_matrix[0, 0] = 1
-star_2.basis_matrix[0, 1] = 1
-star_2.basis_matrix[1, 0] = 1
-star_2.basis_matrix[1, 1] = -1
+star_2.basis_matrix[0, 0] = 0
+star_2.basis_matrix[0, 1] = 0
+star_2.basis_matrix[1, 0] = 0
+star_2.basis_matrix[1, 1] = 0
 
-variables, constraints = to_smt_containment(star_1, star_2)
+start = time.time()
+variables, constraints = to_smt_containment(star_2, star_1)
+print(f"Total variables: {len(variables)}, total constrainst = {len(constraints)}")
 
 with Solver(name='z3') as s:
     for c in constraints:
         s.add_assertion(c)
 
     res = s.solve()
-    print(res)
+    print("Containment check:", res, "in", time.time() - start)
