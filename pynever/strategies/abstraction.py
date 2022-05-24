@@ -1,21 +1,21 @@
 import abc
+import itertools
+import logging
+import math
+import multiprocessing
+import time
+import uuid
+from typing import Set, List, Union, Tuple
 
+import numpy as np
+import scipy.spatial.distance as dist
 from numpy import ndarray
+from ortools.linear_solver import pywraplp
+from pysmt.shortcuts import Symbol, GE, Real, Equals, Plus, Times, Minus, LE, Solver
+from pysmt.typing import REAL
 
 import pynever.nodes as nodes
-import uuid
-import numpy as np
-import multiprocessing
-import itertools
-from typing import Set, List, Union, Tuple
-import math
-import scipy.spatial.distance as dist
-import time
-import logging
-
 from pynever.tensor import Tensor
-from ortools.linear_solver import pywraplp
-
 
 logger_empty = logging.getLogger("pynever.strategies.abstraction.empty_times")
 logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
@@ -25,6 +25,7 @@ logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 # save_times = False
 propagate_bounds = False
 parallel = True
+check_containment = True
 
 
 class AbsElement(abc.ABC):
@@ -433,9 +434,9 @@ class Star:
         assert status == pywraplp.Solver.OPTIMAL, "It was impossible to compute the Chebyshev center of the predicate."
 
         for alpha in alphas:
-            #print(alpha.solution_value())
+            # print(alpha.solution_value())
             starting_point.append([alpha.solution_value()])
-        #print(radius.solution_value())
+        # print(radius.solution_value())
 
         starting_point = np.array(starting_point)
 
@@ -504,8 +505,66 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     return new_star
 
 
-def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
+def subset(inbody: Star, circumbody: Star) -> bool:
+    start = time.time()
 
+    # Fast access
+    Vx, Vy = inbody.basis_matrix, circumbody.basis_matrix
+    cx, cy = inbody.center, circumbody.center
+    Cx, Cy = inbody.predicate_matrix, circumbody.predicate_matrix
+    dx, dy = inbody.predicate_bias, circumbody.predicate_bias
+    m = Cx.shape[1]
+    qx, qy = Cx.shape[0], Cy.shape[0]
+
+    # --- VARIABLES ---
+    gamma_vars = [[Symbol(f"gamma_{j}_{i}", REAL) for i in range(m)]
+                  for j in range(m)]
+
+    beta_vars = [Symbol(f"beta_{j}", REAL) for j in range(m)]
+
+    lambda_vars = [[Symbol(f"lambda_{j}_{i}", REAL) for i in range(qy)]
+                   for j in range(qx)]
+
+    # --- CONSTRAINTS ---
+    constraint_list = []
+
+    lambda_domain = [[GE(var, Real(0)) for var in row]
+                     for row in lambda_vars]
+    constraint_list.append(item for sublist in lambda_domain for item in sublist)
+
+    gamma_basis = [[Equals(Real(float(Vx[j, i])),
+                           Plus(*[Times(Real(float(Vy[j, k])), gamma_vars[k][i]) for k in range(m)]))
+                    for i in range(m)]
+                   for j in range(m)]
+    constraint_list.append(item for sublist in gamma_basis for item in sublist)
+
+    beta_center = [Equals(Minus(Real(float(cy[i])), Real(float(cx[i]))),
+                          Plus(*[Times(Real(float(Vy[i, k])), beta_vars[k]) for k in range(m)]))
+                   for i in range(m)]
+    constraint_list.append(beta_center)
+
+    lambda_gamma_predicates = [[Equals(Plus(*[Times(lambda_vars[j][k], Real(float(Cx[k, i]))) for k in range(qx)]),
+                                       Plus(*[Times(Real(float(Cy[j, k])), gamma_vars[k][i]) for k in range(m)]))
+                                for i in range(m)]
+                               for j in range(qy)]
+    constraint_list.append(item for sublist in lambda_gamma_predicates for item in sublist)
+
+    lambda_beta_bias = [LE(Plus(*[Times(lambda_vars[i][k], Real(float(dx[k]))) for k in range(qx)]),
+                           Plus(Real(float(dy[i])),
+                                Plus(*[Times(Real(float(Cy[i, k])), beta_vars[k]) for k in range(m)])))
+                        for i in range(qy)]
+    constraint_list.append(lambda_beta_bias)
+
+    with Solver(name='z3') as s:
+        for c in [item for sublist in constraint_list for item in sublist]:
+            s.add_assertion(c)
+
+        res = s.solve()
+        print("Containment check:", res, "in", time.time() - start)
+        return res
+
+
+def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
     abs_input = list(abs_input)
     abs_output = set()
 
@@ -586,7 +645,11 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
                                       upper_star_basis_mat, lbs, ubs)
 
-                    abs_output = abs_output.union({lower_star, upper_star})
+                    # Check whether the lower star is subset of the upper
+                    if check_containment and subset(lower_star, upper_star):
+                        abs_output = abs_output.union({upper_star})
+                    else:
+                        abs_output = abs_output.union({lower_star, upper_star})
 
                 else:
 
@@ -637,7 +700,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     function internal to classes.
     """
 
-    assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel",\
+    assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel", \
         "Heuristic Selected is not valid"
 
     temp_abs_input = {star}
@@ -764,8 +827,8 @@ def area_sig_triangle(lb: float, ub: float) -> float:
     return base * height / 2.0
 
 
-def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> Set[Star]:
-
+def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> \
+        Set[Star]:
     assert approx_level >= 0
 
     if abs(ub - lb) < tolerance:
@@ -860,14 +923,15 @@ def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: 
                 best_boundary = boundary
 
         star_set = set()
-        star_set = star_set.union(__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance))
-        star_set = star_set.union(__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance))
+        star_set = star_set.union(
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance))
+        star_set = star_set.union(
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance))
 
         return star_set
 
 
 def __approx_step_sigmoid(abs_input: Set[Star], var_index: int, approx_level: int, tolerance: float) -> Set[Star]:
-
     abs_output = set()
     for star in abs_input:
 
@@ -1084,7 +1148,6 @@ class AbsReLUNode(AbsLayerNode):
         tot_areas = np.zeros(self.ref_node.in_dim)
         num_areas = 0
         for star in abs_input.stars:
-
             result, areas = mixed_single_relu_forward(star, self.heuristic, self.params)
             abs_output.stars = abs_output.stars.union(result)
             tot_areas = tot_areas + areas
@@ -1232,7 +1295,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        #parallel = True
+        # parallel = True
         if parallel:
             abs_output = StarSet()
             my_pool = multiprocessing.Pool(1)
