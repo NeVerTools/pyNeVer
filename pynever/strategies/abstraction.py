@@ -25,7 +25,7 @@ logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 # save_times = False
 propagate_bounds = False
 parallel = True
-check_containment = True
+CHECK_CONTAIN_SMT = False
 
 
 class AbsElement(abc.ABC):
@@ -555,11 +555,13 @@ def subset(inbody: Star, circumbody: Star) -> bool:
                         for i in range(qy)]
     constraint_list.append(lambda_beta_bias)
 
-    with Solver(name='z3') as s:
+    with Solver(name='z3', logic='QF_LRA') as s:
         for c in [item for sublist in constraint_list for item in sublist]:
             s.add_assertion(c)
 
         res = s.solve()
+        print(f"m = {m}, qx = {qx}, qy = {qy}")
+        print("Total constraints:", len(s.assertions))
         print("Containment check:", res, "in", time.time() - start)
         return res
 
@@ -646,7 +648,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                                       upper_star_basis_mat, lbs, ubs)
 
                     # Check whether the lower star is subset of the upper
-                    if check_containment and subset(lower_star, upper_star):
+                    if CHECK_CONTAIN_SMT and subset(lower_star, upper_star):
                         abs_output = abs_output.union({upper_star})
                     else:
                         abs_output = abs_output.union({lower_star, upper_star})
