@@ -182,7 +182,7 @@ class Star:
             status = solver.Solve()
             lb_end = time.perf_counter()
 
-            assert status == pywraplp.Solver.OPTIMAL, "The LP problem was not Optimal"
+            # assert status == pywraplp.Solver.OPTIMAL, "The LP problem was not Optimal"
             # TODO why?
 
             if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
@@ -639,7 +639,14 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                 new_pred_mat = star.predicate_matrix
                 new_pred_bias = star.predicate_bias
 
-                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
+                lbs = []
+                lbs.extend(star.lbs)
+                lbs[var_index] = 0
+                ubs = []
+                ubs.extend(star.ubs)
+                ubs[var_index] = 0
+
+                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
                 abs_output = abs_output.union({new_star})
 
             else:
@@ -653,8 +660,15 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
 
+                    lbs = []
+                    lbs.extend(star.lbs)
+                    lbs[var_index] = 0
+                    ubs = []
+                    ubs.extend(star.ubs)
+                    ubs[var_index] = 0
+
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
-                                      lower_star_basis_mat)
+                                      lower_star_basis_mat, lbs, ubs)
 
                     # Creating upper bound star.
                     upper_star_center = star.center
@@ -664,8 +678,14 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
 
+                    lbs = []
+                    lbs.extend(star.lbs)
+                    lbs[var_index] = 0
+                    ubs = []
+                    ubs.extend(star.ubs)
+
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
-                                      upper_star_basis_mat)
+                                      upper_star_basis_mat, lbs, ubs, False)
 
                     # Check whether the lower star is subset of the upper
                     if SUBSET_AHPOLY and sadraddini_subset(lower_star, upper_star):
