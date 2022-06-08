@@ -22,10 +22,8 @@ logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
 logger_lb = logging.getLogger("pynever.strategies.abstraction.lb_times")
 logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
-# save_times = False
-propagate_bounds = False
-parallel = True
-CHECK_CONTAIN_SMT = False
+USE_PARALLEL = True
+SUBSET_AHPOLY = False
 
 
 class AbsElement(abc.ABC):
@@ -37,6 +35,7 @@ class AbsElement(abc.ABC):
     ----------
     identifier : str
         Identifier of the AbsElement.
+
     """
 
     def __init__(self, identifier: str = None):
@@ -49,10 +48,10 @@ class AbsElement(abc.ABC):
 class Star:
     """
     A concrete class used for our internal representation of a Star.
-    The Star is defined as {x | x = c + Va such that Ca <= d}
-    where c is a n-dimensional vector corresponding to the center of the Star.
+    The Star is defined as {z | z = c + Vx such that Cx <= d}
+    where c is an n-dimensional vector corresponding to the center of the Star.
     V is the n-by-m matrix composed by the basis vectors.
-    a is the vector of m variables, C (p-by-m) and d (p-dim) are the matrix and the biases
+    x is the vector of m variables, C (p-by-m) and d (p-dim) are the matrix and the biases
     defining a set of constraints.
 
     We refer to <Star-Based Reachability Analysis of Deep Neural Networks>
@@ -78,10 +77,9 @@ class Star:
     Methods
     ----------
     get_bounds()
-        Function used to get the the upper and lower bounds of the n variables of the star.
+        Function used to get the upper and lower bounds of the n variables of the star.
     check_if_empty()
         Function used to check if the star corresponds to an empty set.
-
 
     """
 
@@ -113,10 +111,10 @@ class Star:
             self.basis_matrix = basis_matrix
 
         if lbs is None:
-            lbs = [None for i in range(self.center.shape[0])]
+            lbs = [None for _ in range(self.center.shape[0])]
 
         if ubs is None:
-            ubs = [None for i in range(self.center.shape[0])]
+            ubs = [None for _ in range(self.center.shape[0])]
 
         self.lbs = lbs
         self.ubs = ubs
@@ -134,6 +132,7 @@ class Star:
         ---------
         bool
             True if the star defines an empty set of points, False otherwise.
+
         """
 
         start_time = time.perf_counter()
@@ -159,17 +158,16 @@ class Star:
 
     def get_bounds(self, i) -> (float, float):
         """
-        Function used to get the the upper and lower bounds of the n variables of the star.
+        Function used to get the upper and lower bounds of the n variables of the star.
 
         Return
         ---------
         (float, float)
-            Tuple containing the lower and upper bounds of the variable i of the star
+            Tuple containing the lower and upper bounds of the variable i of the star.
+
         """
 
         if self.lbs[i] is None or self.ubs[i] is None or self.is_empty is None:
-
-            # print("Computing bounds")
             start_time = time.perf_counter()
 
             solver, alphas, constraints = self.__get_predicate_lp_solver()
@@ -185,6 +183,7 @@ class Star:
             lb_end = time.perf_counter()
 
             assert status == pywraplp.Solver.OPTIMAL, "The LP problem was not Optimal"
+            # TODO why?
 
             if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
                 self.is_empty = True
@@ -198,7 +197,7 @@ class Star:
                 lb = solver.Objective().Value()
                 objective.SetMaximization()
                 ub_start = time.perf_counter()
-                status = solver.Solve()
+                solver.Solve()
                 ub_end = time.perf_counter()
                 ub = solver.Objective().Value()
 
@@ -226,14 +225,15 @@ class Star:
         Returns
         -------
         bool
-            The result of the check as a boolean (True if the point is valid, False otherwise)
+            The result of the check as a boolean (True if the point is valid, False otherwise).
+
         """
 
         dim_error_msg = f"Wrong dimensionality for alpha_point: it should be {self.predicate_matrix.shape[1]} by one."
         assert alpha_point.shape[0] == self.predicate_matrix.shape[1], dim_error_msg
         tests = np.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
-        test = np.all(tests)
-        return test
+
+        return np.all(tests)
 
     def check_point_inside(self, point: Tensor, epsilon: float) -> bool:
         """
@@ -250,23 +250,13 @@ class Star:
         Returns
         -------
         bool
-            The result of the check as a boolean (True if the point is valid, False otherwise)
+            The result of the check as a boolean (True if the point is valid, False otherwise).
 
         """
 
-        solver = pywraplp.Solver.CreateSolver('GLOP')
-        alphas = []
-        for j in range(self.basis_matrix.shape[1]):
-            new_alpha = solver.NumVar(-solver.infinity(), solver.infinity(), f'alpha_{j}')
-            alphas.append(new_alpha)
+        solver, alphas, constraints = self.__get_predicate_lp_solver()
 
-        constraints = []
-        for k in range(self.predicate_matrix.shape[0]):
-            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0])
-            for j in range(self.predicate_matrix.shape[1]):
-                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j])
-            constraints.append(new_constraint)
-
+        # Add point constraints
         for i in range(self.basis_matrix.shape[0]):
             lb = point[i][0] - self.center[i][0] - epsilon
             ub = point[i][0] - self.center[i][0] + epsilon
@@ -286,9 +276,26 @@ class Star:
         return status == pywraplp.Solver.FEASIBLE or status == pywraplp.Solver.OPTIMAL
 
     def get_samples(self, num_samples: int, reset_auxiliary: bool = False, new_start: bool = False) -> List[Tensor]:
+        """
+        Procedure to obtain a number of samples of the star.
 
-        # As first thing we need to get a valid starting point:
-        # assert not self.check_if_empty(), "Empty Set: impossible to sample."
+        Parameters
+        ----------
+        num_samples : int
+            The number of samples to generate
+        reset_auxiliary : bool, optional
+            (Default = False)
+        new_start : bool, optional
+            (Default = False)
+
+        Returns
+        ----------
+        List[Tensor]
+            The list of samples generated
+
+        """
+
+        # As first thing we need to get a valid starting point
         if self.check_if_empty():
             return []
 
@@ -347,6 +354,7 @@ class Star:
             List of the auxiliary points: one for each plane of the predicate.
 
         """
+
         aux_points = []
         for i in range(self.predicate_matrix.shape[0]):
             p = np.zeros((self.predicate_matrix.shape[1], 1))
@@ -359,12 +367,13 @@ class Star:
 
     def __get_starting_point_by_bounds(self) -> Tensor:
         """
-        Function used to get the starting point for the hit and run algorithm.
+        Function used to get the starting point for the hit-and-run algorithm.
 
         Return
         ---------
-        (float, float)
-            Tuple containing the lower and upper bounds of the variables of the predicate
+        Tensor
+            Starting point computed.
+
         """
 
         starting_point = []
@@ -394,18 +403,19 @@ class Star:
 
             starting_point.append([(lb + ub) / 2.0])
 
-        starting_point = np.array(starting_point)
-        return starting_point
+        return np.array(starting_point)
 
     def __get_starting_point(self) -> Tensor:
         """
-        Function used to get the starting point for the hit and run algorithm.
+        Function used to get the starting point for the hit-and-run algorithm.
 
         Return
         ---------
-        (float, float)
-            Tuple containing the lower and upper bounds of the variables of the predicate
+        Tensor
+            Starting point computed.
+
         """
+
         starting_point = []
 
         solver = pywraplp.Solver.CreateSolver('GLOP')
@@ -434,23 +444,20 @@ class Star:
         assert status == pywraplp.Solver.OPTIMAL, "It was impossible to compute the Chebyshev center of the predicate."
 
         for alpha in alphas:
-            # print(alpha.solution_value())
             starting_point.append([alpha.solution_value()])
-        # print(radius.solution_value())
 
-        starting_point = np.array(starting_point)
-
-        return starting_point
+        return np.array(starting_point)
 
     def __get_predicate_lp_solver(self) -> (pywraplp.Solver, list, list):
         """
-        Creates an lp solver using pywraplp and adds the variables and constraints
+        Creates an LP solver using pywraplp and adds the variables and constraints
         corresponding to the predicate of the star.
 
         Returns
         ---------
         (pywraplp.Solver, list, list)
             Respectively the lp solver, the variables and the constraints.
+
         """
 
         solver = pywraplp.Solver.CreateSolver('GLOP')
@@ -471,13 +478,14 @@ class Star:
 
 class StarSet(AbsElement):
     """
-    Concrete class for our internal representation of a StarSet abstract element. A StarSet consist in a set
-    of Star objects.
+    Concrete class for our internal representation of a StarSet abstract element.
+    A StarSet consist in a set of Star objects.
 
     Attributes
     ----------
     stars : Set[Star]
         Set of Star objects.
+
     """
 
     def __init__(self, stars: Set[Star] = None, identifier: str = None):
@@ -491,7 +499,8 @@ class StarSet(AbsElement):
 def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> Star:
     """
     Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector and returns
-    the Star resulting from the intesection of the input Star with the halfspace.
+    the Star resulting from the intersection of the input Star with the halfspace.
+
     """
 
     new_center = star.center
@@ -501,11 +510,31 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     new_pred_matrix = np.vstack((star.predicate_matrix, hs_pred_matrix))
     new_pred_bias = np.vstack((star.predicate_bias, hs_pred_bias))
 
-    new_star = Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
-    return new_star
+    return Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
 
 
-def subset(inbody: Star, circumbody: Star) -> bool:
+def sadraddini_subset(inbody: Star, circumbody: Star) -> bool:
+    """
+    This procedure implements the sufficient conditions for the AH-polytope containment
+    from the paper <Linear Encodings for Polytope Containment Problems>
+    (https://arxiv.org/abs/1903.05214) by Sadraddini and Tedrake (2019).
+    Unfortunately, this procedure is too expensive to be of use. The sufficient conditions
+    are checked by the SMT solver z3 invoked by the pySmt API.
+
+    Parameters
+    ----------
+    inbody : Star
+        The contained Star candidate.
+    circumbody : Star
+        The containing Star candidate.
+
+    Returns
+    ----------
+    bool
+        True if circumbody subsets inbody, False otherwise.
+
+    """
+
     start = time.time()
 
     # Fast access
@@ -567,10 +596,29 @@ def subset(inbody: Star, circumbody: Star) -> bool:
 
 
 def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
+    """
+    Function which implements the abstraction algorithm for a single ReLU neuron, controlled
+    by the parameters var_index and refinement_flag. This function can compute the exact or
+    approximate ReLU abstraction and propagate the stars in the input set.
+
+    Parameters
+    ----------
+    abs_input : Set[Star]
+        The set of stars in input to the ReLU neuron.
+    var_index : int
+        The index of the ReLU neuron considered, i.e., the dimension of the Star along which the ReLU operates.
+    refinement_flag : bool
+        Flag to control the refinement level: exact if True, approximate if False.
+
+    Returns
+    -------
+    Set[Star]
+        The set of stars produced by the ReLU neuron.
+
+    """
+
     abs_input = list(abs_input)
     abs_output = set()
-
-    ref_flags = [refinement_flag for i in range(len(abs_input))]
 
     for i in range(len(abs_input)):
 
@@ -590,23 +638,13 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                 new_basis_mat = np.matmul(mask, star.basis_matrix)
                 new_pred_mat = star.predicate_matrix
                 new_pred_bias = star.predicate_bias
-                if propagate_bounds:
-                    lbs = []
-                    lbs.extend(star.lbs)
-                    ubs = []
-                    ubs.extend(star.ubs)
-                    lbs[var_index] = 0
-                    ubs[var_index] = 0
-                else:
-                    lbs = None
-                    ubs = None
-                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
+
+                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
                 abs_output = abs_output.union({new_star})
 
             else:
-
-                if ref_flags[i]:
-
+                # --------- EXACT METHOD ----------
+                if refinement_flag:
                     # Creating lower bound star.
                     lower_star_center = np.matmul(mask, star.center)
                     lower_star_basis_mat = np.matmul(mask, star.basis_matrix)
@@ -614,18 +652,9 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     lower_predicate_matrix = np.vstack((star.predicate_matrix, star.basis_matrix[var_index, :]))
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = 0
-                    else:
-                        lbs = None
-                        ubs = None
+
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
-                                      lower_star_basis_mat, lbs, ubs)
+                                      lower_star_basis_mat)
 
                     # Creating upper bound star.
                     upper_star_center = star.center
@@ -634,27 +663,18 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     upper_predicate_matrix = np.vstack((star.predicate_matrix, -star.basis_matrix[var_index, :]))
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = star.ubs[var_index]
-                    else:
-                        lbs = None
-                        ubs = None
+
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
-                                      upper_star_basis_mat, lbs, ubs)
+                                      upper_star_basis_mat)
 
                     # Check whether the lower star is subset of the upper
-                    if CHECK_CONTAIN_SMT and subset(lower_star, upper_star):
+                    if SUBSET_AHPOLY and sadraddini_subset(lower_star, upper_star):
                         abs_output = abs_output.union({upper_star})
                     else:
                         abs_output = abs_output.union({lower_star, upper_star})
 
+                # ---------- APPROXIMATE METHOD ----------
                 else:
-
                     col_c_mat = star.predicate_matrix.shape[1]
                     row_c_mat = star.predicate_matrix.shape[0]
 
@@ -678,17 +698,8 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     temp_vec = np.zeros((star.basis_matrix.shape[0], 1))
                     temp_vec[var_index, 0] = 1
                     new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = star.ubs[var_index]
-                    else:
-                        lbs = None
-                        ubs = None
-                    new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
+
+                    new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
 
                     abs_output = abs_output.union({new_star})
 
@@ -700,6 +711,21 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     Utility function for the management of the forward for AbsReLUNode. It is outside
     the class scope since multiprocessing does not support parallelization with
     function internal to classes.
+
+    Parameters
+    ----------
+    star : Star
+        The star object to feed to the ReLU layer.
+    heuristic : str
+        The heuristic technique to consider in the ReLU computation.
+    params : List
+        The list of parameters used by the heuristic.
+
+    Returns
+    ----------
+    Tuple
+        A tuple composed of the Star set in output and the ReLU areas for the approximate method.
+
     """
 
     assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel", \
@@ -709,7 +735,6 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     if star.check_if_empty():
         return set(), None
     else:
-
         n_areas = []
         for i in range(star.center.shape[0]):
             lb, ub = star.get_bounds(i)
@@ -730,8 +755,8 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
                 # Our idea is that a greater value for the area correspond to greater loss of precision if the
                 # star is not refined for the corresponding neuron.
                 if heuristic == "best_n_neurons_rel":
-                    relevances = params[1]
-                    n_areas = n_areas * relevances
+                    relevance = params[1]
+                    n_areas = n_areas * relevance
 
                 sorted_indexes = np.flip(np.argsort(n_areas))
                 index_to_refine = sorted_indexes[:n_neurons]
@@ -759,10 +784,26 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
 
 def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     """
-    Utility function for the management of the forward for AbsFullyConnectedNode. It is outside
-    the class scope since multiprocessing does not support parallelization with
+    Utility function for the management of the forward for AbsFullyConnectedNode.
+    It is outside the class scope since multiprocessing does not support parallelization with
     function internal to classes.
+
+    Parameters
+    ----------
+    star : Star
+        The star object to transform.
+    weight : Tensor
+        Weight tensor of the FC layer.
+    bias : Tensor
+        Bias tensor of the FC layer.
+
+    Returns
+    ----------
+    Set[Star]
+        The result of the FC transformation.
+
     """
+
     assert (weight.shape[1] == star.basis_matrix.shape[0])
 
     new_basis_matrix = np.matmul(weight, star.basis_matrix)
@@ -770,43 +811,65 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     new_predicate_matrix = star.predicate_matrix
     new_predicate_bias = star.predicate_bias
 
-    if propagate_bounds:
-        lbs = []
-        ubs = []
-        for i in range(new_center.shape[0]):
+    # if BOUNDS_PROPAGATION:
+    #     lbs = []
+    #     ubs = []
+    #     for i in range(new_center.shape[0]):
+    #
+    #         w = weight[i, :]
+    #         b = bias[i, 0]
+    #         lb = b
+    #         ub = b
+    #         for j in range(len(w)):
+    #             if star.lbs[j] is None or star.ubs[j] is None:
+    #                 star.get_bounds(j)
+    #
+    #             lb = lb + min(star.lbs[j] * w[j], star.ubs[j] * w[j])
+    #             ub = ub + max(star.lbs[j] * w[j], star.ubs[j] * w[j])
+    #         lbs.append(lb)
+    #         ubs.append(ub)
+    # else:
+    #     lbs = None
+    #     ubs = None
 
-            w = weight[i, :]
-            b = bias[i, 0]
-            lb = b
-            ub = b
-            for j in range(len(w)):
-                if star.lbs[j] is None or star.ubs[j] is None:
-                    star.get_bounds(j)
-
-                lb = lb + min(star.lbs[j] * w[j], star.ubs[j] * w[j])
-                ub = ub + max(star.lbs[j] * w[j], star.ubs[j] * w[j])
-            lbs.append(lb)
-            ubs.append(ub)
-    else:
-        lbs = None
-        ubs = None
-
-    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix, lbs, ubs)
-
-    return {new_star}
+    return {Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)}
 
 
 def sig(x: float) -> float:
     """
     Utility function computing the logistic function of the input.
+
+    Parameters
+    ----------
+    x : float
+        Input to the logistic function.
+
+    Returns
+    ----------
+    float
+        The logistic function applied to x.
+
     """
+
     return 1.0 / (1.0 + math.exp(-x))
 
 
 def sig_fod(x: float) -> float:
     """
-    Utility function computing the first order derivative of the logistic function of the input.
+    Utility function computing the first-order derivative of the logistic function of the input.
+
+    Parameters
+    ----------
+    x : float
+        Input to the first-order derivative of the logistic function.
+
+    Returns
+    ----------
+    float
+        The first-order derivative of the logistic function applied to x.
+
     """
+
     return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
 
 
@@ -814,6 +877,7 @@ def area_sig_triangle(lb: float, ub: float) -> float:
     """
     Utility function computing the area of the triangle defined by an upper bound and a lower bound on the
     logistic function. In particular is the triangle composed by the two tangents and line passing by the two bounds.
+
     """
 
     x_p = (ub * sig_fod(ub) - lb * sig_fod(lb)) / (sig_fod(ub) - sig_fod(lb)) - \
@@ -1101,7 +1165,7 @@ class AbsReLUNode(AbsLayerNode):
         """
 
         if isinstance(abs_input, StarSet):
-            if parallel:
+            if USE_PARALLEL:
                 return self.__parallel_starset_forward(abs_input)
             else:
                 return self.__starset_forward(abs_input)
@@ -1298,7 +1362,7 @@ class AbsSigmoidNode(AbsLayerNode):
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
         # parallel = True
-        if parallel:
+        if USE_PARALLEL:
             abs_output = StarSet()
             my_pool = multiprocessing.Pool(1)
             parallel_results = my_pool.starmap(single_sigmoid_forward, zip(abs_input.stars,
