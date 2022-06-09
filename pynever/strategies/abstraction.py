@@ -24,6 +24,7 @@ logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
 USE_PARALLEL = True
 SUBSET_AHPOLY = False
+SUBSET_BOUNDS = True
 
 
 class AbsElement(abc.ABC):
@@ -182,7 +183,7 @@ class Star:
             status = solver.Solve()
             lb_end = time.perf_counter()
 
-            # assert status == pywraplp.Solver.OPTIMAL, "The LP problem was not Optimal"
+            assert status == pywraplp.Solver.OPTIMAL, "The LP problem was not Optimal"
             # TODO why?
 
             if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
@@ -595,6 +596,45 @@ def sadraddini_subset(inbody: Star, circumbody: Star) -> bool:
         return res
 
 
+def is_contained(lower: Star, upper: Star, var_index: int) -> bool:
+    """
+    Function which implements the algorithm for checking whether the lower Star after a ReLU
+    split is degenerate, i.e., is contained in the upper one. To accomplish this, we re-compute
+    the bounds along all the other variables and use the convexity of the Star as a mean to
+    understand whether we can eliminate the lower Star or not.
+
+    Parameters
+    ----------
+    lower : Star
+        The lower Star after the split, which is tested to be degenerate.
+    upper : Star
+        The upper Star after the split, which could subsume the lower.
+    var_index : int
+        The dimension along which the split is computed.
+
+    Returns
+    -------
+    bool
+        True if the upper subsumes the lower, False otherwise.
+
+    """
+
+    # Loop star dimensions
+    for i in range(lower.center.shape[0]):
+        # Discard var_index and empty stars
+        if i != var_index:
+            # Force re-computation of bounds for the upper star
+            upper.lbs[i] = None
+            lbl, ubl = lower.get_bounds(i)
+            lbu, ubu = upper.get_bounds(i)
+
+            # Quick exit if false
+            if lbl < lbu or ubl > ubu:
+                return False
+
+    return True
+
+
 def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
     """
     Function which implements the abstraction algorithm for a single ReLU neuron, controlled
@@ -639,14 +679,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                 new_pred_mat = star.predicate_matrix
                 new_pred_bias = star.predicate_bias
 
-                lbs = []
-                lbs.extend(star.lbs)
-                lbs[var_index] = 0
-                ubs = []
-                ubs.extend(star.ubs)
-                ubs[var_index] = 0
-
-                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
+                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
                 abs_output = abs_output.union({new_star})
 
             else:
@@ -662,9 +695,9 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
 
                     lbs = []
                     lbs.extend(star.lbs)
-                    lbs[var_index] = 0
                     ubs = []
                     ubs.extend(star.ubs)
+                    lbs[var_index] = 0
                     ubs[var_index] = 0
 
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
@@ -678,17 +711,13 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
 
-                    lbs = []
-                    lbs.extend(star.lbs)
-                    lbs[var_index] = 0
-                    ubs = []
-                    ubs.extend(star.ubs)
-
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
-                                      upper_star_basis_mat, lbs, ubs, False)
+                                      upper_star_basis_mat)
 
                     # Check whether the lower star is subset of the upper
-                    if SUBSET_AHPOLY and sadraddini_subset(lower_star, upper_star):
+                    if SUBSET_BOUNDS and is_contained(lower_star, upper_star, var_index):
+                        abs_output = abs_output.union({upper_star})
+                    elif SUBSET_AHPOLY and sadraddini_subset(lower_star, upper_star):
                         abs_output = abs_output.union({upper_star})
                     else:
                         abs_output = abs_output.union({lower_star, upper_star})
@@ -1204,7 +1233,6 @@ class AbsReLUNode(AbsLayerNode):
         pass
 
     def __parallel_starset_forward(self, abs_input: StarSet) -> StarSet:
-
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
         parallel_results = my_pool.starmap(mixed_single_relu_forward, zip(abs_input.stars,
                                                                           itertools.repeat(self.heuristic),
