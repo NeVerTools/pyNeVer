@@ -11,8 +11,6 @@ import numpy as np
 import scipy.spatial.distance as dist
 from numpy import ndarray
 from ortools.linear_solver import pywraplp
-from pysmt.shortcuts import Symbol, GE, Real, Equals, Plus, Times, Minus, LE, Solver
-from pysmt.typing import REAL
 
 import pynever.nodes as nodes
 from pynever.tensor import Tensor
@@ -23,7 +21,6 @@ logger_lb = logging.getLogger("pynever.strategies.abstraction.lb_times")
 logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
 USE_PARALLEL = True
-SUBSET_AHPOLY = False
 SUBSET_BOUNDS = True
 
 
@@ -514,88 +511,6 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     return Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
 
 
-def sadraddini_subset(inbody: Star, circumbody: Star) -> bool:
-    """
-    This procedure implements the sufficient conditions for the AH-polytope containment
-    from the paper <Linear Encodings for Polytope Containment Problems>
-    (https://arxiv.org/abs/1903.05214) by Sadraddini and Tedrake (2019).
-    Unfortunately, this procedure is too expensive to be of use. The sufficient conditions
-    are checked by the SMT solver z3 invoked by the pySmt API.
-
-    Parameters
-    ----------
-    inbody : Star
-        The contained Star candidate.
-    circumbody : Star
-        The containing Star candidate.
-
-    Returns
-    ----------
-    bool
-        True if circumbody subsets inbody, False otherwise.
-
-    """
-
-    start = time.time()
-
-    # Fast access
-    Vx, Vy = inbody.basis_matrix, circumbody.basis_matrix
-    cx, cy = inbody.center, circumbody.center
-    Cx, Cy = inbody.predicate_matrix, circumbody.predicate_matrix
-    dx, dy = inbody.predicate_bias, circumbody.predicate_bias
-    m = Cx.shape[1]
-    qx, qy = Cx.shape[0], Cy.shape[0]
-
-    # --- VARIABLES ---
-    gamma_vars = [[Symbol(f"gamma_{j}_{i}", REAL) for i in range(m)]
-                  for j in range(m)]
-
-    beta_vars = [Symbol(f"beta_{j}", REAL) for j in range(m)]
-
-    lambda_vars = [[Symbol(f"lambda_{j}_{i}", REAL) for i in range(qy)]
-                   for j in range(qx)]
-
-    # --- CONSTRAINTS ---
-    constraint_list = []
-
-    lambda_domain = [[GE(var, Real(0)) for var in row]
-                     for row in lambda_vars]
-    constraint_list.append(item for sublist in lambda_domain for item in sublist)
-
-    gamma_basis = [[Equals(Real(float(Vx[j, i])),
-                           Plus(*[Times(Real(float(Vy[j, k])), gamma_vars[k][i]) for k in range(m)]))
-                    for i in range(m)]
-                   for j in range(m)]
-    constraint_list.append(item for sublist in gamma_basis for item in sublist)
-
-    beta_center = [Equals(Minus(Real(float(cy[i])), Real(float(cx[i]))),
-                          Plus(*[Times(Real(float(Vy[i, k])), beta_vars[k]) for k in range(m)]))
-                   for i in range(m)]
-    constraint_list.append(beta_center)
-
-    lambda_gamma_predicates = [[Equals(Plus(*[Times(lambda_vars[j][k], Real(float(Cx[k, i]))) for k in range(qx)]),
-                                       Plus(*[Times(Real(float(Cy[j, k])), gamma_vars[k][i]) for k in range(m)]))
-                                for i in range(m)]
-                               for j in range(qy)]
-    constraint_list.append(item for sublist in lambda_gamma_predicates for item in sublist)
-
-    lambda_beta_bias = [LE(Plus(*[Times(lambda_vars[i][k], Real(float(dx[k]))) for k in range(qx)]),
-                           Plus(Real(float(dy[i])),
-                                Plus(*[Times(Real(float(Cy[i, k])), beta_vars[k]) for k in range(m)])))
-                        for i in range(qy)]
-    constraint_list.append(lambda_beta_bias)
-
-    with Solver(name='z3', logic='QF_LRA') as s:
-        for c in [item for sublist in constraint_list for item in sublist]:
-            s.add_assertion(c)
-
-        res = s.solve()
-        print(f"m = {m}, qx = {qx}, qy = {qy}")
-        print("Total constraints:", len(s.assertions))
-        print("Containment check:", res, "in", time.time() - start)
-        return res
-
-
 def is_contained(lower: Star, upper: Star, var_index: int) -> bool:
     """
     Function which implements the algorithm for checking whether the lower Star after a ReLU
@@ -693,15 +608,8 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
 
-                    lbs = []
-                    lbs.extend(star.lbs)
-                    ubs = []
-                    ubs.extend(star.ubs)
-                    lbs[var_index] = 0
-                    ubs[var_index] = 0
-
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
-                                      lower_star_basis_mat, lbs, ubs)
+                                      lower_star_basis_mat)
 
                     # Creating upper bound star.
                     upper_star_center = star.center
@@ -716,8 +624,6 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
 
                     # Check whether the lower star is subset of the upper
                     if SUBSET_BOUNDS and is_contained(lower_star, upper_star, var_index):
-                        abs_output = abs_output.union({upper_star})
-                    elif SUBSET_AHPOLY and sadraddini_subset(lower_star, upper_star):
                         abs_output = abs_output.union({upper_star})
                     else:
                         abs_output = abs_output.union({lower_star, upper_star})
