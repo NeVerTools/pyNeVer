@@ -538,8 +538,6 @@ def is_contained(lower: Star, upper: Star, var_index: int) -> bool:
     for i in range(lower.center.shape[0]):
         # Discard var_index and empty stars
         if i != var_index:
-            # Force re-computation of bounds for the upper star
-            upper.lbs[i] = None
             lbl, ubl = lower.get_bounds(i)
             lbu, ubu = upper.get_bounds(i)
 
