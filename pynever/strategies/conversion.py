@@ -1,5 +1,6 @@
 import abc
 import copy
+from typing import Optional
 
 import numpy as np
 import onnx
@@ -1257,3 +1258,51 @@ class TensorflowConverter(ConversionStrategy):
             The Neural Network resulting from the conversion of Tensorflow Representation.
 
         """
+
+
+def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
+    """
+    Method to load a network from a path in an Alternative Representation.
+
+    Parameters
+    ----------
+    path : str
+        Path to the network.
+
+    Returns
+    -------
+    Optional[AlternativeRepresentation]
+        The AlternativeRepresentation object if the network is supported, None otherwise.
+
+    """
+
+    extension = path.split('.')[-1]
+    net_id = path.split('/')[-1].replace(f".{extension}", '')
+
+    if extension in ['pt', 'pth']:
+        module = torch.load(path)
+        return PyTorchNetwork(net_id, module, True)
+    elif extension == 'onnx':
+        model_proto = onnx.load(path)
+        return ONNXNetwork(net_id, model_proto, True)
+    else:
+        return None
+
+
+def save_network_path(network: AlternativeRepresentation, path: str) -> None:
+    """
+    Method to save a network to file from an AlternativeRepresentation
+
+    Parameters
+    ----------
+    network : AlternativeRepresentation
+        The network to save.
+    path : str
+        Path to save the network.
+
+    """
+
+    if isinstance(network, PyTorchNetwork):
+        torch.save(network, path)
+    elif isinstance(network, ONNXNetwork):
+        onnx.save(network, path)
