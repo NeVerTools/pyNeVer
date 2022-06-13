@@ -154,6 +154,44 @@ class Star:
 
         return self.is_empty
 
+    def get_lb(self, i) -> float:
+        if self.lbs[i] is None or self.is_empty is None:
+            solver, alphas, constraints = self.__get_predicate_lp_solver()
+            objective = solver.Objective()
+            for j in range(self.basis_matrix.shape[1]):
+                objective.SetCoefficient(alphas[j], self.basis_matrix[i, j])
+            objective.SetOffset(self.center[i, 0])
+
+            objective.SetMinimization()
+            status = solver.Solve()
+
+            if status == pywraplp.Solver.OPTIMAL:
+                self.lbs[i] = solver.Objective().Value()
+                self.is_empty = False
+            else:
+                self.is_empty = True
+
+        return self.lbs[i]
+
+    def get_ub(self, i) -> float:
+        if self.ubs[i] is None or self.is_empty is None:
+            solver, alphas, constraints = self.__get_predicate_lp_solver()
+            objective = solver.Objective()
+            for j in range(self.basis_matrix.shape[1]):
+                objective.SetCoefficient(alphas[j], self.basis_matrix[i, j])
+            objective.SetOffset(self.center[i, 0])
+
+            objective.SetMaximization()
+            status = solver.Solve()
+
+            if status == pywraplp.Solver.OPTIMAL:
+                self.ubs[i] = solver.Objective().Value()
+                self.is_empty = False
+            else:
+                self.is_empty = True
+
+        return self.ubs[i]
+
     def get_bounds(self, i) -> (float, float):
         """
         Function used to get the upper and lower bounds of the n variables of the star.
@@ -205,8 +243,8 @@ class Star:
             end_time = time.perf_counter()
 
             logger_lp.debug(f"{end_time - start_time},")
-            logger_lb.debug(f"{ub_end - ub_start},")
-            logger_ub.debug(f"{lb_end - lb_start},")
+            logger_lb.debug(f"{lb_end - lb_start},")
+            logger_ub.debug(f"{ub_end - ub_start},")
 
         return self.lbs[i], self.ubs[i]
 
@@ -538,13 +576,16 @@ def is_contained(lower: Star, upper: Star, var_index: int) -> bool:
     for i in range(lower.center.shape[0]):
         # Discard var_index and empty stars
         if i != var_index:
-            lbl, ubl = lower.get_bounds(i)
-            lbu, ubu = upper.get_bounds(i)
+            lbl = lower.get_lb(i)
+            lbu = upper.get_lb(i)
 
-            # Quick exit if false
-            if lbl < lbu or ubl > ubu:
+            if lbl < lbu:
                 return False
-
+            else:
+                ubl = lower.get_ub(i)
+                ubu = upper.get_ub(i)
+                if ubl > ubu:
+                    return False
     return True
 
 
