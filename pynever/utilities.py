@@ -12,7 +12,7 @@ import torch.nn.functional as funct
 from pynever.tensor import Tensor
 import numpy as np
 import pynever.pytorch_layers as ptl
-from typing import List
+from typing import List, Tuple
 from ortools.constraint_solver import pywrapcp
 
 logger_name = "pynever.utilities"
@@ -217,7 +217,7 @@ def generate_untargeted_linf_robustness_query(data: Tensor, target: int, bounds:
         f.write(output_query)
 
 
-def parse_linf_robustness_smtlib(filepath: str) -> (bool, list, int):
+def parse_linf_robustness_smtlib(filepath: str) -> Tuple[bool, list, int]:
     """
     Function to extract the parameters of a robustness query from the smtlib file.
     It assume the SMTLIB file is structured as following:
@@ -305,7 +305,7 @@ def net_update(network: networks.NeuralNetwork) -> networks.NeuralNetwork:
         return network
 
 
-def parse_acas_property(filepath: str) -> ((Tensor, Tensor), (Tensor, Tensor)):
+def parse_acas_property(filepath: str) -> Tuple[(Tensor, Tensor), (Tensor, Tensor)]:
 
     in_coeff = np.zeros((10, 5))
     in_bias = np.zeros((10, 1))
@@ -369,7 +369,7 @@ def parse_acas_property(filepath: str) -> ((Tensor, Tensor), (Tensor, Tensor)):
     return (in_coeff, in_bias), (out_coeff, out_bias)
 
 
-def parse_nnet(filepath: str) -> (list, list, list, list, list, list):
+def parse_nnet(filepath: str) -> Tuple[list, list, list, list, list, list]:
 
     with open(filepath) as f:
 

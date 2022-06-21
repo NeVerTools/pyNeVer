@@ -5,10 +5,13 @@ import numpy as np
 import onnx
 import onnx.numpy_helper
 import torch
+import tensorflow as tf
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_l
+
+import pynever.tensorflow_layers as tf_l
 
 
 class AlternativeRepresentation(abc.ABC):
@@ -20,7 +23,7 @@ class AlternativeRepresentation(abc.ABC):
     identifier : str
         identifier for the alternative representation
     up_to_date : bool, optional
-        flag which indicates if the alternative representation is up to date with respect
+        flag which indicates if the alternative representation is up-to-date with respect
         to the internal representation of the network (optional: True).
 
     """
@@ -32,7 +35,7 @@ class AlternativeRepresentation(abc.ABC):
 
 class ONNXNetwork(AlternativeRepresentation):
     """
-    An class used to represent a ONNX representation for a neural network.
+    A class used to represent a ONNX representation for a neural network.
 
     Attributes
     ----------
@@ -41,7 +44,7 @@ class ONNXNetwork(AlternativeRepresentation):
     onnx_network : onnx.ModelProto
         Real ONNX network.
     up_to_date : bool
-        flag which indicates if the alternative representation is up to date with respect
+        flag which indicates if the alternative representation is up-to-date with respect
         to the internal representation of the network (optional: True).
 
     """
@@ -53,7 +56,7 @@ class ONNXNetwork(AlternativeRepresentation):
 
 class PyTorchNetwork(AlternativeRepresentation):
     """
-    An class used to represent a PyTorch representation for a neural network.
+    A class used to represent a PyTorch representation for a neural network.
 
     Attributes
     ----------
@@ -62,7 +65,7 @@ class PyTorchNetwork(AlternativeRepresentation):
     pytorch_network : torch.nn.Module
         Real PyTorch network.
     up_to_date : bool
-        flag which indicates if the alternative representation is up to date with respect
+        flag which indicates if the alternative representation is up-to-date with respect
         to the internal representation of the network (optional: True).
 
     """
@@ -74,20 +77,23 @@ class PyTorchNetwork(AlternativeRepresentation):
 
 class TensorflowNetwork(AlternativeRepresentation):
     """
-    An class used to represent a Tensorflow representation for a neural network.
+    A class used to represent a Tensorflow representation for a neural network.
 
     Attributes
     ----------
     identifier : str
         identifier for the alternative representation
+    tensorflow_network : tensorflow.Module
+        Real TensorFlow network.
     up_to_date : bool
-        flag which indicates if the alternative representation is up to date with respect
+        flag which indicates if the alternative representation is up-to-date with respect
         to the internal representation of the network (optional: True).
 
     """
 
-    def __init__(self, identifier: str, up_to_date: bool = True):
+    def __init__(self, identifier: str, tensorflow_network: tf.Module, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
+        self.tensorflow_network = copy.deepcopy(tensorflow_network)
 
 
 class ConversionStrategy(abc.ABC):
@@ -513,6 +519,10 @@ class ONNXConverter(ConversionStrategy):
                             pytorch_cv = PyTorchConverter()
                             network = pytorch_cv.to_neural_network(alt_rep)
 
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            tensorflow_cv = TensorflowConverter()
+                            network = tensorflow_cv.to_neural_network(alt_rep)
+
                         else:
                             raise NotImplementedError
                         break
@@ -846,6 +856,10 @@ class PyTorchConverter(ConversionStrategy):
                             onnx_cv = ONNXConverter()
                             network = onnx_cv.to_neural_network(alt_rep)
 
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            tensorflow_cv = TensorflowConverter()
+                            network = tensorflow_cv.to_neural_network(alt_rep)
+
                         else:
                             raise NotImplementedError
                         break
@@ -915,7 +929,7 @@ class PyTorchConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.ConvNode):
 
-                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # Pytorch support only symmetric padding, therefore we assume that the padding given is
                         # symmetric. Padding mode is not supported in our representation therefore we let it be
                         # set to the default value.
                         padding = layer.padding[:int(len(layer.padding) / 2)]
@@ -951,7 +965,7 @@ class PyTorchConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.AveragePoolNode):
 
-                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # Pytorch support only symmetric padding, therefore we assume that the padding given is
                         # symmetric.
                         padding = layer.padding[:int(len(layer.padding) / 2)]
 
@@ -974,12 +988,12 @@ class PyTorchConverter(ConversionStrategy):
                                                         layer.ceil_mode, layer.count_include_pad)
 
                         else:
-                            raise Exception("Pytorch does not support Conv layer for input with more than"
+                            raise Exception("Pytorch does not support AvgPool layer for input with more than"
                                             "4 or less than 2 dimension excluding the batch dimension")
 
                     elif isinstance(layer, nodes.MaxPoolNode):
 
-                        # Pytorch support only symmetric padding, thereore we assume that the padding given is
+                        # Pytorch support only symmetric padding, therefore we assume that the padding given is
                         # symmetric.
                         padding = layer.padding[:int(len(layer.padding) / 2)]
 
@@ -1221,7 +1235,7 @@ class TensorflowConverter(ConversionStrategy):
     ----------
     from_neural_network(NeuralNetwork)
         Convert the neural network of interest to a TensorflowNetwork model.
-    to_neural_network(ONNXNetwork)
+    to_neural_network(TensorflowNetwork)
         Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
 
     """
@@ -1242,6 +1256,203 @@ class TensorflowConverter(ConversionStrategy):
 
         """
 
+        alt_net = None
+        tensorflow_network = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, TensorflowNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, PyTorchNetwork):
+                            pytorch_cv = PyTorchConverter()
+                            network = pytorch_cv.to_neural_network(alt_rep)
+
+                        elif isinstance(alt_rep, ONNXNetwork):
+                            onnx_cv = ONNXConverter()
+                            network = onnx_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+                tensorflow_layers = []
+                for layer in network.nodes.values():
+
+                    new_layer = None
+                    if isinstance(layer, nodes.ReLUNode):
+                        new_layer = tf_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.SigmoidNode):
+                        new_layer = tf_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.FullyConnectedNode):
+
+                        if layer.bias is not None:
+                            has_bias = True
+                        else:
+                            has_bias = False
+
+                        new_layer = tf_l.Linear(layer.identifier, layer.in_dim, layer.out_dim,
+                                                in_features=layer.in_features, out_features=layer.out_features,
+                                                bias=has_bias)
+
+                        weight = tf.convert_to_tensor(layer.weight)
+                        new_layer.kernel = weight
+
+                        if has_bias:
+                            bias = tf.convert_to_tensor(layer.bias)
+                            new_layer.bias = bias
+
+                    elif isinstance(layer, nodes.BatchNormNode):
+
+                        new_layer = tf_l.BatchNorm(layer.identifier, layer.in_dim, layer.out_dim,
+                                                   num_features=layer.num_features,
+                                                   eps=layer.eps, momentum=layer.momentum,
+                                                   affine=layer.affine,
+                                                   track_running_stats=layer.track_running_stats)
+
+                        new_layer.kernel = tf.convert_to_tensor(layer.weight)
+                        new_layer.bias = tf.convert_to_tensor(layer.bias)
+                        new_layer.moving_mean = tf.convert_to_tensor(layer.running_mean)
+                        new_layer.moving_variance = tf.convert_to_tensor(layer.running_var)
+
+                    elif isinstance(layer, nodes.ConvNode):
+
+                        # Size of padding should be equal to 2 * size of kernel_size
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+
+                            new_layer = tf_l.Conv1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.out_channels, layer.kernel_size, layer.stride,
+                                                    padding, "channels_last", layer.dilation,
+                                                    layer.groups, layer.has_bias)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = tf_l.Conv2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.out_channels, layer.kernel_size, layer.stride,
+                                                    padding, "channels_last", layer.dilation,
+                                                    layer.groups, layer.has_bias)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = tf_l.Conv3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                    layer.out_channels, layer.kernel_size, layer.stride,
+                                                    padding, "channels_last", layer.dilation,
+                                                    layer.groups, layer.has_bias)
+
+                        else:
+                            raise Exception("Not supported")
+
+                        new_layer.kernel = tf.convert_to_tensor(layer.weight)
+                        if layer.has_bias:
+                            new_layer.bias = tf.convert_to_tensor(layer.bias)
+
+                    elif isinstance(layer, nodes.AveragePoolNode):
+
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+                            new_layer = tf_l.AvgPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = tf_l.AvgPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = tf_l.AvgPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+
+                        else:
+                            raise Exception("TensorFlow does not support Conv layer for input with more than"
+                                            "4 or less than 2 dimension excluding the batch dimension")
+
+                    elif isinstance(layer, nodes.MaxPoolNode):
+
+                        padding = layer.padding[:int(len(layer.padding) / 2)]
+
+                        if len(layer.in_dim) == 2:
+                            new_layer = tf_l.MaxPool1d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.dilation, layer.return_indices,
+                                                       layer.ceil_mode)
+                        elif len(layer.in_dim) == 3:
+                            new_layer = tf_l.MaxPool2d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.dilation, layer.return_indices,
+                                                       layer.ceil_mode)
+                        elif len(layer.in_dim) == 4:
+                            new_layer = tf_l.MaxPool3d(layer.identifier, layer.in_dim, layer.out_dim,
+                                                       layer.kernel_size, layer.stride, padding,
+                                                       "channels_last", layer.dilation, layer.return_indices,
+                                                       layer.ceil_mode)
+
+                        else:
+                            raise Exception("Pytorch does not support Conv layer for input with more than"
+                                            "4 or less than 2 dimension excluding the batch dimension")
+
+                    elif isinstance(layer, nodes.LRNNode):
+
+                        new_layer = tf_l.LocalResponseNorm(layer.identifier, layer.in_dim, layer.out_dim,
+                                                           layer.size, layer.alpha, layer.beta, layer.k)
+
+                    elif isinstance(layer, nodes.SoftMaxNode):
+
+                        new_layer = tf_l.Softmax(layer.identifier, layer.in_dim, layer.out_dim, layer.axis)
+
+                    elif isinstance(layer, nodes.UnsqueezeNode):
+
+                        axis = tuple([e for e in layer.axes])
+                        new_layer = tf_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axis)
+
+                    elif isinstance(layer, nodes.ReshapeNode):
+
+                        # Our representation does not consider batch dimension, therefore we need to add it to
+                        # the shape.
+                        shape = [1]
+                        for e in layer.shape:
+                            shape.append(e)
+                        shape = tuple(shape)
+
+                        new_layer = tf_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
+
+                    ## Flatten node
+
+                    elif isinstance(layer, nodes.DropoutNode):
+
+                        new_layer = tf_l.Dropout(layer.identifier, layer.in_dim, layer.out_dim, layer.p)
+
+                    else:
+                        raise NotImplementedError
+
+                    if new_layer is not None:
+                        tensorflow_layers.append(new_layer)
+
+                tensorflow_network = tf_l.Sequential(network.identifier, network.input_id, tensorflow_layers)
+
+            if alt_net is None and tensorflow_network is None:
+                print("WARNING: network to convert is not valid, the alternative representation is None")
+
+            identifier = network.identifier
+            alt_net = TensorflowNetwork(identifier=identifier, tensorflow_network=tensorflow_network)
+
+        return alt_net
+
     def to_neural_network(self, alt_rep: TensorflowNetwork) -> networks.NeuralNetwork:
         """
         Convert the Tensorflow representation of interest to the internal one.
@@ -1257,3 +1468,133 @@ class TensorflowConverter(ConversionStrategy):
             The Neural Network resulting from the conversion of Tensorflow Representation.
 
         """
+        identifier = alt_rep.identifier
+        network = networks.SequentialNetwork(identifier, alt_rep.tensorflow_network.input_id)
+
+        node_index = 0
+
+        with tf.device('/cpu:0'):
+
+            for m in alt_rep.tensorflow_network.submodules:
+                new_node = None
+
+                if isinstance(m, tf_l.ReLU):
+                    new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+
+                elif isinstance(m, tf_l.Sigmoid):
+                    new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+
+                elif isinstance(m, tf_l.Linear):
+                    out_features = m.units
+                    weight = m.kernel.numpy()
+                    bias = None
+                    has_bias = False
+                    if m.use_bias:
+                        bias = m.bias.numpy()
+                        has_bias = True
+                    new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+
+                elif isinstance(m, tf_l.BatchNorm):
+
+                    eps = m.epsilon
+                    momentum = m.momentum
+                    trainable = m.trainable
+                    affine = m.center
+
+                    kernel = m.kernel.numpy()
+                    bias = m.bias.numpy()
+                    mean = m.moving_mean.numpy()
+                    var = m.moving_variance.numpy()
+
+                    new_node = nodes.BatchNormNode(m.identifier, m.in_dim, kernel,
+                                                   bias, mean, var, eps, momentum, affine,
+                                                   trainable)
+
+                elif isinstance(m, tf_l.Conv1d) or isinstance(m, tf_l.Conv2d) or isinstance(m, tf_l.Conv3d):
+
+                    out_channels = m.filters
+                    kernel_size = m.kernel_size
+                    stride = m.strides
+                    temp_padding = list(m.padding)
+                    for e in m.padding:
+                        temp_padding.append(e)
+                    padding = tuple(temp_padding)
+                    dilation = m.dilation_rate
+                    groups = m.groups
+                    weight = m.kernel.numpy()
+                    if m.use_bias is None or m.use_bias is False:
+                        has_bias = False
+                        bias = None
+                    else:
+                        has_bias = True
+                        bias = m.bias.numpy()
+
+                    new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
+                                              stride, padding, dilation, groups, has_bias, bias, weight)
+
+                elif isinstance(m, tf_l.AvgPool1d) or isinstance(m, tf_l.AvgPool2d) or \
+                        isinstance(m, tf_l.AvgPool3d):
+
+                    stride = m.strides
+                    temp_padding = list(m.padding)
+                    for e in m.padding:
+                        temp_padding.append(e)
+                    padding = tuple(temp_padding)
+                    kernel_size = m.pool_size
+                    ceil_mode = m.ceil_mode
+                    count_include_pad = m.count_include_pad
+
+                    new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
+                                                     ceil_mode, count_include_pad)
+
+                elif isinstance(m, tf_l.MaxPool1d) or isinstance(m, tf_l.MaxPool2d) or \
+                        isinstance(m, tf_l.MaxPool3d):
+
+                    stride = m.strides
+                    temp_padding = list(m.padding)
+                    for e in m.padding:
+                        temp_padding.append(e)
+                    padding = tuple(temp_padding)
+                    kernel_size = m.pool_size
+                    dilation = m.dilation
+                    return_indices = m.return_indices
+                    ceil_mode = m.ceil_mode
+
+                    new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
+                                                 ceil_mode, return_indices)
+
+                elif isinstance(m, tf_l.LocalResponseNorm):
+
+                    new_node = nodes.LRNNode(m.identifier, m.in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
+
+                elif isinstance(m, tf_l.Softmax):
+
+                    new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.axis)
+
+                elif isinstance(m, tf_l.Unsqueeze):
+
+                    axis = tuple([e for e in m.axis])
+                    new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axis)
+
+                elif isinstance(m, tf_l.Reshape):
+
+                    shape = m.shape[1:]
+                    new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
+
+                ## Flatten node
+
+                elif isinstance(m, tf_l.Dropout):
+
+                    new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.rate)
+
+                elif isinstance(m, tf_l.Sequential):
+                    pass
+
+                else:
+                    raise NotImplementedError
+
+                if new_node is not None:
+                    node_index += 1
+                    network.add_node(new_node)
+
+        return network

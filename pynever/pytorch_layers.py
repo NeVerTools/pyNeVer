@@ -516,6 +516,7 @@ class Reshape(nn.Module):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, shape: Tuple):
+
         super().__init__()
         self.identifier = identifier
         self.in_dim = in_dim
