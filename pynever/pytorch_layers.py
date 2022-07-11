@@ -69,6 +69,29 @@ class Sigmoid(nn.Sigmoid):
         self.out_dim = out_dim
 
 
+class Hardtanh(nn.Hardtanh):
+    """
+        Custom representation of pytorch Hardtanh Layer. It adds the identifier for the node,
+        the input size and the output size.
+
+        Attributes
+        ----------
+        identifier : str
+            Identifier for the node
+        in_dim : Tuple
+            Tuple expressing the dimension of the input
+        out_dim : Tuple
+            Tuple expressing the dimension of the output
+
+        """
+
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, min_val: float = -1.0, max_val: float = 1.0):
+        super().__init__(min_val, max_val)
+        self.identifier = identifier
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+
 class Linear(nn.Linear):
     """
     Custom representation of pytorch Linear Layer. It adds the identifier for the node, the input size and the output

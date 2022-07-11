@@ -174,67 +174,79 @@ class NeverVerification(VerificationStrategy):
         self.heuristic = heuristic
         self.params = params
         self.refinement_level = refinement_level
+        self.logger = logging.getLogger(logger_name)
 
-    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+    @staticmethod
+    def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
         if not isinstance(network, networks.SequentialNetwork):
             raise Exception("Only sequential networks are supported at present")
 
-        logger = logging.getLogger(logger_name)
-        abst_networks = abst.AbsSeqNetwork("Abstract Network")
+        abst_network = abst.AbsSeqNetwork("Abstract Network")
 
         current_node = network.get_first_node()
         relu_count = 0
         while current_node is not None:
 
             if isinstance(current_node, nodes.FullyConnectedNode):
-                abst_networks.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
+                abst_network.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
 
             elif isinstance(current_node, nodes.ReLUNode):
 
-                if self.params is None and self.heuristic == "best_n_neurons":
+                if params is None and heuristic == "best_n_neurons":
                     temp_params = [0]
-                elif self.params is None and self.heuristic == "given_flags":
+                elif params is None and heuristic == "given_flags":
                     temp_params = [False for i in range(len(current_node.in_dim[0]))]
                 else:
-                    temp_params = self.params[relu_count]
+                    temp_params = params[relu_count]
 
-                abst_networks.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
-                                                        self.heuristic, temp_params))
+                abst_network.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
+                                                       heuristic, temp_params))
 
                 relu_count += 1
-
-            elif isinstance(current_node, nodes.SigmoidNode):
-                abst_networks.add_node(abst.AbsSigmoidNode("ABST_" + current_node.identifier, current_node,
-                                                           self.refinement_level))
 
             else:
                 raise Exception(f"Node type: {current_node.__class__} not supported")
 
             current_node = network.get_next_node(current_node)
 
+        return abst_network
+
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty) -> (abst.StarSet, List):
+
+        input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+        input_starset = abst.StarSet({input_star})
+        current_node = abst_network.get_first_node()
+        output_starset = input_starset
+        n_areas = []
+        while current_node is not None:
+            time_start = time.perf_counter()
+            output_starset = current_node.forward(output_starset)
+            time_end = time.perf_counter()
+            if isinstance(current_node, abst.AbsReLUNode):
+                n_areas.append(current_node.n_areas)
+            self.logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
+                             f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
+
+            current_node = abst_network.get_next_node(current_node)
+
+        return output_starset, n_areas
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
         ver_start_time = time.perf_counter()
+
         if isinstance(prop, NeVerProperty):
 
-            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
-            input_starset = abst.StarSet({input_star})
-            current_node = abst_networks.get_first_node()
-            output_starset = input_starset
-            while current_node is not None:
-                time_start = time.perf_counter()
-                output_starset = current_node.forward(output_starset)
-                time_end = time.perf_counter()
-
-                logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
-                            f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
-
-                current_node = abst_networks.get_next_node(current_node)
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
 
             out_coef_mat = prop.out_coef_mat
             out_bias_mat = prop.out_bias_mat
 
         else:
-            raise NotImplementedError
+            raise Exception("Only NeVerProperty are supported at present")
 
         or_verified = []
         for i in range(len(out_coef_mat)):
@@ -252,10 +264,26 @@ class NeverVerification(VerificationStrategy):
         final_verified = any(or_verified)
 
         ver_end_time = time.perf_counter()
-        logger.info(f"Verification Result: {final_verified}.")
-        logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
+        self.logger.info(f"Verification Result: {final_verified}.")
+        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
         return final_verified
+
+    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        computing_start_time = time.perf_counter()
+
+        if isinstance(prop, NeVerProperty):
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+        else:
+            raise NotImplementedError
+
+        computing_end_time = time.perf_counter()
+        computing_time = computing_end_time - computing_start_time
+
+        return output_starset, computing_time
 
 
 class NeverVerificationRef(VerificationStrategy):
@@ -473,6 +501,22 @@ class NeverVerificationRef(VerificationStrategy):
         self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
         return final_verified, None
+
+    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        computing_start_time = time.perf_counter()
+
+        if isinstance(prop, NeVerProperty):
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+        else:
+            raise NotImplementedError
+
+        computing_end_time = time.perf_counter()
+        computing_time = computing_end_time - computing_start_time
+
+        return output_starset, computing_time
 
 
 def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):

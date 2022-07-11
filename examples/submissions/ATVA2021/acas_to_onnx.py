@@ -81,10 +81,9 @@ for i in range(1, 6):
 
                 input_prefix = network.input_id
                 output_prefix = network.get_last_node().identifier
-                ver.temp_never2smt(prop, input_prefix, output_prefix, f"smt_property/SMT_{p_id[k]}.smt2")
+                ver.temp_never2smt(prop, input_prefix, output_prefix, f"SMT_{p_id[k]}.smt2")
 
-                p2 = reading.SmtPropertyParser(ver.SMTLIBProperty(f"smt_property/SMT_{p_id[k]}.smt2"), input_prefix,
-                                               output_prefix).parse_property()
+                p2 = reading.SmtPropertyParser(ver.SMTLIBProperty(f"SMT_{p_id[k]}.smt2"), input_prefix, output_prefix).parse_property()
                 print(p2)
 
             prop_set = True
