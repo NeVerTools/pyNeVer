@@ -1,20 +1,31 @@
 # pyNeVer
 
-Neural networks Verifier (__NeVer__) is a tool for the training, pruning and verification of neural networks.
+Neural networks Verifier (__NeVer 2__) is a tool for the training, pruning and verification of neural networks.
 At present it supports sequential fully connected neural networks with ReLU and Sigmoid activation functions.
-__pyNeVer__ is the corresponding python package providing all the main capabilities of the __NeVer__ tool
+__pyNeVer__ is the corresponding python package providing all the main capabilities of the __NeVer 2__ tool
 and can be easily installed using pip. The PyPI project page can be found at <https://pypi.org/project/pyNeVer/>
 whereas the github repository can be found at <https://github.com/NeVerTools/pyNeVer>.
 
 #### REQUIREMENTS AND INSTALLATION
-Given the characteristcs of PyTorch and ONNX we were not able to setup an auto-installation for these packages.
-Therefore the user is required to install the torch, torchvision and onnx packages indipendently.
-Guides on how to install such packages can be found at:
-* <https://pytorch.org/get-started/locally/>
-* <https://github.com/onnx/onnx>
+__pyNeVer__ depends on several packages, which should be installed automatically. The packages required for the
+correct execution are the following:
 
-After the installation of the required packages __pyNeVer__ can be installed using the command:
-* _pip install pynever_
+* _numpy_
+* _scipy_
+* _ortools_
+* _onnx_
+* _torch_
+* _torchvision_
+* _pysmt_
+
+All the above packages are available via pip. To install __pyNeVer__, run the command:
+
+```bash
+pip install pynever
+```
+
+To run some examples, further packages may be required. If an example requires a specific package, it will be 
+detailed in the example directory.
 
 #### DOCUMENTATION
 The documentation related to the __pyNeVer__ package can be found in the directory docs/pynever/ as html files.
@@ -25,11 +36,12 @@ with ReLU and Sigmoid activation functions. The training, pruning and conversion
 layers. A network with batchnorm layers following fully connected layers can be converted to a "pure" fully connected
 neural networks using the capabilities provided in the [utilities.py](pynever/utilities.py) module.  
 The [conversion.py](pynever/strategies/conversion.py) provides the capabilities for the conversion of PyTorch and ONNX
-networks: therefore these kind of networks can be loaded using the respective frameworks and then converted to the
+networks: therefore this kind of networks can be loaded using the respective frameworks and then converted to the
 internal representation used by __pyNeVer__.
-At present the properties for the verification and abstraction of the networks must be defined in python code following
-the specification which can be found in the documentation. Examples of the specification of the properties can be found
-in all the scripts in the directory examples/submissions/ATVA2021/.
+The properties for the verification and abstraction of the networks must be defined either in python code following
+the specification which can be found in the documentation, or via an SMT-LIB file compliant to the 
+[VNN-LIB](http://vnnlib.org) standard. Examples of the python specification of the properties can be found in all the 
+scripts in the directory examples/submissions/ATVA2021/.
 
 #### EXAMPLES
 **NB: All the scripts should be executed INSIDE the related directory!**  
