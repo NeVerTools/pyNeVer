@@ -1303,6 +1303,6 @@ def save_network_path(network: AlternativeRepresentation, path: str) -> None:
     """
 
     if isinstance(network, PyTorchNetwork):
-        torch.save(network, path)
+        torch.save(network.pytorch_network, path)
     elif isinstance(network, ONNXNetwork):
-        onnx.save(network, path)
+        onnx.save(network.onnx_network, path)
