@@ -1,14 +1,13 @@
+import numpy as np
+import onnx
 import torch
 
-import pynever.utilities as utilities
-import pynever.nodes as nodes
 import pynever.networks as networks
+import pynever.nodes as nodes
 import pynever.strategies.conversion as conv
-import onnx
-import numpy as np
+import pynever.strategies.smt_reading as reading
 import pynever.strategies.verification as ver
-import pynever.strategies.reading as reading
-
+import pynever.utilities as utilities
 
 input_lb = [[1500, -0.06, 3.1, 980, 960], [1500, -0.06, 3.1, 1000, 700]]
 input_ub = [[1800, 0.06, 3.14, 1200, 1000], [1800, 0.06, 3.14, 1200, 800]]
@@ -81,11 +80,11 @@ for i in range(1, 6):
 
                 input_prefix = network.input_id
                 output_prefix = network.get_last_node().identifier
-                ver.temp_never2smt(prop, input_prefix, output_prefix, f"smt_property/SMT_{p_id[k]}.smt2")
+                prop.to_smt_file(input_prefix, output_prefix, f"smt_property/SMT_{p_id[k]}.smt2")
 
-                p2 = reading.SmtPropertyParser(ver.SMTLIBProperty(f"smt_property/SMT_{p_id[k]}.smt2"), input_prefix,
-                                               output_prefix).parse_property()
-                print(p2)
+                read_mats = reading.SmtPropertyParser(f"smt_property/SMT_{p_id[k]}.smt2", input_prefix,
+                                                      output_prefix).parse_property()
+                p2 = ver.NeVerProperty(read_mats[0], read_mats[1], read_mats[2], read_mats[3])
 
             prop_set = True
 
