@@ -21,6 +21,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    install_requires=['numpy', 'scipy', 'ortools'],
+    install_requires=['numpy', 'scipy', 'ortools', 'onnx', 'torch', 'torchvision', 'pysmt'],
 )
 

@@ -12,8 +12,8 @@ import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
-import pynever.strategies.processing as processing
 import pynever.utilities as utils
+import pynever.strategies.smt_reading as reading
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
@@ -136,7 +136,7 @@ class NeVerProperty(Property):
 
             infix_in_constraints = self.__create_infix_constraints(input_vars, self.in_coef_mat, self.in_bias_mat)
             for c in infix_in_constraints:
-                prefix_smt_row = processing.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
                 f.write(f"(assert {prefix_smt_row})\n")
 
             f.write('\n;; --- OUTPUT CONSTRAINTS ---\n')
@@ -149,14 +149,14 @@ class NeVerProperty(Property):
 
             if len(infix_output_properties) == 1:
                 for c in infix_output_properties[0]:
-                    prefix_smt_row = processing.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                    prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
                     f.write(f"(assert {prefix_smt_row})\n")
             else:
                 s = '(assert (or '
                 for p in infix_output_properties:
                     s = s + '(and '
                     for c in p:
-                        prefix_smt_row = processing.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                        prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
                         s = s + '\n' + prefix_smt_row
                     s = s + ')\n'
                 s = s + '))'
