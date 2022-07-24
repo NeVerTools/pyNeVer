@@ -1300,9 +1300,8 @@ class TensorflowConverter(ConversionStrategy):
                         else:
                             has_bias = False
 
-                        new_layer = tf_l.Linear(layer.identifier, layer.in_dim, layer.out_dim,
-                                                in_features=layer.in_features, out_features=layer.out_features,
-                                                bias=has_bias)
+                        new_layer = tf_l.Linear(layer.identifier, layer.in_dim, layer.out_dim, layer.out_features, None,
+                                                has_bias)
 
                         weight = tf.convert_to_tensor(layer.weight)
                         new_layer.kernel = weight
@@ -1314,10 +1313,10 @@ class TensorflowConverter(ConversionStrategy):
                     elif isinstance(layer, nodes.BatchNormNode):
 
                         new_layer = tf_l.BatchNorm(layer.identifier, layer.in_dim, layer.out_dim,
-                                                   num_features=layer.num_features,
-                                                   eps=layer.eps, momentum=layer.momentum,
-                                                   affine=layer.affine,
-                                                   track_running_stats=layer.track_running_stats)
+                                                   axis=layer.num_features, momentum=layer.momentum,
+                                                   epsilon=layer.eps,
+                                                   center=layer.affine,
+                                                   scale=layer.track_running_stats)
 
                         new_layer.kernel = tf.convert_to_tensor(layer.weight)
                         new_layer.bias = tf.convert_to_tensor(layer.bias)
@@ -1417,7 +1416,7 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.UnsqueezeNode):
 
-                        axis = tuple([e for e in layer.axes])
+                        axis = tuple([e + 1 for e in layer.axes])
                         new_layer = tf_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axis)
 
                     elif isinstance(layer, nodes.ReshapeNode):
@@ -1431,7 +1430,10 @@ class TensorflowConverter(ConversionStrategy):
 
                         new_layer = tf_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
 
-                    ## Flatten node
+                    elif isinstance(layer, nodes.FlattenNode):
+
+                        # We need to scale the axis by one since our representation does not support the batch dimension
+                        new_layer = tf_l.Flatten(layer.identifier, layer.in_dim, layer.out_dim, 'channels_last')
 
                     elif isinstance(layer, nodes.DropoutNode):
 
@@ -1515,8 +1517,8 @@ class TensorflowConverter(ConversionStrategy):
                     out_channels = m.filters
                     kernel_size = m.kernel_size
                     stride = m.strides
-                    temp_padding = list(m.padding)
-                    for e in m.padding:
+                    temp_padding = list(m.pad)
+                    for e in m.pad:
                         temp_padding.append(e)
                     padding = tuple(temp_padding)
                     dilation = m.dilation_rate
@@ -1536,8 +1538,8 @@ class TensorflowConverter(ConversionStrategy):
                         isinstance(m, tf_l.AvgPool3d):
 
                     stride = m.strides
-                    temp_padding = list(m.padding)
-                    for e in m.padding:
+                    temp_padding = list(m.pad)
+                    for e in m.pad:
                         temp_padding.append(e)
                     padding = tuple(temp_padding)
                     kernel_size = m.pool_size
@@ -1551,8 +1553,8 @@ class TensorflowConverter(ConversionStrategy):
                         isinstance(m, tf_l.MaxPool3d):
 
                     stride = m.strides
-                    temp_padding = list(m.padding)
-                    for e in m.padding:
+                    temp_padding = list(m.pad)
+                    for e in m.pad:
                         temp_padding.append(e)
                     padding = tuple(temp_padding)
                     kernel_size = m.pool_size
@@ -1573,7 +1575,7 @@ class TensorflowConverter(ConversionStrategy):
 
                 elif isinstance(m, tf_l.Unsqueeze):
 
-                    axis = tuple([e for e in m.axis])
+                    axis = tuple([e - 1 for e in m.axis])
                     new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axis)
 
                 elif isinstance(m, tf_l.Reshape):
@@ -1581,7 +1583,9 @@ class TensorflowConverter(ConversionStrategy):
                     shape = m.shape[1:]
                     new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
 
-                ## Flatten node
+                elif isinstance(m, tf_l.Flatten):
+
+                    new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
 
                 elif isinstance(m, tf_l.Dropout):
 

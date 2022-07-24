@@ -18,6 +18,7 @@ class Sequential(keras.Sequential):
     input_id : str
         Identifier for the input of the network
     """
+
     def __init__(self, identifier: str, input_id: str, layers):
         super().__init__(layers=layers)
         self.identifier = identifier
@@ -40,8 +41,8 @@ class ReLU(layers.Activation):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, **kwargs):
-        super(ReLU, self).__init__(tf.nn.relu, **kwargs)
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple):
+        super(ReLU, self).__init__('relu')
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -63,8 +64,8 @@ class Sigmoid(layers.Activation):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, **kwargs):
-        super(Sigmoid, self).__init__(tf.nn.sigmoid, **kwargs)
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple):
+        super(Sigmoid, self).__init__('sigmoid')
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -86,10 +87,9 @@ class Linear(layers.Dense):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, in_features: int, out_features: int,
-                 bias: bool = True, **kwargs):
-        
-        super(Linear, self).__init__(out_features, use_bias=bias, **kwargs)
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, units: int, activation: str,
+                 use_bias: bool = True):
+        super(Linear, self).__init__(units, activation, use_bias)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -111,13 +111,13 @@ class BatchNorm(layers.BatchNormalization):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, num_features: int, eps: float = 1e-05,
-                 momentum: float = 0.1, affine: bool = True, track_running_stats: bool = True):
-
-        super().__init__(num_features, momentum, eps, affine, track_running_stats)
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, axis: int, momentum: float = 0.1,
+                 epsilon: float = 1e-05, center: bool = True, scale: bool = True):
+        super(BatchNorm, self).__init__(axis, momentum, epsilon, center, scale)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.trainable = True
 
 
 class Conv1d(layers.Conv1D):
@@ -139,11 +139,11 @@ class Conv1d(layers.Conv1D):
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, filters: int,
                  kernel_size: Tuple, strides: Tuple, padding: Tuple, data_format: str, dilation: Tuple, groups: int,
                  use_bias: bool):
-
-        super().__init__(filters, kernel_size, strides, padding, data_format, dilation, groups, use_bias=use_bias)
+        super().__init__(filters, kernel_size, strides, 'valid', data_format, dilation, groups, use_bias=use_bias)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
 
 
 class Conv2d(layers.Conv2D):
@@ -163,13 +163,15 @@ class Conv2d(layers.Conv2D):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, filters: int,
-                 kernel_size: Tuple, strides: Tuple, padding: Tuple, data_format: str, dilation_rate: Tuple, groups: int,
-                 use_bias: bool):
-        super().__init__(filters, kernel_size, strides, padding, data_format, dilation_rate=dilation_rate, groups=groups,
+                 kernel_size: Tuple, strides: Tuple, padding: str, data_format: str, dilation_rate: Tuple,
+                 groups: int, use_bias: bool):
+        super().__init__(filters, kernel_size, strides, 'valid', data_format, dilation_rate=dilation_rate,
+                         groups=groups,
                          use_bias=use_bias)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
 
 
 class Conv3d(layers.Conv3D):
@@ -189,13 +191,16 @@ class Conv3d(layers.Conv3D):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, filters: int,
-                 kernel_size: Tuple, strides: Tuple, padding: Tuple, data_format: str, dilation_rate: Tuple, groups: int,
+                 kernel_size: Tuple, strides: Tuple, padding: Tuple, data_format: str, dilation_rate: Tuple,
+                 groups: int,
                  use_bias: bool):
-        super().__init__(filters, kernel_size, strides, padding, data_format, dilation_rate=dilation_rate, groups=groups,
-                         use_bias=use_bias)
+        super().__init__(filters, kernel_size, strides, 'valid', data_format, dilation_rate=dilation_rate,
+                         groups=groups,
+                         use_bias=use_bias, kernel_initializer=glorot_uniform(seed=0))
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
 
 
 class AvgPool1d(layers.AvgPool1D):
@@ -216,11 +221,11 @@ class AvgPool1d(layers.AvgPool1D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, ceil_mode: bool, count_include_pad: bool):
-
-        super(AvgPool1d, self).__init__(pool_size, strides, padding, data_format)
+        super(AvgPool1d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.ceil_mode = ceil_mode
         self.count_include_pad = count_include_pad
 
@@ -243,11 +248,11 @@ class AvgPool2d(layers.AvgPool2D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, ceil_mode: bool, count_include_pad: bool):
-
-        super(AvgPool2d, self).__init__(pool_size, strides, padding, data_format)
+        super(AvgPool2d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.ceil_mode = ceil_mode
         self.count_include_pad = count_include_pad
 
@@ -270,11 +275,11 @@ class AvgPool3d(layers.AvgPool3D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, ceil_mode: bool, count_include_pad: bool):
-
-        super(AvgPool3d, self).__init__(pool_size, strides, padding, data_format)
+        super(AvgPool3d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.ceil_mode = ceil_mode
         self.count_include_pad = count_include_pad
 
@@ -297,10 +302,11 @@ class MaxPool1d(layers.MaxPooling1D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, dilation: Tuple, return_indices: bool, ceil_mode: bool):
-        super(MaxPool1d, self).__init__(pool_size, strides, padding, data_format)
+        super(MaxPool1d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.dilation = dilation
         self.return_indices = return_indices
         self.ceil_mode = ceil_mode
@@ -324,10 +330,11 @@ class MaxPool2d(layers.MaxPooling2D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, dilation: Tuple, return_indices: bool, ceil_mode: bool):
-        super(MaxPool2d, self).__init__(pool_size, strides, padding, data_format)
+        super(MaxPool2d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.dilation = dilation
         self.return_indices = return_indices
         self.ceil_mode = ceil_mode
@@ -351,10 +358,11 @@ class MaxPool3d(layers.MaxPooling3D):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, pool_size: Tuple, strides: Tuple, padding: str,
                  data_format: str, dilation: Tuple, return_indices: bool, ceil_mode: bool):
-        super(MaxPool3d, self).__init__(pool_size, strides, padding, data_format)
+        super(MaxPool3d, self).__init__(pool_size, strides, 'valid', data_format)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.pad = padding
         self.dilation = dilation
         self.return_indices = return_indices
         self.ceil_mode = ceil_mode
@@ -378,7 +386,6 @@ class LocalResponseNorm(layers.Layer):
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, depth_radius: int, alpha: float, beta: float,
                  bias: float):
-
         super().__init__()
         self.identifier = identifier
         self.in_dim = in_dim
@@ -387,6 +394,10 @@ class LocalResponseNorm(layers.Layer):
         self.alpha = alpha
         self.beta = beta
         self.bias = bias
+
+    def __call__(self, x: tf.Tensor):
+        x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
+        return x
 
 
 class Softmax(layers.Softmax):
@@ -406,7 +417,6 @@ class Softmax(layers.Softmax):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, axis: int):
-
         super(Softmax, self).__init__(axis)
         self.identifier = identifier
         self.in_dim = in_dim
@@ -430,15 +440,13 @@ class Unsqueeze(layers.Layer):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, axis: Tuple):
-
         super().__init__()
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.axis = axis
 
-    def forward(self, x: tf.Tensor):
-
+    def __call__(self, x: tf.Tensor):
         for ax in self.axis:
             x = tf.expand_dims(x, ax)
         return x
@@ -463,14 +471,13 @@ class Reshape(layers.Layer):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, shape: Tuple):
-
         super().__init__()
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.shape = shape
 
-    def forward(self, x: tf.Tensor):
+    def __call__(self, x: tf.Tensor):
         x = tf.reshape(x, self.shape)
         return x
 
@@ -492,8 +499,32 @@ class Dropout(layers.Dropout):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, rate: float):
-
         super().__init__(rate)
         self.identifier = identifier
         self.in_dim = in_dim
         self.out_dim = out_dim
+
+
+class Flatten(layers.Flatten):
+    """
+    Custom class for tensorflow Flatten layer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier for the node
+    in_dim : Tuple
+        Tuple expressing the dimension of the input
+    out_dim : Tuple
+        Tuple expressing the dimension of the output
+
+    In Flatten layer in tensorflow, it is always start_dim=1 and end_dim=-1.
+    If you want to flatten other dimensions, you may use Reshape layer.
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple, data_format: str):
+        super().__init__(data_format)
+        self.identifier = identifier
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.axis = 1

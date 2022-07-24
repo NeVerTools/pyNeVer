@@ -284,5 +284,5 @@ for conv in converters:
     softmax_node_test(conv)
     unsqueeze_node_test(conv)
     reshape_node_test(conv)
-    #flatten_node_test(conv)
+    flatten_node_test(conv)
     dropout_node_test(conv)
