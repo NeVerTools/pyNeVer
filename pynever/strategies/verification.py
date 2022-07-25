@@ -12,8 +12,8 @@ import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
-import pynever.utilities as utils
 import pynever.strategies.smt_reading as reading
+import pynever.utilities as utils
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
