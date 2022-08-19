@@ -121,7 +121,10 @@ class NeVerProperty(Property):
         with open(filepath, 'w+') as f:
             # Variables definition
             input_vars = [f"{input_id}_{i}" for i in range(self.in_coef_mat.shape[1])]
-            output_vars = [f"{output_id}_{i}" for i in range(self.out_coef_mat[0].shape[1])]
+            if self.out_coef_mat:
+                output_vars = [f"{output_id}_{i}" for i in range(self.out_coef_mat[0].shape[1])]
+            else:
+                output_vars = []
 
             f.write(';; --- INPUT VARIABLES ---\n')
             for v_name in input_vars:
