@@ -92,13 +92,14 @@ if __name__ == '__main__':
                     ub_constraint[i] = 1
                     in_pred_mat.append(lb_constraint)
                     in_pred_mat.append(ub_constraint)
-                    if random_input[i] - epsilon < -1:
-                        in_pred_bias.append([1])
+                    # Errata Corrige: we wrongly used -1 and 1 as upper and lower bounds for all the variables. Now it is correct.
+                    if random_input[i] - epsilon < in_low_b[i]:
+                        in_pred_bias.append([-in_low_b[i]])
                     else:
                         in_pred_bias.append([-(random_input[i] - epsilon)])
 
-                    if random_input[i] + epsilon > 1:
-                        in_pred_bias.append([1])
+                    if random_input[i] + epsilon > in_high_b[i]:
+                        in_pred_bias.append([in_high_b[i]])
                     else:
                         in_pred_bias.append([random_input[i] + epsilon])
 
@@ -123,14 +124,13 @@ if __name__ == '__main__':
 
                 delta = max(numpy_output[0] - min_lb, max_ub - numpy_output[0])
                 exp_delta = delta + 0.001
+                stop = time.perf_counter()
 
                 # Add output data to property and print
                 in_prop.out_coef_mat = [np.array([[1, -1]]).T]
                 in_prop.out_bias_mat = [np.array([[numpy_output[0] + exp_delta,
                                                    exp_delta - numpy_output[0]]]).T]
                 in_prop.to_smt_file('X', 'Y', f"prop_vnnlib_{net_id}_eps_{str(epsilon).replace('.', '')}.vnnlib")
-
-                stop = time.perf_counter()
 
                 logger_exp_file.info(f"{net_id}, {heuristic}, {epsilon}, {min_lb}, {max_ub}, {delta}, {stop - start}")
                 logger_exp_stream.info(f"{net_id}, {heuristic}, {epsilon}, {min_lb}, {max_ub}, {delta}, {stop - start}")

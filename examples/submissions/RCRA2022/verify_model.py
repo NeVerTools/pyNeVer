@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Verification Experiment with Hover Actors')
     parser.add_argument('--model', default='AC1', type=str, choices=acceptable_models, help='ONNX network to verify')
-    parser.add_argument('--algo',  default='overapprox', type=str, choices=["overapprox", "mixed", "complete"],
+    parser.add_argument('--algo',  default='mixed', type=str, choices=["overapprox", "mixed", "complete"],
                         help='Verification Algorithm')
     parser.add_argument('--eps', default=0.1, type=float, help='Infinity norm bound')
     parser.add_argument('--seed', default=shared_constants.SEED, type=int,
@@ -90,13 +90,14 @@ if __name__ == "__main__":
         ub_constraint[i] = 1
         in_pred_mat.append(lb_constraint)
         in_pred_mat.append(ub_constraint)
-        if random_input[i] - epsilon < -1:
-            in_pred_bias.append([1])
+        # Errata Corrige: we wrongly used -1 and 1 as upper and lower bounds for all the variables. Now it is correct.
+        if random_input[i] - epsilon < in_low_b[i]:
+            in_pred_bias.append([-in_low_b[i]])
         else:
             in_pred_bias.append([-(random_input[i] - epsilon)])
 
-        if random_input[i] + epsilon > 1:
-            in_pred_bias.append([1])
+        if random_input[i] + epsilon > in_high_b[i]:
+            in_pred_bias.append([in_high_b[i]])
         else:
             in_pred_bias.append([random_input[i] + epsilon])
 
