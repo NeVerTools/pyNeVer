@@ -123,13 +123,12 @@ if __name__ == '__main__':
                 max_ub = np.max(np.array(ubs))
 
                 delta = max(numpy_output[0] - min_lb, max_ub - numpy_output[0])
-                exp_delta = delta + 0.001
                 stop = time.perf_counter()
 
                 # Add output data to property and print
-                in_prop.out_coef_mat = [np.array([[1, -1]]).T]
-                in_prop.out_bias_mat = [np.array([[numpy_output[0] + exp_delta,
-                                                   exp_delta - numpy_output[0]]]).T]
+                in_prop.out_coef_mat = [np.array([[-1, 1]]).T]
+                in_prop.out_bias_mat = [np.array([[numpy_output[0] + delta,
+                                                   delta - numpy_output[0]]]).T]
                 in_prop.to_smt_file('X', 'Y', f"prop_vnnlib_{net_id}_eps_{str(epsilon).replace('.', '')}.vnnlib")
 
                 logger_exp_file.info(f"{net_id}, {heuristic}, {epsilon}, {min_lb}, {max_ub}, {delta}, {stop - start}")
