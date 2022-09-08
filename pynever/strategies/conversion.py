@@ -648,10 +648,47 @@ class ONNXConverter(ConversionStrategy):
 
         node_index = 1
         in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name][1:])
+        if in_dim == ():
+            in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name])
+
+        temp_fc = None
+        matmul_found = False
 
         for node in alt_rep.onnx_network.graph.node:
 
-            if node.op_type == "Relu":
+            if matmul_found:
+                if node.op_type == "Add":
+
+                    # We assume that the bias is always the second element of node.input
+
+                    bias = parameters[node.input[1]]
+                    network.add_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.in_dim,
+                                                              temp_fc.out_features, temp_fc.weight, bias, True))
+                    matmul_found = False
+                    temp_fc = None
+                    node_index += 1
+                    in_dim = network.get_last_node().out_dim
+                    continue
+
+                else:
+                    network.add_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.in_dim,
+                                                              temp_fc.out_features, temp_fc.weight, None, False))
+                    matmul_found = False
+                    temp_fc = None
+                    node_index += 1
+                    in_dim = network.get_last_node().out_dim
+
+            if node.op_type == "MatMul":
+
+                # We assume that the weight is always the first element of node.input
+
+                weight = parameters[node.input[0]]
+                out_features = weight.shape[0]
+                temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, None, False)
+                matmul_found = True
+                continue
+
+            elif node.op_type == "Relu":
 
                 # We assume that the real input of the node is always the first element of node.input
                 # and the first element of the shape is the batch placeholder
@@ -682,7 +719,6 @@ class ONNXConverter(ConversionStrategy):
                     has_bias = True
                     bias = parameters[node.input[2]]
 
-                in_features = weight.shape[1]
                 out_features = weight.shape[0]
                 network.add_node(nodes.FullyConnectedNode(node.output[0], in_dim,
                                                           out_features, weight, bias, has_bias))
