@@ -4,16 +4,17 @@ import operator
 import time
 from typing import List, Optional, Callable
 
+import numpy as np
+import torch
+
 import pynever.networks as networks
 import pynever.nodes as nodes
-import pynever.strategies.abstraction as abst
-import pynever.utilities as utils
-from pynever.tensor import Tensor
-import pynever.strategies.processing as processing
-import pynever.strategies.conversion as conv
-import torch
 import pynever.pytorch_layers as pyt_layers
-import numpy as np
+import pynever.strategies.abstraction as abst
+import pynever.strategies.conversion as conv
+import pynever.utilities as utils
+import pynever.strategies.smt_reading as reading
+from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
 
@@ -101,9 +102,91 @@ class NeVerProperty(Property):
         self.out_coef_mat = out_coef_mat
         self.out_bias_mat = out_bias_mat
 
-    def to_smt_file(self, filepath: str):
+    def to_smt_file(self, input_id: str = 'X', output_id: str = 'Y', filepath: str = ''):
+        """
+        This method builds the SMT-LIB representation of the NeVerProperty, expressing
+        the variables and the matrices as constraints in the corresponding logic
 
-        infix_constraints = []
+        Parameters
+        ----------
+        input_id : str, Optional
+            Identifier of the input node (default: 'X')
+        output_id : str, Optional
+            Identifier of the output node (default: 'X')
+        filepath : str
+            Path to the SMT-LIB file to create
+
+        """
+
+        with open(filepath, 'w+') as f:
+            # Variables definition
+            input_vars = [f"{input_id}_{i}" for i in range(self.in_coef_mat.shape[1])]
+            if self.out_coef_mat:
+                output_vars = [f"{output_id}_{i}" for i in range(self.out_coef_mat[0].shape[1])]
+            else:
+                output_vars = []
+
+            f.write(';; --- INPUT VARIABLES ---\n')
+            for v_name in input_vars:
+                f.write(f"(declare-fun {v_name} () Real)\n")
+
+            f.write('\n;; --- OUTPUT VARIABLES ---\n')
+            for v_name in output_vars:
+                f.write(f"(declare-fun {v_name} () Real)\n")
+
+            # Constraints definition
+            f.write('\n;; --- INPUT CONSTRAINTS ---\n')
+
+            infix_in_constraints = self.__create_infix_constraints(input_vars, self.in_coef_mat, self.in_bias_mat)
+            for c in infix_in_constraints:
+                prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                f.write(f"(assert {prefix_smt_row})\n")
+
+            f.write('\n;; --- OUTPUT CONSTRAINTS ---\n')
+
+            # Allow multiple output properties
+            infix_output_properties = []
+            for out_mat, out_bias in zip(self.out_coef_mat, self.out_bias_mat):
+                infix_constraints = self.__create_infix_constraints(output_vars, out_mat, out_bias)
+                infix_output_properties.append(infix_constraints)
+
+            if len(infix_output_properties) == 1:
+                for c in infix_output_properties[0]:
+                    prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                    f.write(f"(assert {prefix_smt_row})\n")
+            else:
+                s = '(assert (or '
+                for p in infix_output_properties:
+                    s = s + '(and '
+                    for c in p:
+                        prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                        s = s + '\n' + prefix_smt_row
+                    s = s + ')\n'
+                s = s + '))'
+                f.write(s)
+
+    @staticmethod
+    def __create_infix_constraints(variables: list, coef_mat: Tensor, bias_mat: Tensor) -> list:
+        c_list = []
+
+        for row in range(coef_mat.shape[0]):
+            coef = coef_mat[row, :]
+            bias = bias_mat[row][0]
+            s = '('
+
+            # Assign coefficients
+            for k in range(len(coef)):
+                c = coef[k]
+                if c != 0:
+                    s = s + f"({float(c)} * {variables[k]})"
+                    if k < len(coef) - 1 and any(coef[k + 1:]):
+                        s = s + ' + '
+
+            # Add bias
+            s = s + f") <= ({float(bias)})"
+            c_list.append(s)
+
+        return c_list
 
 
 class VerificationStrategy(abc.ABC):
@@ -174,67 +257,79 @@ class NeverVerification(VerificationStrategy):
         self.heuristic = heuristic
         self.params = params
         self.refinement_level = refinement_level
+        self.logger = logging.getLogger(logger_name)
 
-    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+    @staticmethod
+    def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
         if not isinstance(network, networks.SequentialNetwork):
             raise Exception("Only sequential networks are supported at present")
 
-        logger = logging.getLogger(logger_name)
-        abst_networks = abst.AbsSeqNetwork("Abstract Network")
+        abst_network = abst.AbsSeqNetwork("Abstract Network")
 
         current_node = network.get_first_node()
         relu_count = 0
         while current_node is not None:
 
             if isinstance(current_node, nodes.FullyConnectedNode):
-                abst_networks.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
+                abst_network.add_node(abst.AbsFullyConnectedNode("ABST_" + current_node.identifier, current_node))
 
             elif isinstance(current_node, nodes.ReLUNode):
 
-                if self.params is None and self.heuristic == "best_n_neurons":
+                if params is None and heuristic == "best_n_neurons":
                     temp_params = [0]
-                elif self.params is None and self.heuristic == "given_flags":
+                elif params is None and heuristic == "given_flags":
                     temp_params = [False for i in range(len(current_node.in_dim[0]))]
                 else:
-                    temp_params = self.params[relu_count]
+                    temp_params = params[relu_count]
 
-                abst_networks.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
-                                                        self.heuristic, temp_params))
+                abst_network.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
+                                                       heuristic, temp_params))
 
                 relu_count += 1
-
-            elif isinstance(current_node, nodes.SigmoidNode):
-                abst_networks.add_node(abst.AbsSigmoidNode("ABST_" + current_node.identifier, current_node,
-                                                           self.refinement_level))
 
             else:
                 raise Exception(f"Node type: {current_node.__class__} not supported")
 
             current_node = network.get_next_node(current_node)
 
+        return abst_network
+
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty) -> (abst.StarSet, List):
+
+        input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+        input_starset = abst.StarSet({input_star})
+        current_node = abst_network.get_first_node()
+        output_starset = input_starset
+        n_areas = []
+        while current_node is not None:
+            time_start = time.perf_counter()
+            output_starset = current_node.forward(output_starset)
+            time_end = time.perf_counter()
+            if isinstance(current_node, abst.AbsReLUNode):
+                n_areas.append(current_node.n_areas)
+            self.logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
+                             f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
+
+            current_node = abst_network.get_next_node(current_node)
+
+        return output_starset, n_areas
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
         ver_start_time = time.perf_counter()
+
         if isinstance(prop, NeVerProperty):
 
-            input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
-            input_starset = abst.StarSet({input_star})
-            current_node = abst_networks.get_first_node()
-            output_starset = input_starset
-            while current_node is not None:
-                time_start = time.perf_counter()
-                output_starset = current_node.forward(output_starset)
-                time_end = time.perf_counter()
-
-                logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
-                            f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
-
-                current_node = abst_networks.get_next_node(current_node)
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
 
             out_coef_mat = prop.out_coef_mat
             out_bias_mat = prop.out_bias_mat
 
         else:
-            raise NotImplementedError
+            raise Exception("Only NeVerProperty are supported at present")
 
         or_verified = []
         for i in range(len(out_coef_mat)):
@@ -252,10 +347,26 @@ class NeverVerification(VerificationStrategy):
         final_verified = any(or_verified)
 
         ver_end_time = time.perf_counter()
-        logger.info(f"Verification Result: {final_verified}.")
-        logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
+        self.logger.info(f"Verification Result: {final_verified}.")
+        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
         return final_verified
+
+    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
+
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        computing_start_time = time.perf_counter()
+
+        if isinstance(prop, NeVerProperty):
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+        else:
+            raise NotImplementedError
+
+        computing_end_time = time.perf_counter()
+        computing_time = computing_end_time - computing_start_time
+
+        return output_starset, computing_time
 
 
 class NeverVerificationRef(VerificationStrategy):
@@ -474,119 +585,21 @@ class NeverVerificationRef(VerificationStrategy):
 
         return final_verified, None
 
+    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
 
-def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
 
-    with open(filepath, "w") as f:
+        computing_start_time = time.perf_counter()
 
-        input_matrix = prt.in_coef_mat
-        input_biases = prt.in_bias_mat
-        list_out_matrixes = prt.out_coef_mat
-        list_out_biases = prt.out_bias_mat
+        if isinstance(prop, NeVerProperty):
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+        else:
+            raise NotImplementedError
 
-        for i in range(len(input_matrix[0])):
-            f.write(f"(declare-fun {input_prefix}_{i} () Real)\n")
+        computing_end_time = time.perf_counter()
+        computing_time = computing_end_time - computing_start_time
 
-        for i in range(len(list_out_matrixes[0][0])):
-            f.write(f"(declare-fun {output_prefix}_{i} () Real)\n")
-
-        for i in range(len(input_matrix)):
-
-            vars_coef = input_matrix[i, :]
-            bias = input_biases[i][0]
-            s = "("
-            for k in range(len(vars_coef)):
-                var_coef = vars_coef[k]
-                if var_coef != 0:
-                    s = s + f"({float(var_coef)} * {input_prefix}_{k})"
-                    if k < len(vars_coef) - 1 and any(vars_coef[k + 1:]):
-                        s = s + " + "
-
-            s = s + f") <= ({float(bias)})"
-            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
-            f.write(f"(assert {smt_s})" + "\n")
-
-        s = ""
-        for i in range(len(list_out_matrixes)):
-
-            out_matrix = list_out_matrixes[i]
-            out_biases = list_out_biases[i]
-            s = s + "("
-            for j in range(len(out_matrix)):
-                vars_coef = out_matrix[j, :]
-                bias = out_biases[j][0]
-                s = s + "(("
-                for k in range(len(vars_coef)):
-                    var_coef = vars_coef[k]
-                    if var_coef != 0:
-                        s = s + f"({float(var_coef)} * {output_prefix}_{k})"
-                        if k < len(vars_coef) - 1 and any(vars_coef[k + 1:]):
-                            s = s + " + "
-
-                s = s + f") <= ({float(bias)}))"
-                if j < len(out_matrix) - 1:
-                    s = s + " & "
-
-            s = s + ")"
-            if i < len(list_out_matrixes) - 1:
-                s = s + " | "
-
-        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
-        smt_s = smt_s.replace("&", "and")
-        smt_s = smt_s.replace("|", "or")
-        f.write(f"(assert {smt_s})" + "\n")
-
-def temp_never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepath: str):
-
-    with open(filepath, "w") as f:
-
-        input_matrix = prt.in_coef_mat
-        input_biases = prt.in_bias_mat
-        out_matrix = prt.out_coef_mat[0]
-        out_biases = prt.out_bias_mat[0]
-
-        for i in range(len(input_matrix[0])):
-            f.write(f"(declare-fun {input_prefix}_{i} () Real)\n")
-
-        for i in range(len(out_matrix[0])):
-            f.write(f"(declare-fun {output_prefix}_{i} () Real)\n")
-
-        for i in range(len(input_matrix)):
-
-            vars_coef = input_matrix[i, :]
-            bias = input_biases[i][0]
-            s = "("
-            for k in range(len(vars_coef)):
-                var_coef = vars_coef[k]
-                if var_coef != 0:
-                    s = s + f"({float(var_coef)} * {input_prefix}_{k})"
-                    if k < len(vars_coef) - 1 and any(vars_coef[k + 1:]):
-                        s = s + " + "
-
-            s = s + f") <= ({float(bias)})"
-            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
-            f.write(f"(assert {smt_s})" + "\n")
-
-        for i in range(len(out_matrix)):
-
-            vars_coef = out_matrix[i, :]
-            bias = out_biases[i][0]
-            s = "("
-            for k in range(len(vars_coef)):
-                var_coef = vars_coef[k]
-                if var_coef != 0:
-                    s = s + f"({float(var_coef)} * {output_prefix}_{k})"
-                    if k < len(vars_coef) - 1 and any(vars_coef[k + 1:]):
-                        s = s + " + "
-
-            s = s + f") <= ({float(bias)})"
-            smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
-            f.write(f"(assert {smt_s})" + "\n")
-
-        smt_s = processing.ExpressionTreeConverter().build_from_infix(s).as_prefix()
-        smt_s = smt_s.replace("&", "and")
-        smt_s = smt_s.replace("|", "or")
-        f.write(f"(assert {smt_s})" + "\n")
+        return output_starset, computing_time
 
 
 class LRPAnalyzer:

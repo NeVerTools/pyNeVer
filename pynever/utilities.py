@@ -1,21 +1,20 @@
 import copy
 import logging
+from typing import List
 
+import numpy as np
 import numpy.random
-
-import pynever.strategies.conversion as cv
-import pynever.nodes as nodes
-import pynever.networks as networks
-import pynever.strategies.abstraction as abst
 import torch
 import torch.nn.functional as funct
-from pynever.tensor import Tensor
-import numpy as np
+
+import pynever.networks as networks
 import pynever.pytorch_layers as ptl
-from typing import List, Tuple
-from ortools.constraint_solver import pywrapcp
+import pynever.strategies.abstraction as abst
+import pynever.strategies.conversion as cv
+from pynever.tensor import Tensor
 
 logger_name = "pynever.utilities"
+
 
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.Linear:
     """
@@ -30,6 +29,7 @@ def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.L
     ----------
     Linear
         The Linear resulting from the fusion of the two input nodes.
+
     """
 
     l_weight = linear.weight
@@ -72,6 +72,7 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.Seq
     ----------
     SequentialNetwork
         Corresponding Sequential Network with the combined nodes.
+
     """
 
     py_net = cv.PyTorchConverter().from_neural_network(network)
@@ -114,10 +115,10 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.Seq
     return combined_network
 
 
-def generate_targeted_linf_robustness_query(data: Tensor, adv_target: int, bounds: tuple,
-                                            num_classes: int, epsilon: float, filepath: str):
+def generate_linf_robustness_query(data: Tensor, adv_target: int, bounds: tuple,
+                                   num_classes: int, epsilon: float, filepath: str, targeted: bool):
     """
-    Function to generate a targeted Robustness SMTLIB query and to save it to a SMTLIB file.
+    Function to generate a Robustness SMTLIB query and to save it to a SMTLIB file.
     The robustness query is of the kind based on the infinity norm.
     It assumes that the data and target are from a classification task.
 
@@ -135,11 +136,14 @@ def generate_targeted_linf_robustness_query(data: Tensor, adv_target: int, bound
         Perturbation with respect to the infinity norm.
     filepath : str
         Filepath for the resulting SMTLIB file.
+    targeted : bool
+        Flag for targeted/untargeted robustness query
 
     """
-    with open(filepath, "w") as f:
 
+    with open(filepath, "w") as f:
         flattened_data = data.flatten()
+
         for i in range(len(flattened_data)):
             f.write(f"(declare-const X_{i} Real)\n")
 
@@ -158,69 +162,24 @@ def generate_targeted_linf_robustness_query(data: Tensor, adv_target: int, bound
             else:
                 f.write(f"(assert (<= X_{i} {flattened_data[i] + epsilon}))\n")
 
-        for i in range(num_classes):
+        if not targeted:
+            output_query = "(assert (or"
 
+        for i in range(num_classes):
             if i != adv_target:
-                f.write(f"(assert (<= (- Y_{i} Y_{adv_target}) 0))\n")
+                if targeted:
+                    f.write(f"(assert (<= (- Y_{i} Y_{adv_target}) 0))\n")
+                else:
+                    output_query += f" (<= (- Y_{adv_target} Y_{i}) 0)"
 
-def generate_untargeted_linf_robustness_query(data: Tensor, target: int, bounds: tuple,
-                                              num_classes: int, epsilon: float, filepath: str):
-    """
-    Function to generate an untargeted Robustness SMTLIB query and to save it to a SMTLIB file.
-    The robustness query is of the kind based on the infinity norm.
-    It assumes that the data and target are from a classification task.
-
-    Parameters
-    ----------
-    data : Tensor
-        Input data of interest.
-    adv_target : int
-        Desired adversarial target for the input data.
-    bounds : (int, int)
-        Bounds for the input data (lower_bound, upper_bound).
-    num_classes : int
-        Number of possible classes.
-    epsilon : float
-        Perturbation with respect to the infinity norm.
-    filepath : str
-        Filepath for the resulting SMTLIB file.
-
-    """
-    with open(filepath, "w") as f:
-
-        flattened_data = data.flatten()
-        for i in range(len(flattened_data)):
-            f.write(f"(declare-const X_{i} Real)\n")
-
-        for i in range(num_classes):
-            f.write(f"(declare-const Y_{i} Real)\n")
-
-        for i in range(len(flattened_data)):
-
-            if flattened_data[i] - epsilon < bounds[0]:
-                f.write(f"(assert (>= X_{i} {bounds[0]}))\n")
-            else:
-                f.write(f"(assert (>= X_{i} {flattened_data[i] - epsilon}))\n")
-
-            if flattened_data[i] + epsilon > bounds[1]:
-                f.write(f"(assert (<= X_{i} {bounds[1]}))\n")
-            else:
-                f.write(f"(assert (<= X_{i} {flattened_data[i] + epsilon}))\n")
-
-        output_query = "(assert (or"
-        for i in range(num_classes):
-
-            if i != target:
-                output_query += f" (<= (- Y_{target} Y_{i}) 0)"
-
-        output_query += "))"
-        f.write(output_query)
+        if not targeted:
+            f.write(output_query + "))")
 
 
 def parse_linf_robustness_smtlib(filepath: str) -> Tuple[bool, list, int]:
     """
     Function to extract the parameters of a robustness query from the smtlib file.
-    It assume the SMTLIB file is structured as following:
+    It assumes the SMTLIB file is structured as following:
 
         ; definition of the variables of interest
         (declare-const X_0 Real)
@@ -246,9 +205,11 @@ def parse_linf_robustness_smtlib(filepath: str) -> Tuple[bool, list, int]:
     Returns
     ----------
     (bool, list, int)
-        Tuple of list: the first list contains the values eps_i for each variables as tuples (lower_bound, upper_bound),
+        Tuple of list: the first list contains the values eps_i for each variable as tuples (lower_bound, upper_bound),
         while the int correspond to the desired target for the related data.
+
     """
+
     targeted = True
     correct_target = -1
     lb = []
@@ -288,7 +249,6 @@ def parse_linf_robustness_smtlib(filepath: str) -> Tuple[bool, list, int]:
 
 
 def net_update(network: networks.NeuralNetwork) -> networks.NeuralNetwork:
-
     if not network.up_to_date:
 
         for alt_rep in network.alt_rep_cache:
@@ -305,8 +265,7 @@ def net_update(network: networks.NeuralNetwork) -> networks.NeuralNetwork:
         return network
 
 
-def parse_acas_property(filepath: str) -> Tuple[(Tensor, Tensor), (Tensor, Tensor)]:
-
+def parse_acas_property(filepath: str) -> ((Tensor, Tensor), (Tensor, Tensor)):
     in_coeff = np.zeros((10, 5))
     in_bias = np.zeros((10, 1))
     out_coeff = []
@@ -369,8 +328,7 @@ def parse_acas_property(filepath: str) -> Tuple[(Tensor, Tensor), (Tensor, Tenso
     return (in_coeff, in_bias), (out_coeff, out_bias)
 
 
-def parse_nnet(filepath: str) -> Tuple[list, list, list, list, list, list]:
-
+def parse_nnet(filepath: str) -> (list, list, list, list, list, list):
     with open(filepath) as f:
 
         line = f.readline()
@@ -452,7 +410,6 @@ def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: T
                  threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD, opt_params: dict = None,
                  scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau, scheduler_params: dict = None,
                  max_iter_no_change: int = None):
-
     logger = logging.getLogger(logger_name)
     logger.info(f"SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n")
 
@@ -514,9 +471,8 @@ def input_search(net: networks.NeuralNetwork, ref_output: Tensor, start_input: T
 def input_search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, max_iter: int,
                        scale_coeff: float, iter_change_scale: int, iter_early_stop: int, adjustment_rate: float = 0.1,
                        num_samples: int = 1000, threshold: float = 1e-5):
-
     logger = logging.getLogger(logger_name)
-    #logger.info(f"SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n")
+    # logger.info(f"SEARCH of Input Point corresponding to Output: {ref_output}. MAX_ITER = {max_iter}\n")
 
     scale = np.ones(start_input.shape) * scale_coeff
 
@@ -528,13 +484,13 @@ def input_search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_in
 
     while iteration < max_iter and best_dist > threshold:
 
-        #logger.debug(f"BEGINNING ITER: {iteration}")
+        # logger.debug(f"BEGINNING ITER: {iteration}")
 
         current_input, current_output, current_dist = search_cloud(net, ref_output, current_input, num_samples, scale)
 
-        #logger.debug(f"BEST_SAMPLE: {current_input.squeeze()}")
-        #logger.debug(f"BEST_DIST: {current_dist}")
-        #logger.debug(f"BEST_OUTPUT: {current_output.squeeze()}")
+        # logger.debug(f"BEST_SAMPLE: {current_input.squeeze()}")
+        # logger.debug(f"BEST_DIST: {current_dist}")
+        # logger.debug(f"BEST_OUTPUT: {current_output.squeeze()}")
 
         if current_dist < best_dist:
             iter_no_change = 0
@@ -553,15 +509,14 @@ def input_search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_in
     if best_dist <= threshold:
         correct = True
 
-    #logger.debug(f"BEST_SAMPLE: {current_input.squeeze()}")
+    # logger.debug(f"BEST_SAMPLE: {current_input.squeeze()}")
     logger.debug(f"BEST_DIST: {current_dist}")
-    #logger.debug(f"BEST_OUTPUT: {current_output.squeeze()}")
+    # logger.debug(f"BEST_OUTPUT: {current_output.squeeze()}")
 
     return correct, current_input, current_output
 
 
 def search_cloud(net: networks.NeuralNetwork, ref_output: Tensor, start_input: Tensor, num_samples: int, scale: Tensor):
-
     py_net = cv.PyTorchConverter().from_neural_network(net).pytorch_network
     py_ref_output = torch.from_numpy(ref_output).squeeze()
     py_current_input = torch.from_numpy(start_input).squeeze()
@@ -592,7 +547,6 @@ def input_search_lbl(net: networks.SequentialNetwork, ref_output: Tensor, starse
                      max_iter: int, threshold: float = 1e-5, optimizer_con: type = torch.optim.SGD,
                      opt_params: dict = None, scheduler_con: type = torch.optim.lr_scheduler.ReduceLROnPlateau,
                      scheduler_params: dict = None, max_iter_no_change: int = None):
-
     logger = logging.getLogger(logger_name)
     logger.info(f"LAYER-BY-LAYER SEARCH of Input Point corresponding to Output: {ref_output}.")
 
@@ -639,7 +593,6 @@ def input_search_lbl(net: networks.SequentialNetwork, ref_output: Tensor, starse
 
 
 def compute_saliency(net: networks.NeuralNetwork, ref_input: Tensor):
-
     class BackHook:
 
         def __init__(self, module: torch.nn.Module, backward=True):

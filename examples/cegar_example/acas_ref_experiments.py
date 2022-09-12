@@ -132,5 +132,5 @@ for exp_p in exp_params:
             time_start = time.perf_counter()
             safe, counter_example = verifier.verify(network, prop)
             time_end = time.perf_counter()
-            logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},CEGAR,SIG={significance},MaxN={max_n}{safe},"
+            logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},CEGAR,SIG={significance},MaxN={max_n},{safe},"
                                   f"{time_end - time_start}")

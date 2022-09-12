@@ -58,10 +58,13 @@ class SequentialNetwork(NeuralNetwork):
         Procedure to extract the first node of the sequential Neural Network.
 
     get_next_node(LayerNode)
-        Procedure to get the next node of the network given an input LayerNode
+        Procedure to get the next node of the network given an input LayerNode.
 
     get_last_node()
         Procedure to extract the last node of the sequential Neural Network.
+
+    count_relu_layers()
+        Procedure to extract the number of layers of the sequential Neural Network.
 
     """
 
@@ -153,6 +156,30 @@ class SequentialNetwork(NeuralNetwork):
             current_node = self.get_next_node(current_node)
 
         return current_node
+
+    def count_relu_layers(self) -> int:
+        """
+        Count the number of ReLU layers of the NN.
+
+        Returns
+        -------
+        int
+            The number of ReLU layers
+
+        """
+
+        if self.nodes:
+            current_node = self.get_first_node()
+            relu_count = 0
+
+            while self.get_next_node(current_node) is not None:
+                current_node = self.get_next_node(current_node)
+                if isinstance(current_node, nodes.ReLUNode):
+                    relu_count += 1
+
+            return relu_count
+        else:
+            return 0
 
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]

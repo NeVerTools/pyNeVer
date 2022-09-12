@@ -1,5 +1,6 @@
 import abc
 import copy
+from typing import Optional
 
 import numpy as np
 import onnx
@@ -656,10 +657,51 @@ class ONNXConverter(ConversionStrategy):
 
         node_index = 1
         in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name][1:])
+        if in_dim == ():
+            in_dim = tuple(shape_info[alt_rep.onnx_network.graph.input[0].name])
+
+        temp_fc = None
+        matmul_found = False
 
         for node in alt_rep.onnx_network.graph.node:
 
-            if node.op_type == "Relu":
+            if matmul_found:
+                if node.op_type == "Add":
+
+                    # We assume that the bias is always the second element of node.input
+
+                    bias = parameters[node.input[1]]
+                    network.add_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.in_dim,
+                                                              temp_fc.out_features, temp_fc.weight, bias, True))
+                    matmul_found = False
+                    temp_fc = None
+                    node_index += 1
+                    in_dim = network.get_last_node().out_dim
+                    continue
+
+                else:
+                    network.add_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.in_dim,
+                                                              temp_fc.out_features, temp_fc.weight, None, False))
+                    matmul_found = False
+                    temp_fc = None
+                    node_index += 1
+                    in_dim = network.get_last_node().out_dim
+
+            if node.op_type == "MatMul":
+
+                # If the weight is the second parameter we need to transpose it
+
+                if node.input[0] in parameters.keys():
+                    weight = parameters[node.input[0]]
+                else:
+                    weight = parameters[node.input[1]].T
+
+                out_features = weight.shape[0]
+                temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, None, False)
+                matmul_found = True
+                continue
+
+            elif node.op_type == "Relu":
 
                 # We assume that the real input of the node is always the first element of node.input
                 # and the first element of the shape is the batch placeholder
@@ -675,19 +717,21 @@ class ONNXConverter(ConversionStrategy):
                 # is always the third.
                 # N.B: We do not support the attributes transA and transB,
                 # therefore we need to transpose the weight vector.
+                # TODO: Can we support transA and transB in some way?
 
-                if (node.attribute[2].name == 'transA' or node.attribute[2].name == 'transB') and \
-                        node.attribute[2].i == 0:
-                    weight = parameters[node.input[1]].T
-                else:
-                    weight = parameters[node.input[1]]
+                for att in node.attribute:
+                    if (att.name == 'transA' or att.name == 'transB') and att.i == 0:
+                        weight = parameters[node.input[1]].T
+                    else:
+                        weight = parameters[node.input[1]]
+
                 if len(node.input) <= 2:
                     has_bias = False
                     bias = None
                 else:
                     has_bias = True
                     bias = parameters[node.input[2]]
-                in_features = weight.shape[1]
+
                 out_features = weight.shape[0]
                 network.add_node(nodes.FullyConnectedNode(node.output[0], in_dim,
                                                           out_features, weight, bias, has_bias))
@@ -700,9 +744,16 @@ class ONNXConverter(ConversionStrategy):
                 bias = parameters[node.input[2]]
                 running_mean = parameters[node.input[3]]
                 running_var = parameters[node.input[4]]
-                # We assume that eps is always the first attribute and momentum is always the second.
-                eps = node.attribute[0].f
-                momentum = node.attribute[1].f
+
+                eps = 1e-05
+                momentum = 0.9
+                for att in node.attribute:
+
+                    if att.name == 'epsilon':
+                        eps = att.f
+                    elif att.name == 'momentum':
+                        momentum = att.f
+
                 network.add_node(nodes.BatchNormNode(node.output[0], in_dim, weight,
                                                      bias, running_mean, running_var, eps, momentum))
 
@@ -719,49 +770,90 @@ class ONNXConverter(ConversionStrategy):
                     bias = parameters[node.input[2]]
 
                 out_channels = weight.shape[0]
-                # We assume that the attribute are in the following order: dilation, groups, kernel_shape, pads and
-                # strides
-                dilation = tuple(node.attribute[0].ints)
-                groups = node.attribute[1].i
-                kernel_size = tuple(node.attribute[2].ints)
-                padding = tuple(node.attribute[3].ints)
-                stride = tuple(node.attribute[4].ints)
 
-                network.add_node(nodes.ConvNode(node.output[0], in_dim, out_channels, kernel_size,
+                # TODO: at present we do not support auto_pad and implicit kernel_shape.
+                groups = 1
+                # We need to exclude the first axis (channels) from the following quantities.
+                dilation = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
+                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+
+                for att in node.attribute:
+                    if att.name == 'dilations':
+                        dilation = tuple(att.ints)
+                    elif att.name == 'groups':
+                        groups = att.i
+                    elif att.name == 'kernel_shape':
+                        kernel_shape = tuple(att.ints)
+                    elif att.name == 'pads':
+                        padding = tuple(att.ints)
+                    elif att.name == 'strides':
+                        stride = tuple(att.ints)
+
+                network.add_node(nodes.ConvNode(node.output[0], in_dim, out_channels, kernel_shape,
                                                 stride, padding, dilation, groups, has_bias, bias, weight))
 
             elif node.op_type == "AveragePool":
 
-                # We assume that the attribute are in the following order: ceil_mode, count_include_pad,
-                # kernel_shape, pads and strides
-                ceil_mode = bool(node.attribute[0].i)
-                count_include_pad = bool(node.attribute[1].i)
-                kernel_size = tuple(node.attribute[2].ints)
-                padding = tuple(node.attribute[3].ints)
-                stride = tuple(node.attribute[4].ints)
+                # TODO: at present we do not support auto_pad.
 
-                network.add_node(nodes.AveragePoolNode(node.output[0], in_dim, kernel_size, stride,
+                ceil_mode = False
+                count_include_pad = False
+                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
+                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+
+                for att in node.attribute:
+                    if att.name == 'ceil_mode':
+                        ceil_mode = bool(att.i)
+                    elif att.name == 'count_include_pad':
+                        count_include_pad = bool(att.i)
+                    elif att.name == 'kernel_shape':
+                        kernel_shape = tuple(att.ints)
+                    elif att.name == 'pads':
+                        padding = tuple(att.ints)
+                    elif att.name == 'strides':
+                        stride = tuple(att.ints)
+
+                network.add_node(nodes.AveragePoolNode(node.output[0], in_dim, kernel_shape, stride,
                                                        padding, ceil_mode, count_include_pad))
 
             elif node.op_type == "MaxPool":
 
-                # We assume that the attribute are in the following order: ceil_mode, dilation,
-                # kernel_shape, pads and strides
-                ceil_mode = bool(node.attribute[0].i)
-                dilation = tuple(node.attribute[1].ints)
-                kernel_size = tuple(node.attribute[2].ints)
-                padding = tuple(node.attribute[3].ints)
-                stride = tuple(node.attribute[4].ints)
+                ceil_mode = False
+                dilation = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
+                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
 
-                network.add_node(nodes.MaxPoolNode(node.output[0], in_dim, kernel_size, stride, padding,
+                for att in node.attribute:
+                    if att.name == 'ceil_mode':
+                        ceil_mode = bool(att.i)
+                    elif att.name == 'dilations':
+                        dilation = tuple(att.ints)
+                    elif att.name == 'kernel_shape':
+                        kernel_shape = tuple(att.ints)
+                    elif att.name == 'pads':
+                        padding = tuple(att.ints)
+                    elif att.name == 'strides':
+                        stride = tuple(att.ints)
+
+                network.add_node(nodes.MaxPoolNode(node.output[0], in_dim, kernel_shape, stride, padding,
                                                    dilation, ceil_mode))
 
             elif node.op_type == "LRN":
 
-                alpha = node.attribute[0].f
-                beta = node.attribute[1].f
-                k = node.attribute[2].f
-                size = node.attribute[3].i
+                alpha = 0.0001
+                beta = 0.75
+                k = 1.0
+
+                for att in node.attribute:
+                    if att.name == 'alpha':
+                        alpha = att.f
+                    elif att.name == 'beta':
+                        beta = att.f
+                    elif att.name == 'bias':
+                        k = att.f
+                    elif att.name == 'size':
+                        size = att.i
 
                 network.add_node(nodes.LRNNode(node.output[0], in_dim, size, alpha, beta, k))
 
@@ -769,7 +861,11 @@ class ONNXConverter(ConversionStrategy):
 
                 # Since the ONNX representation consider the batch dimension we need to scale the axis by 1
                 # when we pass to our representation.
-                axis = node.attribute[0].i - 1
+                axis = -1
+                for att in node.attribute:
+                    if att.name == 'axis':
+                        axis = att.i - 1
+
                 network.add_node(nodes.SoftMaxNode(node.output[0], in_dim, axis))
 
             elif node.op_type == "Unsqueeze":
@@ -785,13 +881,20 @@ class ONNXConverter(ConversionStrategy):
                 shape = tuple(parameters[node.input[1]])
                 # We need to eliminate the first dimension corresponding to the batch dimension
                 shape = shape[1:]
-                allow_zero = node.attribute[0].i
+                allow_zero = 0
+                for att in node.attribute:
+                    if att.name == 'allowzero':
+                        allow_zero = att.i
+
                 network.add_node(nodes.ReshapeNode(node.output[0], in_dim, shape, allow_zero))
 
             elif node.op_type == "Flatten":
 
                 # We need to scale the axis value since our representation does not have the batch dimension
-                axis = node.attribute[0].i - 1
+                axis = 0
+                for att in node.attribute:
+                    if att.name == 'axis':
+                        axis = att.i - 1
                 network.add_node(nodes.FlattenNode(node.output[0], in_dim, axis))
 
             elif node.op_type == "Dropout":
@@ -1511,6 +1614,7 @@ class TensorflowConverter(ConversionStrategy):
             The Neural Network resulting from the conversion of Tensorflow Representation.
 
         """
+        
         identifier = alt_rep.identifier
         network = networks.SequentialNetwork(identifier, alt_rep.tensorflow_network.input_id)
 
@@ -1643,3 +1747,51 @@ class TensorflowConverter(ConversionStrategy):
                     network.add_node(new_node)
 
         return network
+
+
+def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
+    """
+    Method to load a network from a path in an Alternative Representation.
+
+    Parameters
+    ----------
+    path : str
+        Path to the network.
+
+    Returns
+    -------
+    Optional[AlternativeRepresentation]
+        The AlternativeRepresentation object if the network is supported, None otherwise.
+
+    """
+
+    extension = path.split('.')[-1]
+    net_id = path.split('/')[-1].replace(f".{extension}", '')
+
+    if extension in ['pt', 'pth']:
+        module = torch.load(path)
+        return PyTorchNetwork(net_id, module, True)
+    elif extension == 'onnx':
+        model_proto = onnx.load(path)
+        return ONNXNetwork(net_id, model_proto, True)
+    else:
+        return None
+
+
+def save_network_path(network: AlternativeRepresentation, path: str) -> None:
+    """
+    Method to save a network to file from an AlternativeRepresentation
+
+    Parameters
+    ----------
+    network : AlternativeRepresentation
+        The network to save.
+    path : str
+        Path to save the network.
+
+    """
+
+    if isinstance(network, PyTorchNetwork):
+        torch.save(network.pytorch_network, path)
+    elif isinstance(network, ONNXNetwork):
+        onnx.save(network.onnx_network, path)
