@@ -680,9 +680,13 @@ class ONNXConverter(ConversionStrategy):
 
             if node.op_type == "MatMul":
 
-                # We assume that the weight is always the first element of node.input
+                # If the weight is the second parameter we need to transpose it
 
-                weight = parameters[node.input[0]]
+                if node.input[0] in parameters.keys():
+                    weight = parameters[node.input[0]]
+                else:
+                    weight = parameters[node.input[1]].T
+
                 out_features = weight.shape[0]
                 temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, None, False)
                 matmul_found = True
