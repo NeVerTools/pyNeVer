@@ -4,13 +4,12 @@ import copy
 import numpy as np
 import onnx
 import onnx.numpy_helper
-import torch
 import tensorflow as tf
+import torch
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_l
-
 import pynever.tensorflow_layers as tf_l
 
 
@@ -1304,11 +1303,31 @@ class TensorflowConverter(ConversionStrategy):
                                                 has_bias)
 
                         weight = tf.convert_to_tensor(layer.weight)
-                        new_layer.kernel = weight
+                        weight_initializer = tf.constant_initializer(weight)
+                        new_layer.kernel = new_layer.add_weight(
+                            'kernel',
+                            shape=[tf.compat.dimension_value(layer.in_dim[-1]), new_layer.units],
+                            initializer=weight_initializer,
+                            regularizer=new_layer.kernel_regularizer,
+                            constraint=new_layer.kernel_constraint,
+                            dtype=new_layer.dtype,
+                            trainable=True
+                        )
 
                         if has_bias:
                             bias = tf.convert_to_tensor(layer.bias)
-                            new_layer.bias = bias
+                            bias_initializer = tf.constant_initializer(bias)
+                            new_layer.bias = new_layer.add_weight(
+                                'bias',
+                                shape=[new_layer.units, ],
+                                initializer=bias_initializer,
+                                regularizer=new_layer.bias_regularizer,
+                                constraint=new_layer.bias_constraint,
+                                dtype=new_layer.dtype,
+                                trainable=True
+                            )
+                        else:
+                            new_layer.bias = None
 
                     elif isinstance(layer, nodes.BatchNormNode):
 
@@ -1352,9 +1371,31 @@ class TensorflowConverter(ConversionStrategy):
                         else:
                             raise Exception("Not supported")
 
-                        new_layer.kernel = tf.convert_to_tensor(layer.weight)
+                        weight = tf.convert_to_tensor(layer.weight)
+                        weight_initializer = tf.constant_initializer(weight)
+                        new_layer.kernel = new_layer.add_weight(
+                            'kernel',
+                            shape=[tf.compat.dimension_value(layer.in_dim[-1]), new_layer.units],
+                            initializer=weight_initializer,
+                            regularizer=new_layer.kernel_regularizer,
+                            constraint=new_layer.kernel_constraint,
+                            dtype=new_layer.dtype,
+                            trainable=True
+                        )
                         if layer.has_bias:
-                            new_layer.bias = tf.convert_to_tensor(layer.bias)
+                            bias = tf.convert_to_tensor(layer.bias)
+                            bias_initializer = tf.constant_initializer(bias)
+                            new_layer.bias = new_layer.add_weight(
+                                'bias',
+                                shape=[new_layer.units, ],
+                                initializer=bias_initializer,
+                                regularizer=new_layer.bias_regularizer,
+                                constraint=new_layer.bias_constraint,
+                                dtype=new_layer.dtype,
+                                trainable=True
+                            )
+                        else:
+                            new_layer.bias = None
 
                     elif isinstance(layer, nodes.AveragePoolNode):
 

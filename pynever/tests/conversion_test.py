@@ -1,13 +1,13 @@
-import pynever.nodes as nodes
-import pynever.networks as network
-import pynever.strategies.conversion as conversion
 import math
+
+import pynever.networks as network
+import pynever.nodes as nodes
+import pynever.strategies.conversion as conversion
 
 float_tolerance = 1e-5
 
 
 def relu_node_test(converter: conversion.ConversionStrategy):
-
     print("RELU NODE TEST")
     start_network = network.SequentialNetwork("NET_TEST", "X")
     start_network.add_node(nodes.ReLUNode("ReLU_1", (3, 3, 3)))
@@ -24,7 +24,6 @@ def relu_node_test(converter: conversion.ConversionStrategy):
 
 
 def sigmoid_node_test(converter: conversion.ConversionStrategy):
-
     print("SIGMOID NODE TEST")
     start_network = network.SequentialNetwork("NET_TEST", "X")
     start_network.add_node(nodes.SigmoidNode("Sigmoid_1", (3, 3, 3)))
@@ -41,7 +40,6 @@ def sigmoid_node_test(converter: conversion.ConversionStrategy):
 
 
 def fully_connected_node_test(converter: conversion.ConversionStrategy, has_bias: bool):
-
     print("FULLY CONNECTED NODE TEST")
     start_network = network.SequentialNetwork("NET_TEST", "X")
     start_network.add_node(nodes.FullyConnectedNode("FullyConnected_1", (3, 4, 5), 5, has_bias=has_bias))
@@ -67,7 +65,6 @@ def fully_connected_node_test(converter: conversion.ConversionStrategy, has_bias
 
 
 def batchnorm_node_test(converter: conversion.ConversionStrategy):
-
     print("BATCHNORM NODE TEST")
     start_network = network.SequentialNetwork("NET_TEST", "X")
     start_network.add_node(nodes.BatchNormNode("Batchnorm_1", (4, 5, 6, 3)))
@@ -96,7 +93,7 @@ def batchnorm_node_test(converter: conversion.ConversionStrategy):
 def conv_node_test(converter: conversion.ConversionStrategy, has_bias: bool):
     print("CONV NODE TEST")
     start_network = network.SequentialNetwork("NET_TEST", "X")
-    #dilatation = (0,0) doesn't work somehow
+    # dilatation = (0,0) doesn't work somehow
     start_network.add_node(nodes.ConvNode("Conv_1", (3, 32, 32), 3, (3, 3), (1, 1), (1, 1, 1, 1), (1, 1), 1,
                                           has_bias))
     alt_network = converter.from_neural_network(start_network)

@@ -1,37 +1,11 @@
-import pynever.nodes as nodes
-import pynever.networks as network
-import pynever.strategies.conversion as conversion
-import torch.nn as nn
-import torch
-import tensorflow as tf
 import numpy as np
-import math
+import tensorflow as tf
+
+import pynever.networks as network
+import pynever.nodes as nodes
+import pynever.strategies.conversion as conversion
 
 float_tolerance = 1e-5
-
-
-class NeuralNetwork(nn.Module):
-    def __init__(self):
-        super(NeuralNetwork, self).__init__()
-        self.linear_relu_stack = nn.Sequential(
-            nn.ReLU()
-        )
-
-    def forward(self, x):
-        logits = self.linear_relu_stack(x)
-        return logits
-
-
-class MyConstraint(tf.keras.constraints.Constraint):
-
-    def __init__(self, ref_value):
-        self.ref_value = ref_value
-
-    def __call__(self, w):
-        return w
-
-    def get_config(self):
-        return {'ref_value': self.ref_value}
 
 
 def relu_node_test(converter: conversion.ConversionStrategy):
@@ -301,18 +275,18 @@ def dropout_node_test(converter: conversion.ConversionStrategy):
 converters = [conversion.TensorflowConverter()]
 for conv in converters:
     print(f"Test for {conv.__class__.__name__}")
-    # relu_node_test(conv)
-    # sigmoid_node_test(conv)
-    # fully_connected_node_test(conv, True)
-    # fully_connected_node_test(conv, False)
-    # batchnorm_node_test(conv)
-    # conv_node_test(conv, True)
-    # conv_node_test(conv, False)
-    # averagepool_node_test(conv)
-    # maxpool_node_test(conv)
-    # lrn_node_test(conv)
-    # softmax_node_test(conv)
-    # unsqueeze_node_test(conv)
-    # reshape_node_test(conv)
-    # flatten_node_test(conv)
-    # dropout_node_test(conv)
+    relu_node_test(conv)
+    sigmoid_node_test(conv)
+    fully_connected_node_test(conv, True)
+    fully_connected_node_test(conv, False)
+    batchnorm_node_test(conv)
+    conv_node_test(conv, True)
+    conv_node_test(conv, False)
+    averagepool_node_test(conv)
+    maxpool_node_test(conv)
+    lrn_node_test(conv)
+    softmax_node_test(conv)
+    unsqueeze_node_test(conv)
+    reshape_node_test(conv)
+    flatten_node_test(conv)
+    dropout_node_test(conv)

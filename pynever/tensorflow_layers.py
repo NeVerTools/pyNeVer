@@ -1,15 +1,15 @@
+from typing import Tuple
+
+import keras
 import tensorflow as tf
-
-from tensorflow import keras
 from keras import layers
-
-from typing import Tuple, Dict
-import abc
+from tensorflow.python.ops.init_ops_v2 import glorot_uniform
 
 
 class Sequential(keras.Sequential):
     """
-    Custom representation of tensorflow Sequential Network. It adds the identifier for the network and for the input
+    Custom representation of tensorflow Sequential Network.
+    It adds the identifier for the network and for the input
 
     Attributes
     ----------
@@ -17,10 +17,13 @@ class Sequential(keras.Sequential):
         Identifier for the network
     input_id : str
         Identifier for the input of the network
+    nn_layers : list
+        Optional list of layers to add to the model
+
     """
 
-    def __init__(self, identifier: str, input_id: str, layers):
-        super().__init__(layers=layers)
+    def __init__(self, identifier: str, input_id: str, nn_layers):
+        super().__init__(layers=nn_layers)
         self.identifier = identifier
         self.input_id = input_id
 
