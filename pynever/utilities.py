@@ -176,7 +176,7 @@ def generate_linf_robustness_query(data: Tensor, adv_target: int, bounds: tuple,
             f.write(output_query + "))")
 
 
-def parse_linf_robustness_smtlib(filepath: str) -> (bool, list, int):
+def parse_linf_robustness_smtlib(filepath: str) -> Tuple[bool, list, int]:
     """
     Function to extract the parameters of a robustness query from the smtlib file.
     It assumes the SMTLIB file is structured as following:

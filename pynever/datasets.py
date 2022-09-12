@@ -23,7 +23,7 @@ class Dataset(abc.ABC):
 
 class TorchMNIST(Dataset, tv.datasets.MNIST):
     """
-    A concrete class used to represent the MNIST Dataset. It leverage the torch dataset MNIST.
+    A concrete class used to represent the MNIST Dataset. It leverages the torch dataset MNIST.
 
     Attributes
     ----------
@@ -59,7 +59,7 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
 
 class TorchFMNIST(Dataset, tv.datasets.FashionMNIST):
     """
-    A concrete class used to represent the FMNIST Dataset. It leverage the torch dataset FMNIST.
+    A concrete class used to represent the FMNIST Dataset. It leverages the torch dataset FMNIST.
 
     Attributes
     ----------
@@ -103,13 +103,13 @@ class GenericFileDataset(Dataset, tdata.Dataset):
     ----------
     filepath : str
         Path to the file containing the dataset.
-        N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be test or train.
+        N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be tested or train.
     target_index : int
         Index of the first element of the outputs.
     dtype : type, Optional
-        Data type of the values of the datapoints. Refer to numpy.loadtxt for more details.
+        Data type of the values of the data-points. Refer to numpy.loadtxt for more details.
     delimiter : str, Optional
-        Delimiter between the different values of the datapoints. Refer to numpy.loadtxt for more details.
+        Delimiter between the different values of the data-points. Refer to numpy.loadtxt for more details.
     transform : Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
@@ -159,7 +159,7 @@ class DynamicsJamesPos(GenericFileDataset, tdata.Dataset):
     ----------
     data_path : str
         Path to the folder containing the training set and the test set.
-        N.B.: the names of the dataset are supposed to be james_pos_*.txt where * can be test or train.
+        N.B.: the names of the dataset are supposed to be james_pos_*.txt where * can be tested or train.
     train : bool
         If True then the training set is loaded otherwise the test set is loaded.
     transform : Callable, Optional

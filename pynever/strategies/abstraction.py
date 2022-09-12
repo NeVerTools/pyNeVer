@@ -156,7 +156,7 @@ class Star:
 
         return self.is_empty
 
-    def get_bounds(self, i) -> (float, float):
+    def get_bounds(self, i) -> Tuple[float, float]:
         """
         Function used to get the the upper and lower bounds of the n variables of the star.
 
@@ -441,7 +441,7 @@ class Star:
 
         return starting_point
 
-    def __get_predicate_lp_solver(self) -> (pywraplp.Solver, list, list):
+    def __get_predicate_lp_solver(self) -> Tuple[pywraplp.Solver, list, list]:
         """
         Creates an lp solver using pywraplp and adds the variables and constraints
         corresponding to the predicate of the star.

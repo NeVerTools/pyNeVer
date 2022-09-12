@@ -248,7 +248,7 @@ class ConvNode(LayerNode):
     A class used for our internal representation of a Convolutional layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for convolution based on the dimensionality of the input considered.
-    Moreover the padding is forced to be symmetric.
+    Moreover, the padding is forced to be symmetric.
     The dimensionality supported for the input are (N, C, L), (N, C, H, W) and (N, C, D, H, W).
     In ONNX the padding can be asymmetric and the dimensionality supported is (N, C, D1, ... , Dn) where D1, ... Dn are
     the dimension on which the convolution is applied
@@ -267,7 +267,7 @@ class ConvNode(LayerNode):
         (we don't count the channel dimension).
     padding : Tuple
         Padding for the beginning and ending along each spatial axis.
-        Padding format should be as follow [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
+        Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
     dilation : Tuple
@@ -368,7 +368,7 @@ class AveragePoolNode(LayerNode):
     A class used for our internal representation of a AveragePool layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for pooling based on the dimensionality of the input considered.
-    Moreover the padding is forced to be symmetric and the parameter divisor_override is present (it is not clear
+    Moreover, the padding is forced to be symmetric and the parameter divisor_override is present (it is not clear
     what is its effect). The dimensionality supported for the input are (N, C, L), (N, C, H, W) and (N, C, D, H, W).
     In ONNX the padding can be asymmetric and the dimensionality supported is (N, C, D1, ... , Dn) where D1, ... Dn are
     the dimension on which the pooling is applied
@@ -383,7 +383,7 @@ class AveragePoolNode(LayerNode):
         (we don't count the channel dimension).
     padding : Tuple
         Padding for the beginning and ending along each spatial axis.
-        Padding format should be as follow [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
+        Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
     ceil_mode : bool, optional
@@ -439,7 +439,7 @@ class MaxPoolNode(LayerNode):
     A class used for our internal representation of a MaxPool layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for pooling based on the dimensionality of the input considered.
-    Moreover the padding is forced to be symmetric. The dimensionality supported for the input
+    Moreover, the padding is forced to be symmetric. The dimensionality supported for the input
     are (N, C, L), (N, C, H, W) and (N, C, D, H, W).
     In ONNX the padding can be asymmetric and the dimensionality supported is (N, C, D1, ... , Dn) where D1, ... Dn are
     the dimension on which the pooling is applied
@@ -454,7 +454,7 @@ class MaxPoolNode(LayerNode):
         (we don't count the channel dimension).
     padding : Tuple
         Padding for the beginning and ending along each spatial axis.
-        Padding format should be as follow [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
+        Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
     dilation : Tuple
@@ -575,7 +575,7 @@ class SoftMaxNode(LayerNode):
 
 class UnsqueezeNode(LayerNode):
     """
-    A class used for our internal representation of a Unsqueeze Layer.
+    A class used for our internal representation of an Unsqueeze Layer.
     We follow the ONNX operator convention for attributes and definitions.
     Attributes
     ----------

@@ -6,7 +6,7 @@ import pynever.nodes as nodes
 class NeuralNetwork(abc.ABC):
     """
     An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of LayerNodes
-    and a list of AlternativeRepresentations. It should be noted that this data structure it is not a able
+    and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
     to compute the input-output relation defined by the network. The properties of the computational graph are
     specialized in the concrete classes.
 
@@ -14,9 +14,9 @@ class NeuralNetwork(abc.ABC):
     ----------
     nodes : dict <str, LayerNode>
         Dictionary containing str keys and LayerNodes values. It contains the nodes of the graph,
-        the identifier of the node of interest is used as a key in the nodes dictionary.
+        the identifier of the node of interest is used as a key in the nodes' dictionary.
     edges : dict <str, list <str>>
-        Dictionary of identifiers of LayerNodes, it contains for each nodes identified by the keys, the list of nodes
+        Dictionary of identifiers of LayerNodes, it contains for each node identified by the keys, the list of nodes
         connected to it.
     alt_rep_cache : List<AlternativeRepresentation>
         Dictionary of containing str keys and AlternativeRepresentation values, it contains the
@@ -40,7 +40,7 @@ class NeuralNetwork(abc.ABC):
 class SequentialNetwork(NeuralNetwork):
     """
     Concrete children of NeuralNetwork representing a sequential NeuralNetwork. It consists of a graph of LayerNodes
-    and a list of AlternativeRepresentations. It should be noted that this data structure it is not a able
+    and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
     to compute the input-output relation defined by the network. The computational graph of a SequentialNetwork must
     correspond to a standard list.
 
