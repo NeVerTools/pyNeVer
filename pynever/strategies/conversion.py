@@ -1522,7 +1522,7 @@ class TensorflowConverter(ConversionStrategy):
                                                        "channels_last", layer.ceil_mode, layer.count_include_pad)
 
                         else:
-                            raise Exception("TensorFlow does not support Conv layer for input with more than"
+                            raise Exception("TensorFlow does not support AveragePool layer for input with more than"
                                             "4 or less than 2 dimension excluding the batch dimension")
 
                     elif isinstance(layer, nodes.MaxPoolNode):
@@ -1546,7 +1546,7 @@ class TensorflowConverter(ConversionStrategy):
                                                        layer.ceil_mode)
 
                         else:
-                            raise Exception("Pytorch does not support Conv layer for input with more than"
+                            raise Exception("Tensorflow does not support MaxPool layer for input with more than"
                                             "4 or less than 2 dimension excluding the batch dimension")
 
                     elif isinstance(layer, nodes.LRNNode):

@@ -66,3 +66,11 @@ in our RCRA2022 paper. To execute the experiments the additional package gym-pyb
 The script replicating the verification experiment on our benchmark is model_verification.py and the related results
 can be found in the logs folder. The other scripts are utilities scripts to generate the benchmarks and to convert the
 networks of interest in the standard ONNX format.
+
+#### CONTRIBUTORS
+The main contributors of pyNeVer are __Dario Guidotti__ and __Armando Tacchella__, further contributions are provided 
+by __Stefano Demarchi__.
+
+_Students contributions_:
+
+* __Alessandro Drago__ - TensorFlow conversion
