@@ -1196,19 +1196,40 @@ class PyTorchConverter(ConversionStrategy):
         """
 
         identifier = alt_rep.identifier
-        network = networks.SequentialNetwork(identifier, alt_rep.pytorch_network.input_id)
+        if hasattr(alt_rep.pytorch_network, 'input_id'):
+            input_id = alt_rep.pytorch_network.input_id
+        else:
+            input_id = 'X'
+
+        network = networks.SequentialNetwork(identifier, input_id)
 
         node_index = 0
         alt_rep.pytorch_network.cpu()
+
+        layer_in_dim = None
+
         for m in alt_rep.pytorch_network.modules():
 
             new_node = None
 
+            if hasattr(m, 'in_dim'):
+                layer_in_dim = m.in_dim
+
+            if layer_in_dim is None:
+                print('Please provide input dimension for the network:')
+                layer_in_dim = input()
+                layer_in_dim = (layer_in_dim,)
+
+            if hasattr(m, 'identifier'):
+                layer_id = m.identifier
+            else:
+                layer_id = f"Layer{node_index}"
+
             if isinstance(m, pyt_l.ReLU):
-                new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+                new_node = nodes.ReLUNode(layer_id, layer_in_dim)
 
             elif isinstance(m, pyt_l.Sigmoid):
-                new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+                new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
 
             elif isinstance(m, pyt_l.Linear):
                 out_features = m.out_features
@@ -1218,7 +1239,7 @@ class PyTorchConverter(ConversionStrategy):
                 if m.bias is not None:
                     bias = m.bias.detach().numpy()
                     has_bias = True
-                new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+                new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight, bias, has_bias)
 
             elif isinstance(m, pyt_l.BatchNorm1d) or isinstance(m, pyt_l.BatchNorm2d) or \
                     isinstance(m, pyt_l.BatchNorm3d):
@@ -1233,7 +1254,7 @@ class PyTorchConverter(ConversionStrategy):
                 running_mean = m.running_mean.numpy()
                 running_var = m.running_var.numpy()
 
-                new_node = nodes.BatchNormNode(m.identifier, m.in_dim, weight,
+                new_node = nodes.BatchNormNode(layer_id, layer_in_dim, weight,
                                                bias, running_mean, running_var, eps, momentum, affine,
                                                track_running_stats)
 
@@ -1256,7 +1277,7 @@ class PyTorchConverter(ConversionStrategy):
                     has_bias = True
                     bias = m.bias.detach().numpy()
 
-                new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
+                new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
                                           stride, padding, dilation, groups, has_bias, bias, weight)
 
             elif isinstance(m, pyt_l.AvgPool1d) or isinstance(m, pyt_l.AvgPool2d) or \
@@ -1271,7 +1292,7 @@ class PyTorchConverter(ConversionStrategy):
                 ceil_mode = m.ceil_mode
                 count_include_pad = m.count_include_pad
 
-                new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
+                new_node = nodes.AveragePoolNode(layer_id, layer_in_dim, kernel_size, stride, padding,
                                                  ceil_mode, count_include_pad)
 
             elif isinstance(m, pyt_l.MaxPool1d) or isinstance(m, pyt_l.MaxPool2d) or \
@@ -1287,34 +1308,34 @@ class PyTorchConverter(ConversionStrategy):
                 dilation = m.dilation
                 return_indices = m.return_indices
 
-                new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
+                new_node = nodes.MaxPoolNode(layer_id, layer_in_dim, kernel_size, stride, padding, dilation,
                                              ceil_mode, return_indices)
 
             elif isinstance(m, pyt_l.LocalResponseNorm):
 
-                new_node = nodes.LRNNode(m.identifier, m.in_dim, m.size, m.alpha, m.beta, m.k)
+                new_node = nodes.LRNNode(layer_id, layer_in_dim, m.size, m.alpha, m.beta, m.k)
 
             elif isinstance(m, pyt_l.Softmax):
 
-                new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.dim - 1)
+                new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.dim - 1)
 
             elif isinstance(m, pyt_l.Unsqueeze):
 
                 axes = tuple([e - 1 for e in m.axes])
-                new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axes)
+                new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axes)
 
             elif isinstance(m, pyt_l.Reshape):
 
                 shape = m.shape[1:]
-                new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
+                new_node = nodes.ReshapeNode(layer_id, layer_in_dim, shape)
 
             elif isinstance(m, pyt_l.Flatten):
 
-                new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
+                new_node = nodes.FlattenNode(layer_id, layer_in_dim, m.axis - 1)
 
             elif isinstance(m, pyt_l.Dropout):
 
-                new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.p)
+                new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.p)
 
             elif isinstance(m, pyt_l.Sequential):
                 pass
@@ -1325,6 +1346,7 @@ class PyTorchConverter(ConversionStrategy):
             if new_node is not None:
                 node_index += 1
                 network.add_node(new_node)
+                layer_in_dim = network.get_last_node().out_dim
 
         return network
 
@@ -1614,7 +1636,7 @@ class TensorflowConverter(ConversionStrategy):
             The Neural Network resulting from the conversion of Tensorflow Representation.
 
         """
-        
+
         identifier = alt_rep.identifier
         network = networks.SequentialNetwork(identifier, alt_rep.tensorflow_network.input_id)
 
@@ -1774,6 +1796,9 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
     elif extension == 'onnx':
         model_proto = onnx.load(path)
         return ONNXNetwork(net_id, model_proto, True)
+    elif extension == 'tf':
+        model = tf.keras.models.load_model(path)
+        return TensorflowNetwork(net_id, model, True)
     else:
         return None
 
@@ -1795,3 +1820,5 @@ def save_network_path(network: AlternativeRepresentation, path: str) -> None:
         torch.save(network.pytorch_network, path)
     elif isinstance(network, ONNXNetwork):
         onnx.save(network.onnx_network, path)
+    elif isinstance(network, TensorflowNetwork):
+        network.tensorflow_network.save(path)
