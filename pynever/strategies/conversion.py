@@ -39,13 +39,8 @@ class ONNXNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-    identifier : str
-        identifier for the alternative representation
     onnx_network : onnx.ModelProto
         Real ONNX network.
-    up_to_date : bool
-        flag which indicates if the alternative representation is up-to-date with respect
-        to the internal representation of the network (optional: True).
 
     """
 
@@ -60,13 +55,9 @@ class PyTorchNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-    identifier : str
         identifier for the alternative representation
     pytorch_network : torch.nn.Module
         Real PyTorch network.
-    up_to_date : bool
-        flag which indicates if the alternative representation is up-to-date with respect
-        to the internal representation of the network (optional: True).
 
     """
 
@@ -81,13 +72,8 @@ class TensorflowNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-    identifier : str
-        identifier for the alternative representation
     tensorflow_network : tensorflow.Module
         Real TensorFlow network.
-    up_to_date : bool
-        flag which indicates if the alternative representation is up-to-date with respect
-        to the internal representation of the network (optional: True).
 
     """
 
@@ -1796,7 +1782,7 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
     elif extension == 'onnx':
         model_proto = onnx.load(path)
         return ONNXNetwork(net_id, model_proto, True)
-    elif extension == 'tf':
+    elif extension == 'h5':
         model = tf.keras.models.load_model(path)
         return TensorflowNetwork(net_id, model, True)
     else:
