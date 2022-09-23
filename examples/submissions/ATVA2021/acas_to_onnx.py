@@ -82,9 +82,8 @@ for i in range(1, 6):
                 output_prefix = network.get_last_node().identifier
                 prop.to_smt_file(input_prefix, output_prefix, f"smt_property/SMT_{p_id[k]}.smt2")
 
-                read_mats = reading.SmtPropertyParser(f"smt_property/SMT_{p_id[k]}.smt2", input_prefix,
-                                                      output_prefix).parse_property()
-                p2 = ver.NeVerProperty(read_mats[0], read_mats[1], read_mats[2], read_mats[3])
+                p2 = ver.NeVerProperty()
+                p2.from_smt_file(f"smt_property/SMT_{p_id[k]}.smt2", input_prefix, output_prefix)
 
             prop_set = True
 
