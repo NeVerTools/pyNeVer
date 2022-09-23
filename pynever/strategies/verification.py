@@ -12,8 +12,8 @@ import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
-import pynever.utilities as utils
 import pynever.strategies.smt_reading as reading
+import pynever.utilities as utils
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
@@ -23,21 +23,6 @@ class Property(abc.ABC):
     """
     An abstract class used to represent a generic property for a NeuralNetwork.
     """
-
-
-class SMTLIBProperty(Property):
-    """
-    A concrete class used to represent a generic property for a NeuralNetwork expressed as a SMTLIB query.
-
-    Attributes
-    ----------
-    smtlib_path : str
-        Filepath for the SMTLIB file in which the property is defined.
-
-    """
-
-    def __init__(self, smtlib_path: str):
-        self.smtlib_path = smtlib_path
 
 
 class LocalRobustnessProperty(Property):
@@ -95,12 +80,30 @@ class NeVerProperty(Property):
 
     """
 
-    def __init__(self, in_coef_mat: Tensor, in_bias_mat: Tensor, out_coef_mat: List[Tensor],
-                 out_bias_mat: List[Tensor]):
+    def __init__(self, in_coef_mat: Tensor = None, in_bias_mat: Tensor = None,
+                 out_coef_mat: List[Tensor] = None, out_bias_mat: List[Tensor] = None):
         self.in_coef_mat = in_coef_mat
         self.in_bias_mat = in_bias_mat
         self.out_coef_mat = out_coef_mat
         self.out_bias_mat = out_bias_mat
+
+    def from_smt_file(self, filepath: str = '', input_name: str = 'X', output_name: str = 'Y'):
+        """
+        This method builds the property by reading the corresponding SMT-LIB file
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the SMT-LIB file
+        input_name : str, Optional
+            The name of the input vector
+        output_name : str, Optional
+            The name of the output vector
+
+        """
+
+        smt_parser = reading.SmtPropertyParser(filepath, input_name, output_name)
+        self.in_coef_mat, self.in_bias_mat, self.out_coef_mat, self.out_bias_mat = smt_parser.parse_property()
 
     def to_smt_file(self, input_id: str = 'X', output_id: str = 'Y', filepath: str = ''):
         """
