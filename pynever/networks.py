@@ -53,16 +53,16 @@ class SequentialNetwork(NeuralNetwork):
     -------
     add_node(LayerNode)
         Procedure to add a new LayerNode to the sequential Neural Network.
-
     get_first_node()
         Procedure to extract the first node of the sequential Neural Network.
-
     get_next_node(LayerNode)
         Procedure to get the next node of the network given an input LayerNode.
-
     get_last_node()
         Procedure to extract the last node of the sequential Neural Network.
-
+    get_input_len()
+        Procedure to count the number of single inputs
+    get_output_len()
+        Procedure to count the number of single outputs
     count_relu_layers()
         Procedure to extract the number of layers of the sequential Neural Network.
 
@@ -156,6 +156,44 @@ class SequentialNetwork(NeuralNetwork):
             current_node = self.get_next_node(current_node)
 
         return current_node
+
+    def get_input_len(self) -> int:
+        """
+        Count the number of inputs in in_dim
+
+        Returns
+        -------
+        int
+            The number of single inputs
+
+        """
+
+        assert self.nodes
+
+        count = 0
+        for d in range(len(self.get_first_node().in_dim)):
+            count += self.get_first_node().in_dim[d]
+
+        return count
+
+    def get_output_len(self) -> int:
+        """
+        Count the number of outputs in out_dim
+
+        Returns
+        -------
+        int
+            The number of single outputs
+
+        """
+
+        assert self.nodes
+
+        count = 0
+        for d in range(len(self.get_last_node().out_dim)):
+            count += self.get_last_node().out_dim[d]
+
+        return count
 
     def count_relu_layers(self) -> int:
         """
