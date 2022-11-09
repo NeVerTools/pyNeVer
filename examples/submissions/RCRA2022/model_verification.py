@@ -32,7 +32,7 @@ if __name__ == '__main__':
     net_ids = shared_constants.id_arch_dict.keys()
     net_paths = [f"onnx_nets/{x}.onnx" for x in net_ids]
 
-    epsilons = [0.1, 0.01]
+    epsilons = [0.01, 0.1]
 
     in_low_b = np.array([-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1])
     in_high_b = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     logger_exp_file.info(f"Input Sample:{random_input}")
     tensor_input = torch.from_numpy(random_input)
 
-    heuristics = ["mixed"]
+    heuristics = ["complete"]
     num_neuron_mixed = 1
 
     logger_exp_file.info("NETWORK_ID, HEURISTIC, EPSILON, MIN_LB, MAX_UB, DELTA, TIME")
@@ -92,7 +92,8 @@ if __name__ == '__main__':
                     ub_constraint[i] = 1
                     in_pred_mat.append(lb_constraint)
                     in_pred_mat.append(ub_constraint)
-                    # Errata Corrige: we wrongly used -1 and 1 as upper and lower bounds for all the variables. Now it is correct.
+                    # Errata Corrige: we wrongly used -1 and 1 as upper and lower bounds for all the variables.
+                    # Now it is correct.
                     if random_input[i] - epsilon < in_low_b[i]:
                         in_pred_bias.append([-in_low_b[i]])
                     else:
@@ -126,7 +127,7 @@ if __name__ == '__main__':
                 stop = time.perf_counter()
 
                 # Add output data to property and print
-                in_prop.out_coef_mat = [np.array([[-1, 1]]).T]
+                in_prop.out_coef_mat = [np.array([[1, -1]]).T]
                 in_prop.out_bias_mat = [np.array([[numpy_output[0] + delta,
                                                    delta - numpy_output[0]]]).T]
                 in_prop.to_smt_file('X', 'Y', f"prop_vnnlib_{net_id}_eps_{str(epsilon).replace('.', '')}.vnnlib")
