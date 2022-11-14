@@ -606,6 +606,14 @@ def refine_smt_statement(assertion: str, vec_name: str) -> str:
         assertion = '((' + tree.node_left.as_infix() + ' - ' + \
                     tree.node_right.as_infix() + ') ' + tree.data + ' 0.0)'
 
+    # Case beta REL_OP Xi -> (-1.0 * Xi) REL_OP eval(-beta)
+    if read_smt_num(tree.node_left.data) is not None:
+        sign = '-'
+        if read_smt_num(tree.node_left.data) <= 0:
+            sign = ''
+        assertion = '((-1.0 * ' + tree.node_right.as_infix() + ') ' + \
+                    tree.data + f" {sign}" + tree.node_left.as_infix().replace('-', '') + ')'
+
     # Case (Xi + alpha) REL_OP beta -> Xi REL_OP eval(beta - alpha)
     # This is always performed
     line = assertion.replace('(', ' ( ').replace(')', ' ) ').split()
