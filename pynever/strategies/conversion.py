@@ -1196,8 +1196,11 @@ class PyTorchConverter(ConversionStrategy):
 
         for m in alt_rep.pytorch_network.modules():
 
-            new_node = None
+            # Skip layer
+            if isinstance(m, pyt_l.Sequential):
+                pass
 
+            # Control input
             if hasattr(m, 'in_dim'):
                 layer_in_dim = m.in_dim
 
@@ -1210,6 +1213,9 @@ class PyTorchConverter(ConversionStrategy):
                 layer_id = m.identifier
             else:
                 layer_id = f"Layer{node_index}"
+
+            # Read node
+            new_node = None
 
             if isinstance(m, pyt_l.ReLU):
                 new_node = nodes.ReLUNode(layer_id, layer_in_dim)
@@ -1322,9 +1328,6 @@ class PyTorchConverter(ConversionStrategy):
             elif isinstance(m, pyt_l.Dropout):
 
                 new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.p)
-
-            elif isinstance(m, pyt_l.Sequential):
-                pass
 
             else:
                 raise NotImplementedError
