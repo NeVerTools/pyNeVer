@@ -160,11 +160,15 @@ class NeVerProperty(Property):
             else:
                 s = '(assert (or '
                 for p in infix_output_properties:
-                    s = s + '(and '
-                    for c in p:
-                        prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                    if len(p) == 1:
+                        prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(p[0]).as_prefix()
                         s = s + '\n' + prefix_smt_row
-                    s = s + ')\n'
+                    else:
+                        s = s + '(and '
+                        for c in p:
+                            prefix_smt_row = reading.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                            s = s + '\n' + prefix_smt_row
+                        s = s + ')\n'
                 s = s + '))'
                 f.write(s)
 
