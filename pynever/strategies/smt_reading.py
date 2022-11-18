@@ -46,8 +46,7 @@ class ExprNode:
 
         """
 
-        return self.node_left is None and \
-               self.node_right is None
+        return self.node_left is None and self.node_right is None
 
     def as_prefix(self) -> str:
         """
@@ -59,6 +58,10 @@ class ExprNode:
             The tree representation as a prefix string
 
         """
+
+        if self.data.startswith('-'):
+            data = self.data.replace('-', '(- ')
+            self.data = data + ')'
 
         if self.node_left is None:
             return self.data
