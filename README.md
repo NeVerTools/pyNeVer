@@ -60,9 +60,9 @@ in our ATVA2021 paper. The experiments can be easily replicated by executing the
 [acas_experiment.py](examples/submissions/ATVA2021/acas_experiments.py) from within the ATVA2021/ directory. 
 The log files will be generated and will be saved in the logs/ directory.  
 
-* The directory examples/submissions/RCRA2022 contains the experimental setup used for the experimental evaluation
-in our RCRA2022 paper. To execute the experiments the additional package gym-pybullet-drones 
-(https://github.com/utiasDSL/gym-pybullet-drones), with all its dependencies is needed.
+* The directory [IEEEAccess2023](examples/submissions/IEEEAccess2023) contains the experimental setup used for 
+the experimental evaluation in our IEEEAccess2023 paper. To execute the experiments the additional package
+[gym-pybullet-drones](https://github.com/utiasDSL/gym-pybullet-drones), with all its dependencies is needed.
 The script replicating the verification experiment on our benchmark is model_verification.py and the related results
 can be found in the logs folder. The other scripts are utilities scripts to generate the benchmarks and to convert the
 networks of interest in the standard ONNX format.
