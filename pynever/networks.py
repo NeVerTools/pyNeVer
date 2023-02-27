@@ -185,7 +185,15 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        return self.nodes.pop(self.get_last_node().identifier)
+        last = self.nodes.pop(self.get_last_node().identifier)
+        self.edges.pop(last.identifier)
+
+        # Delete reference in edges dict
+        if not self.is_empty():
+            for k, v in self.edges.items():
+                if last.identifier in v:
+                    self.edges[k] = []
+        return last
 
     def get_input_len(self) -> int:
         """
