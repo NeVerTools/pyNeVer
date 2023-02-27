@@ -1198,7 +1198,7 @@ class PyTorchConverter(ConversionStrategy):
 
             # Skip layer
             if isinstance(m, pyt_l.Sequential):
-                pass
+                continue
 
             # Control input
             if hasattr(m, 'in_dim'):
@@ -1206,15 +1206,23 @@ class PyTorchConverter(ConversionStrategy):
 
             if layer_in_dim is None:
                 print('Please provide input dimension for the network:')
-                layer_in_dim = input()
-                layer_in_dim = (layer_in_dim,)
+                text = input()
+                layer_in_dim = tuple()
+
+                if len(text.split(",")) > 1:
+                    for token in text.split(","):
+                        if token != "":
+                            num = int(token)
+                            layer_in_dim += (num,)
+                else:
+                    layer_in_dim += (int(text),)
 
             if hasattr(m, 'identifier'):
                 layer_id = m.identifier
             else:
                 layer_id = f"Layer{node_index}"
 
-            # Read node
+                # Read node
             new_node = None
 
             if isinstance(m, pyt_l.ReLU):
@@ -1416,7 +1424,7 @@ class TensorflowConverter(ConversionStrategy):
                         new_layer = tf_l.Linear(layer.identifier, layer.in_dim, layer.out_dim, layer.out_features, None,
                                                 has_bias)
 
-                        weight = tf.convert_to_tensor(layer.weight)
+                        weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
                         new_layer.kernel = new_layer.add_weight(
                             'kernel',
@@ -1429,7 +1437,7 @@ class TensorflowConverter(ConversionStrategy):
                         )
 
                         if has_bias:
-                            bias = tf.convert_to_tensor(layer.bias)
+                            bias = tf.convert_to_tensor(layer.bias).numpy()
                             bias_initializer = tf.constant_initializer(bias)
                             new_layer.bias = new_layer.add_weight(
                                 'bias',
@@ -1485,7 +1493,7 @@ class TensorflowConverter(ConversionStrategy):
                         else:
                             raise Exception("Not supported")
 
-                        weight = tf.convert_to_tensor(layer.weight)
+                        weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
                         new_layer.kernel = new_layer.add_weight(
                             'kernel',
@@ -1497,7 +1505,7 @@ class TensorflowConverter(ConversionStrategy):
                             trainable=True
                         )
                         if layer.has_bias:
-                            bias = tf.convert_to_tensor(layer.bias)
+                            bias = tf.convert_to_tensor(layer.bias).numpy()
                             bias_initializer = tf.constant_initializer(bias)
                             new_layer.bias = new_layer.add_weight(
                                 'bias',
