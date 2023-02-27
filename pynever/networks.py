@@ -121,7 +121,9 @@ class SequentialNetwork(NeuralNetwork):
             The first node of the network.
 
         """
-        assert self.nodes
+
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         keys = [key for key in self.nodes.keys()]
         for key in self.nodes.keys():
@@ -142,7 +144,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         next_node = None
         if node is not None:
@@ -166,7 +169,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         current_node = self.get_first_node()
         while self.get_next_node(current_node) is not None:
@@ -184,6 +188,9 @@ class SequentialNetwork(NeuralNetwork):
             The last node of the network.
 
         """
+
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         last = self.nodes.pop(self.get_last_node().identifier)
         self.edges.pop(last.identifier)
@@ -206,7 +213,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         count = 0
         for d in range(len(self.get_first_node().in_dim)):
@@ -225,7 +233,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         count = 0
         for d in range(len(self.get_last_node().out_dim)):
