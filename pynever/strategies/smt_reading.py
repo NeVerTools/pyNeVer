@@ -102,7 +102,8 @@ class ExprNode:
 
         """
 
-        assert self.data == '|', 'No disjunctions detected'
+        if self.data != '|':
+            raise Exception('No disjunctions detected')
 
         d_list = [self.node_right.as_infix()]  # Right depth is 1
         if self.node_left.data != '|':
@@ -509,8 +510,8 @@ def is_operator(c: str):
     """
 
     return c == '*' or c == '+' or c == '-' or c == '/' or c == '>' \
-           or c == '>=' or c == '<' or c == '<=' or c == '=' \
-           or c == '&' or c == '|'
+        or c == '>=' or c == '<' or c == '<=' or c == '=' \
+        or c == '&' or c == '|'
 
 
 def read_smt_num(val: str):

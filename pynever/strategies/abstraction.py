@@ -1,21 +1,19 @@
 import abc
-
-from numpy import ndarray
-
-import pynever.nodes as nodes
-import uuid
-import numpy as np
-import multiprocessing
 import itertools
-from typing import Set, List, Union, Tuple
-import math
-import scipy.spatial.distance as dist
-import time
 import logging
+import math
+import multiprocessing
+import time
+import uuid
+from typing import Set, List, Union, Tuple
 
-from pynever.tensor import Tensor
+import numpy as np
+import scipy.spatial.distance as dist
+from numpy import ndarray
 from ortools.linear_solver import pywraplp
 
+import pynever.nodes as nodes
+from pynever.tensor import Tensor
 
 logger_empty = logging.getLogger("pynever.strategies.abstraction.empty_times")
 logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
@@ -433,9 +431,9 @@ class Star:
         assert status == pywraplp.Solver.OPTIMAL, "It was impossible to compute the Chebyshev center of the predicate."
 
         for alpha in alphas:
-            #print(alpha.solution_value())
+            # print(alpha.solution_value())
             starting_point.append([alpha.solution_value()])
-        #print(radius.solution_value())
+        # print(radius.solution_value())
 
         starting_point = np.array(starting_point)
 
@@ -505,7 +503,6 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
 
 
 def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
-
     abs_input = list(abs_input)
     abs_output = set()
 
@@ -637,7 +634,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     function internal to classes.
     """
 
-    assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel",\
+    assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel", \
         "Heuristic Selected is not valid"
 
     temp_abs_input = {star}
@@ -764,8 +761,8 @@ def area_sig_triangle(lb: float, ub: float) -> float:
     return base * height / 2.0
 
 
-def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> Set[Star]:
-
+def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> \
+Set[Star]:
     assert approx_level >= 0
 
     if abs(ub - lb) < tolerance:
@@ -860,14 +857,15 @@ def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: 
                 best_boundary = boundary
 
         star_set = set()
-        star_set = star_set.union(__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance))
-        star_set = star_set.union(__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance))
+        star_set = star_set.union(
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance))
+        star_set = star_set.union(
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance))
 
         return star_set
 
 
 def __approx_step_sigmoid(abs_input: Set[Star], var_index: int, approx_level: int, tolerance: float) -> Set[Star]:
-
     abs_output = set()
     for star in abs_input:
 
@@ -1084,7 +1082,6 @@ class AbsReLUNode(AbsLayerNode):
         tot_areas = np.zeros(self.ref_node.in_dim)
         num_areas = 0
         for star in abs_input.stars:
-
             result, areas = mixed_single_relu_forward(star, self.heuristic, self.params)
             abs_output.stars = abs_output.stars.union(result)
             tot_areas = tot_areas + areas
@@ -1232,7 +1229,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        #parallel = True
+        # parallel = True
         if parallel:
             abs_output = StarSet()
             my_pool = multiprocessing.Pool(1)
