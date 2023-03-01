@@ -1,12 +1,14 @@
 import abc
-import pynever.networks as networks
+import math
+
+import torch
+import torch.nn as nn
+
 import pynever.datasets as datasets
+import pynever.networks as networks
+import pynever.pytorch_layers as ptl
 import pynever.strategies.conversion as cv
 import pynever.strategies.training as training
-import torch
-import math
-import torch.nn as nn
-import pynever.pytorch_layers as ptl
 
 
 class PruningStrategy(abc.ABC):
@@ -167,7 +169,6 @@ class WeightPruning(PruningStrategy):
         """
 
         if self.training_strategy is not None and self.pre_training:
-
             fine_tuning = self.training_strategy.network_transform.fine_tuning
             self.training_strategy.fine_tuning = False
             network = self.training_strategy.train(network, dataset)

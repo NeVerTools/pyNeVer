@@ -1,8 +1,9 @@
 import abc
+from typing import Callable, Optional, Tuple, Any
+
 import numpy as np
-import torchvision as tv
 import torch.utils.data as tdata
-from typing import Callable, Optional, Tuple, Any, Dict
+import torchvision as tv
 
 
 class Dataset(abc.ABC):
@@ -46,7 +47,6 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
 
     def __init__(self, data_path: str, train: bool, transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None, download: bool = True):
-
         Dataset.__init__(self)
         tv.datasets.MNIST.__init__(self, data_path, train, transform, target_transform, download)
 
