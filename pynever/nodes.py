@@ -1,8 +1,9 @@
 import abc
 import copy
 import math
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 from pynever.tensor import Tensor
 

@@ -51,6 +51,8 @@ class SequentialNetwork(NeuralNetwork):
 
     Methods
     -------
+    is_empty()
+        Procedure to check whether the network is empty.
     add_node(LayerNode)
         Procedure to add a new LayerNode to the sequential Neural Network.
     get_first_node()
@@ -59,6 +61,8 @@ class SequentialNetwork(NeuralNetwork):
         Procedure to get the next node of the network given an input LayerNode.
     get_last_node()
         Procedure to extract the last node of the sequential Neural Network.
+    delete_last_node()
+        Procedure to delete the last node of the sequential Neural Network.
     get_input_len()
         Procedure to count the number of single inputs
     get_output_len()
@@ -72,6 +76,19 @@ class SequentialNetwork(NeuralNetwork):
 
         super().__init__(identifier)
         self.input_id = input_id
+
+    def is_empty(self) -> bool:
+        """
+        Procedure to check whether the network is empty.
+
+        Returns
+        -------
+        bool
+            True if there are no nodes in the network, False otherwise.
+
+        """
+
+        return not bool(self.nodes)
 
     def add_node(self, node: nodes.LayerNode):
         """
@@ -104,7 +121,9 @@ class SequentialNetwork(NeuralNetwork):
             The first node of the network.
 
         """
-        assert self.nodes
+
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         keys = [key for key in self.nodes.keys()]
         for key in self.nodes.keys():
@@ -125,7 +144,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         next_node = None
         if node is not None:
@@ -149,13 +169,38 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         current_node = self.get_first_node()
         while self.get_next_node(current_node) is not None:
             current_node = self.get_next_node(current_node)
 
         return current_node
+
+    def delete_last_node(self) -> nodes.LayerNode:
+        """
+        Procedure to remove the last LayerNode from the network.
+
+        Returns
+        ---------
+        LayerNode
+            The last node of the network.
+
+        """
+
+        if self.is_empty():
+            raise Exception('The network is empty')
+
+        last = self.nodes.pop(self.get_last_node().identifier)
+        self.edges.pop(last.identifier)
+
+        # Delete reference in edges dict
+        if not self.is_empty():
+            for k, v in self.edges.items():
+                if last.identifier in v:
+                    self.edges[k] = []
+        return last
 
     def get_input_len(self) -> int:
         """
@@ -168,7 +213,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         count = 0
         for d in range(len(self.get_first_node().in_dim)):
@@ -187,7 +233,8 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        assert self.nodes
+        if self.is_empty():
+            raise Exception('The network is empty')
 
         count = 0
         for d in range(len(self.get_last_node().out_dim)):

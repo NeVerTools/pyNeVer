@@ -314,7 +314,7 @@ class PytorchTraining(TrainingStrategy):
                 if batch_idx % self.verbose_rate == 0:
                     logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                         epoch, batch_idx * len(data), len(training_set),
-                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                               100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
                         loss.data.item()))
 
             # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
