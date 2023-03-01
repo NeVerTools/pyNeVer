@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pyNeVer",
-    version="0.0.2.alpha2",
+    version="0.0.2.alpha4",
     author="Dario Guidotti",
     author_email="dario.guidotti@edu.unige.it",
     license='GNU General Public License with Commons Clause License Condition v1.0',
@@ -21,6 +21,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    install_requires=['numpy', 'scipy', 'ortools', 'onnx', 'torch', 'torchvision', 'pysmt'],
+    install_requires=['numpy', 'scipy', 'ortools', 'onnx', 'torch', 'torchvision', 'tensorflow', 'pysmt'],
 )
 
