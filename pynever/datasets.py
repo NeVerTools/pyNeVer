@@ -3,7 +3,7 @@ from typing import Callable, Optional, Tuple, Any
 
 import numpy as np
 import torch.utils.data as tdata
-import torchvision as tv
+from typing import Callable, Optional, Tuple, Any
 
 
 class Dataset(abc.ABC):
