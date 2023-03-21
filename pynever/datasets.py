@@ -3,13 +3,13 @@ from typing import Callable, Optional, Tuple, Any
 
 import numpy as np
 import torch.utils.data as tdata
-from typing import Callable, Optional, Tuple, Any
+import torchvision as tv
 
 
 class Dataset(abc.ABC):
     """
-    An abstract class used to represent a Dataset. The concrete descendant must implement the methods __getitem__ and
-    __len__.
+    An abstract class used to represent a Dataset. The concrete descendant must
+    implement the methods __getitem__ and __len__.
 
     """
 

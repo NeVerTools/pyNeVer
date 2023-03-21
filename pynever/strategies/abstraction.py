@@ -8,8 +8,7 @@ import uuid
 from typing import Set, List, Union, Tuple
 
 import numpy as np
-import scipy.spatial.distance as dist
-from numpy import ndarray
+import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
 import pynever.nodes as nodes
@@ -305,7 +304,7 @@ class Star:
         while len(samples) < num_samples:
 
             direction = np.random.randn(self.predicate_matrix.shape[1], 1)
-            direction = direction / dist.norm(direction)
+            direction = direction / la.norm(direction)
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
                 if np.isclose(np.matmul(self.predicate_matrix[i, :], direction), 0):
@@ -627,7 +626,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
     return abs_output
 
 
-def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple[Set[Star], ndarray]:
+def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple[Set[Star], np.ndarray]:
     """
     Utility function for the management of the forward for AbsReLUNode. It is outside
     the class scope since multiprocessing does not support parallelization with
@@ -762,7 +761,7 @@ def area_sig_triangle(lb: float, ub: float) -> float:
 
 
 def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> \
-Set[Star]:
+        Set[Star]:
     assert approx_level >= 0
 
     if abs(ub - lb) < tolerance:

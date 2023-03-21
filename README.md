@@ -11,14 +11,17 @@ __pyNeVer__ depends on several packages, which should be installed automatically
 correct execution are the following:
 
 * _numpy_
-* _scipy_
 * _ortools_
 * _onnx_
 * _torch_
 * _torchvision_
+* _tensorflow_ *
 * _pysmt_
 
-All the above packages are available via pip. To install __pyNeVer__, run the command:
+All the above packages are available via pip. * Notice that for ARM-based Mac OS the correct _TensorFlow_ package is
+_tensorflow-macos_ along with the GPU plug-in _tensorflow-metal_.
+
+To install __pyNeVer__, run the command:
 
 ```bash
 pip install pynever
