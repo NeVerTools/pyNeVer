@@ -24,5 +24,5 @@ setuptools.setup(
     install_requires=[
         'numpy', 'ortools', 'onnx', 'torch', 'torchvision', 'pysmt',
         "tensorflow;platform_system=='Linux'", "tensorflow;platform_system=='Windows'",
-        "tensorflow-macos;platform_system=='Darwin'", "tensorflow-metal;platform-system=='Darwin'"],
+        "tensorflow-macos;platform_system=='Darwin'", "tensorflow-metal;platform_system=='Darwin'"],
 )
