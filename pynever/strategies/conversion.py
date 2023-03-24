@@ -2,17 +2,44 @@ import abc
 import copy
 from typing import Optional
 
+import keras
+import keras.layers as klayers
 import numpy as np
 import onnx
 import onnx.numpy_helper
 import tensorflow as tf
 import torch
+from keras import Sequential
 from keras import models as md
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_l
-import pynever.tensorflow_layers as tf_l
+
+
+class LocalResponseNorm(klayers.Layer):
+    def __init__(self, depth_radius: int, alpha: float, beta: float,
+                 bias: float):
+        super().__init__()
+        self.depth_radius = depth_radius
+        self.alpha = alpha
+        self.beta = beta
+        self.bias = bias
+
+    def __call__(self, x: tf.Tensor):
+        x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
+        return x
+
+
+class Unsqueeze(klayers.Layer):
+    def __init__(self, axis: tuple):
+        super().__init__()
+        self.axis = axis
+
+    def __call__(self, x: tf.Tensor):
+        for ax in self.axis:
+            x = tf.expand_dims(x, ax)
+        return x
 
 
 class AlternativeRepresentation(abc.ABC):
@@ -67,24 +94,24 @@ class PyTorchNetwork(AlternativeRepresentation):
         self.pytorch_network = copy.deepcopy(pytorch_network)
 
 
-class TensorflowNetwork(AlternativeRepresentation):
+class KerasNetwork(AlternativeRepresentation):
     """
     A class used to represent a Tensorflow representation for a neural network.
 
     Attributes
     ----------
-    tensorflow_network : tensorflow.Module
+    keras_network : tensorflow.Module
         Real TensorFlow network.
 
     """
 
-    def __init__(self, identifier: str, tensorflow_network, up_to_date: bool = True):
+    def __init__(self, identifier: str, keras_network: keras.Sequential, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
         # This just does not work for tensorflow!
-        # self.tensorflow_network = copy.deepcopy(tensorflow_network)
+        # self.keras_network = copy.deepcopy(keras_network)
 
         # TODO make actual copy instead of reference
-        self.tensorflow_network = tensorflow_network
+        self.keras_network = keras_network
 
 
 class ConversionStrategy(abc.ABC):
@@ -510,9 +537,9 @@ class ONNXConverter(ConversionStrategy):
                             pytorch_cv = PyTorchConverter()
                             network = pytorch_cv.to_neural_network(alt_rep)
 
-                        elif isinstance(alt_rep, TensorflowNetwork):
-                            tensorflow_cv = TensorflowConverter()
-                            network = tensorflow_cv.to_neural_network(alt_rep)
+                        elif isinstance(alt_rep, KerasNetwork):
+                            keras_cv = DirectKerasConverter()
+                            network = keras_cv.to_neural_network(alt_rep)
 
                         else:
                             raise NotImplementedError
@@ -949,9 +976,9 @@ class PyTorchConverter(ConversionStrategy):
                             onnx_cv = ONNXConverter()
                             network = onnx_cv.to_neural_network(alt_rep)
 
-                        elif isinstance(alt_rep, TensorflowNetwork):
-                            tensorflow_cv = TensorflowConverter()
-                            network = tensorflow_cv.to_neural_network(alt_rep)
+                        elif isinstance(alt_rep, KerasNetwork):
+                            keras_cv = DirectKerasConverter()
+                            network = keras_cv.to_neural_network(alt_rep)
 
                         else:
                             raise NotImplementedError
@@ -1353,39 +1380,13 @@ class PyTorchConverter(ConversionStrategy):
         return network
 
 
-class TensorflowConverter(ConversionStrategy):
-    """
-    A class used to represent the conversion strategy for Tensorflow models.
-
-    Methods
-    ----------
-    from_neural_network(NeuralNetwork)
-        Convert the neural network of interest to a TensorflowNetwork model.
-    to_neural_network(TensorflowNetwork)
-        Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
-
-    """
-
-    def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
-        """
-        Convert the neural network of interest to a Tensorflow representation.
-
-        Parameters
-        ----------
-        network : NeuralNetwork
-            The neural network to convert.
-
-        Returns
-        ----------
-        TensorflowNetwork
-            The Tensorflow representation resulting from the conversion of the original network.
-
-        """
+class DirectKerasConverter(ConversionStrategy):
+    def from_neural_network(self, network: networks.NeuralNetwork) -> KerasNetwork:
 
         alt_net = None
-        tensorflow_network = None
+        keras_net = None
         for alt_rep in network.alt_rep_cache:
-            if isinstance(alt_rep, TensorflowNetwork) and alt_rep.up_to_date:
+            if isinstance(alt_rep, KerasNetwork) and alt_rep.up_to_date:
                 alt_net = alt_rep
 
         if alt_net is None:
@@ -1414,10 +1415,10 @@ class TensorflowConverter(ConversionStrategy):
 
                     new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
-                        new_layer = tf_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
+                        new_layer = klayers.Activation('relu')
 
                     elif isinstance(layer, nodes.SigmoidNode):
-                        new_layer = tf_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+                        new_layer = klayers.Activation('sigmoid')
 
                     elif isinstance(layer, nodes.FullyConnectedNode):
 
@@ -1426,8 +1427,7 @@ class TensorflowConverter(ConversionStrategy):
                         else:
                             has_bias = False
 
-                        new_layer = tf_l.Linear(layer.identifier, layer.in_dim, layer.out_dim, layer.out_features, None,
-                                                has_bias)
+                        new_layer = klayers.Dense(layer.out_features, 'linear', has_bias)
 
                         weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
@@ -1458,11 +1458,8 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.BatchNormNode):
 
-                        new_layer = tf_l.BatchNorm(layer.identifier, layer.in_dim, layer.out_dim,
-                                                   axis=layer.num_features, momentum=layer.momentum,
-                                                   epsilon=layer.eps,
-                                                   center=layer.affine,
-                                                   scale=layer.track_running_stats)
+                        new_layer = klayers.BatchNormalization(layer.num_features, layer.momentum,
+                                                               layer.eps, layer.affine, layer.track_running_stats)
 
                         new_layer.kernel = tf.convert_to_tensor(layer.weight)
                         new_layer.bias = tf.convert_to_tensor(layer.bias)
@@ -1473,27 +1470,26 @@ class TensorflowConverter(ConversionStrategy):
 
                         # Size of padding should be equal to 2 * size of kernel_size
                         padding = layer.padding[:int(len(layer.padding) / 2)]
+                        # TODO add padding layer as in here:
+                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
 
-                            new_layer = tf_l.Conv1d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                    layer.out_channels, layer.kernel_size, layer.stride,
-                                                    padding, "channels_last", layer.dilation,
-                                                    layer.groups, layer.has_bias)
+                            new_layer = klayers.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                       'valid', "channels_last", layer.dilation,
+                                                       layer.groups, layer.has_bias)
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = tf_l.Conv2d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                    layer.out_channels, layer.kernel_size, layer.stride,
-                                                    padding, "channels_last", layer.dilation,
-                                                    layer.groups, layer.has_bias)
+                            new_layer = klayers.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                       'valid', "channels_last", layer.dilation,
+                                                       layer.groups, layer.has_bias)
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = tf_l.Conv3d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                    layer.out_channels, layer.kernel_size, layer.stride,
-                                                    padding, "channels_last", layer.dilation,
-                                                    layer.groups, layer.has_bias)
+                            new_layer = klayers.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                       'valid', "channels_last", layer.dilation,
+                                                       layer.groups, layer.has_bias)
 
                         else:
                             raise Exception("Not supported")
@@ -1527,23 +1523,22 @@ class TensorflowConverter(ConversionStrategy):
                     elif isinstance(layer, nodes.AveragePoolNode):
 
                         padding = layer.padding[:int(len(layer.padding) / 2)]
+                        # TODO add padding layer as in here:
+                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = tf_l.AvgPool1d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+                            new_layer = klayers.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
+                                                          "channels_last")
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = tf_l.AvgPool2d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+                            new_layer = klayers.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
+                                                          "channels_last")
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = tf_l.AvgPool3d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.ceil_mode, layer.count_include_pad)
+                            new_layer = klayers.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
+                                                          "channels_last")
 
                         else:
                             raise Exception("TensorFlow does not support AveragePool layer for input with more than"
@@ -1552,22 +1547,15 @@ class TensorflowConverter(ConversionStrategy):
                     elif isinstance(layer, nodes.MaxPoolNode):
 
                         padding = layer.padding[:int(len(layer.padding) / 2)]
+                        # TODO add padding layer as in here:
+                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = tf_l.MaxPool1d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.dilation, layer.return_indices,
-                                                       layer.ceil_mode)
+                            new_layer = klayers.MaxPool1D(layer.kernel_size, layer.stride, 'valid', "channels_last")
                         elif len(layer.in_dim) == 3:
-                            new_layer = tf_l.MaxPool2d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.dilation, layer.return_indices,
-                                                       layer.ceil_mode)
+                            new_layer = klayers.MaxPool2D(layer.kernel_size, layer.stride, 'valid', "channels_last")
                         elif len(layer.in_dim) == 4:
-                            new_layer = tf_l.MaxPool3d(layer.identifier, layer.in_dim, layer.out_dim,
-                                                       layer.kernel_size, layer.stride, padding,
-                                                       "channels_last", layer.dilation, layer.return_indices,
-                                                       layer.ceil_mode)
+                            new_layer = klayers.MaxPool3D(layer.kernel_size, layer.stride, 'valid', "channels_last")
 
                         else:
                             raise Exception("Tensorflow does not support MaxPool layer for input with more than"
@@ -1575,17 +1563,16 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.LRNNode):
 
-                        new_layer = tf_l.LocalResponseNorm(layer.identifier, layer.in_dim, layer.out_dim,
-                                                           layer.size, layer.alpha, layer.beta, layer.k)
+                        new_layer = LocalResponseNorm(layer.size, layer.alpha, layer.beta, layer.k)
 
                     elif isinstance(layer, nodes.SoftMaxNode):
 
-                        new_layer = tf_l.Softmax(layer.identifier, layer.in_dim, layer.out_dim, layer.axis)
+                        new_layer = klayers.Softmax(layer.axis)
 
                     elif isinstance(layer, nodes.UnsqueezeNode):
 
                         axis = tuple([e + 1 for e in layer.axes])
-                        new_layer = tf_l.Unsqueeze(layer.identifier, layer.in_dim, layer.out_dim, axis)
+                        new_layer = Unsqueeze(axis)
 
                     elif isinstance(layer, nodes.ReshapeNode):
 
@@ -1596,16 +1583,16 @@ class TensorflowConverter(ConversionStrategy):
                             shape.append(e)
                         shape = tuple(shape)
 
-                        new_layer = tf_l.Reshape(layer.identifier, layer.in_dim, layer.out_dim, shape)
+                        new_layer = klayers.Reshape(shape)
 
                     elif isinstance(layer, nodes.FlattenNode):
 
                         # We need to scale the axis by one since our representation does not support the batch dimension
-                        new_layer = tf_l.Flatten(layer.identifier, layer.in_dim, layer.out_dim, 'channels_last')
+                        new_layer = klayers.Flatten('channels_last')
 
                     elif isinstance(layer, nodes.DropoutNode):
 
-                        new_layer = tf_l.Dropout(layer.identifier, layer.in_dim, layer.out_dim, layer.p)
+                        new_layer = klayers.Dropout(layer.p)
 
                     else:
                         raise NotImplementedError
@@ -1613,23 +1600,23 @@ class TensorflowConverter(ConversionStrategy):
                     if new_layer is not None:
                         tensorflow_layers.append(new_layer)
 
-                tensorflow_network = tf_l.Sequential(network.identifier, network.input_id, tensorflow_layers)
+                keras_net = Sequential(tensorflow_layers, network.identifier)
+                keras_net.build((None, ) + network.get_first_node().in_dim)
 
-            if alt_net is None and tensorflow_network is None:
+            if alt_net is None and keras_net is None:
                 print("WARNING: network to convert is not valid, the alternative representation is None")
 
-            identifier = network.identifier
-            alt_net = TensorflowNetwork(identifier=identifier, tensorflow_network=tensorflow_network)
+            alt_net = KerasNetwork(identifier=network.identifier, keras_network=keras_net)
 
         return alt_net
 
-    def to_neural_network(self, alt_rep: TensorflowNetwork) -> networks.NeuralNetwork:
+    def to_neural_network(self, alt_rep: KerasNetwork) -> networks.NeuralNetwork:
         """
         Convert the Tensorflow representation of interest to the internal one.
 
         Parameters
         ----------
-        alt_rep : TensorflowNetwork
+        alt_rep : KerasNetwork
             The Tensorflow Representation to convert.
 
         Returns
@@ -1640,8 +1627,8 @@ class TensorflowConverter(ConversionStrategy):
         """
 
         identifier = alt_rep.identifier
-        if hasattr(alt_rep.tensorflow_network, 'input_id'):
-            input_id = alt_rep.tensorflow_network.input_id
+        if hasattr(alt_rep.keras_network, 'input_id'):
+            input_id = alt_rep.keras_network.input_id
         else:
             input_id = 'X'
 
@@ -1651,16 +1638,32 @@ class TensorflowConverter(ConversionStrategy):
 
         with tf.device('/cpu:0'):
 
-            for m in alt_rep.tensorflow_network.submodules:
+            for m in alt_rep.keras_network.layers:
                 new_node = None
 
-                if isinstance(m, tf_l.ReLU):
-                    new_node = nodes.ReLUNode(m.identifier, m.in_dim)
+                if hasattr(m, 'in_dim'):
+                    layer_in_dim = m.in_dim
+                else:
+                    if isinstance(m.input_shape, list):
+                        layer_in_dim = tuple(xi for xi in m.input_shape[0] if xi is not None)
+                    else:
+                        layer_in_dim = tuple(xi for xi in m.input_shape if xi is not None)
 
-                elif isinstance(m, tf_l.Sigmoid):
-                    new_node = nodes.SigmoidNode(m.identifier, m.in_dim)
+                if hasattr(m, 'identifier'):
+                    layer_id = m.identifier
+                else:
+                    layer_id = f'Layer{node_index}'
 
-                elif isinstance(m, tf_l.Linear):
+                if isinstance(m, klayers.InputLayer):
+                    continue
+
+                if isinstance(m, klayers.Activation):
+                    if m.activation.__name__ == 'relu':
+                        new_node = nodes.ReLUNode(layer_id, layer_in_dim)
+                    elif m.activation.__name__ == 'sigmoid':
+                        new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
+
+                elif isinstance(m, klayers.Dense):
                     out_features = m.units
                     weight = m.kernel.numpy()
                     bias = None
@@ -1668,105 +1671,105 @@ class TensorflowConverter(ConversionStrategy):
                     if m.use_bias:
                         bias = m.bias.numpy()
                         has_bias = True
-                    new_node = nodes.FullyConnectedNode(m.identifier, m.in_dim, out_features, weight, bias, has_bias)
+                    new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight.T, bias, has_bias)
 
-                elif isinstance(m, tf_l.BatchNorm):
+                # elif isinstance(m, tf_l.BatchNorm):
+                #
+                #     eps = m.epsilon
+                #     momentum = m.momentum
+                #     trainable = m.trainable
+                #     affine = m.center
+                #
+                #     kernel = m.kernel.numpy()
+                #     bias = m.bias.numpy()
+                #     mean = m.moving_mean.numpy()
+                #     var = m.moving_variance.numpy()
+                #
+                #     new_node = nodes.BatchNormNode(layer_id, layer_in_dim, kernel,
+                #                                    bias, mean, var, eps, momentum, affine,
+                #                                    trainable)
+                #
+                # elif isinstance(m, tf_l.Conv1d) or isinstance(m, tf_l.Conv2d) or isinstance(m, tf_l.Conv3d):
+                #
+                #     out_channels = m.filters
+                #     kernel_size = m.kernel_size
+                #     stride = m.strides
+                #     temp_padding = list(m.pad)
+                #     for e in m.pad:
+                #         temp_padding.append(e)
+                #     padding = tuple(temp_padding)
+                #     dilation = m.dilation_rate
+                #     groups = m.groups
+                #     weight = m.kernel.numpy()
+                #     if m.use_bias is None or m.use_bias is False:
+                #         has_bias = False
+                #         bias = None
+                #     else:
+                #         has_bias = True
+                #         bias = m.bias.numpy()
+                #
+                #     new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
+                #                               stride, padding, dilation, groups, has_bias, bias, weight)
+                #
+                # elif isinstance(m, tf_l.AvgPool1d) or isinstance(m, tf_l.AvgPool2d) or \
+                #         isinstance(m, tf_l.AvgPool3d):
+                #
+                #     stride = m.strides
+                #     temp_padding = list(m.pad)
+                #     for e in m.pad:
+                #         temp_padding.append(e)
+                #     padding = tuple(temp_padding)
+                #     kernel_size = m.pool_size
+                #     ceil_mode = m.ceil_mode
+                #     count_include_pad = m.count_include_pad
+                #
+                #     new_node = nodes.AveragePoolNode(layer_id, layer_in_dim, kernel_size, stride, padding,
+                #                                      ceil_mode, count_include_pad)
+                #
+                # elif isinstance(m, tf_l.MaxPool1d) or isinstance(m, tf_l.MaxPool2d) or \
+                #         isinstance(m, tf_l.MaxPool3d):
+                #
+                #     stride = m.strides
+                #     temp_padding = list(m.pad)
+                #     for e in m.pad:
+                #         temp_padding.append(e)
+                #     padding = tuple(temp_padding)
+                #     kernel_size = m.pool_size
+                #     dilation = m.dilation
+                #     return_indices = m.return_indices
+                #     ceil_mode = m.ceil_mode
+                #
+                #     new_node = nodes.MaxPoolNode(layer_id, layer_in_dim, kernel_size, stride, padding, dilation,
+                #                                  ceil_mode, return_indices)
+                #
+                # elif isinstance(m, tf_l.LocalResponseNorm):
+                #
+                #     new_node = nodes.LRNNode(layer_id, layer_in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
+                #
+                # elif isinstance(m, tf_l.Softmax):
+                #
+                #     new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
+                #
+                # elif isinstance(m, tf_l.Unsqueeze):
+                #
+                #     axis = tuple([e - 1 for e in m.axis])
+                #     new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axis)
+                #
+                # elif isinstance(m, tf_l.Reshape):
+                #
+                #     shape = m.shape[1:]
+                #     new_node = nodes.ReshapeNode(layer_id, layer_in_dim, shape)
+                #
+                # elif isinstance(m, tf_l.Flatten):
+                #
+                #     new_node = nodes.FlattenNode(layer_id, layer_in_dim, m.axis - 1)
+                #
+                # elif isinstance(m, tf_l.Dropout):
+                #
+                #     new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.rate)
 
-                    eps = m.epsilon
-                    momentum = m.momentum
-                    trainable = m.trainable
-                    affine = m.center
-
-                    kernel = m.kernel.numpy()
-                    bias = m.bias.numpy()
-                    mean = m.moving_mean.numpy()
-                    var = m.moving_variance.numpy()
-
-                    new_node = nodes.BatchNormNode(m.identifier, m.in_dim, kernel,
-                                                   bias, mean, var, eps, momentum, affine,
-                                                   trainable)
-
-                elif isinstance(m, tf_l.Conv1d) or isinstance(m, tf_l.Conv2d) or isinstance(m, tf_l.Conv3d):
-
-                    out_channels = m.filters
-                    kernel_size = m.kernel_size
-                    stride = m.strides
-                    temp_padding = list(m.pad)
-                    for e in m.pad:
-                        temp_padding.append(e)
-                    padding = tuple(temp_padding)
-                    dilation = m.dilation_rate
-                    groups = m.groups
-                    weight = m.kernel.numpy()
-                    if m.use_bias is None or m.use_bias is False:
-                        has_bias = False
-                        bias = None
-                    else:
-                        has_bias = True
-                        bias = m.bias.numpy()
-
-                    new_node = nodes.ConvNode(m.identifier, m.in_dim, out_channels, kernel_size,
-                                              stride, padding, dilation, groups, has_bias, bias, weight)
-
-                elif isinstance(m, tf_l.AvgPool1d) or isinstance(m, tf_l.AvgPool2d) or \
-                        isinstance(m, tf_l.AvgPool3d):
-
-                    stride = m.strides
-                    temp_padding = list(m.pad)
-                    for e in m.pad:
-                        temp_padding.append(e)
-                    padding = tuple(temp_padding)
-                    kernel_size = m.pool_size
-                    ceil_mode = m.ceil_mode
-                    count_include_pad = m.count_include_pad
-
-                    new_node = nodes.AveragePoolNode(m.identifier, m.in_dim, kernel_size, stride, padding,
-                                                     ceil_mode, count_include_pad)
-
-                elif isinstance(m, tf_l.MaxPool1d) or isinstance(m, tf_l.MaxPool2d) or \
-                        isinstance(m, tf_l.MaxPool3d):
-
-                    stride = m.strides
-                    temp_padding = list(m.pad)
-                    for e in m.pad:
-                        temp_padding.append(e)
-                    padding = tuple(temp_padding)
-                    kernel_size = m.pool_size
-                    dilation = m.dilation
-                    return_indices = m.return_indices
-                    ceil_mode = m.ceil_mode
-
-                    new_node = nodes.MaxPoolNode(m.identifier, m.in_dim, kernel_size, stride, padding, dilation,
-                                                 ceil_mode, return_indices)
-
-                elif isinstance(m, tf_l.LocalResponseNorm):
-
-                    new_node = nodes.LRNNode(m.identifier, m.in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
-
-                elif isinstance(m, tf_l.Softmax):
-
-                    new_node = nodes.SoftMaxNode(m.identifier, m.in_dim, m.axis)
-
-                elif isinstance(m, tf_l.Unsqueeze):
-
-                    axis = tuple([e - 1 for e in m.axis])
-                    new_node = nodes.UnsqueezeNode(m.identifier, m.in_dim, axis)
-
-                elif isinstance(m, tf_l.Reshape):
-
-                    shape = m.shape[1:]
-                    new_node = nodes.ReshapeNode(m.identifier, m.in_dim, shape)
-
-                elif isinstance(m, tf_l.Flatten):
-
-                    new_node = nodes.FlattenNode(m.identifier, m.in_dim, m.axis - 1)
-
-                elif isinstance(m, tf_l.Dropout):
-
-                    new_node = nodes.DropoutNode(m.identifier, m.in_dim, m.rate)
-
-                elif isinstance(m, tf_l.Sequential):
-                    pass
+                elif isinstance(m, Sequential):
+                    continue
 
                 else:
                     raise NotImplementedError
@@ -1805,7 +1808,7 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
         return ONNXNetwork(net_id, model_proto, True)
     elif extension == 'h5':
         model = md.load_model(path)
-        return TensorflowNetwork(net_id, model, True)
+        return KerasNetwork(net_id, model, True)
     else:
         return None
 
@@ -1827,5 +1830,5 @@ def save_network_path(network: AlternativeRepresentation, path: str) -> None:
         torch.save(network.pytorch_network, path)
     elif isinstance(network, ONNXNetwork):
         onnx.save(network.onnx_network, path)
-    elif isinstance(network, TensorflowNetwork):
-        network.tensorflow_network.save(path)
+    elif isinstance(network, KerasNetwork):
+        network.keras_network.save(path)
