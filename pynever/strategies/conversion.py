@@ -7,6 +7,7 @@ import onnx
 import onnx.numpy_helper
 import tensorflow as tf
 import torch
+from keras import models as md
 
 import pynever.networks as networks
 import pynever.nodes as nodes
@@ -77,9 +78,13 @@ class TensorflowNetwork(AlternativeRepresentation):
 
     """
 
-    def __init__(self, identifier: str, tensorflow_network: tf.Module, up_to_date: bool = True):
+    def __init__(self, identifier: str, tensorflow_network, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
-        self.tensorflow_network = copy.deepcopy(tensorflow_network)
+        # This just does not work for tensorflow!
+        # self.tensorflow_network = copy.deepcopy(tensorflow_network)
+
+        # TODO make actual copy instead of reference
+        self.tensorflow_network = tensorflow_network
 
 
 class ConversionStrategy(abc.ABC):
@@ -1497,7 +1502,7 @@ class TensorflowConverter(ConversionStrategy):
                         weight_initializer = tf.constant_initializer(weight)
                         new_layer.kernel = new_layer.add_weight(
                             'kernel',
-                            shape=[tf.compat.dimension_value(layer.in_dim[-1]), new_layer.units],
+                            shape=weight.shape,
                             initializer=weight_initializer,
                             regularizer=new_layer.kernel_regularizer,
                             constraint=new_layer.kernel_constraint,
@@ -1509,7 +1514,7 @@ class TensorflowConverter(ConversionStrategy):
                             bias_initializer = tf.constant_initializer(bias)
                             new_layer.bias = new_layer.add_weight(
                                 'bias',
-                                shape=[new_layer.units, ],
+                                shape=[new_layer.filters, ],
                                 initializer=bias_initializer,
                                 regularizer=new_layer.bias_regularizer,
                                 constraint=new_layer.bias_constraint,
@@ -1635,7 +1640,12 @@ class TensorflowConverter(ConversionStrategy):
         """
 
         identifier = alt_rep.identifier
-        network = networks.SequentialNetwork(identifier, alt_rep.tensorflow_network.input_id)
+        if hasattr(alt_rep.tensorflow_network, 'input_id'):
+            input_id = alt_rep.tensorflow_network.input_id
+        else:
+            input_id = 'X'
+
+        network = networks.SequentialNetwork(identifier, input_id)
 
         node_index = 0
 
@@ -1794,7 +1804,7 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
         model_proto = onnx.load(path)
         return ONNXNetwork(net_id, model_proto, True)
     elif extension == 'h5':
-        model = tf.keras.models.load_model(path)
+        model = md.load_model(path)
         return TensorflowNetwork(net_id, model, True)
     else:
         return None
