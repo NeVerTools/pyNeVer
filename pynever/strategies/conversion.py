@@ -2,22 +2,19 @@ import abc
 import copy
 from typing import Optional
 
-import keras
-import keras.layers as klayers
+import keras.layers as keras_layers
 import numpy as np
 import onnx
 import onnx.numpy_helper
 import tensorflow as tf
 import torch
-from keras import Sequential
-from keras import models as md
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_l
 
 
-class LocalResponseNorm(klayers.Layer):
+class LocalResponseNorm(keras_layers.Layer):
     def __init__(self, depth_radius: int, alpha: float, beta: float,
                  bias: float):
         super().__init__()
@@ -31,7 +28,7 @@ class LocalResponseNorm(klayers.Layer):
         return x
 
 
-class Unsqueeze(klayers.Layer):
+class Unsqueeze(keras_layers.Layer):
     def __init__(self, axis: tuple):
         super().__init__()
         self.axis = axis
@@ -94,7 +91,7 @@ class PyTorchNetwork(AlternativeRepresentation):
         self.pytorch_network = copy.deepcopy(pytorch_network)
 
 
-class KerasNetwork(AlternativeRepresentation):
+class TensorflowNetwork(AlternativeRepresentation):
     """
     A class used to represent a Tensorflow representation for a neural network.
 
@@ -105,7 +102,7 @@ class KerasNetwork(AlternativeRepresentation):
 
     """
 
-    def __init__(self, identifier: str, keras_network: keras.Sequential, up_to_date: bool = True):
+    def __init__(self, identifier: str, keras_network: tf.keras.Sequential, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
         # This just does not work for tensorflow!
         # self.keras_network = copy.deepcopy(keras_network)
@@ -537,8 +534,8 @@ class ONNXConverter(ConversionStrategy):
                             pytorch_cv = PyTorchConverter()
                             network = pytorch_cv.to_neural_network(alt_rep)
 
-                        elif isinstance(alt_rep, KerasNetwork):
-                            keras_cv = DirectKerasConverter()
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            keras_cv = TensorflowConverter()
                             network = keras_cv.to_neural_network(alt_rep)
 
                         else:
@@ -976,8 +973,8 @@ class PyTorchConverter(ConversionStrategy):
                             onnx_cv = ONNXConverter()
                             network = onnx_cv.to_neural_network(alt_rep)
 
-                        elif isinstance(alt_rep, KerasNetwork):
-                            keras_cv = DirectKerasConverter()
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            keras_cv = TensorflowConverter()
                             network = keras_cv.to_neural_network(alt_rep)
 
                         else:
@@ -1380,13 +1377,13 @@ class PyTorchConverter(ConversionStrategy):
         return network
 
 
-class DirectKerasConverter(ConversionStrategy):
-    def from_neural_network(self, network: networks.NeuralNetwork) -> KerasNetwork:
+class TensorflowConverter(ConversionStrategy):
+    def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
 
         alt_net = None
         keras_net = None
         for alt_rep in network.alt_rep_cache:
-            if isinstance(alt_rep, KerasNetwork) and alt_rep.up_to_date:
+            if isinstance(alt_rep, TensorflowNetwork) and alt_rep.up_to_date:
                 alt_net = alt_rep
 
         if alt_net is None:
@@ -1415,10 +1412,10 @@ class DirectKerasConverter(ConversionStrategy):
 
                     new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
-                        new_layer = klayers.Activation('relu')
+                        new_layer = keras_layers.Activation('relu')
 
                     elif isinstance(layer, nodes.SigmoidNode):
-                        new_layer = klayers.Activation('sigmoid')
+                        new_layer = keras_layers.Activation('sigmoid')
 
                     elif isinstance(layer, nodes.FullyConnectedNode):
 
@@ -1427,7 +1424,7 @@ class DirectKerasConverter(ConversionStrategy):
                         else:
                             has_bias = False
 
-                        new_layer = klayers.Dense(layer.out_features, 'linear', has_bias)
+                        new_layer = keras_layers.Dense(layer.out_features, 'linear', has_bias)
 
                         weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
@@ -1458,8 +1455,8 @@ class DirectKerasConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.BatchNormNode):
 
-                        new_layer = klayers.BatchNormalization(layer.num_features, layer.momentum,
-                                                               layer.eps, layer.affine, layer.track_running_stats)
+                        new_layer = keras_layers.BatchNormalization(layer.num_features, layer.momentum,
+                                                                    layer.eps, layer.affine, layer.track_running_stats)
 
                         new_layer.kernel = tf.convert_to_tensor(layer.weight)
                         new_layer.bias = tf.convert_to_tensor(layer.bias)
@@ -1475,21 +1472,21 @@ class DirectKerasConverter(ConversionStrategy):
 
                         if len(layer.in_dim) == 2:
 
-                            new_layer = klayers.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                       'valid', "channels_last", layer.dilation,
-                                                       layer.groups, layer.has_bias)
+                            new_layer = keras_layers.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                            'valid', "channels_last", layer.dilation,
+                                                            layer.groups, layer.has_bias)
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = klayers.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                       'valid', "channels_last", layer.dilation,
-                                                       layer.groups, layer.has_bias)
+                            new_layer = keras_layers.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                            'valid', "channels_last", layer.dilation,
+                                                            layer.groups, layer.has_bias)
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = klayers.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                       'valid', "channels_last", layer.dilation,
-                                                       layer.groups, layer.has_bias)
+                            new_layer = keras_layers.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                            'valid', "channels_last", layer.dilation,
+                                                            layer.groups, layer.has_bias)
 
                         else:
                             raise Exception("Not supported")
@@ -1527,18 +1524,18 @@ class DirectKerasConverter(ConversionStrategy):
                         # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = klayers.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
-                                                          "channels_last")
+                            new_layer = keras_layers.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = klayers.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
-                                                          "channels_last")
+                            new_layer = keras_layers.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = klayers.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
-                                                          "channels_last")
+                            new_layer = keras_layers.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
 
                         else:
                             raise Exception("TensorFlow does not support AveragePool layer for input with more than"
@@ -1551,11 +1548,14 @@ class DirectKerasConverter(ConversionStrategy):
                         # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = klayers.MaxPool1D(layer.kernel_size, layer.stride, 'valid', "channels_last")
+                            new_layer = keras_layers.MaxPool1D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
                         elif len(layer.in_dim) == 3:
-                            new_layer = klayers.MaxPool2D(layer.kernel_size, layer.stride, 'valid', "channels_last")
+                            new_layer = keras_layers.MaxPool2D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
                         elif len(layer.in_dim) == 4:
-                            new_layer = klayers.MaxPool3D(layer.kernel_size, layer.stride, 'valid', "channels_last")
+                            new_layer = keras_layers.MaxPool3D(layer.kernel_size, layer.stride, 'valid',
+                                                               "channels_last")
 
                         else:
                             raise Exception("Tensorflow does not support MaxPool layer for input with more than"
@@ -1567,7 +1567,7 @@ class DirectKerasConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.SoftMaxNode):
 
-                        new_layer = klayers.Softmax(layer.axis)
+                        new_layer = keras_layers.Softmax(layer.axis)
 
                     elif isinstance(layer, nodes.UnsqueezeNode):
 
@@ -1583,16 +1583,16 @@ class DirectKerasConverter(ConversionStrategy):
                             shape.append(e)
                         shape = tuple(shape)
 
-                        new_layer = klayers.Reshape(shape)
+                        new_layer = keras_layers.Reshape(shape)
 
                     elif isinstance(layer, nodes.FlattenNode):
 
                         # We need to scale the axis by one since our representation does not support the batch dimension
-                        new_layer = klayers.Flatten('channels_last')
+                        new_layer = keras_layers.Flatten('channels_last')
 
                     elif isinstance(layer, nodes.DropoutNode):
 
-                        new_layer = klayers.Dropout(layer.p)
+                        new_layer = keras_layers.Dropout(layer.p)
 
                     else:
                         raise NotImplementedError
@@ -1600,23 +1600,23 @@ class DirectKerasConverter(ConversionStrategy):
                     if new_layer is not None:
                         tensorflow_layers.append(new_layer)
 
-                keras_net = Sequential(tensorflow_layers, network.identifier)
-                keras_net.build((None, ) + network.get_first_node().in_dim)
+                keras_net = tf.keras.Sequential(tensorflow_layers, network.identifier)
+                keras_net.build((None,) + network.get_first_node().in_dim)
 
             if alt_net is None and keras_net is None:
                 print("WARNING: network to convert is not valid, the alternative representation is None")
 
-            alt_net = KerasNetwork(identifier=network.identifier, keras_network=keras_net)
+            alt_net = TensorflowNetwork(identifier=network.identifier, keras_network=keras_net)
 
         return alt_net
 
-    def to_neural_network(self, alt_rep: KerasNetwork) -> networks.NeuralNetwork:
+    def to_neural_network(self, alt_rep: TensorflowNetwork) -> networks.NeuralNetwork:
         """
         Convert the Tensorflow representation of interest to the internal one.
 
         Parameters
         ----------
-        alt_rep : KerasNetwork
+        alt_rep : TensorflowNetwork
             The Tensorflow Representation to convert.
 
         Returns
@@ -1654,16 +1654,16 @@ class DirectKerasConverter(ConversionStrategy):
                 else:
                     layer_id = f'Layer{node_index}'
 
-                if isinstance(m, klayers.InputLayer):
+                if isinstance(m, keras_layers.InputLayer):
                     continue
 
-                if isinstance(m, klayers.Activation):
+                if isinstance(m, keras_layers.Activation):
                     if m.activation.__name__ == 'relu':
                         new_node = nodes.ReLUNode(layer_id, layer_in_dim)
                     elif m.activation.__name__ == 'sigmoid':
                         new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
 
-                elif isinstance(m, klayers.Dense):
+                elif isinstance(m, keras_layers.Dense):
                     out_features = m.units
                     weight = m.kernel.numpy()
                     bias = None
@@ -1768,7 +1768,7 @@ class DirectKerasConverter(ConversionStrategy):
                 #
                 #     new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.rate)
 
-                elif isinstance(m, Sequential):
+                elif isinstance(m, tf.keras.Sequential):
                     continue
 
                 else:
@@ -1807,8 +1807,8 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
         model_proto = onnx.load(path)
         return ONNXNetwork(net_id, model_proto, True)
     elif extension == 'h5':
-        model = md.load_model(path)
-        return KerasNetwork(net_id, model, True)
+        model = tf.keras.models.load_model(path)
+        return TensorflowNetwork(net_id, model, True)
     else:
         return None
 
@@ -1830,5 +1830,5 @@ def save_network_path(network: AlternativeRepresentation, path: str) -> None:
         torch.save(network.pytorch_network, path)
     elif isinstance(network, ONNXNetwork):
         onnx.save(network.onnx_network, path)
-    elif isinstance(network, KerasNetwork):
+    elif isinstance(network, TensorflowNetwork):
         network.keras_network.save(path)
