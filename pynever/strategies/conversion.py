@@ -14,31 +14,6 @@ import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_l
 
 
-class LocalResponseNorm(keras_layers.Layer):
-    def __init__(self, depth_radius: int, alpha: float, beta: float,
-                 bias: float):
-        super().__init__()
-        self.depth_radius = depth_radius
-        self.alpha = alpha
-        self.beta = beta
-        self.bias = bias
-
-    def __call__(self, x: tf.Tensor):
-        x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
-        return x
-
-
-class Unsqueeze(keras_layers.Layer):
-    def __init__(self, axis: tuple):
-        super().__init__()
-        self.axis = axis
-
-    def __call__(self, x: tf.Tensor):
-        for ax in self.axis:
-            x = tf.expand_dims(x, ax)
-        return x
-
-
 class AlternativeRepresentation(abc.ABC):
     """
     An abstract class used to represent an alternative representation for a neural network.
@@ -97,18 +72,18 @@ class TensorflowNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-    keras_network : tensorflow.Module
-        Real TensorFlow network.
+    keras_network : keras.Sequential
+        Real sequential TensorFlow network.
 
     """
 
     def __init__(self, identifier: str, keras_network: tf.keras.Sequential, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
-        # This just does not work for tensorflow!
-        # self.keras_network = copy.deepcopy(keras_network)
 
-        # TODO make actual copy instead of reference
-        self.keras_network = keras_network
+        # Deepcopy does not work with Keras models, so we need to do it manually
+        self.keras_network = tf.keras.models.clone_model(keras_network)
+        self.keras_network.build(keras_network.input_shape)
+        self.keras_network.set_weights(keras_network.get_weights())
 
 
 class ConversionStrategy(abc.ABC):
@@ -1378,6 +1353,38 @@ class PyTorchConverter(ConversionStrategy):
 
 
 class TensorflowConverter(ConversionStrategy):
+    class LocalResponseNorm(keras_layers.Layer):
+        """
+        Utility class for Tensorflow representation of a LRN layer
+
+        """
+
+        def __init__(self, depth_radius: int, alpha: float, beta: float, bias: float):
+            super().__init__()
+            self.depth_radius = depth_radius
+            self.alpha = alpha
+            self.beta = beta
+            self.bias = bias
+
+        def __call__(self, x: tf.Tensor):
+            x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
+            return x
+
+    class Unsqueeze(keras_layers.Layer):
+        """
+        Utility class for Tensorflow representation of an Unsqueeze layer
+
+        """
+
+        def __init__(self, axis: tuple):
+            super().__init__()
+            self.axis = axis
+
+        def __call__(self, x: tf.Tensor):
+            for ax in self.axis:
+                x = tf.expand_dims(x, ax)
+            return x
+
     def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
 
         alt_net = None
@@ -1563,7 +1570,7 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.LRNNode):
 
-                        new_layer = LocalResponseNorm(layer.size, layer.alpha, layer.beta, layer.k)
+                        new_layer = self.LocalResponseNorm(layer.size, layer.alpha, layer.beta, layer.k)
 
                     elif isinstance(layer, nodes.SoftMaxNode):
 
@@ -1572,7 +1579,7 @@ class TensorflowConverter(ConversionStrategy):
                     elif isinstance(layer, nodes.UnsqueezeNode):
 
                         axis = tuple([e + 1 for e in layer.axes])
-                        new_layer = Unsqueeze(axis)
+                        new_layer = self.Unsqueeze(axis)
 
                     elif isinstance(layer, nodes.ReshapeNode):
 
