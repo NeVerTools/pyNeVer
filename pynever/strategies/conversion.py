@@ -1353,6 +1353,19 @@ class PyTorchConverter(ConversionStrategy):
 
 
 class TensorflowConverter(ConversionStrategy):
+    """
+    A class used to represent the conversion strategy for Tensorflow models.
+    It also provides utility classes for representing special layers.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a TensorflowNetwork model.
+    to_neural_network(TensorflowNetwork)
+        Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
+
+    """
+
     class LocalResponseNorm(keras_layers.Layer):
         """
         Utility class for Tensorflow representation of a LRN layer
@@ -1386,6 +1399,22 @@ class TensorflowConverter(ConversionStrategy):
             return x
 
     def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
+        """
+        Convert the neural network of interest to a Tensorflow representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        TensorflowNetwork
+            The Tensorflow representation resulting from the conversion of the original network.
+
+        """
+
+        # TODO: still missing complete conversion for Convolutional and Pooling layers involving padding
 
         alt_net = None
         keras_net = None
@@ -1415,9 +1444,9 @@ class TensorflowConverter(ConversionStrategy):
 
             if isinstance(network, networks.SequentialNetwork):
                 tensorflow_layers = []
+
                 for layer in network.nodes.values():
 
-                    new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
                         new_layer = keras_layers.Activation('relu')
 
