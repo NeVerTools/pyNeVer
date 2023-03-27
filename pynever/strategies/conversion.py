@@ -2,7 +2,7 @@ import abc
 import copy
 from typing import Optional
 
-import keras.layers as keras_layers
+import keras.layers as kl
 import numpy as np
 import onnx
 import onnx.numpy_helper
@@ -958,9 +958,9 @@ class PyTorchConverter(ConversionStrategy):
 
             if isinstance(network, networks.SequentialNetwork):
                 pytorch_layers = []
+
                 for layer in network.nodes.values():
 
-                    new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
                         new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
 
@@ -1226,8 +1226,7 @@ class PyTorchConverter(ConversionStrategy):
             else:
                 layer_id = f"Layer{node_index}"
 
-                # Read node
-            new_node = None
+            # Parse layers
 
             if isinstance(m, pyt_l.ReLU):
                 new_node = nodes.ReLUNode(layer_id, layer_in_dim)
@@ -1366,7 +1365,7 @@ class TensorflowConverter(ConversionStrategy):
 
     """
 
-    class LocalResponseNorm(keras_layers.Layer):
+    class LocalResponseNorm(kl.Layer):
         """
         Utility class for Tensorflow representation of a LRN layer
 
@@ -1383,7 +1382,7 @@ class TensorflowConverter(ConversionStrategy):
             x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
             return x
 
-    class Unsqueeze(keras_layers.Layer):
+    class Unsqueeze(kl.Layer):
         """
         Utility class for Tensorflow representation of an Unsqueeze layer
 
@@ -1448,10 +1447,10 @@ class TensorflowConverter(ConversionStrategy):
                 for layer in network.nodes.values():
 
                     if isinstance(layer, nodes.ReLUNode):
-                        new_layer = keras_layers.Activation('relu')
+                        new_layer = kl.Activation('relu')
 
                     elif isinstance(layer, nodes.SigmoidNode):
-                        new_layer = keras_layers.Activation('sigmoid')
+                        new_layer = kl.Activation('sigmoid')
 
                     elif isinstance(layer, nodes.FullyConnectedNode):
 
@@ -1460,7 +1459,7 @@ class TensorflowConverter(ConversionStrategy):
                         else:
                             has_bias = False
 
-                        new_layer = keras_layers.Dense(layer.out_features, 'linear', has_bias)
+                        new_layer = kl.Dense(layer.out_features, 'linear', has_bias)
 
                         weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
@@ -1491,8 +1490,8 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.BatchNormNode):
 
-                        new_layer = keras_layers.BatchNormalization(layer.num_features, layer.momentum,
-                                                                    layer.eps, layer.affine, layer.track_running_stats)
+                        new_layer = kl.BatchNormalization(layer.num_features, layer.momentum,
+                                                          layer.eps, layer.affine, layer.track_running_stats)
 
                         new_layer.kernel = tf.convert_to_tensor(layer.weight)
                         new_layer.bias = tf.convert_to_tensor(layer.bias)
@@ -1500,6 +1499,13 @@ class TensorflowConverter(ConversionStrategy):
                         new_layer.moving_variance = tf.convert_to_tensor(layer.running_var)
 
                     elif isinstance(layer, nodes.ConvNode):
+                        """
+                        We use the 'channels_first' representation for input, output and kernel
+                        shapes in order to keep compatibility within our internal representation.
+                        A future addition may be to convert the shapes to the default 'channels_last'
+                        Keras representation.
+                        
+                        """
 
                         # Size of padding should be equal to 2 * size of kernel_size
                         padding = layer.padding[:int(len(layer.padding) / 2)]
@@ -1508,30 +1514,30 @@ class TensorflowConverter(ConversionStrategy):
 
                         if len(layer.in_dim) == 2:
 
-                            new_layer = keras_layers.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                            'valid', "channels_last", layer.dilation,
-                                                            layer.groups, layer.has_bias)
+                            new_layer = kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  'valid', 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = keras_layers.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                            'valid', "channels_last", layer.dilation,
-                                                            layer.groups, layer.has_bias)
+                            new_layer = kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  'valid', 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = keras_layers.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                            'valid', "channels_last", layer.dilation,
-                                                            layer.groups, layer.has_bias)
+                            new_layer = kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  'valid', 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         else:
-                            raise Exception("Not supported")
+                            raise Exception("Unsupported convolutional structure")
 
                         weight = tf.convert_to_tensor(layer.weight).numpy()
                         weight_initializer = tf.constant_initializer(weight)
                         new_layer.kernel = new_layer.add_weight(
                             'kernel',
-                            shape=weight.shape,
+                            shape=[new_layer.filters, layer.in_dim[1:]],
                             initializer=weight_initializer,
                             regularizer=new_layer.kernel_regularizer,
                             constraint=new_layer.kernel_constraint,
@@ -1560,18 +1566,18 @@ class TensorflowConverter(ConversionStrategy):
                         # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = keras_layers.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = keras_layers.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = keras_layers.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
 
                         else:
                             raise Exception("TensorFlow does not support AveragePool layer for input with more than"
@@ -1584,14 +1590,14 @@ class TensorflowConverter(ConversionStrategy):
                         # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
 
                         if len(layer.in_dim) == 2:
-                            new_layer = keras_layers.MaxPool1D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.MaxPool1D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
                         elif len(layer.in_dim) == 3:
-                            new_layer = keras_layers.MaxPool2D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.MaxPool2D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
                         elif len(layer.in_dim) == 4:
-                            new_layer = keras_layers.MaxPool3D(layer.kernel_size, layer.stride, 'valid',
-                                                               "channels_last")
+                            new_layer = kl.MaxPool3D(layer.kernel_size, layer.stride, 'valid',
+                                                     'channels_first')
 
                         else:
                             raise Exception("Tensorflow does not support MaxPool layer for input with more than"
@@ -1603,7 +1609,7 @@ class TensorflowConverter(ConversionStrategy):
 
                     elif isinstance(layer, nodes.SoftMaxNode):
 
-                        new_layer = keras_layers.Softmax(layer.axis)
+                        new_layer = kl.Softmax(layer.axis)
 
                     elif isinstance(layer, nodes.UnsqueezeNode):
 
@@ -1619,16 +1625,16 @@ class TensorflowConverter(ConversionStrategy):
                             shape.append(e)
                         shape = tuple(shape)
 
-                        new_layer = keras_layers.Reshape(shape)
+                        new_layer = kl.Reshape(shape)
 
                     elif isinstance(layer, nodes.FlattenNode):
 
                         # We need to scale the axis by one since our representation does not support the batch dimension
-                        new_layer = keras_layers.Flatten('channels_last')
+                        new_layer = kl.Flatten('channels_last')
 
                     elif isinstance(layer, nodes.DropoutNode):
 
-                        new_layer = keras_layers.Dropout(layer.p)
+                        new_layer = kl.Dropout(layer.p)
 
                     else:
                         raise NotImplementedError
@@ -1690,16 +1696,16 @@ class TensorflowConverter(ConversionStrategy):
                 else:
                     layer_id = f'Layer{node_index}'
 
-                if isinstance(m, keras_layers.InputLayer):
+                if isinstance(m, kl.InputLayer):
                     continue
 
-                if isinstance(m, keras_layers.Activation):
+                if isinstance(m, kl.Activation):
                     if m.activation.__name__ == 'relu':
                         new_node = nodes.ReLUNode(layer_id, layer_in_dim)
                     elif m.activation.__name__ == 'sigmoid':
                         new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
 
-                elif isinstance(m, keras_layers.Dense):
+                elif isinstance(m, kl.Dense):
                     out_features = m.units
                     weight = m.kernel.numpy()
                     bias = None
