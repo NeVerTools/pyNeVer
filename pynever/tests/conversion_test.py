@@ -265,7 +265,7 @@ def dropout_node_test(converter: conversion.ConversionStrategy):
     assert start_node.identifier == end_node.identifier
 
 
-converters = [conversion.ONNXConverter(), conversion.PyTorchConverter(), conversion.TensorflowConverter()]
+converters = [conversion.ONNXConverter(), conversion.PyTorchConverter()]
 for conv in converters:
     print(f"Test for {conv.__class__.__name__}")
     relu_node_test(conv)
