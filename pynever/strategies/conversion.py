@@ -1026,7 +1026,6 @@ class PyTorchConverter(ConversionStrategy):
                 pytorch_layers = []
                 for layer in network.nodes.values():
 
-                    new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
                         new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
 
