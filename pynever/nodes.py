@@ -30,9 +30,7 @@ class LayerNode(abc.ABC):
         self.out_dim = out_dim
 
     def __repr__(self):
-        return f"{self.__class__.__name__}\n" \
-               f"in_dim = {self.in_dim}\n" \
-               f"out_dim = {self.out_dim}"
+        return f"{self.identifier} ({self.__class__.__name__}) : in_dim = {self.in_dim}, out_dim = {self.out_dim}"
 
     def __str__(self):
         return self.__repr__()
@@ -62,6 +60,84 @@ class ReLUNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
+class ELUNode(LayerNode):
+    """
+    A class used for our internal representation of a ELU Layer of a Neural Network.
+
+    Attributes
+    ----------
+    alpha : float, optional
+        The alpha value for the ELU formulation (default: 1.0).
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, alpha: float = 1.0):
+        if not len(in_dim) >= 1:
+            raise Exception("ELUNode: in_dim cannot be empty")
+
+        if alpha is None:
+            alpha = 1.0
+
+        out_dim = copy.deepcopy(in_dim)
+        self.alpha = alpha
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim)
+
+
+class CELUNode(LayerNode):
+    """
+    A class used for our internal representation of a CELU Layer of a Neural Network.
+
+    Attributes
+    ----------
+    alpha : float, optional
+        The alpha value for the CELU formulation (default: 1.0).
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, alpha: float = 1.0):
+        if not len(in_dim) >= 1:
+            raise Exception("CELUNode: in_dim cannot be empty")
+
+        if alpha is None:
+            alpha = 1.0
+
+        out_dim = copy.deepcopy(in_dim)
+        self.alpha = alpha
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim)
+
+
+class LeakyReLUNode(LayerNode):
+    """
+    A class used for our internal representation of a Leaky ReLU Layer of a Neural Network.
+
+    Attributes
+    ----------
+    negative_slope : float, optional
+        Controls the angle of the negative slope (default: 1e-2).
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, negative_slope: float = 1e-2):
+        if not len(in_dim) >= 1:
+            raise Exception("ELUNode: in_dim cannot be empty")
+
+        if negative_slope is None:
+            negative_slope = 1e-2
+
+        out_dim = copy.deepcopy(in_dim)
+        self.negative_slope = negative_slope
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim)
+
+
 class SigmoidNode(LayerNode):
     """
     A class used for our internal representation of a Sigmoid Layer of a Neural Network.
@@ -74,6 +150,25 @@ class SigmoidNode(LayerNode):
     def __init__(self, identifier: str, in_dim: Tuple):
         if not len(in_dim) >= 1:
             raise Exception("SigmoidNode: in_dim cannot be void")
+
+        out_dim = copy.deepcopy(in_dim)
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim)
+
+
+class TanhNode(LayerNode):
+    """
+    A class used for our internal representation of a Tanh Layer of a Neural Network.
+
+    Attributes
+    ----------
+
+    """
+    def __init__(self, identifier: str, in_dim: Tuple):
+        if not len(in_dim) >= 1:
+            raise Exception("TanhNode: in_dim cannot be void")
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, in_dim, out_dim)

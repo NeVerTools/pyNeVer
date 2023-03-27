@@ -152,9 +152,9 @@ class PytorchTraining(TrainingStrategy):
     """
 
     def __init__(self, optimizer_con: type, opt_params: Dict, loss_function: Callable, n_epochs: int,
-                 validation_percentage: float, train_batch_size: int, validation_batch_size: int,
+                 validation_percentage: float, train_batch_size: int, validation_batch_size: int, r_split: bool = True,
                  scheduler_con: type = None, sch_params: Dict = None, precision_metric: Callable = None,
-                 network_transform: Callable = None, cuda: bool = False, train_patience: int = None,
+                 network_transform: Callable = None, device: str = 'cpu', train_patience: int = None,
                  checkpoints_root: str = '', verbose_rate: int = None):
 
         TrainingStrategy.__init__(self)
@@ -173,13 +173,17 @@ class PytorchTraining(TrainingStrategy):
         self.validation_percentage = validation_percentage
         self.train_batch_size = train_batch_size
         self.validation_batch_size = validation_batch_size
+        self.r_split = r_split
         self.network_transform = network_transform
-        self.cuda = cuda
+
+        assert device == 'cpu' or device == 'cuda' or device == 'mps'
+        self.device = torch.device(device)
 
         if train_patience is None:
             train_patience = n_epochs + 1
 
         self.train_patience = train_patience
+        self.verbose_rate = verbose_rate
         self.checkpoints_root = checkpoints_root
 
         # Sanitize checkpoints root as a path
@@ -187,14 +191,12 @@ class PytorchTraining(TrainingStrategy):
             if self.checkpoints_root[-1] != '\\':
                 self.checkpoints_root = self.checkpoints_root + '/'
 
-        self.verbose_rate = verbose_rate
-
     def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -> networks.NeuralNetwork:
 
         pytorch_converter = cv.PyTorchConverter()
         py_net = pytorch_converter.from_neural_network(network)
 
-        py_net = self.__training(py_net, dataset)
+        py_net = self.pytorch_training(py_net, dataset)
 
         network.alt_rep_cache.clear()
         network.alt_rep_cache.append(py_net)
@@ -202,7 +204,7 @@ class PytorchTraining(TrainingStrategy):
 
         return network
 
-    def __training(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> cv.PyTorchNetwork:
+    def pytorch_training(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> cv.PyTorchNetwork:
 
         """
         Training procedure for the PyTorchNetwork.
@@ -221,16 +223,11 @@ class PytorchTraining(TrainingStrategy):
 
         """
 
-        # If the training should be done with the GPU we set the model to cuda.
-        if self.cuda:
-            net.pytorch_network.cuda()
-        else:
-            net.pytorch_network.cpu()
+        # We set the model to the opportune device.
+        net.pytorch_network.float()
+        net.pytorch_network.to(self.device)
 
         logger = logging.getLogger(logger_name)
-
-        # We set all the values of the network to double.
-        net.pytorch_network.double()
 
         # We build the optimizer and the scheduler
         optimizer = self.optimizer_con(net.pytorch_network.parameters(), **self.opt_params)
@@ -243,7 +240,11 @@ class PytorchTraining(TrainingStrategy):
         # We split the dataset in training set and validation set.
         validation_len = int(dataset.__len__() * self.validation_percentage)
         training_len = dataset.__len__() - validation_len
-        training_set, validation_set = tdt.random_split(dataset, (training_len, validation_len))
+        if self.r_split:
+            training_set, validation_set = tdt.random_split(dataset, (training_len, validation_len))
+        else:
+            training_set = tdt.Subset(dataset, range(training_len))
+            validation_set = tdt.Subset(dataset, range(training_len, dataset.__len__()))
 
         # We instantiate the data loaders
         train_loader = tdt.DataLoader(training_set, self.train_batch_size)
@@ -279,6 +280,7 @@ class PytorchTraining(TrainingStrategy):
         # history_score is used to keep track of the evolution of training loss and validation loss
         history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
 
+
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
         # epochs until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
@@ -286,6 +288,9 @@ class PytorchTraining(TrainingStrategy):
             if epochs_without_decrease > self.train_patience:
                 break
 
+            # We set all the values of the network to double.
+            # net.pytorch_network.double()
+            net.pytorch_network.float()
             # We set the network to train mode.
             net.pytorch_network.train()
             avg_loss = 0
@@ -293,13 +298,11 @@ class PytorchTraining(TrainingStrategy):
             # For each batch we compute one learning step
             for batch_idx, (data, target) in enumerate(train_loader):
 
-                if self.cuda:
-                    data, target = data.cuda(), target.cuda()
-
+                data = data.float()
+                if target.dtype == torch.double:
+                    target = target.float()
+                data, target = data.to(self.device), target.to(self.device)
                 data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
-                if target.dtype == torch.float:
-                    target = target.double()
-                data = data.double()
                 optimizer.zero_grad()
                 output = net.pytorch_network(data)
                 loss = self.loss_function(output, target)
@@ -324,19 +327,17 @@ class PytorchTraining(TrainingStrategy):
             # EPOCH TEST
 
             net.pytorch_network.eval()
-            net.pytorch_network.double()
+            net.pytorch_network.float()
             validation_loss = 0
             with torch.no_grad():
 
                 for batch_idx, (data, target) in enumerate(validation_loader):
 
-                    if self.cuda:
-                        data, target = data.cuda(), target.cuda()
-
+                    data = data.float()
+                    if target.dtype == torch.double:
+                        target = target.float()
+                    data, target = data.to(self.device), target.to(self.device)
                     data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
-                    if target.dtype == torch.float:
-                        target = target.double()
-                    data = data.double()
                     output = net.pytorch_network(data)
                     loss = self.precision_metric(output, target)
                     validation_loss += loss.data.item()
@@ -407,34 +408,46 @@ class PytorchTesting(TestingStrategy):
     cuda : bool, Optional
         Whether to use the cuda library for the procedure (default: False).
 
+    save_results : bool, Optional
+        Whether to save outputs, targets and losses as attributes.
+
     """
 
-    def __init__(self, metric: Callable, metric_params: Dict, test_batch_size: int, cuda: bool = False):
+    def __init__(self, metric: Callable, metric_params: Dict, test_batch_size: int, device: str = 'cpu',
+                 save_results: bool = False, mps: bool = False):
 
         TestingStrategy.__init__(self)
         self.metric = metric
         self.metric_params = metric_params
         self.test_batch_size = test_batch_size
-        self.cuda = cuda
+        assert device == 'cpu' or device == 'cuda' or device == 'mps'
+        self.device = torch.device(device)
+        self.mps = mps
+        self.save_results = save_results
+        if save_results:
+            self.outputs = []
+            self.targets = []
+            self.losses = []
+        else:
+            self.outputs = None
+            self.targets = None
+            self.losses = None
 
     def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -> float:
 
         pytorch_converter = cv.PyTorchConverter()
         py_net = pytorch_converter.from_neural_network(network)
 
-        measure = self.__testing(py_net, dataset)
+        measure = self.pytorch_testing(py_net, dataset)
 
         return measure
 
-    def __testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> float:
+    def pytorch_testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> float:
 
-        if self.cuda:
-            net.pytorch_network.cuda()
-        else:
-            net.pytorch_network.cpu()
+        net.pytorch_network.to(self.device)
 
         # We set all the values of the network to double.
-        net.pytorch_network.double()
+        net.pytorch_network.float()
 
         # We instantiate the data loader
         test_loader = tdt.DataLoader(dataset, self.test_batch_size)
@@ -445,15 +458,18 @@ class PytorchTesting(TestingStrategy):
 
             for batch_idx, (data, target) in enumerate(test_loader):
 
-                if self.cuda:
-                    data, target = data.cuda(), target.cuda()
+                data = data.float()
+                if target.dtype == torch.double:
+                    target = target.float()
 
+                data, target = data.to(self.device), target.to(self.device)
                 data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
-                if target.dtype == torch.float:
-                    target = target.double()
-                data = data.double()
                 output = net.pytorch_network(data)
                 loss = self.metric(output, target, **self.metric_params)
+                if self.save_results:
+                    self.outputs.append(output.cpu().detach().numpy())
+                    self.targets.append(target.cpu().detach().numpy())
+                    self.losses.append(loss.item())
                 test_loss += loss.data.item()
 
         # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)

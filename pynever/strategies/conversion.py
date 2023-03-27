@@ -137,10 +137,60 @@ class ONNXConverter(ConversionStrategy):
         onnx_nodes.append(onnx_node)
 
     @staticmethod
+    def __add_onnx_elu(current_node: nodes.ELUNode, current_input: str, current_output: str,
+                       onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            'Elu',
+            inputs=[current_input],
+            outputs=[current_output],
+            alpha=current_node.alpha
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_leakyrelu(current_node: nodes.LeakyReLUNode, current_input: str, current_output: str,
+                             onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            'LeakyRelu',
+            inputs=[current_input],
+            outputs=[current_output],
+            alpha=current_node.negative_slope
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_celu(current_node: nodes.CELUNode, current_input: str, current_output: str,
+                        onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            'Celu',
+            inputs=[current_input],
+            outputs=[current_output],
+            alpha=current_node.alpha
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
     def __add_onnx_sigmoid(current_input: str, current_output: str, onnx_nodes: list):
 
         onnx_node = onnx.helper.make_node(
             'Sigmoid',
+            inputs=[current_input],
+            outputs=[current_output],
+        )
+
+        onnx_nodes.append(onnx_node)
+
+    @staticmethod
+    def __add_onnx_tanh(current_input: str, current_output: str, onnx_nodes: list):
+
+        onnx_node = onnx.helper.make_node(
+            'Tanh',
             inputs=[current_input],
             outputs=[current_output],
         )
@@ -525,8 +575,20 @@ class ONNXConverter(ConversionStrategy):
                     if isinstance(current_node, nodes.ReLUNode):
                         self.__add_onnx_relu(current_input, current_output, onnx_nodes)
 
+                    elif isinstance(current_node, nodes.ELUNode):
+                        self.__add_onnx_elu(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.LeakyReLUNode):
+                        self.__add_onnx_leakyrelu(current_node, current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.CELUNode):
+                        self.__add_onnx_celu(current_node, current_input, current_output, onnx_nodes)
+
                     elif isinstance(current_node, nodes.SigmoidNode):
                         self.__add_onnx_sigmoid(current_input, current_output, onnx_nodes)
+
+                    elif isinstance(current_node, nodes.TanhNode):
+                        self.__add_onnx_tanh(current_input, current_output, onnx_nodes)
 
                     elif isinstance(current_node, nodes.FullyConnectedNode):
                         self.__add_onnx_linear(current_node, current_input, current_output, onnx_nodes, input_info,
@@ -672,9 +734,43 @@ class ONNXConverter(ConversionStrategy):
 
                 network.add_node(nodes.ReLUNode(node.output[0], in_dim))
 
+            elif node.op_type == "Elu":
+
+                alpha = 1.0
+
+                for att in node.attribute:
+                    if att.name == 'alpha':
+                        alpha = att.f
+
+                network.add_node(nodes.ELUNode(node.output[0], in_dim, alpha))
+
+            elif node.op_type == "LeakyRelu":
+
+                negative_slope = 1.0
+
+                for att in node.attribute:
+                    if att.name == 'alpha':
+                        negative_slope = att.f
+
+                network.add_node(nodes.LeakyReLUNode(node.output[0], in_dim, negative_slope))
+
+            elif node.op_type == "Celu":
+
+                alpha = 1.0
+
+                for att in node.attribute:
+                    if att.name == 'alpha':
+                        alpha = att.f
+
+                network.add_node(nodes.CELUNode(node.output[0], in_dim, alpha))
+
             elif node.op_type == "Sigmoid":
 
                 network.add_node(nodes.SigmoidNode(node.output[0], in_dim))
+
+            elif node.op_type == "Tanh":
+
+                network.add_node(nodes.TanhNode(node.output[0], in_dim))
 
             elif node.op_type == "Gemm":
                 # We assume that the weight tensor is always the second element of node.input and the bias tensor
@@ -934,8 +1030,20 @@ class PyTorchConverter(ConversionStrategy):
                     if isinstance(layer, nodes.ReLUNode):
                         new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
 
+                    elif isinstance(layer, nodes.ELUNode):
+                        new_layer = pyt_l.ELU(layer.identifier, layer.in_dim, layer.out_dim, layer.alpha)
+
+                    elif isinstance(layer, nodes.LeakyReLUNode):
+                        new_layer = pyt_l.LeakyReLU(layer.identifier, layer.in_dim, layer.out_dim, layer.negative_slope)
+
+                    elif isinstance(layer, nodes.CELUNode):
+                        new_layer = pyt_l.CELU(layer.identifier, layer.in_dim, layer.out_dim, layer.alpha)
+
                     elif isinstance(layer, nodes.SigmoidNode):
                         new_layer = pyt_l.Sigmoid(layer.identifier, layer.in_dim, layer.out_dim)
+
+                    elif isinstance(layer, nodes.TanhNode):
+                        new_layer = pyt_l.Tanh(layer.identifier, layer.in_dim, layer.out_dim)
 
                     elif isinstance(layer, nodes.FullyConnectedNode):
 
@@ -1170,40 +1278,40 @@ class PyTorchConverter(ConversionStrategy):
 
         for m in alt_rep.pytorch_network.modules():
 
-            # Skip layer
-            if isinstance(m, pyt_l.Sequential):
-                continue
-
             # Control input
             if hasattr(m, 'in_dim'):
                 layer_in_dim = m.in_dim
 
-            if layer_in_dim is None:
+            if layer_in_dim is None and not isinstance(m, pyt_l.Sequential):
                 print('Please provide input dimension for the network:')
-                text = input()
-                layer_in_dim = tuple()
-
-                if len(text.split(",")) > 1:
-                    for token in text.split(","):
-                        if token != "":
-                            num = int(token)
-                            layer_in_dim += (num,)
-                else:
-                    layer_in_dim += (int(text),)
+                layer_in_dim = input()
+                layer_in_dim = (layer_in_dim,)
 
             if hasattr(m, 'identifier'):
                 layer_id = m.identifier
             else:
                 layer_id = f"Layer{node_index}"
 
-                # Read node
+            # Read node
             new_node = None
 
             if isinstance(m, pyt_l.ReLU):
                 new_node = nodes.ReLUNode(layer_id, layer_in_dim)
 
+            elif isinstance(m, pyt_l.ELU):
+                new_node = nodes.ELUNode(layer_id, layer_in_dim, m.alpha)
+
+            elif isinstance(m, pyt_l.LeakyReLU):
+                new_node = nodes.LeakyReLUNode(layer_id, layer_in_dim, m.negative_slope)
+
+            elif isinstance(m, pyt_l.CELU):
+                new_node = nodes.CELUNode(layer_id, layer_in_dim, m.alpha)
+
             elif isinstance(m, pyt_l.Sigmoid):
                 new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
+
+            elif isinstance(m, pyt_l.Tanh):
+                new_node = nodes.TanhNode(m.identifier, m.in_dim)
 
             elif isinstance(m, pyt_l.Linear):
                 out_features = m.out_features
@@ -1310,6 +1418,9 @@ class PyTorchConverter(ConversionStrategy):
             elif isinstance(m, pyt_l.Dropout):
 
                 new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.p)
+
+            elif isinstance(m, pyt_l.Sequential):
+                pass
 
             else:
                 raise NotImplementedError
