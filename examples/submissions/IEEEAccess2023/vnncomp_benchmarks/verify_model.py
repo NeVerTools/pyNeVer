@@ -1,3 +1,4 @@
+import onnx
 
 import pynever.strategies.verification as pyn_ver
 import pynever.strategies.conversion as pyn_con
@@ -34,7 +35,8 @@ def main():
     logger_exp_stream.setLevel(logging.INFO)
 
     net_id = network_path.split("/")[-1].replace(".onnx", "")
-    onnx_network = pyn_con.ONNXNetwork(net_id, network_path)
+    spec_id = spec_path.split("/")[-1].replace(".vnnlib", "")
+    onnx_network = pyn_con.ONNXNetwork(net_id, onnx.load(network_path))
     pyn_network = pyn_con.ONNXConverter().to_neural_network(onnx_network)
 
     smt_parser = pyn_smt.SmtPropertyParser(spec_path, "X", "Y")
@@ -42,7 +44,16 @@ def main():
     pyn_prop = pyn_ver.NeVerProperty(smt_parser.in_coef_mat, smt_parser.in_bias_mat, smt_parser.out_coef_mat,
                                      smt_parser.out_bias_mat)
 
-    pyn_ver.NeverVerification()
+    if ver_mode == "complete" or ver_mode == "overapprox":
+        verifier = pyn_ver.NeverVerification(ver_mode)
+    else:
+        verifier = pyn_ver.NeverVerification(ver_mode, [1])
+
+    start = time.perf_counter()
+    result = verifier.verify(pyn_network, pyn_prop)
+    end = time.perf_counter()
+
+    logger_exp_file.info(f"{net_id},{spec_id},{ver_mode},{result},{end - start}")
 
 
 if __name__ == "__main__":

@@ -243,6 +243,9 @@ class NeverVerification(VerificationStrategy):
         - given_flags: the neuron to be refined are selected referring to the list given in params
         - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
           the abstraction would incur using the coarse over_approximation.
+        - overapprox: no neuron refinement.
+        - complete: full neuron refinement.
+        - mixed: equal number of neuron refined in each ReLU Layer.
 
     params : List
         Parameters for the heuristic of interest.
@@ -283,15 +286,27 @@ class NeverVerification(VerificationStrategy):
 
             elif isinstance(current_node, nodes.ReLUNode):
 
-                if params is None and heuristic == "best_n_neurons":
+                if heuristic == "overapprox":
                     temp_params = [0]
+                    temp_heuristic = "best_n_neurons"
+                elif heuristic == "complete":
+                    temp_params = [current_node.in_dim[0]]
+                    temp_heuristic = "best_n_neurons"
+                elif heuristic == "mixed":
+                    temp_params = params
+                    temp_heuristic = "best_n_neurons"
+                elif params is None and heuristic == "best_n_neurons":
+                    temp_params = [0]
+                    temp_heuristic = heuristic
                 elif params is None and heuristic == "given_flags":
                     temp_params = [False for i in range(len(current_node.in_dim[0]))]
+                    temp_heuristic = heuristic
                 else:
                     temp_params = params[relu_count]
+                    temp_heuristic = heuristic
 
                 abst_network.add_node(abst.AbsReLUNode("ABST_" + current_node.identifier, current_node,
-                                                       heuristic, temp_params))
+                                                       temp_heuristic, temp_params))
 
                 relu_count += 1
 
