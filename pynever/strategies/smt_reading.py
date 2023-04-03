@@ -457,6 +457,13 @@ class SmtPropertyParser:
 
         x_assert = self.__get_assert_commands_for(self.x_name)
         y_assert = self.__get_assert_commands_for(self.y_name)
+
+        # Process 'and' in output property
+        if ' & ' in y_assert[0] and len(y_assert) == 1:
+            y_assert = y_assert[0].split(' & ')
+            y_assert[0] = y_assert[0][1:]
+            y_assert[-1] = y_assert[-1][:-1]
+
         disjunct_list = []
         tree_converter = ExpressionTreeConverter()
 
