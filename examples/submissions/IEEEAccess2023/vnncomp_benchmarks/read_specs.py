@@ -4,6 +4,7 @@ import pynever.strategies.conversion as conv
 import onnx
 
 
+<<<<<<< HEAD:examples/submissions/IEEEAccess2023/vnncomp_benchmarks/test_specs.py
 spec_path = "vnnlib_specs/"
 onnx_path = "onnx_nets/"
 spec_ids = ["dubinsrejoin_case_safe_0.vnnlib", "cartpole_case_safe_9.vnnlib", "lunarlander_case_safe_0.vnnlib"]
@@ -23,3 +24,12 @@ for i in range(len(onnx_ids)):
     net = conv.ONNXConverter().to_neural_network(onnx_net)
     assert isinstance(net, pynever.networks.SequentialNetwork)
     
+=======
+spec_path = "vnnlib_specs/dubinsrejoin_case_safe_0.vnnlib"
+# spec_path = "vnnlib_specs/dubinsrejoin_case_unsafe_4.vnnlib"
+
+vnnlib_parser = smt_reading.SmtPropertyParser(spec_path, "X", "Y")
+vnnlib_parser.parse_property()
+print(vnnlib_parser.in_coef_mat, vnnlib_parser.in_bias_mat)
+print(vnnlib_parser.out_coef_mat, vnnlib_parser.out_bias_mat)
+>>>>>>> main:examples/submissions/IEEEAccess2023/vnncomp_benchmarks/read_specs.py
