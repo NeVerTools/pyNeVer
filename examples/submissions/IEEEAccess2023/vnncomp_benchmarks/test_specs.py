@@ -19,7 +19,7 @@ onnx_path = "onnx_nets/"
 clean_onnx = "clean_onnx/"
 graph_path = "graphs/"
 references_path = "reference_tables/"
-cs_ids = ["cartpole", "dubinsrejoin", "lunarlander"]
+cs_ids = ["cartpole", "lunarlander", "dubinsrejoin"]
 
 for cs_id in cs_ids:
 
@@ -35,7 +35,7 @@ for cs_id in cs_ids:
         # the "truth tables" and the ones in the properties
         corresponding_spec_id = f"{cs_id}_case_{record['RES']}_{num_record}.vnnlib"
         smt_parser = smt_reading.SmtPropertyParser(spec_path + corresponding_spec_id, "X", "Y")
-        print(cs_id, num_record)
+        # print(cs_id, num_record)
         smt_parser.parse_property()
 
         n_v = 0
@@ -78,6 +78,7 @@ for cs_id in cs_ids:
         else:
             is_counterexample.append([None, None])
 
+    plt.figure()
     plt.boxplot([total_lb_deviation, total_ub_deviation], labels=["LB", "UB"])
     plt.title("Absolute deviation for LB and UB")
     plt.savefig(graph_path + cs_id + "-abs_lb_ub.eps")
