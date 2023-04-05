@@ -8,8 +8,12 @@ import logging
 
 
 if __name__ == "__main__":
+
     property_ids = ["P3_no_prop", "P4_no_prop"]
     # property_ids = ["P3"]
+    # It should be noted that we are checking the negation of the property of interest: in the case of P3
+    # we are verifying if there exist a point for which the COC is indeed minimal
+    # (see https://arxiv.org/pdf/1702.01135.pdf for details on the properties)
     unsafe_mats = [[[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 0, -1]],
                    [[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 0, -1]]]
     unsafe_vecs = [[[0], [0], [0], [0]], [[0], [0], [0], [0]]]
@@ -35,8 +39,8 @@ if __name__ == "__main__":
     
     param_set_id = ["Over-Approx", "Mixed", "Complete"]"""
 
-    verification_parameters = [["complete", None]]
-    param_set_id = ["Complete"]
+    verification_parameters = [["mixed", [1]]]
+    param_set_id = ["Mixed"]
 
     # Loggers and Handler definition
 
@@ -154,7 +158,8 @@ if __name__ == "__main__":
                 verifier = ver.NeverVerification(heuristic, params)
 
                 time_start = time.perf_counter()
-                safe = verifier.verify(network, prop)
+                # Remember: we are verifying the negation of the original property
+                safe = not verifier.verify(network, prop)
                 time_end = time.perf_counter()
                 logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},{param_set_id[k]},{safe},"
                                       f"{time_end - time_start}")
