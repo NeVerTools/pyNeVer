@@ -43,7 +43,7 @@ if __name__ == "__main__":
     logger_exp_stream.setLevel(logging.INFO)
 
     # cs_ids = ["cartpole", "lunarlander", "dubinsrejoin"]
-    cs_ids = ["cartpole"]
+    cs_ids = ["cartpole", "lunarlander", "dubinsrejoin"]
 
     logger_exp_file.info(f"CS,ID,REF_RES,PYN_RES,REF_CE_RESP_SPEC,REF_CE_RESP_TAB,PYN_CES,PYN_OUTS")
 

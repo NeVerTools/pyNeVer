@@ -48,11 +48,11 @@ logger_exp_stream.setLevel(logging.INFO)
 #
 # ##### PARAMETERS DEFINITION #####
 onnx_path = "clean_onnx/"
-onnx_ids = ["cartpole.onnx"]  # , "dubinsrejoin.onnx", "lunarlander.onnx"]
+onnx_ids = ["cartpole.onnx", "lunarlander.onnx", "dubinsrejoin.onnx"]
 verification_modes = ["complete"]
 specs_path = "vnnlib_specs/"
 specs_ids = os.listdir(specs_path)
-timeout = 60
+timeout = 3600
 
 logger_exp_file.info("NET_ID,SPEC_ID,VER_MODE,RESULT,TIME")
 
