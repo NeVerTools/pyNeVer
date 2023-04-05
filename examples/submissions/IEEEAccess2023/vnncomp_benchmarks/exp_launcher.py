@@ -59,6 +59,7 @@ logger_exp_file.info("NET_ID,SPEC_ID,VER_MODE,RESULT,TIME")
 for onnx_id in onnx_ids:
     cs_id = onnx_id.replace(".onnx", "")
     corresponding_ids = [temp_id for temp_id in specs_ids if cs_id in temp_id]
+    corresponding_ids = sorted(corresponding_ids, key=lambda x: int(x.split('_')[-1].replace('.vnnlib', '')))
     for spec_id in corresponding_ids:
 
         clean_spec_id = spec_id.replace(".vnnlib", "")

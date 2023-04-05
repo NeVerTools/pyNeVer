@@ -1,4 +1,5 @@
 import abc
+import copy
 import logging
 import operator
 import time
@@ -241,7 +242,7 @@ class NeverVerification(VerificationStrategy):
         Heuristic used to decide the refinement level of the ReLU abstraction.
         At present can be only one of the following:
         - given_flags: the neuron to be refined are selected referring to the list given in params
-        - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
+        - best_n_neurons: for each star the best n neuron to refine are selected based on the loss of precision
           the abstraction would incur using the coarse over_approximation.
         - overapprox: no neuron refinement.
         - complete: full neuron refinement.
@@ -268,6 +269,7 @@ class NeverVerification(VerificationStrategy):
         self.params = params
         self.refinement_level = refinement_level
         self.logger = logging.getLogger(logger_name)
+        self.counterexample_stars = None
 
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
@@ -339,10 +341,9 @@ class NeverVerification(VerificationStrategy):
 
     def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
 
+        self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
-
         ver_start_time = time.perf_counter()
-
         if isinstance(prop, NeVerProperty):
 
             output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
@@ -353,29 +354,38 @@ class NeverVerification(VerificationStrategy):
         else:
             raise Exception("Only NeVerProperty are supported at present")
 
-        or_verified = []
+        # Now we check the itersection of the output starset with the output halfspaces defined by the output
+        # constraints of our property of interest. We recall that the property is satisfiable if there exist at least
+        # one non-void intersection between the output starset and the halfspaces.
+        unsafe_stars = []
+        all_empty = []
         for i in range(len(out_coef_mat)):
 
-            verified = True
+            empty = True
             for star in output_starset.stars:
                 out_coef = out_coef_mat[i]
                 out_bias = out_bias_mat[i]
                 temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
                 if not temp_star.check_if_empty():
-                    verified = False
+                    empty = False
+                    if self.heuristic == 'complete':
+                        unsafe_stars.append(temp_star)
 
-            or_verified.append(verified)
+            all_empty.append(empty)
 
-        final_verified = any(or_verified)
+        is_satisfied = not all(all_empty)
 
+        if len(unsafe_stars) > 0:
+            self.counterexample_stars = self.__get_counterexample_stars(prop, unsafe_stars)
         ver_end_time = time.perf_counter()
-        self.logger.info(f"Verification Result: {final_verified}.")
+        self.logger.info(f"The property is satisfiable: {is_satisfied}.")
         self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
-        return final_verified
+        return is_satisfied
 
     def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
 
+        self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
 
         computing_start_time = time.perf_counter()
@@ -389,6 +399,20 @@ class NeverVerification(VerificationStrategy):
         computing_time = computing_end_time - computing_start_time
 
         return output_starset, computing_time
+
+    def __get_counterexample_stars(self, prop: Property, unsafe_stars: List[abst.Star]):
+
+        if not isinstance(prop, NeVerProperty):
+            raise NotImplementedError
+
+        counterexample_stars = []
+        for unsafe_star in unsafe_stars:
+            temp_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+            temp_star.predicate_matrix = copy.deepcopy(unsafe_star.predicate_matrix)
+            temp_star.predicate_bias = copy.deepcopy(unsafe_star.predicate_bias)
+            counterexample_stars.append(temp_star)
+
+        return counterexample_stars
 
 
 class NeverVerificationRef(VerificationStrategy):
