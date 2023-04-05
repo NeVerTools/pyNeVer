@@ -414,6 +414,25 @@ class SmtPropertyParser:
 
         return bias_mat
 
+    @staticmethod
+    def remove_parentheses(cmd: str) -> str:
+        strip_idx = 0
+
+        # Forward
+        while cmd[strip_idx + 1] == '(':
+            strip_idx += 1
+
+        ret = cmd[strip_idx:]
+        strip_idx = len(ret)
+
+        # Backward
+        while ret[strip_idx - 1] == ')':
+            strip_idx -= 1
+
+        ret = ret[:strip_idx + 1]
+
+        return ret
+
     def get_components_of(self, vec_name: str) -> list:
         """
         This method reads the components of the given named vector and
@@ -458,12 +477,6 @@ class SmtPropertyParser:
         x_assert = self.__get_assert_commands_for(self.x_name)
         y_assert = self.__get_assert_commands_for(self.y_name)
 
-        # Process 'and' in output property
-        if ' & ' in y_assert[0] and len(y_assert) == 1:
-            y_assert = y_assert[0].split(' & ')
-            y_assert[0] = y_assert[0][1:]
-            y_assert[-1] = y_assert[-1][:-1]
-
         disjunct_list = []
         tree_converter = ExpressionTreeConverter()
 
@@ -473,6 +486,16 @@ class SmtPropertyParser:
                 tree = tree_converter.build_from_infix(a)
                 disjunct_list.extend(tree.get_disjunctions_infix())
 
+        for i in range(len(disjunct_list)):
+            # Process 'and' in output property
+            if ' & ' in disjunct_list[i]:
+                disjunct_list[i] = disjunct_list[i].split(' & ')
+
+                count = 0
+                for a in disjunct_list[i]:
+                    disjunct_list[i][count] = self.remove_parentheses(a)
+                    count += 1
+
         # Refine assert statements
         for idx, a in enumerate(x_assert):
             x_assert[idx] = refine_smt_statement(a, self.x_name)
@@ -481,8 +504,9 @@ class SmtPropertyParser:
             for idx, a in enumerate(y_assert):
                 y_assert[idx] = refine_smt_statement(a, self.y_name)
         else:
-            for idx, a in enumerate(disjunct_list):
-                disjunct_list[idx] = refine_smt_statement(a, self.y_name)
+            for d_idx, statement in enumerate(disjunct_list):
+                for idx, a in enumerate(statement):
+                    disjunct_list[d_idx][idx] = refine_smt_statement(a, self.y_name)
 
         # Warning without reasons. self.x, self.y ARE lists but PyCharm is not convinced
         self.in_coef_mat = self.__get_coef_mat(self.x, self.x_name, x_assert)
@@ -494,8 +518,8 @@ class SmtPropertyParser:
         else:  # Otherwise, separate in different matrices
             disjunct_list.reverse()
             for d in disjunct_list:
-                self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, [d]))
-                self.out_bias_mat.append(self.__get_bias_mat([d]))
+                self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, d))
+                self.out_bias_mat.append(self.__get_bias_mat(d))
 
         return self.in_coef_mat, self.in_bias_mat, self.out_coef_mat, self.out_bias_mat
 
