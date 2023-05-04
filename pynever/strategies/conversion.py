@@ -1886,17 +1886,17 @@ class TensorflowConverter(ConversionStrategy):
                 #     new_node = nodes.MaxPoolNode(layer_id, layer_in_dim, kernel_size, stride, padding, dilation,
                 #                                  ceil_mode, return_indices)
                 #
-                # elif isinstance(m, kl.LocalResponseNorm):
-                #
-                #     new_node = nodes.LRNNode(layer_id, layer_in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
+
+                elif isinstance(m, self.LocalResponseNorm):
+                    new_node = nodes.LRNNode(layer_id, layer_in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
 
                 elif isinstance(m, kl.Softmax):
                     new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
 
-                # elif isinstance(m, kl.Unsqueeze):
-                #
-                #     axis = tuple([e - 1 for e in m.axis])
-                #     new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axis)
+                elif isinstance(m, self.Unsqueeze):
+
+                    axis = tuple([e - 1 for e in m.axis])
+                    new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axis)
 
                 elif isinstance(m, kl.Reshape):
                     shape = m.target_shape[1:]
