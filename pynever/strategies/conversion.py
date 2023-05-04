@@ -1448,6 +1448,9 @@ class PyTorchConverter(ConversionStrategy):
 
                 new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.p)
 
+            elif isinstance(m, pyt_l.Sequential):
+                continue
+
             else:
                 raise NotImplementedError
 
@@ -1578,32 +1581,12 @@ class TensorflowConverter(ConversionStrategy):
 
                         new_layer = kl.Dense(layer.out_features, 'linear', has_bias)
 
-                        weight = tf.convert_to_tensor(layer.weight).numpy()
-                        weight_initializer = tf.constant_initializer(weight)
-                        new_layer.kernel = new_layer.add_weight(
-                            'kernel',
-                            shape=[tf.compat.dimension_value(layer.in_dim[-1]), new_layer.units],
-                            initializer=weight_initializer,
-                            regularizer=new_layer.kernel_regularizer,
-                            constraint=new_layer.kernel_constraint,
-                            dtype=new_layer.dtype,
-                            trainable=True
-                        )
-
+                        # Keras weights are transposed with respect to ONNX and PyTorch
+                        new_layer.build((None,) + layer.in_dim)
                         if has_bias:
-                            bias = tf.convert_to_tensor(layer.bias).numpy()
-                            bias_initializer = tf.constant_initializer(bias)
-                            new_layer.bias = new_layer.add_weight(
-                                'bias',
-                                shape=[new_layer.units, ],
-                                initializer=bias_initializer,
-                                regularizer=new_layer.bias_regularizer,
-                                constraint=new_layer.bias_constraint,
-                                dtype=new_layer.dtype,
-                                trainable=True
-                            )
+                            new_layer.set_weights([layer.weight.T, layer.bias.T])
                         else:
-                            new_layer.bias = None
+                            new_layer.set_weights([layer.weight.T])
 
                     elif isinstance(layer, nodes.BatchNormNode):
 
@@ -1624,57 +1607,35 @@ class TensorflowConverter(ConversionStrategy):
                         
                         """
 
-                        # Size of padding should be equal to 2 * size of kernel_size
-                        padding = layer.padding[:int(len(layer.padding) / 2)]
-                        # TODO add padding layer as in here:
-                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
-
                         if len(layer.in_dim) == 2:
-
-                            new_layer = kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                  'valid', 'channels_first', layer.dilation,
-                                                  layer.groups, use_bias=layer.has_bias)
+                            pad_layer = kl.ZeroPadding1D(padding=layer.padding)
+                            new_layer = (pad_layer, kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                              'valid', 'channels_first', layer.dilation,
+                                                              layer.groups, use_bias=layer.has_bias))
 
                         elif len(layer.in_dim) == 3:
-
-                            new_layer = kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                  'valid', 'channels_first', layer.dilation,
-                                                  layer.groups, use_bias=layer.has_bias)
+                            pad_layer = kl.ZeroPadding2D(padding=((layer.padding[:2]), (layer.padding[2:])))
+                            new_layer = (pad_layer, kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                              'valid', 'channels_first', layer.dilation,
+                                                              layer.groups, use_bias=layer.has_bias))
 
                         elif len(layer.in_dim) == 4:
-
-                            new_layer = kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                  'valid', 'channels_first', layer.dilation,
-                                                  layer.groups, use_bias=layer.has_bias)
+                            pad_layer = kl.ZeroPadding3D(padding=((layer.padding[:2]), (layer.padding[2:4]),
+                                                                  (layer.padding[4:])))
+                            new_layer = (pad_layer, kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                              'valid', 'channels_first', layer.dilation,
+                                                              layer.groups, use_bias=layer.has_bias))
 
                         else:
                             raise Exception("Unsupported convolutional structure")
 
-                        weight = tf.convert_to_tensor(layer.weight).numpy()
-                        weight_initializer = tf.constant_initializer(weight)
-                        new_layer.kernel = new_layer.add_weight(
-                            'kernel',
-                            shape=[new_layer.filters, layer.in_dim[1:]],
-                            initializer=weight_initializer,
-                            regularizer=new_layer.kernel_regularizer,
-                            constraint=new_layer.kernel_constraint,
-                            dtype=new_layer.dtype,
-                            trainable=True
-                        )
+                        # Correct method to set weights: build the layer and set weights [weight, bias]
+                        new_layer[1].build((None,) + layer.in_dim)
+
                         if layer.has_bias:
-                            bias = tf.convert_to_tensor(layer.bias).numpy()
-                            bias_initializer = tf.constant_initializer(bias)
-                            new_layer.bias = new_layer.add_weight(
-                                'bias',
-                                shape=[new_layer.filters, ],
-                                initializer=bias_initializer,
-                                regularizer=new_layer.bias_regularizer,
-                                constraint=new_layer.bias_constraint,
-                                dtype=new_layer.dtype,
-                                trainable=True
-                            )
+                            new_layer[1].set_weights([layer.weight.T, layer.bias.T])
                         else:
-                            new_layer.bias = None
+                            new_layer[1].set_weights([layer.weight.T])
 
                     elif isinstance(layer, nodes.AveragePoolNode):
 
@@ -1757,7 +1718,14 @@ class TensorflowConverter(ConversionStrategy):
                         raise NotImplementedError
 
                     if new_layer is not None:
-                        tensorflow_layers.append(new_layer)
+                        if isinstance(new_layer, tuple):
+                            for e in new_layer:
+                                tensorflow_layers.append(e)
+                            tensorflow_layers[-1].identifier = layer.identifier
+                        else:
+                            # Force overwrite of layer name
+                            new_layer._init_set_name(layer.identifier)
+                            tensorflow_layers.append(new_layer)
 
                 keras_net = tf.keras.Sequential(tensorflow_layers, network.identifier)
                 keras_net.build((None,) + network.get_first_node().in_dim)
@@ -1811,16 +1779,25 @@ class TensorflowConverter(ConversionStrategy):
                 if hasattr(m, 'identifier'):
                     layer_id = m.identifier
                 else:
-                    layer_id = f'Layer{node_index}'
+                    layer_id = m.name
 
                 if isinstance(m, kl.InputLayer):
                     continue
 
                 if isinstance(m, kl.Activation):
-                    if m.activation.__name__ == 'relu':
-                        new_node = nodes.ReLUNode(layer_id, layer_in_dim)
-                    elif m.activation.__name__ == 'sigmoid':
+                    if m.activation.__name__ == 'sigmoid':
                         new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
+                    elif m.activation.__name__ == 'tanh':
+                        new_node = nodes.TanhNode(layer_id, layer_in_dim)
+
+                elif isinstance(m, kl.ReLU):
+                    new_node = nodes.ReLUNode(layer_id, layer_in_dim)
+
+                elif isinstance(m, kl.ELU):
+                    new_node = nodes.ELUNode(layer_id, layer_in_dim, m.alpha)
+
+                elif isinstance(m, kl.LeakyReLU):
+                    new_node = nodes.LeakyReLUNode(layer_id, layer_in_dim, m.alpha)
 
                 elif isinstance(m, kl.Dense):
                     out_features = m.units
