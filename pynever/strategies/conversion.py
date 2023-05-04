@@ -1563,6 +1563,9 @@ class TensorflowConverter(ConversionStrategy):
                     elif isinstance(layer, nodes.ELUNode):
                         new_layer = kl.ELU()
 
+                    elif isinstance(layer, nodes.CELUNode):
+                        raise NotImplementedError('Tensorflow does not support CELU activation')
+
                     elif isinstance(layer, nodes.LeakyReLUNode):
                         new_layer = kl.LeakyReLU()
 
@@ -1593,8 +1596,11 @@ class TensorflowConverter(ConversionStrategy):
                         new_layer = kl.BatchNormalization(layer.num_features, layer.momentum,
                                                           layer.eps, layer.affine, layer.track_running_stats)
 
-                        new_layer.kernel = tf.convert_to_tensor(layer.weight)
-                        new_layer.bias = tf.convert_to_tensor(layer.bias)
+                        # TODO kernel and bias are not considered in tensorflow. Also,
+                        # moving mean and variance have different dimensions.
+
+                        # new_layer.kernel = tf.convert_to_tensor(layer.weight)
+                        # new_layer.bias = tf.convert_to_tensor(layer.bias)
                         new_layer.moving_mean = tf.convert_to_tensor(layer.running_mean)
                         new_layer.moving_variance = tf.convert_to_tensor(layer.running_var)
 
@@ -1809,21 +1815,23 @@ class TensorflowConverter(ConversionStrategy):
                         has_bias = True
                     new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight.T, bias, has_bias)
 
-                # elif isinstance(m, tf_l.BatchNorm):
-                #
-                #     eps = m.epsilon
-                #     momentum = m.momentum
-                #     trainable = m.trainable
-                #     affine = m.center
-                #
-                #     kernel = m.kernel.numpy()
-                #     bias = m.bias.numpy()
-                #     mean = m.moving_mean.numpy()
-                #     var = m.moving_variance.numpy()
-                #
-                #     new_node = nodes.BatchNormNode(layer_id, layer_in_dim, kernel,
-                #                                    bias, mean, var, eps, momentum, affine,
-                #                                    trainable)
+                elif isinstance(m, kl.BatchNormalization):
+                    raise NotImplementedError('BatchNormalization is not working with Tensorflow')
+
+                    # eps = m.epsilon
+                    # momentum = m.momentum
+                    # trainable = m.trainable
+                    # affine = m.center
+                    #
+                    # # TODO what are kernel and bias?
+                    # # kernel = m.kernel.numpy()
+                    # # bias = m.bias.numpy()
+                    # mean = m.moving_mean.numpy()
+                    # var = m.moving_variance.numpy()
+                    #
+                    # new_node = nodes.BatchNormNode(layer_id, layer_in_dim, None,
+                    #                                None, mean, var, eps, momentum, affine,
+                    #                                trainable)
                 #
                 # elif isinstance(m, tf_l.Conv1d) or isinstance(m, tf_l.Conv2d) or isinstance(m, tf_l.Conv3d):
                 #
@@ -1878,31 +1886,27 @@ class TensorflowConverter(ConversionStrategy):
                 #     new_node = nodes.MaxPoolNode(layer_id, layer_in_dim, kernel_size, stride, padding, dilation,
                 #                                  ceil_mode, return_indices)
                 #
-                # elif isinstance(m, tf_l.LocalResponseNorm):
+                # elif isinstance(m, kl.LocalResponseNorm):
                 #
                 #     new_node = nodes.LRNNode(layer_id, layer_in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
-                #
-                # elif isinstance(m, tf_l.Softmax):
-                #
-                #     new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
-                #
-                # elif isinstance(m, tf_l.Unsqueeze):
+
+                elif isinstance(m, kl.Softmax):
+                    new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
+
+                # elif isinstance(m, kl.Unsqueeze):
                 #
                 #     axis = tuple([e - 1 for e in m.axis])
                 #     new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axis)
-                #
-                # elif isinstance(m, tf_l.Reshape):
-                #
-                #     shape = m.shape[1:]
-                #     new_node = nodes.ReshapeNode(layer_id, layer_in_dim, shape)
-                #
-                # elif isinstance(m, tf_l.Flatten):
-                #
-                #     new_node = nodes.FlattenNode(layer_id, layer_in_dim, m.axis - 1)
-                #
-                # elif isinstance(m, tf_l.Dropout):
-                #
-                #     new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.rate)
+
+                elif isinstance(m, kl.Reshape):
+                    shape = m.target_shape[1:]
+                    new_node = nodes.ReshapeNode(layer_id, layer_in_dim, shape)
+
+                elif isinstance(m, kl.Flatten):
+                    new_node = nodes.FlattenNode(layer_id, layer_in_dim, m.data_format - 1)
+
+                elif isinstance(m, kl.Dropout):
+                    new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.rate)
 
                 elif isinstance(m, tf.keras.Sequential):
                     continue

@@ -272,7 +272,7 @@ for conv in converters:
     sigmoid_node_test(conv)
     fully_connected_node_test(conv, True)
     fully_connected_node_test(conv, False)
-    # batchnorm_node_test(conv)
+    batchnorm_node_test(conv)
     conv_node_test(conv, True)
     conv_node_test(conv, False)
     averagepool_node_test(conv)
