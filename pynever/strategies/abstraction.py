@@ -19,8 +19,6 @@ logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
 logger_lb = logging.getLogger("pynever.strategies.abstraction.lb_times")
 logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
-# save_times = False
-propagate_bounds = False
 parallel = True
 
 
@@ -74,7 +72,7 @@ class Star:
     Methods
     ----------
     get_bounds()
-        Function used to get the the upper and lower bounds of the n variables of the star.
+        Function used to get the upper and lower bounds of the n variables of the star.
     check_if_empty()
         Function used to check if the star corresponds to an empty set.
 
@@ -82,7 +80,7 @@ class Star:
     """
 
     def __init__(self, predicate_matrix: Tensor, predicate_bias: Tensor, center: Tensor = None,
-                 basis_matrix: Tensor = None, lbs: list = None, ubs: list = None, is_empty: bool = None):
+                 basis_matrix: Tensor = None, is_empty: bool = None):
 
         predicate_dim_message = f"Error: the first dimension of the predicate_matrix ({predicate_matrix.shape[0]}) " \
                                 f"must be equal to the dimension of the predicate_bias ({predicate_bias.shape[0]})."
@@ -108,14 +106,14 @@ class Star:
             self.center = center
             self.basis_matrix = basis_matrix
 
-        if lbs is None:
-            lbs = [None for i in range(self.center.shape[0])]
+        # if lbs is None:
+        #     lbs = [None for _ in range(self.center.shape[0])]
+        #
+        # if ubs is None:
+        #     ubs = [None for _ in range(self.center.shape[0])]
 
-        if ubs is None:
-            ubs = [None for i in range(self.center.shape[0])]
-
-        self.lbs = lbs
-        self.ubs = ubs
+        self.lbs = [None for _ in range(self.center.shape[0])]
+        self.ubs = [None for _ in range(self.center.shape[0])]
         self.is_empty = is_empty
 
         # Private Attributes used for the sampling of the star.
@@ -155,7 +153,7 @@ class Star:
 
     def get_bounds(self, i) -> Tuple[float, float]:
         """
-        Function used to get the the upper and lower bounds of the n variables of the star.
+        Function used to get the upper and lower bounds of the n variables of the star.
 
         Return
         ---------
@@ -284,7 +282,6 @@ class Star:
     def get_samples(self, num_samples: int, reset_auxiliary: bool = False, new_start: bool = False) -> List[Tensor]:
 
         # As first thing we need to get a valid starting point:
-        # assert not self.check_if_empty(), "Empty Set: impossible to sample."
         if self.check_if_empty():
             return []
 
@@ -487,7 +484,7 @@ class StarSet(AbsElement):
 def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> Star:
     """
     Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector and returns
-    the Star resulting from the intesection of the input Star with the halfspace.
+    the Star resulting from the intersection of the input Star with the halfspace.
     """
 
     new_center = star.center
@@ -504,8 +501,6 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
 def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
     abs_input = list(abs_input)
     abs_output = set()
-
-    ref_flags = [refinement_flag for i in range(len(abs_input))]
 
     for i in range(len(abs_input)):
 
@@ -525,22 +520,12 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                 new_basis_mat = np.matmul(mask, star.basis_matrix)
                 new_pred_mat = star.predicate_matrix
                 new_pred_bias = star.predicate_bias
-                if propagate_bounds:
-                    lbs = []
-                    lbs.extend(star.lbs)
-                    ubs = []
-                    ubs.extend(star.ubs)
-                    lbs[var_index] = 0
-                    ubs[var_index] = 0
-                else:
-                    lbs = None
-                    ubs = None
-                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
+                new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
                 abs_output = abs_output.union({new_star})
 
             else:
 
-                if ref_flags[i]:
+                if refinement_flag:
 
                     # Creating lower bound star.
                     lower_star_center = np.matmul(mask, star.center)
@@ -549,18 +534,8 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     lower_predicate_matrix = np.vstack((star.predicate_matrix, star.basis_matrix[var_index, :]))
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = 0
-                    else:
-                        lbs = None
-                        ubs = None
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
-                                      lower_star_basis_mat, lbs, ubs)
+                                      lower_star_basis_mat)
 
                     # Creating upper bound star.
                     upper_star_center = star.center
@@ -569,18 +544,8 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     upper_predicate_matrix = np.vstack((star.predicate_matrix, -star.basis_matrix[var_index, :]))
                     # Possibile problema sulla dimensionalita' di star.center[var_index]
                     upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = star.ubs[var_index]
-                    else:
-                        lbs = None
-                        ubs = None
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
-                                      upper_star_basis_mat, lbs, ubs)
+                                      upper_star_basis_mat)
 
                     abs_output = abs_output.union({lower_star, upper_star})
 
@@ -609,17 +574,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     temp_vec = np.zeros((star.basis_matrix.shape[0], 1))
                     temp_vec[var_index, 0] = 1
                     new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-                    if propagate_bounds:
-                        lbs = []
-                        lbs.extend(star.lbs)
-                        ubs = []
-                        ubs.extend(star.ubs)
-                        lbs[var_index] = 0
-                        ubs[var_index] = star.ubs[var_index]
-                    else:
-                        lbs = None
-                        ubs = None
-                    new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, lbs, ubs)
+                    new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
 
                     abs_output = abs_output.union({new_star})
 
@@ -700,29 +655,29 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     new_center = np.matmul(weight, star.center) + bias
     new_predicate_matrix = star.predicate_matrix
     new_predicate_bias = star.predicate_bias
-
-    if propagate_bounds:
-        lbs = []
-        ubs = []
-        for i in range(new_center.shape[0]):
-
-            w = weight[i, :]
-            b = bias[i, 0]
-            lb = b
-            ub = b
-            for j in range(len(w)):
-                if star.lbs[j] is None or star.ubs[j] is None:
-                    star.get_bounds(j)
-
-                lb = lb + min(star.lbs[j] * w[j], star.ubs[j] * w[j])
-                ub = ub + max(star.lbs[j] * w[j], star.ubs[j] * w[j])
-            lbs.append(lb)
-            ubs.append(ub)
-    else:
-        lbs = None
-        ubs = None
-
-    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix, lbs, ubs)
+    #
+    # if propagate_bounds:
+    #     lbs = []
+    #     ubs = []
+    #     for i in range(new_center.shape[0]):
+    #
+    #         w = weight[i, :]
+    #         b = bias[i, 0]
+    #         lb = b
+    #         ub = b
+    #         for j in range(len(w)):
+    #             if star.lbs[j] is None or star.ubs[j] is None:
+    #                 star.get_bounds(j)
+    #
+    #             lb = lb + min(star.lbs[j] * w[j], star.ubs[j] * w[j])
+    #             ub = ub + max(star.lbs[j] * w[j], star.ubs[j] * w[j])
+    #         lbs.append(lb)
+    #         ubs.append(ub)
+    # else:
+    #     lbs = None
+    #     ubs = None
+    #
+    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
 
     return {new_star}
 
