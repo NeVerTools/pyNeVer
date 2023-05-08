@@ -96,7 +96,7 @@ class NSTransform:
         Coefficient of the L1 norm regularizer used on the batchnorm layers of the network
         to push the weights to near-to-zero values.
     fine_tuning : bool
-        If True the the L1 regularizer is not applied to the network.
+        If True the L1 regularizer is not applied to the network.
     cuda : bool, Optional
         It should be the same of the training strategy receiving the callable as network transform
     """
