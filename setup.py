@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pyNeVer",
-    version="0.0.2.alpha7.patch",
+    version="0.0.2.a8",
     author="Dario Guidotti",
     author_email="dario.guidotti@edu.unige.it",
     license='GNU General Public License with Commons Clause License Condition v1.0',
