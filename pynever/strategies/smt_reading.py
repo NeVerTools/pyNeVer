@@ -505,8 +505,11 @@ class SmtPropertyParser:
                 y_assert[idx] = refine_smt_statement(a, self.y_name)
         else:
             for d_idx, statement in enumerate(disjunct_list):
-                for idx, a in enumerate(statement):
-                    disjunct_list[d_idx][idx] = refine_smt_statement(a, self.y_name)
+                if isinstance(statement, list):
+                    for idx, a in enumerate(statement):
+                        disjunct_list[d_idx][idx] = refine_smt_statement(a, self.y_name)
+                else:
+                    disjunct_list[d_idx] = refine_smt_statement(statement, self.y_name)
 
         # Warning without reasons. self.x, self.y ARE lists but PyCharm is not convinced
         self.in_coef_mat = self.__get_coef_mat(self.x, self.x_name, x_assert)
@@ -518,8 +521,8 @@ class SmtPropertyParser:
         else:  # Otherwise, separate in different matrices
             disjunct_list.reverse()
             for d in disjunct_list:
-                self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, d))
-                self.out_bias_mat.append(self.__get_bias_mat(d))
+                self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, [d]))
+                self.out_bias_mat.append(self.__get_bias_mat([d]))
 
         return self.in_coef_mat, self.in_bias_mat, self.out_coef_mat, self.out_bias_mat
 
