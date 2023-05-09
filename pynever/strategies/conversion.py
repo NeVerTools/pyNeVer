@@ -1476,38 +1476,6 @@ class TensorflowConverter(ConversionStrategy):
 
     """
 
-    class LocalResponseNorm(kl.Layer):
-        """
-        Utility class for Tensorflow representation of a LRN layer
-
-        """
-
-        def __init__(self, depth_radius: int, alpha: float, beta: float, bias: float):
-            super().__init__()
-            self.depth_radius = depth_radius
-            self.alpha = alpha
-            self.beta = beta
-            self.bias = bias
-
-        def __call__(self, x: tf.Tensor):
-            x = tf.nn.local_response_normalization(x, self.depth_radius, self.bias, self.alpha, self.beta)
-            return x
-
-    class Unsqueeze(kl.Layer):
-        """
-        Utility class for Tensorflow representation of an Unsqueeze layer
-
-        """
-
-        def __init__(self, axis: tuple):
-            super().__init__()
-            self.axis = axis
-
-        def __call__(self, x: tf.Tensor):
-            for ax in self.axis:
-                x = tf.expand_dims(x, ax)
-            return x
-
     def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
         """
         Convert the neural network of interest to a Tensorflow representation.
@@ -1523,8 +1491,6 @@ class TensorflowConverter(ConversionStrategy):
             The Tensorflow representation resulting from the conversion of the original network.
 
         """
-
-        # TODO: still missing complete conversion for Convolutional and Pooling layers involving padding
 
         alt_net = None
         keras_net = None
@@ -1576,7 +1542,6 @@ class TensorflowConverter(ConversionStrategy):
                         new_layer = kl.Activation('tanh')
 
                     elif isinstance(layer, nodes.FullyConnectedNode):
-
                         if layer.bias is not None:
                             has_bias = True
                         else:
@@ -1592,17 +1557,7 @@ class TensorflowConverter(ConversionStrategy):
                             new_layer.set_weights([layer.weight.T])
 
                     elif isinstance(layer, nodes.BatchNormNode):
-
-                        new_layer = kl.BatchNormalization(layer.num_features, layer.momentum,
-                                                          layer.eps, layer.affine, layer.track_running_stats)
-
-                        # TODO kernel and bias are not considered in tensorflow. Also,
-                        # moving mean and variance have different dimensions.
-
-                        # new_layer.kernel = tf.convert_to_tensor(layer.weight)
-                        # new_layer.bias = tf.convert_to_tensor(layer.bias)
-                        new_layer.moving_mean = tf.convert_to_tensor(layer.running_mean)
-                        new_layer.moving_variance = tf.convert_to_tensor(layer.running_var)
+                        raise NotImplementedError('Tensorflow batch normalization is currently unavailable')
 
                     elif isinstance(layer, nodes.ConvNode):
                         """
@@ -1613,54 +1568,57 @@ class TensorflowConverter(ConversionStrategy):
                         
                         """
 
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
+
                         if len(layer.in_dim) == 2:
-                            pad_layer = kl.ZeroPadding1D(padding=layer.padding)
-                            new_layer = (pad_layer, kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                              'valid', 'channels_first', layer.dilation,
-                                                              layer.groups, use_bias=layer.has_bias))
+                            new_layer = kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         elif len(layer.in_dim) == 3:
-                            pad_layer = kl.ZeroPadding2D(padding=((layer.padding[:2]), (layer.padding[2:])))
-                            new_layer = (pad_layer, kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                              'valid', 'channels_first', layer.dilation,
-                                                              layer.groups, use_bias=layer.has_bias))
+                            new_layer = kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         elif len(layer.in_dim) == 4:
-                            pad_layer = kl.ZeroPadding3D(padding=((layer.padding[:2]), (layer.padding[2:4]),
-                                                                  (layer.padding[4:])))
-                            new_layer = (pad_layer, kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
-                                                              'valid', 'channels_first', layer.dilation,
-                                                              layer.groups, use_bias=layer.has_bias))
+                            new_layer = kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
 
                         else:
                             raise Exception("Unsupported convolutional structure")
 
                         # Correct method to set weights: build the layer and set weights [weight, bias]
-                        new_layer[1].build((None,) + layer.in_dim)
+                        new_layer.build((None,) + layer.in_dim)
 
                         if layer.has_bias:
-                            new_layer[1].set_weights([layer.weight.T, layer.bias.T])
+                            new_layer.set_weights([layer.weight.T, layer.bias.T])
                         else:
-                            new_layer[1].set_weights([layer.weight.T])
+                            new_layer.set_weights([layer.weight.T])
 
                     elif isinstance(layer, nodes.AveragePoolNode):
-
-                        padding = layer.padding[:int(len(layer.padding) / 2)]
-                        # TODO add padding layer as in here:
-                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
 
                         if len(layer.in_dim) == 2:
-                            new_layer = kl.AvgPool1D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.AvgPool1D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
 
                         elif len(layer.in_dim) == 3:
 
-                            new_layer = kl.AvgPool2D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.AvgPool2D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
 
                         elif len(layer.in_dim) == 4:
 
-                            new_layer = kl.AvgPool3D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.AvgPool3D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
 
                         else:
@@ -1668,19 +1626,20 @@ class TensorflowConverter(ConversionStrategy):
                                             "4 or less than 2 dimension excluding the batch dimension")
 
                     elif isinstance(layer, nodes.MaxPoolNode):
-
-                        padding = layer.padding[:int(len(layer.padding) / 2)]
-                        # TODO add padding layer as in here:
-                        # model.add(keras.layers.ZeroPadding2D(padding=(2, 2)))
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
 
                         if len(layer.in_dim) == 2:
-                            new_layer = kl.MaxPool1D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.MaxPool1D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
                         elif len(layer.in_dim) == 3:
-                            new_layer = kl.MaxPool2D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.MaxPool2D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
                         elif len(layer.in_dim) == 4:
-                            new_layer = kl.MaxPool3D(layer.kernel_size, layer.stride, 'valid',
+                            new_layer = kl.MaxPool3D(layer.kernel_size, layer.stride, pad,
                                                      'channels_first')
 
                         else:
@@ -1688,20 +1647,15 @@ class TensorflowConverter(ConversionStrategy):
                                             "4 or less than 2 dimension excluding the batch dimension")
 
                     elif isinstance(layer, nodes.LRNNode):
-
-                        new_layer = self.LocalResponseNorm(layer.size, layer.alpha, layer.beta, layer.k)
+                        raise NotImplementedError('Tensorflow does not support Local Response Normalization')
 
                     elif isinstance(layer, nodes.SoftMaxNode):
-
                         new_layer = kl.Softmax(layer.axis)
 
                     elif isinstance(layer, nodes.UnsqueezeNode):
-
-                        axis = tuple([e + 1 for e in layer.axes])
-                        new_layer = self.Unsqueeze(axis)
+                        raise NotImplementedError('Tensorflow does not support Unsqueeze layers')
 
                     elif isinstance(layer, nodes.ReshapeNode):
-
                         # Our representation does not consider batch dimension, therefore we need to add it to
                         # the shape.
                         shape = [1]
@@ -1712,26 +1666,20 @@ class TensorflowConverter(ConversionStrategy):
                         new_layer = kl.Reshape(shape)
 
                     elif isinstance(layer, nodes.FlattenNode):
-
-                        # We need to scale the axis by one since our representation does not support the batch dimension
-                        new_layer = kl.Flatten('channels_last')
+                        # We need to scale the axis by one since our representation
+                        # does not support the batch dimension
+                        new_layer = kl.Flatten('channels_first')
 
                     elif isinstance(layer, nodes.DropoutNode):
-
                         new_layer = kl.Dropout(layer.p)
 
                     else:
                         raise NotImplementedError
 
                     if new_layer is not None:
-                        if isinstance(new_layer, tuple):
-                            for e in new_layer:
-                                tensorflow_layers.append(e)
-                            tensorflow_layers[-1].identifier = layer.identifier
-                        else:
-                            # Force overwrite of layer name
-                            new_layer._init_set_name(layer.identifier)
-                            tensorflow_layers.append(new_layer)
+                        # Force overwrite of layer name
+                        new_layer._init_set_name(layer.identifier)
+                        tensorflow_layers.append(new_layer)
 
                 keras_net = tf.keras.Sequential(tensorflow_layers, network.identifier)
                 keras_net.build((None,) + network.get_first_node().in_dim)
@@ -1887,16 +1835,9 @@ class TensorflowConverter(ConversionStrategy):
                 #                                  ceil_mode, return_indices)
                 #
 
-                elif isinstance(m, self.LocalResponseNorm):
-                    new_node = nodes.LRNNode(layer_id, layer_in_dim, m.depth_radius, m.alpha, m.beta, m.bias)
 
                 elif isinstance(m, kl.Softmax):
                     new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
-
-                elif isinstance(m, self.Unsqueeze):
-
-                    axis = tuple([e - 1 for e in m.axis])
-                    new_node = nodes.UnsqueezeNode(layer_id, layer_in_dim, axis)
 
                 elif isinstance(m, kl.Reshape):
                     shape = m.target_shape[1:]
