@@ -2,10 +2,12 @@ import abc
 import copy
 from typing import Optional
 
+import keras.layers as kl
 import numpy as np
 import onnx
 import onnx.numpy_helper
 import torch
+import tensorflow as tf
 
 import pynever.networks as networks
 import pynever.nodes as nodes
@@ -62,6 +64,26 @@ class PyTorchNetwork(AlternativeRepresentation):
     def __init__(self, identifier: str, pytorch_network: torch.nn.Module, up_to_date: bool = True):
         super().__init__(identifier, up_to_date)
         self.pytorch_network = copy.deepcopy(pytorch_network)
+
+
+class TensorflowNetwork(AlternativeRepresentation):
+    """
+    A class used to represent a Tensorflow representation for a neural network.
+
+    Attributes
+    ----------
+    keras_network : keras.Sequential
+        Real sequential TensorFlow network.
+
+    """
+
+    def __init__(self, identifier: str, keras_network: tf.keras.Sequential, up_to_date: bool = True):
+        super().__init__(identifier, up_to_date)
+
+        # Deepcopy does not work with Keras models, so we need to do it manually
+        self.keras_network = tf.keras.models.clone_model(keras_network)
+        self.keras_network.build(keras_network.input_shape)
+        self.keras_network.set_weights(keras_network.get_weights())
 
 
 class ConversionStrategy(abc.ABC):
@@ -536,6 +558,10 @@ class ONNXConverter(ConversionStrategy):
                         if isinstance(alt_rep, PyTorchNetwork):
                             pytorch_cv = PyTorchConverter()
                             network = pytorch_cv.to_neural_network(alt_rep)
+
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            keras_cv = TensorflowConverter()
+                            network = keras_cv.to_neural_network(alt_rep)
 
                         else:
                             raise NotImplementedError
@@ -1018,6 +1044,10 @@ class PyTorchConverter(ConversionStrategy):
                             onnx_cv = ONNXConverter()
                             network = onnx_cv.to_neural_network(alt_rep)
 
+                        elif isinstance(alt_rep, TensorflowNetwork):
+                            keras_cv = TensorflowConverter()
+                            network = keras_cv.to_neural_network(alt_rep)
+
                         else:
                             raise NotImplementedError
                         break
@@ -1026,6 +1056,7 @@ class PyTorchConverter(ConversionStrategy):
                 pytorch_layers = []
                 for layer in network.nodes.values():
 
+                    new_layer = None
                     if isinstance(layer, nodes.ReLUNode):
                         new_layer = pyt_l.ReLU(layer.identifier, layer.in_dim, layer.out_dim)
 
@@ -1432,6 +1463,335 @@ class PyTorchConverter(ConversionStrategy):
         return network
 
 
+class TensorflowConverter(ConversionStrategy):
+    """
+    A class used to represent the conversion strategy for Tensorflow models.
+    It also provides utility classes for representing special layers.
+
+    Methods
+    ----------
+    from_neural_network(NeuralNetwork)
+        Convert the neural network of interest to a TensorflowNetwork model.
+    to_neural_network(TensorflowNetwork)
+        Convert the TensorflowNetwork of interest to our internal representation of a Neural Network.
+
+    """
+
+    def from_neural_network(self, network: networks.NeuralNetwork) -> TensorflowNetwork:
+        """
+        Convert the neural network of interest to a Tensorflow representation.
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The neural network to convert.
+
+        Returns
+        ----------
+        TensorflowNetwork
+            The Tensorflow representation resulting from the conversion of the original network.
+
+        """
+
+        alt_net = None
+        keras_net = None
+        for alt_rep in network.alt_rep_cache:
+            if isinstance(alt_rep, TensorflowNetwork) and alt_rep.up_to_date:
+                alt_net = alt_rep
+
+        if alt_net is None:
+
+            if not network.up_to_date:
+
+                for alt_rep in network.alt_rep_cache:
+
+                    if alt_rep.up_to_date:
+
+                        if isinstance(alt_rep, PyTorchNetwork):
+                            pytorch_cv = PyTorchConverter()
+                            network = pytorch_cv.to_neural_network(alt_rep)
+
+                        elif isinstance(alt_rep, ONNXNetwork):
+                            onnx_cv = ONNXConverter()
+                            network = onnx_cv.to_neural_network(alt_rep)
+
+                        else:
+                            raise NotImplementedError
+                        break
+
+            if isinstance(network, networks.SequentialNetwork):
+                tensorflow_layers = []
+
+                for layer in network.nodes.values():
+
+                    if isinstance(layer, nodes.ReLUNode):
+                        new_layer = kl.ReLU()
+
+                    elif isinstance(layer, nodes.ELUNode):
+                        new_layer = kl.ELU()
+
+                    elif isinstance(layer, nodes.CELUNode):
+                        raise NotImplementedError('Tensorflow does not support CELU activation')
+
+                    elif isinstance(layer, nodes.LeakyReLUNode):
+                        new_layer = kl.LeakyReLU()
+
+                    elif isinstance(layer, nodes.SigmoidNode):
+                        new_layer = kl.Activation('sigmoid')
+
+                    elif isinstance(layer, nodes.TanhNode):
+                        new_layer = kl.Activation('tanh')
+
+                    elif isinstance(layer, nodes.FullyConnectedNode):
+                        if layer.bias is not None:
+                            has_bias = True
+                        else:
+                            has_bias = False
+
+                        new_layer = kl.Dense(layer.out_features, 'linear', has_bias)
+
+                        # Keras weights are transposed with respect to ONNX and PyTorch
+                        new_layer.build((None,) + layer.in_dim)
+                        if has_bias:
+                            new_layer.set_weights([layer.weight.T, layer.bias.T])
+                        else:
+                            new_layer.set_weights([layer.weight.T])
+
+                    elif isinstance(layer, nodes.ConvNode):
+                        """
+                        We use the 'channels_first' representation for input, output and kernel
+                        shapes in order to keep compatibility within our internal representation.
+                        A future addition may be to convert the shapes to the default 'channels_last'
+                        Keras representation.
+                        
+                        """
+
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
+
+                        if len(layer.in_dim) == 2:
+                            new_layer = kl.Conv1D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
+
+                        elif len(layer.in_dim) == 3:
+                            new_layer = kl.Conv2D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
+
+                        elif len(layer.in_dim) == 4:
+                            new_layer = kl.Conv3D(layer.out_channels, layer.kernel_size, layer.stride,
+                                                  pad, 'channels_first', layer.dilation,
+                                                  layer.groups, use_bias=layer.has_bias)
+
+                        else:
+                            raise Exception("Unsupported convolutional structure")
+
+                        # Correct method to set weights: build the layer and set weights [weight, bias]
+                        new_layer.build((None,) + layer.in_dim)
+
+                        if layer.has_bias:
+                            new_layer.set_weights([layer.weight.T, layer.bias.T])
+                        else:
+                            new_layer.set_weights([layer.weight.T])
+
+                    elif isinstance(layer, nodes.AveragePoolNode):
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
+
+                        if len(layer.in_dim) == 2:
+                            new_layer = kl.AvgPool1D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+
+                        elif len(layer.in_dim) == 3:
+
+                            new_layer = kl.AvgPool2D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+
+                        elif len(layer.in_dim) == 4:
+
+                            new_layer = kl.AvgPool3D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+
+                        else:
+                            raise Exception("TensorFlow does not support AveragePool layer for input with more than"
+                                            "4 or less than 2 dimension excluding the batch dimension")
+
+                    elif isinstance(layer, nodes.MaxPoolNode):
+                        # Tensorflow only supports uniform padding
+                        if layer.padding != (0, 0, 0, 0):
+                            pad = 'same'
+                        else:
+                            pad = 'valid'
+
+                        if len(layer.in_dim) == 2:
+                            new_layer = kl.MaxPool1D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+                        elif len(layer.in_dim) == 3:
+                            new_layer = kl.MaxPool2D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+                        elif len(layer.in_dim) == 4:
+                            new_layer = kl.MaxPool3D(layer.kernel_size, layer.stride, pad,
+                                                     'channels_first')
+
+                        else:
+                            raise Exception("Tensorflow does not support MaxPool layer for input with more than"
+                                            "4 or less than 2 dimension excluding the batch dimension")
+
+                    elif isinstance(layer, nodes.SoftMaxNode):
+                        new_layer = kl.Softmax(layer.axis)
+
+                    elif isinstance(layer, nodes.ReshapeNode):
+                        # Our representation does not consider batch dimension, therefore we need to add it to
+                        # the shape.
+                        shape = [1]
+                        for e in layer.shape:
+                            shape.append(e)
+                        shape = tuple(shape)
+
+                        new_layer = kl.Reshape(shape)
+
+                    elif isinstance(layer, nodes.FlattenNode):
+                        # We need to scale the axis by one since our representation
+                        # does not support the batch dimension
+                        new_layer = kl.Flatten('channels_first')
+
+                    elif isinstance(layer, nodes.DropoutNode):
+                        new_layer = kl.Dropout(layer.p)
+
+                    else:
+                        raise NotImplementedError
+
+                    if new_layer is not None:
+                        # Force overwrite of layer name
+                        new_layer._init_set_name(layer.identifier)
+                        tensorflow_layers.append(new_layer)
+
+                keras_net = tf.keras.Sequential(tensorflow_layers, network.identifier)
+                keras_net.build((None,) + network.get_first_node().in_dim)
+
+            if alt_net is None and keras_net is None:
+                print("WARNING: network to convert is not valid, the alternative representation is None")
+
+            alt_net = TensorflowNetwork(identifier=network.identifier, keras_network=keras_net)
+
+        return alt_net
+
+    def to_neural_network(self, alt_rep: TensorflowNetwork) -> networks.NeuralNetwork:
+        """
+        Convert the Tensorflow representation of interest to the internal one.
+
+        Parameters
+        ----------
+        alt_rep : TensorflowNetwork
+            The Tensorflow Representation to convert.
+
+        Returns
+        ----------
+        NeuralNetwork
+            The Neural Network resulting from the conversion of Tensorflow Representation.
+
+        """
+
+        identifier = alt_rep.identifier
+        if hasattr(alt_rep.keras_network, 'input_id'):
+            input_id = alt_rep.keras_network.input_id
+        else:
+            input_id = 'X'
+
+        network = networks.SequentialNetwork(identifier, input_id)
+
+        node_index = 0
+
+        with tf.device('/cpu:0'):
+
+            for m in alt_rep.keras_network.layers:
+                new_node = None
+
+                if hasattr(m, 'in_dim'):
+                    layer_in_dim = m.in_dim
+                else:
+                    if isinstance(m.input_shape, list):
+                        layer_in_dim = tuple(xi for xi in m.input_shape[0] if xi is not None)
+                    else:
+                        layer_in_dim = tuple(xi for xi in m.input_shape if xi is not None)
+
+                if hasattr(m, 'identifier'):
+                    layer_id = m.identifier
+                else:
+                    layer_id = m.name
+
+                if isinstance(m, kl.InputLayer):
+                    continue
+
+                if isinstance(m, kl.Activation):
+                    if m.activation.__name__ == 'relu':
+                        new_node = nodes.ReLUNode(layer_id, layer_in_dim)
+                    elif m.activation.__name__ == 'sigmoid':
+                        new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
+                    elif m.activation.__name__ == 'tanh':
+                        new_node = nodes.TanhNode(layer_id, layer_in_dim)
+
+                elif isinstance(m, kl.ReLU):
+                    new_node = nodes.ReLUNode(layer_id, layer_in_dim)
+
+                elif isinstance(m, kl.ELU):
+                    new_node = nodes.ELUNode(layer_id, layer_in_dim, m.alpha)
+
+                elif isinstance(m, kl.LeakyReLU):
+                    new_node = nodes.LeakyReLUNode(layer_id, layer_in_dim, m.alpha)
+
+                elif isinstance(m, kl.Dense):
+                    out_features = m.units
+                    weight = m.kernel.numpy()
+                    bias = None
+                    has_bias = False
+                    if m.use_bias:
+                        bias = m.bias.numpy()
+                        has_bias = True
+                    new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight.T, bias, has_bias)
+
+                elif isinstance(m, kl.Conv1D) or isinstance(m, kl.Conv2D) or isinstance(m, kl.Conv3D):
+                    out_channels = m.filters
+                    kernel_size = m.kernel_size
+                    stride = m.strides
+
+                    if m.padding != 'valid':
+                        raise NotImplementedError('Only "valid" padding is supported')
+                    padding = (0, 0, 0, 0)
+
+                    dilation = m.dilation_rate
+                    groups = m.groups
+                    weight = m.kernel.numpy()
+                    if m.use_bias is None or m.use_bias is False:
+                        has_bias = False
+                        bias = None
+                    else:
+                        has_bias = True
+                        bias = m.bias.numpy()
+
+                    new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
+                                              stride, padding, dilation, groups, has_bias, bias, weight)
+
+                elif isinstance(m, tf.keras.Sequential):
+                    continue
+
+                else:
+                    raise NotImplementedError
+
+                if new_node is not None:
+                    node_index += 1
+                    network.add_node(new_node)
+
+        return network
+
+
 def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
     """
     Method to load a network from a path in an Alternative Representation.
@@ -1457,6 +1817,9 @@ def load_network_path(path: str) -> Optional[AlternativeRepresentation]:
     elif extension == 'onnx':
         model_proto = onnx.load(path)
         return ONNXNetwork(net_id, model_proto, True)
+    elif extension == 'h5':
+        model = tf.keras.models.load_model(path)
+        return TensorflowNetwork(net_id, model, True)
     else:
         return None
 
@@ -1478,3 +1841,5 @@ def save_network_path(network: AlternativeRepresentation, path: str) -> None:
         torch.save(network.pytorch_network, path)
     elif isinstance(network, ONNXNetwork):
         onnx.save(network.onnx_network, path)
+    elif isinstance(network, TensorflowNetwork):
+        network.keras_network.save(path)
