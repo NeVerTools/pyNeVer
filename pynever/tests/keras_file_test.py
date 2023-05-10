@@ -25,7 +25,7 @@ class KerasConversionTest(TestCase):
         load_tf_net = conv.load_network_path('nets/vcas_1.h5')
         if isinstance(load_tf_net, conv.TensorflowNetwork):
             pynever_net = conv.TensorflowConverter().to_neural_network(load_tf_net)
-            print(pynever_net)
+            conv.save_network_path(conv.ONNXConverter().from_neural_network(pynever_net), 'vcas-converted.onnx')
 
     def test_onnx2keras2pt(self):
         onnx_net = conv.load_network_path('nets/AC4.onnx')

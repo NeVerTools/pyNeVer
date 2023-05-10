@@ -1739,7 +1739,9 @@ class TensorflowConverter(ConversionStrategy):
                     continue
 
                 if isinstance(m, kl.Activation):
-                    if m.activation.__name__ == 'sigmoid':
+                    if m.activation.__name__ == 'relu':
+                        new_node = nodes.ReLUNode(layer_id, layer_in_dim)
+                    elif m.activation.__name__ == 'sigmoid':
                         new_node = nodes.SigmoidNode(layer_id, layer_in_dim)
                     elif m.activation.__name__ == 'tanh':
                         new_node = nodes.TanhNode(layer_id, layer_in_dim)
@@ -1763,91 +1765,27 @@ class TensorflowConverter(ConversionStrategy):
                         has_bias = True
                     new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight.T, bias, has_bias)
 
-                elif isinstance(m, kl.BatchNormalization):
-                    raise NotImplementedError('BatchNormalization is not working with Tensorflow')
+                elif isinstance(m, kl.Conv1D) or isinstance(m, kl.Conv2D) or isinstance(m, kl.Conv3D):
+                    out_channels = m.filters
+                    kernel_size = m.kernel_size
+                    stride = m.strides
 
-                    # eps = m.epsilon
-                    # momentum = m.momentum
-                    # trainable = m.trainable
-                    # affine = m.center
-                    #
-                    # # TODO what are kernel and bias?
-                    # # kernel = m.kernel.numpy()
-                    # # bias = m.bias.numpy()
-                    # mean = m.moving_mean.numpy()
-                    # var = m.moving_variance.numpy()
-                    #
-                    # new_node = nodes.BatchNormNode(layer_id, layer_in_dim, None,
-                    #                                None, mean, var, eps, momentum, affine,
-                    #                                trainable)
-                #
-                # elif isinstance(m, tf_l.Conv1d) or isinstance(m, tf_l.Conv2d) or isinstance(m, tf_l.Conv3d):
-                #
-                #     out_channels = m.filters
-                #     kernel_size = m.kernel_size
-                #     stride = m.strides
-                #     temp_padding = list(m.pad)
-                #     for e in m.pad:
-                #         temp_padding.append(e)
-                #     padding = tuple(temp_padding)
-                #     dilation = m.dilation_rate
-                #     groups = m.groups
-                #     weight = m.kernel.numpy()
-                #     if m.use_bias is None or m.use_bias is False:
-                #         has_bias = False
-                #         bias = None
-                #     else:
-                #         has_bias = True
-                #         bias = m.bias.numpy()
-                #
-                #     new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
-                #                               stride, padding, dilation, groups, has_bias, bias, weight)
-                #
-                # elif isinstance(m, tf_l.AvgPool1d) or isinstance(m, tf_l.AvgPool2d) or \
-                #         isinstance(m, tf_l.AvgPool3d):
-                #
-                #     stride = m.strides
-                #     temp_padding = list(m.pad)
-                #     for e in m.pad:
-                #         temp_padding.append(e)
-                #     padding = tuple(temp_padding)
-                #     kernel_size = m.pool_size
-                #     ceil_mode = m.ceil_mode
-                #     count_include_pad = m.count_include_pad
-                #
-                #     new_node = nodes.AveragePoolNode(layer_id, layer_in_dim, kernel_size, stride, padding,
-                #                                      ceil_mode, count_include_pad)
-                #
-                # elif isinstance(m, tf_l.MaxPool1d) or isinstance(m, tf_l.MaxPool2d) or \
-                #         isinstance(m, tf_l.MaxPool3d):
-                #
-                #     stride = m.strides
-                #     temp_padding = list(m.pad)
-                #     for e in m.pad:
-                #         temp_padding.append(e)
-                #     padding = tuple(temp_padding)
-                #     kernel_size = m.pool_size
-                #     dilation = m.dilation
-                #     return_indices = m.return_indices
-                #     ceil_mode = m.ceil_mode
-                #
-                #     new_node = nodes.MaxPoolNode(layer_id, layer_in_dim, kernel_size, stride, padding, dilation,
-                #                                  ceil_mode, return_indices)
-                #
+                    if m.padding != 'valid':
+                        raise NotImplementedError('Only "valid" padding is supported')
+                    padding = (0, 0, 0, 0)
 
+                    dilation = m.dilation_rate
+                    groups = m.groups
+                    weight = m.kernel.numpy()
+                    if m.use_bias is None or m.use_bias is False:
+                        has_bias = False
+                        bias = None
+                    else:
+                        has_bias = True
+                        bias = m.bias.numpy()
 
-                elif isinstance(m, kl.Softmax):
-                    new_node = nodes.SoftMaxNode(layer_id, layer_in_dim, m.axis)
-
-                elif isinstance(m, kl.Reshape):
-                    shape = m.target_shape[1:]
-                    new_node = nodes.ReshapeNode(layer_id, layer_in_dim, shape)
-
-                elif isinstance(m, kl.Flatten):
-                    new_node = nodes.FlattenNode(layer_id, layer_in_dim, m.data_format - 1)
-
-                elif isinstance(m, kl.Dropout):
-                    new_node = nodes.DropoutNode(layer_id, layer_in_dim, m.rate)
+                    new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
+                                              stride, padding, dilation, groups, has_bias, bias, weight)
 
                 elif isinstance(m, tf.keras.Sequential):
                     continue

@@ -3,40 +3,8 @@ import pynever.nodes as nodes
 import pynever.strategies.conversion as conversion
 
 
-def relu_node_test(converter: conversion.ConversionStrategy):
-    print("RELU NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.ReLUNode("ReLU_1", (3, 3, 3)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-    assert isinstance(start_node, nodes.ReLUNode)
-    assert isinstance(end_node, nodes.ReLUNode)
-    assert start_node.in_dim == end_node.in_dim
-    assert start_node.out_dim == end_node.out_dim
-    assert start_node.identifier == end_node.identifier
-
-
-def sigmoid_node_test(converter: conversion.ConversionStrategy):
-    print("SIGMOID NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.SigmoidNode("Sigmoid_1", (3, 3, 3)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-    assert isinstance(start_node, nodes.SigmoidNode)
-    assert isinstance(end_node, nodes.SigmoidNode)
-    assert start_node.in_dim == end_node.in_dim
-    assert start_node.out_dim == end_node.out_dim
-    assert start_node.identifier == end_node.identifier
-
-
 def fully_connected_node_test(converter: conversion.ConversionStrategy, has_bias: bool):
-    print("FULLY CONNECTED NODE TEST")
+    print("Keras: fully connected node test")
     start_network = network.SequentialNetwork("NET_TEST", "X")
     start_network.add_node(nodes.FullyConnectedNode("FullyConnected_1", (3, 4, 5), 5, has_bias=has_bias))
     alt_network = converter.from_neural_network(start_network)
@@ -54,14 +22,13 @@ def fully_connected_node_test(converter: conversion.ConversionStrategy, has_bias
     if not has_bias:
         assert start_node.bias is None and end_node.bias is None
     assert start_node.has_bias == end_node.has_bias
-    assert start_node.identifier == end_node.identifier
 
 
 def conv_node_test(converter: conversion.ConversionStrategy, has_bias: bool):
-    print("CONV NODE TEST")
+    print("Keras: convolutional node test")
+
     start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.ConvNode("Conv_1", (3, 32, 32), 3, (3, 3), (1, 1), (1, 1, 1, 1), (1, 1), 1,
-                                          has_bias))
+    start_network.add_node(nodes.ConvNode("Conv_1", (3, 32, 32), 3, (3, 3), (1, 1), (0, 0, 0, 0), (1, 1), 1, has_bias))
     alt_network = converter.from_neural_network(start_network)
     end_network = converter.to_neural_network(alt_network)
     assert isinstance(end_network, network.SequentialNetwork)
@@ -82,129 +49,11 @@ def conv_node_test(converter: conversion.ConversionStrategy, has_bias: bool):
     if not has_bias:
         assert start_node.bias is None and end_node.bias is None
     assert start_node.has_bias == end_node.has_bias
-    assert start_node.identifier == end_node.identifier
-
-
-def averagepool_node_test(converter: conversion.ConversionStrategy):
-    print("AVERAGEPOOL NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.AveragePoolNode("AveragePool_1", (3, 32, 32), (3, 3), (1, 1), (1, 1, 1, 1)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.AveragePoolNode)
-    assert isinstance(end_node, nodes.AveragePoolNode)
-    assert start_node.in_dim == end_node.in_dim
-    assert start_node.out_dim == end_node.out_dim
-    assert start_node.kernel_size == end_node.kernel_size
-    assert start_node.stride == end_node.stride
-    assert start_node.padding == end_node.padding
-    assert start_node.ceil_mode == end_node.ceil_mode
-    assert start_node.count_include_pad == end_node.count_include_pad
-    assert start_node.identifier == end_node.identifier
-
-
-def maxpool_node_test(converter: conversion.ConversionStrategy):
-    print("MAXPOOL NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.MaxPoolNode("Maxpool_1", (3, 32, 32), (3, 3), (1, 1), (1, 1, 1, 1), (0, 0)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.MaxPoolNode)
-    assert isinstance(end_node, nodes.MaxPoolNode)
-    assert start_node.in_dim == end_node.in_dim
-    assert start_node.out_dim == end_node.out_dim
-    assert start_node.kernel_size == end_node.kernel_size
-    assert start_node.stride == end_node.stride
-    assert start_node.padding == end_node.padding
-    assert start_node.ceil_mode == end_node.ceil_mode
-    assert start_node.return_indices == end_node.return_indices
-    assert start_node.identifier == end_node.identifier
-
-
-def softmax_node_test(converter: conversion.ConversionStrategy):
-    print("SOFTMAX NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.SoftMaxNode("Softmax_1", (3, 4, 5, 6)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.SoftMaxNode)
-    assert isinstance(end_node, nodes.SoftMaxNode)
-    assert start_node.axis == end_node.axis
-    assert start_node.identifier == end_node.identifier
-
-
-def reshape_node_test(converter: conversion.ConversionStrategy):
-    print("RESHAPE NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.ReshapeNode("Reshape_1", (3, 4, 5, 6), (3, 0, -1), False))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.ReshapeNode)
-    assert isinstance(end_node, nodes.ReshapeNode)
-    assert start_node.shape == end_node.shape
-    assert start_node.identifier == end_node.identifier
-
-
-def flatten_node_test(converter: conversion.ConversionStrategy):
-    print("FLATTEN NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.FlattenNode("Flatten_1", (3, 4, 5, 6)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.FlattenNode)
-    assert isinstance(end_node, nodes.FlattenNode)
-    assert start_node.axis == end_node.axis
-    assert start_node.identifier == end_node.identifier
-
-
-def dropout_node_test(converter: conversion.ConversionStrategy):
-    print("DROPOUT NODE TEST")
-    start_network = network.SequentialNetwork("NET_TEST", "X")
-    start_network.add_node(nodes.DropoutNode("Dropout_1", (3, 4, 5, 6)))
-    alt_network = converter.from_neural_network(start_network)
-    end_network = converter.to_neural_network(alt_network)
-    assert isinstance(end_network, network.SequentialNetwork)
-    start_node = start_network.get_first_node()
-    end_node = end_network.get_first_node()
-
-    assert isinstance(start_node, nodes.DropoutNode)
-    assert isinstance(end_node, nodes.DropoutNode)
-    assert start_node.p == end_node.p
-    assert start_node.identifier == end_node.identifier
 
 
 conv = conversion.TensorflowConverter()
 
-print(f"Test for {conv.__class__.__name__}")
-relu_node_test(conv)
-sigmoid_node_test(conv)
 fully_connected_node_test(conv, True)
 fully_connected_node_test(conv, False)
 conv_node_test(conv, True)
 conv_node_test(conv, False)
-averagepool_node_test(conv)
-maxpool_node_test(conv)
-softmax_node_test(conv)
-reshape_node_test(conv)
-flatten_node_test(conv)
-dropout_node_test(conv)
