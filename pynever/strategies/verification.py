@@ -271,6 +271,8 @@ class NeverVerification(VerificationStrategy):
         self.logger = logging.getLogger(logger_name)
         self.counterexample_stars = None
 
+        self.stars_dict = dict()
+
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
@@ -329,6 +331,7 @@ class NeverVerification(VerificationStrategy):
         while current_node is not None:
             time_start = time.perf_counter()
             output_starset = current_node.forward(output_starset)
+            self.stars_dict[current_node.identifier] = output_starset
             time_end = time.perf_counter()
             if isinstance(current_node, abst.AbsReLUNode):
                 n_areas.append(current_node.n_areas)
@@ -449,6 +452,9 @@ class NeverVerificationRef(VerificationStrategy):
         self.logger = logging.getLogger(logger_name)
         self.rel_ref = rel_ref
 
+        # dict whose keys are the layers identifier and the values
+        self.stars_dict = dict()
+
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
@@ -495,6 +501,7 @@ class NeverVerificationRef(VerificationStrategy):
         while current_node is not None:
             time_start = time.perf_counter()
             output_starset = current_node.forward(output_starset)
+            self.stars_dict[current_node.identifier] = output_starset
             time_end = time.perf_counter()
             if isinstance(current_node, abst.AbsReLUNode):
                 n_areas.append(current_node.n_areas)
