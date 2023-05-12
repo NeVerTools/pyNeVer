@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
     net = SeqNetwork("SmallNetwork", "IMP")
     BigNetwork(net, fc_dim)
-    property_path = "property.smt2"
+    property_path = "../test/verification_test/property.smt2"
     parser = smt_reading.SmtPropertyParser(property_path, 'X', 'Y')
     prop = verification.NeVerProperty(*parser.parse_property())
 
@@ -194,7 +194,7 @@ if __name__ == '__main__':
     verifier = ver.NeverVerification(heuristic, params)
     safe = not verifier.verify(net, prop)
     stars = verifier.stars_dict
-    dict = from_stars_to_csv(stars)
+    dict = from_stars_to_csv(stars, "../test/verification_test/test.csv")
     print(dict)
 
 

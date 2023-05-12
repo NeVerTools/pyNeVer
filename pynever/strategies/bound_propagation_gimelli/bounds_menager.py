@@ -4,12 +4,13 @@ import numpy as np
 from pynever.strategies.bound_propagation_gimelli.property_converter import *
 from pynever.strategies.bound_propagation_gimelli.linear_function import LinearFunctions
 from pynever.strategies.bound_propagation_gimelli.bounds import SymbolicLinearBounds
-from  pynever.strategies.bound_propagation_gimelli.utils.utils import get_positive_part, get_negative_part, \
+from pynever.strategies.bound_propagation_gimelli.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 import logging
 
 DEBUG = True
 logger_bound = logging.getLogger("bound_propagation.bounds_menager")
+
 
 
 class MyBoundsManager():
@@ -49,8 +50,8 @@ class MyBoundsManager():
         input_symbolic_bounds = self.initializeSymbolicInputBounds()
 
         # add input symbolic bounds and numeric input bounds in the corrispective dicts con key "input"
-        #self.numeric_bounds["input"] = self.input_bounds
-        #self.symbolic_bounds["input"] = input_symbolic_bounds
+        # self.numeric_bounds["input"] = self.input_bounds
+        # self.symbolic_bounds["input"] = input_symbolic_bounds
 
         # logger
         logger_bound.debug(input_symbolic_bounds)
@@ -157,85 +158,6 @@ class MyBoundsManager():
 
         return SymbolicLinearBounds(LinearFunctions(new_lower_matrix, new_lower_offset),
                                     LinearFunctions(new_upper_matrix, new_upper_offset))
-
-
-#     def compute_relu_output_bounds(self, layer, inputs, input_hyper_rect):
-#         lower_l, lower_u, upper_l, upper_u = inputs.get_all_bounds(input_hyper_rect)
-#         lower, upper = self.compute_symb_lin_bounds_equations(inputs, lower_l, lower_u, upper_l, upper_u)
-#
-#         return SymbolicLinearBounds(lower, upper)
-#
-#     def compute_symb_lin_bounds_equations(self, inputs, lower_l, lower_u, upper_l, upper_u):
-#         k_lower, b_lower = get_array_lin_lower_bound_coefficients(lower_l, lower_u)
-#         k_upper, b_upper = get_array_lin_upper_bound_coefficients(upper_l, upper_u)
-#
-#         lower_matrix = get_transformed_matrix(inputs.get_lower().get_matrix(), k_lower)
-#         upper_matrix = get_transformed_matrix(inputs.get_upper().get_matrix(), k_upper)
-#         #
-#         lower_offset = get_transformed_offset(inputs.get_lower().get_offset(), k_lower, b_lower)
-#         upper_offset = get_transformed_offset(inputs.get_upper().get_offset(), k_upper, b_upper)
-#
-#         lower = LinearFunctions(lower_matrix, lower_offset)
-#         upper = LinearFunctions(upper_matrix, upper_offset)
-#
-#         return lower, upper
-#
-#
-# def get_transformed_matrix(matrix, k):
-#     return matrix * k[:, None]
-#
-#
-# def get_transformed_offset(offset, k, b):
-#     return offset * k + b
-
-
-# def get_array_lin_lower_bound_coefficients(lower, upper):
-#     ks = np.zeros(len(lower))
-#     bs = np.zeros(len(lower))
-#
-#     for i in range(len(lower)):
-#         k, b = get_lin_lower_bound_coefficients(lower[i], upper[i])
-#         ks[i] = k
-#         bs[i] = b
-#
-#     return ks, bs
-#
-#
-# def get_array_lin_upper_bound_coefficients(lower, upper):
-#     ks = np.zeros(len(lower))
-#     bs = np.zeros(len(lower))
-#
-#     for i in range(len(lower)):
-#         k, b = get_lin_upper_bound_coefficients(lower[i], upper[i])
-#         ks[i] = k
-#         bs[i] = b
-#
-#     return ks, bs
-#
-#
-# def get_lin_lower_bound_coefficients(lower, upper):
-#     if lower >= 0:
-#         return 1, 0
-#
-#     if upper <= 0:
-#         return 0, 0
-#
-#     mult = upper / (upper - lower)
-#
-#     return mult, 0
-#
-#
-# def get_lin_upper_bound_coefficients(lower, upper):
-#     if lower >= 0:
-#         return 1, 0
-#
-#     if upper <= 0:
-#         return 0, 0
-#
-#     mult = upper / (upper - lower)
-#     add = -mult * lower
-#
-#     return mult, add
 
 
 def get_abstract_network(abst_network):

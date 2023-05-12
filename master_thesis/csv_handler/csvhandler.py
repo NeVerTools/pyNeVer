@@ -8,9 +8,9 @@ from pynever.strategies.bound_propagation_elena.verification.bounds.boundsmanage
 
 
 class Bounds:
-    def __init__(self):
-        self.lower = None
-        self.upper = None
+    def __init__(self, lower, upper):
+        self.lower = lower
+        self.upper = upper
 
 
 def print_multiple_csv(abst_network, prop, bound_propagation_type, path1=None, path2=None):
@@ -60,9 +60,16 @@ def print_to_csv(data_dict: dict, output_file_path):
         key_upper = key + "_upper"
         header.append(key_lower)
         header.append(key_upper)
-        to_print.append(data_dict[key].lower.tolist())
-        to_print.append(data_dict[key].upper.tolist())
-        length_list.append(len(data_dict[key].lower.tolist()))
+        try:
+            to_print.append(data_dict[key].lower.tolist())
+            to_print.append(data_dict[key].upper.tolist())
+            length_list.append(len(data_dict[key].lower.tolist()))
+        except:
+            to_print.append(data_dict[key].lower)
+            to_print.append(data_dict[key].upper)
+            length_list.append(len(data_dict[key].lower))
+
+
 
     max_length = max(length_list)
     for i in range(len(to_print)):
@@ -136,24 +143,15 @@ def get_lower_upper(stars):
     return absolute_lower_bounds, absolute_upper_bounds
 
 
-def from_stars_to_csv(stars_dict: dict):
+def from_stars_to_csv(stars_dict: dict, path):
     layer_bounds_dict = dict()
     all_layer_lower_bounds = list()
-    all_layer_upper_bounds = list()
 
-    counter = 1
     for key, layer in stars_dict.items():
         lower, upper = get_lower_upper(layer.stars)
         all_layer_lower_bounds.append(lower)
-        all_layer_upper_bounds.append(upper)
-
-        lower_key = key + "_lower"
-        upper_key = key + "_upper"
-
-        layer_bounds_dict[lower_key] = lower
-        layer_bounds_dict[upper_key] = upper
-
-        counter += 1
+        layer_bounds_dict[key] = Bounds(lower, upper)
+    print_to_csv(layer_bounds_dict, path)
 
     return layer_bounds_dict
 

@@ -18,25 +18,6 @@ import logging
 import os
 import time
 
-DEBUG = True
-fc_bounds_path = '/Users/andrea/Documents/PYCHARM/pyNeVer/master_thesis/test_launcher/test_results/pynever_bounds.txt'
-
-pynever_bounds_folder = 'test_results/pynever_results/ts'
-gimelli_bounds_folder = 'test_results/elena_results/ts'
-elena_bounds_folder = 'test_results/gimelli_results/ts'
-
-
-def path_manager(fc_dim, absolute_path):
-    obj = time.strftime("%H:%M:%S", time.localtime())
-    path = absolute_path + pynever_bounds_folder + str(fc_dim) + '.csv'
-    path2 = absolute_path + gimelli_bounds_folder + str(fc_dim) + '.csv'
-    path3 = absolute_path + elena_bounds_folder + str(fc_dim) + '.csv'
-    generic_data_file = absolute_path + 'test_results/generic_data.txt'
-    print(path)
-    print(path2)
-    print(path3)
-    return path, path2, path3, generic_data_file
-
 
 def getAbstractNetwork(net):
     fully_connected_counter = 0
@@ -82,6 +63,18 @@ def getAbstractNetwork(net):
     return abs_net
 
 
+def path_manager(fc_dim, absolute_path):
+    obj = time.strftime("%H:%M:%S", time.localtime())
+    path = absolute_path + pynever_bounds_folder + str(fc_dim) + '.csv'
+    path2 = absolute_path + gimelli_bounds_folder + str(fc_dim) + '.csv'
+    path3 = absolute_path + elena_bounds_folder + str(fc_dim) + '.csv'
+    generic_data_file = absolute_path + 'test_results/generic_data.txt'
+    print(path)
+    print(path2)
+    print(path3)
+    return path, path2, path3, generic_data_file
+
+
 def BigNetwork(network: SeqNetwork, fc_dim, logger=None):
     input_dim = 2
     output_dim = 2
@@ -115,53 +108,56 @@ def BigNetwork(network: SeqNetwork, fc_dim, logger=None):
         nodes.FullyConnectedNode("FC_3", (fc_dim,), output_dim, weight_matrix_3, bias_3))
 
 
-def verify_network(fc_connected_layers_dim: list, property_path, absolute_path):
+def verify_network(fc_connected_layers_dim: list, property_path='property.smt2'):
     violations_logger = logging.getLogger('pynever/master_thesis/csv_handler/violation_tester')
-    print(absolute_path)
-    fh = logging.FileHandler(absolute_path + "test_results/violations.txt")
+    fh = logging.FileHandler("test_results/violations.txt")
     violations_logger.setLevel(logging.DEBUG)
     fh.setLevel(logging.DEBUG)
     violations_logger.addHandler(fh)
 
     for fc_dim in fc_connected_layers_dim:
         # path test manager
-        path, path2, path3, generic_data_file = path_manager(fc_dim, absolute_path)
+        path_1 = 'test_results/pynever_tests/first_test.csv'
+        path_2 = 'test_results/gimelli_tests/first_test.csv'
+        path_3 = 'test_results/elena_tests/first_test.csv'
 
-        net = SeqNetwork("SmallNetwork", "IMP")
+        # network init
+        net = SeqNetwork("network", "IMP")
         BigNetwork(net, fc_dim)
+
+        # property init
         parser = smt_reading.SmtPropertyParser(property_path, 'X', 'Y')
         prop = verification.NeVerProperty(*parser.parse_property())
 
-        bound_manager_gimelli = MyBoundsManager(getAbstractNetwork(net), prop)
-        bound_manager_gimelli.compute_bounds()
-
-        bound_manager_elena = BoundsManagerElena(getAbstractNetwork(net), prop)
-        bound_manager_elena.compute_bounds()
-
+        # network verification init
         heuristic = "best_n_neurons"
-        params = [[1000] for _ in range(20)]
+        params = [[1000] for _ in range(net.count_relu_layers())]
         verifier = ver.NeverVerification(heuristic, params)
 
         # start time
         time_start = time.perf_counter()
 
         # verify
-        safe = not verifier.verify(net, prop, 3, path2, path3)
+        safe = not verifier.verify(net, prop)
 
-        #print(verifier.get_output_starset(net, prop))
         # stop timer
         time_end = time.perf_counter()
         delta_time = time_end - time_start
 
         # write data
-        time_results = open(generic_data_file, 'a')
+        time_results = open("test_results/time_data.txt", 'a')
         time_results.write(str(fc_dim) + '\n' + str(delta_time) + '\n')
         time_results.close()
 
-        print_to_csv_pynever_bounds(fc_bounds_path, path)
-
         violations_logger.debug("Iterazione fc_dim: " + str(fc_dim))
 
-        violations_manager = ViolationsManager(path,
-                                               path2, path3)
-        violations_manager.check()
+        # stars for each layers
+        stars_dict = verifier.stars_dict
+
+        violations_manager = ViolationsManager(path_1,
+                                               path_2, path_3, net, prop, stars_dict)
+        violations_manager.check(True)
+
+
+if __name__ == '__main__':
+    verify_network([7])

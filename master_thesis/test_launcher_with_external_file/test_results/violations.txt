@@ -1,0 +1,90 @@
+Iterazione fc_dim: 8
+violations.txt on gimelli_bounds_prop: ABST_ReLU_1_lower
+        pynever  broken_column
+0 -6.181662e-16            0.0
+1  0.000000e+00            0.0
+2  0.000000e+00            0.0
+3  0.000000e+00            0.0
+4  0.000000e+00            0.0
+5  0.000000e+00            0.0
+6  0.000000e+00            0.0
+7  0.000000e+00            0.0
+
+violations.txt on gimelli_bounds_prop: ABST_ReLU_1_upper
+    pynever  broken_column
+0  2.596673       2.596673
+1  0.220305       0.220305
+2  1.302519       1.302519
+3  1.687706       1.687706
+4  1.851813       1.851813
+5  1.648741       1.648741
+6  0.548749       0.548749
+7  0.176875       0.176875
+
+violations.txt on gimelli_bounds_prop: ABST_FC_2_lower
+    pynever  broken_column
+0 -0.983934      -2.638109
+1 -9.828995      -9.834603
+2 -1.145875      -1.172058
+3 -4.116516      -4.116516
+4 -0.321260      -2.548595
+5 -0.250403      -1.085957
+6 -3.082847      -4.097609
+7 -3.347054      -3.347054
+
+violations.txt on gimelli_bounds_prop: ABST_ReLU_2_lower
+        pynever  broken_column
+0 -7.214584e-16            0.0
+1  0.000000e+00            0.0
+2  0.000000e+00            0.0
+3  0.000000e+00            0.0
+4  0.000000e+00            0.0
+5  0.000000e+00            0.0
+6  0.000000e+00            0.0
+7  0.000000e+00            0.0
+
+Iterazione fc_dim: 8
+violations.txt on gimelli_bounds_prop: ABST_ReLU_1_lower
+        pynever  broken_column
+0 -3.810481e-17            0.0
+1  0.000000e+00            0.0
+2  0.000000e+00            0.0
+3  0.000000e+00            0.0
+4  0.000000e+00            0.0
+5  0.000000e+00            0.0
+6  0.000000e+00            0.0
+7  0.000000e+00            0.0
+
+violations.txt on gimelli_bounds_prop: ABST_ReLU_1_upper
+     pynever  broken_column
+0   0.229115       0.229115
+1   2.546659       2.546659
+2   0.456467       0.456467
+3   1.357288       1.357288
+4   5.574581       5.574581
+5   1.823812       1.823812
+6  12.773641      12.773641
+7   6.035138       6.035138
+
+violations.txt on gimelli_bounds_prop: ABST_FC_2_lower
+        pynever  broken_column
+0 -1.671902e+01     -32.159928
+1 -1.344815e+01     -15.919542
+2 -2.716406e+00     -13.330018
+3 -4.006050e-16       0.000000
+4 -1.087506e+01     -14.899240
+5 -1.075643e+00     -10.649342
+6 -1.352188e-16      -3.671471
+7 -5.768564e-16      -6.442043
+
+violations.txt on gimelli_bounds_prop: ABST_ReLU_2_lower
+        pynever  broken_column
+0 -3.249553e-15            0.0
+1  0.000000e+00            0.0
+2  0.000000e+00            0.0
+3  0.000000e+00            0.0
+4  0.000000e+00            0.0
+5  0.000000e+00            0.0
+6  0.000000e+00            0.0
+7  0.000000e+00            0.0
+

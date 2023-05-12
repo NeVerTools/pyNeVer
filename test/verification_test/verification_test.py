@@ -189,7 +189,7 @@ if __name__ == '__main__':
     prop = verification.NeVerProperty(*parser.parse_property())
 
     heuristic = "best_n_neurons"
-    params = [[1000] for _ in range(20)]
+    params = [[1000] for _ in range(net.count_relu_layers())]
     verifier = ver.NeverVerification(heuristic, params)
     safe = not verifier.verify(net, prop)
     stars = verifier.stars_dict

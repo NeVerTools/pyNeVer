@@ -123,45 +123,66 @@ def verify_network(fc_connected_layers_dim: list, property_path, absolute_path):
     fh.setLevel(logging.DEBUG)
     violations_logger.addHandler(fh)
 
-    for fc_dim in fc_connected_layers_dim:
-        # path test manager
-        path, path2, path3, generic_data_file = path_manager(fc_dim, absolute_path)
 
-        net = SeqNetwork("SmallNetwork", "IMP")
-        BigNetwork(net, fc_dim)
-        parser = smt_reading.SmtPropertyParser(property_path, 'X', 'Y')
-        prop = verification.NeVerProperty(*parser.parse_property())
+    weights, biases, inputMeans, inputRanges, outputMean, outputRange = \
+        utilities.parse_nnet("ACASXU_experimental_v2a_1_1.nnet")
 
-        bound_manager_gimelli = MyBoundsManager(getAbstractNetwork(net), prop)
-        bound_manager_gimelli.compute_bounds()
+    # Construction of our internal representation for the ACAS net.
 
-        bound_manager_elena = BoundsManagerElena(getAbstractNetwork(net), prop)
-        bound_manager_elena.compute_bounds()
+    net = networks.SequentialNetwork("ACASXU_experimental_v2a_1_1", "X")
 
-        heuristic = "best_n_neurons"
-        params = [[1000] for _ in range(20)]
-        verifier = ver.NeverVerification(heuristic, params)
+    for k in range(len(weights)):
 
-        # start time
-        time_start = time.perf_counter()
+        new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
+                                               biases[k], True)
+        net.add_node(new_fc_node)
 
-        # verify
-        safe = not verifier.verify(net, prop, 3, path2, path3)
+        if k < len(weights) - 1:
+            new_relu_node = nodes.ReLUNode(f"ReLU_{k}", (weights[k].shape[0],))
+            net.add_node(new_relu_node)
 
-        #print(verifier.get_output_starset(net, prop))
-        # stop timer
-        time_end = time.perf_counter()
-        delta_time = time_end - time_start
+    path = "SMT_P3.smt2"
+    parser = smt_reading.SmtPropertyParser(path, 'X', 'Y')
+    prop = verification.NeVerProperty(*parser.parse_property())
 
-        # write data
-        time_results = open(generic_data_file, 'a')
-        time_results.write(str(fc_dim) + '\n' + str(delta_time) + '\n')
-        time_results.close()
+    # path test manager
+    path, path2, path3, generic_data_file = path_manager(fc_dim, absolute_path)
 
-        print_to_csv_pynever_bounds(fc_bounds_path, path)
+    net = SeqNetwork("SmallNetwork", "IMP")
+    BigNetwork(net, fc_dim)
+    parser = smt_reading.SmtPropertyParser(property_path, 'X', 'Y')
+    prop = verification.NeVerProperty(*parser.parse_property())
 
-        violations_logger.debug("Iterazione fc_dim: " + str(fc_dim))
+    bound_manager_gimelli = MyBoundsManager(getAbstractNetwork(net), prop)
+    bound_manager_gimelli.compute_bounds()
 
-        violations_manager = ViolationsManager(path,
-                                               path2, path3)
-        violations_manager.check()
+    bound_manager_elena = BoundsManagerElena(getAbstractNetwork(net), prop)
+    bound_manager_elena.compute_bounds()
+
+    heuristic = "best_n_neurons"
+    params = [[1000] for _ in range(20)]
+    verifier = ver.NeverVerification(heuristic, params)
+
+    # start time
+    time_start = time.perf_counter()
+
+    # verify
+    safe = not verifier.verify(net, prop, 3, path2, path3)
+
+    #print(verifier.get_output_starset(net, prop))
+    # stop timer
+    time_end = time.perf_counter()
+    delta_time = time_end - time_start
+
+    # write data
+    time_results = open(generic_data_file, 'a')
+    time_results.write(str(fc_dim) + '\n' + str(delta_time) + '\n')
+    time_results.close()
+
+    print_to_csv_pynever_bounds(fc_bounds_path, path)
+
+    violations_logger.debug("Iterazione fc_dim: " + str(fc_dim))
+
+    violations_manager = ViolationsManager(path,
+                                           path2, path3)
+    violations_manager.check()
