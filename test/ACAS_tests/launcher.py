@@ -122,56 +122,63 @@ def verify_network(fc_connected_layers_dim: list, property_path='property.smt2')
     path_2 = 'test_results/gimelli_tests/first_test.csv'
     path_3 = 'test_results/elena_tests/first_test.csv'
 
-    weights, biases, inputMeans, inputRanges, outputMean, outputRange = \
-        utilities.parse_nnet("ACASXU_experimental_v2a_1_2.nnet")
+    property_ids = ["P3_no_prop", "P4_no_prop"]
+    networks_ids = [["1_1", "1_3", "2_3", "4_3", "5_1"], ["1_1", "1_3", "3_2", "4_2"]]
 
-    # Construction of our internal representation for the ACAS net.
+    for i in range(0, len(property_ids)):
+        for j in range(len(networks_ids[i])):
+            # Loading of the values of interest of the corresponding ACAS XU network.
+            weights, biases, inputMeans, inputRanges, outputMean, outputRange = \
+                utilities.parse_nnet(f"ACAS_files/ACASXU_experimental_v2a_{networks_ids[i][j]}.nnet")
 
-    net = networks.SequentialNetwork("ACASXU_experimental_v2a_1_2", "X")
-
-    for k in range(len(weights)):
-
-        new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
-                                               biases[k], True)
-        net.add_node(new_fc_node)
-
-        if k < len(weights) - 1:
-            new_relu_node = nodes.ReLUNode(f"ReLU_{k}", (weights[k].shape[0],))
-            net.add_node(new_relu_node)
-
-    path = "SMT_P3.smt2"
-    parser = smt_reading.SmtPropertyParser(path, 'X', 'Y')
-    prop = verification.NeVerProperty(*parser.parse_property())
+        # Creation of the matrixes defining the input set (i.e., in_pred_mat * x <= in_pred_bias).
 
 
-    # network verification init
-    heuristic = "best_n_neurons"
-    params = [[1000] for _ in range(net.count_relu_layers())]
-    verifier = ver.NeverVerification(heuristic, params)
+            network = networks.SequentialNetwork(f"ACASXU_experimental_v2a_{networks_ids[i][j]}.nnet")
 
-    # start time
-    time_start = time.perf_counter()
+            for k in range(len(weights)):
 
-    # verify
-    safe = not verifier.verify(net, prop)
+                new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
+                                                       biases[k], True)
+                network.add_node(new_fc_node)
 
-    # stop timer
-    time_end = time.perf_counter()
-    delta_time = time_end - time_start
+                if k < len(weights) - 1:
+                    new_relu_node = nodes.ReLUNode(f"ReLU_{k}", (weights[k].shape[0],))
+                    network.add_node(new_relu_node)
 
-    # write data
-    time_results = open("test_results/time_data.txt", 'a')
-    time_results.write(str(fc_dim) + '\n' + str(delta_time) + '\n')
-    time_results.close()
+            path = "SMT_P3.smt2"
+            parser = smt_reading.SmtPropertyParser(path, 'X', 'Y')
+            prop = verification.NeVerProperty(*parser.parse_property())
 
-    violations_logger.debug("Iterazione fc_dim: " + str(fc_dim))
 
-    # stars for each layers
-    stars_dict = verifier.stars_dict
+            # network verification init
+            heuristic = "best_n_neurons"
+            params = [[1000] for _ in range(network.count_relu_layers())]
+            verifier = ver.NeverVerification(heuristic, params)
 
-    violations_manager = ViolationsManager(path_1,
-                                           path_2, path_3, net, prop, stars_dict)
-    violations_manager.check(True)
+            # start time
+            time_start = time.perf_counter()
+
+            # verify
+            safe = not verifier.verify(network, prop)
+
+            # stop timer
+            time_end = time.perf_counter()
+            delta_time = time_end - time_start
+
+            # write data
+            time_results = open("test_results/time_data.txt", 'a')
+            time_results.write(str(fc_dim) + '\n' + str(delta_time) + '\n')
+            time_results.close()
+
+            violations_logger.debug("Iterazione fc_dim: " + str(fc_dim))
+
+            # stars for each layers
+            stars_dict = verifier.stars_dict
+
+            violations_manager = ViolationsManager(path_1,
+                                                   path_2, path_3, network, prop, stars_dict)
+            violations_manager.check(True)
 
 
 if __name__ == '__main__':

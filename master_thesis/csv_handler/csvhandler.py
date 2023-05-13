@@ -80,6 +80,7 @@ def print_to_csv(data_dict: dict, output_file_path):
         writer.writerow(header)
         for row in zip(*to_print):
             writer.writerow(row)
+        csv_file.close()
 
 
 def print_to_csv_pynever_bounds(input_file_path, output_file_path):

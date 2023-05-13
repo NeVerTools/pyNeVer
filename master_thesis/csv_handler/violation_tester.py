@@ -82,13 +82,13 @@ class ViolationsManager:
         # print bounds on csv file
         from_stars_to_csv(starts_dict, path1)
         print_to_csv(gimelli_numeric_bounds, path2)
-        print_to_csv(elena_numeric_bounds, path3)
+        print_to_csv(elena_post_bounds, path3)
 
         self.pynever_csv = pd.read_csv(self.path1)
         self.gimelli_csv = pd.read_csv(self.path2)
         self.elena_csv = pd.read_csv(self.path3)
 
-    def check(self, on_log=False):
+    def check(self, on_log=False, soglia=0):
         self.pynever_csv.columns = self.gimelli_csv.columns
 
         for index, column in enumerate(self.pynever_csv.columns):
@@ -99,8 +99,9 @@ class ViolationsManager:
             if index % 2 == 0:
                 # check fc_csv and elena_csv LOWER
                 gimelli_violations_list = pynever_column[pynever_column.notna()] < gimelli_column[
-                    gimelli_column.notna()]
-                elena_violations_list = pynever_column[pynever_column.notna()] < elena_column[gimelli_column.notna()]
+                    gimelli_column.notna()] + soglia
+                elena_violations_list = pynever_column[pynever_column.notna()] < \
+                                        elena_column[gimelli_column.notna()] + soglia
 
                 msg1 = "violations.txt on gimelli_bounds_prop: " + str(column)
                 print_violations(gimelli_violations_list, msg1, pynever_column, gimelli_column, on_log)
@@ -108,9 +109,9 @@ class ViolationsManager:
                 print_violations(elena_violations_list, msg2, pynever_column, elena_column, on_log)
 
             else:
-                gimelli_violations_list = pynever_column[pynever_column.notna()] > gimelli_column[
+                gimelli_violations_list = pynever_column[pynever_column.notna()] + soglia > gimelli_column[
                     gimelli_column.notna()]
-                elena_violations_list = pynever_column[pynever_column.notna()] > elena_column[gimelli_column.notna()]
+                elena_violations_list = pynever_column[pynever_column.notna()] + soglia > elena_column[gimelli_column.notna()]
 
                 msg1 = "violations.txt on gimelli_bounds_prop: " + str(column)
                 print_violations(gimelli_violations_list, msg1, pynever_column, gimelli_column, on_log)

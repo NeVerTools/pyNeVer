@@ -193,10 +193,10 @@ if __name__ == '__main__':
     # # logger
     # logger = logging.getLogger("bound_propagation.bounds_menager")
     # # os.remove("../logs/numeric_bounds_mine.txt")
-    # fh = logging.FileHandler("../logs/numeric_bounds_mine.txt")
+    # fh_1 = logging.FileHandler("../logs/numeric_bounds_mine.txt")
     # logger.setLevel(logging.DEBUG)
-    # fh.setLevel(logging.DEBUG)
-    # logger.addHandler(fh)
+    # fh_1.setLevel(logging.DEBUG)
+    # logger.addHandler(fh_1)
 
     try:
         os.remove('test_results/pynever_bounds.txt')
