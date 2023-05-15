@@ -12,8 +12,7 @@ DEBUG = True
 logger_bound = logging.getLogger("bound_propagation.bounds_menager")
 
 
-
-class MyBoundsManager():
+class MyBoundsManager:
 
     def __init__(self, abst_net, prop):
 
@@ -137,12 +136,18 @@ class MyBoundsManager():
         new_lower_offset = np.zeros(input_symb_bounds.upper.matrix.shape[0])
 
         for i in range(row_number):
-            if input_numeric_bounds.lower[i] >= 0 or input_numeric_bounds.upper[i] <= 0:
+            if input_numeric_bounds.lower[i] >= 0:
                 new_upper_matrix[i, :] = input_symb_bounds.upper.matrix[i, :]
                 new_lower_matrix[i, :] = input_symb_bounds.lower.matrix[i, :]
 
                 new_upper_offset[i] = input_symb_bounds.upper.offset[i]
                 new_lower_offset[i] = input_symb_bounds.lower.offset[i]
+
+            elif input_numeric_bounds.upper[i] <= 0:
+                new_upper_matrix[i, :] = 0
+                new_lower_matrix[i, :] = 0
+                new_upper_offset[i] = 0
+                new_lower_offset[i] = 0
 
             else:
                 coeff_lamda = input_numeric_bounds.upper[i] / \

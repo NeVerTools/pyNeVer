@@ -5,9 +5,9 @@ from pynever.strategies.bound_propagation_elena.verification.bounds.boundsmanage
 from pynever.strategies import smt_reading, verification
 from master_thesis.csv_handler.csvhandler import print_to_csv_pynever_bounds, print_to_csv, from_stars_to_csv
 import pynever.strategies.abstraction as abst
+import math
 
 violation_logger = logging.getLogger("pynever/master_thesis/csv_handler/violation_tester")
-
 
 def getAbstractNetwork(net):
     fully_connected_counter = 0
@@ -66,6 +66,34 @@ def print_violations(violation_list, message_to_print, pynever_column, second_co
             print(message_to_print)
             print(temporary_df)
 
+    # for i in range(len(pynever_column)):
+    #     if pynever_column[i] < second_column[i] and abs(pynever_column[i] - second_column[i]) > 0.000001:
+    #         print("big violation")
+
+# def print_violations2(violation_list, message_to_print, pynever_column, second_column, on_log):
+#     # if any(violation_list):
+#     #     temporary_df = pd.DataFrame()
+#     #     temporary_df["pynever"] = pynever_column
+#     #     temporary_df["broken_column"] = second_column
+#     #
+#     #     if on_log:
+#     #         violation_logger.debug(message_to_print)
+#     #         violation_logger.debug(str(temporary_df) + '\n')
+#     #     else:
+#     #         print(message_to_print)
+#     #         print(temporary_df)
+#
+#     for i in range(len(pynever_column)):
+#         #if pynever_column[i] > second_column[i] and abs(pynever_column[i] - second_column[i]) > 0.000001:
+#         if pynever_column[i] > second_column[i]:
+#
+#             print("big violation")
+
+def print_lower_violations(pynever_column, second_column):
+    for i in range(len(pynever_column)):
+        if pynever_column[i] < second_column[i] and math.abs(pynever_column[i] - second_column[i]) < 0.001:
+            print("big violation")
+
 
 class ViolationsManager:
     def __init__(self, path1, path2, path3, net, prop, starts_dict):
@@ -88,7 +116,7 @@ class ViolationsManager:
         self.gimelli_csv = pd.read_csv(self.path2)
         self.elena_csv = pd.read_csv(self.path3)
 
-    def check(self, on_log=False, soglia=0):
+    def check(self, soglia, on_log=False):
         self.pynever_csv.columns = self.gimelli_csv.columns
 
         for index, column in enumerate(self.pynever_csv.columns):
@@ -99,9 +127,9 @@ class ViolationsManager:
             if index % 2 == 0:
                 # check fc_csv and elena_csv LOWER
                 gimelli_violations_list = pynever_column[pynever_column.notna()] < gimelli_column[
-                    gimelli_column.notna()] + soglia
-                elena_violations_list = pynever_column[pynever_column.notna()] < \
-                                        elena_column[gimelli_column.notna()] + soglia
+                    gimelli_column.notna()]
+                elena_violations_list = pynever_column[pynever_column.notna()]  < \
+                                        elena_column[gimelli_column.notna()]
 
                 msg1 = "violations.txt on gimelli_bounds_prop: " + str(column)
                 print_violations(gimelli_violations_list, msg1, pynever_column, gimelli_column, on_log)
@@ -109,9 +137,11 @@ class ViolationsManager:
                 print_violations(elena_violations_list, msg2, pynever_column, elena_column, on_log)
 
             else:
-                gimelli_violations_list = pynever_column[pynever_column.notna()] + soglia > gimelli_column[
+                gimelli_violations_list = pynever_column[pynever_column.notna()] > gimelli_column[
                     gimelli_column.notna()]
-                elena_violations_list = pynever_column[pynever_column.notna()] + soglia > elena_column[gimelli_column.notna()]
+
+                elena_violations_list = pynever_column[pynever_column.notna()] > elena_column[
+                    gimelli_column.notna()]
 
                 msg1 = "violations.txt on gimelli_bounds_prop: " + str(column)
                 print_violations(gimelli_violations_list, msg1, pynever_column, gimelli_column, on_log)

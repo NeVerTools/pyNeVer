@@ -144,5 +144,5 @@ if __name__ == "__main__":
             violations_manager = ViolationsManager(path_1t,
                                                    path_2t, path_3t, network, prop, stars_dict)
 
-            error = 0.000001
-            violations_manager.check(True, error)
+            error = 0.5
+            violations_manager.check(error, True)

@@ -9,7 +9,9 @@ import onnx
 import logging
 import torch
 from datetime import datetime
-import shared_constants
+from test.DRONE_tests import shared_constants
+from master_thesis.csv_handler.violation_tester import ViolationsManager
+
 
 # path test manager
 path_1 = 'test_results/pynever_tests/'
@@ -28,6 +30,7 @@ if __name__ == "__main__":
 
         net_path = f"onnx_nets/AC{i + 1}.onnx"
         heuristic = "best_n_neurons"
+        epsilon = 0.1
 
         random_input = input_space.sample()
         tensor_input = torch.from_numpy(random_input)
@@ -72,6 +75,7 @@ if __name__ == "__main__":
         in_prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, [], [])
 
         verifier = ver.NeverVerification(heuristic="best_n_neurons", params=ver_param)
+        safe = not verifier.verify(net, in_prop)
 
         # stars for each layers
         stars_dict = verifier.stars_dict
@@ -81,7 +85,7 @@ if __name__ == "__main__":
         path_3 = path_3 + f"AC{i + 1}.csv"
 
         violations_manager = ViolationsManager(path_1,
-                                               path_2, path_3, network, prop, stars_dict)
+                                               path_2, path_3, net, in_prop, stars_dict)
 
         error = 0.0000001
-        violations_manager.check(True, error)
+        violations_manager.check(error, True)

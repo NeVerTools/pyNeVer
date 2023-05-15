@@ -178,7 +178,7 @@ def verify_network(fc_connected_layers_dim: list, property_path='property.smt2')
 
             violations_manager = ViolationsManager(path_1,
                                                    path_2, path_3, network, prop, stars_dict)
-            violations_manager.check(True)
+            violations_manager.check(, True
 
 
 if __name__ == '__main__':
