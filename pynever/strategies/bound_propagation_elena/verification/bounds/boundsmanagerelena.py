@@ -4,6 +4,7 @@ from pynever.strategies.bound_propagation_elena.verification.bounds.bounds impor
 from pynever.strategies.bound_propagation_elena.verification.bounds.linearfunctions import LinearFunctions
 from pynever.strategies.bound_propagation_elena.utils.utils import get_positive_part, get_negative_part, compute_lin_lower_and_upper
 from pynever.strategies.bound_propagation_gimelli.property_converter import *
+from collections import OrderedDict
 import numpy as np
 
 
@@ -36,7 +37,7 @@ class BoundsManagerElena:
         input_bounds = SymbolicLinearBounds(lower, upper)
 
         numeric_preactivation_bounds = dict()
-        numeric_postactivation_bounds = dict()
+        numeric_postactivation_bounds = OrderedDict()
         symbolic_bounds = dict()
 
         current_input_bounds = input_bounds

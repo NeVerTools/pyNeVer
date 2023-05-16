@@ -19,7 +19,7 @@ logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
 logger_lb = logging.getLogger("pynever.strategies.abstraction.lb_times")
 logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
-parallel = True
+parallel = False
 
 
 class AbsElement(abc.ABC):
@@ -498,24 +498,36 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     return new_star
 
 
-def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
+def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool, lower, upper) -> Set[Star]:
+
     abs_input = list(abs_input)
     abs_output = set()
 
     for i in range(len(abs_input)):
 
         star = abs_input[i]
+        is_positive_stable = False
+        is_negative_stable = False
+
         lb, ub = star.get_bounds(var_index)
 
-        if not star.is_empty:
+        if lower >= 0:
+            is_positive_stable = True
 
+        elif upper <= 0:
+            is_negative_stable = True
+
+        else:
+            lb, ub = star.get_bounds(var_index)
+
+        if not star.is_empty:
             mask = np.identity(star.center.shape[0])
             mask[var_index, var_index] = 0
 
-            if lb >= 0:
+            if is_positive_stable or lb >= 0:
                 abs_output = abs_output.union({star})
 
-            elif ub <= 0:
+            elif is_negative_stable or ub <= 0:
                 new_center = np.matmul(mask, star.center)
                 new_basis_mat = np.matmul(mask, star.basis_matrix)
                 new_pred_mat = star.predicate_matrix
@@ -526,7 +538,6 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
             else:
 
                 if refinement_flag:
-
                     # Creating lower bound star.
                     lower_star_center = np.matmul(mask, star.center)
                     lower_star_basis_mat = np.matmul(mask, star.basis_matrix)
@@ -581,7 +592,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
     return abs_output
 
 
-def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple[Set[Star], np.ndarray]:
+def mixed_single_relu_forward(star: Star, heuristic: str, params: List, layer_bounds) -> Tuple[Set[Star], np.ndarray]:
     """
     Utility function for the management of the forward for AbsReLUNode. It is outside
     the class scope since multiprocessing does not support parallelization with
@@ -597,12 +608,19 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     else:
 
         n_areas = []
+        # for i in range(star.center.shape[0]):
+        #     lb, ub = star.get_bounds(i)
+        #     if lb < 0 and ub > 0:
+        #         n_areas.append(-lb * ub / 2.0)
+        #     else:
+        #         n_areas.append(0)
+
         for i in range(star.center.shape[0]):
-            lb, ub = star.get_bounds(i)
-            if lb < 0 and ub > 0:
-                n_areas.append(-lb * ub / 2.0)
-            else:
+            if layer_bounds.lower[i] >= 0 or layer_bounds.upper[i] <= 0:
                 n_areas.append(0)
+            else:
+                lb, ub = star.get_bounds(i)
+                n_areas.append(-lb * ub / 2.0)
 
         n_areas = np.array(n_areas)
 
@@ -638,7 +656,8 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
             raise NotImplementedError
 
         for i in range(star.center.shape[0]):
-            temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i])
+            temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i], layer_bounds.lower[i],
+                                               layer_bounds.upper[i])
 
         return temp_abs_input, n_areas
 
@@ -892,13 +911,17 @@ class AbsLayerNode(abc.ABC):
         self.ref_node = ref_node
 
     @abc.abstractmethod
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
+        bounds
+            The overestimated bounds for each node of each layer
+
         abs_input : AbsElement
             The input abstract element.
 
@@ -969,14 +992,16 @@ class AbsReLUNode(AbsLayerNode):
         self.heuristic = heuristic
         self.params = params
         self.n_areas = None
+        self.layer_bounds = None
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 
@@ -985,6 +1010,9 @@ class AbsReLUNode(AbsLayerNode):
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
         """
+
+        if bounds is not None:
+            self.layer_bounds = bounds
 
         if isinstance(abs_input, StarSet):
             if parallel:
@@ -1036,7 +1064,7 @@ class AbsReLUNode(AbsLayerNode):
         tot_areas = np.zeros(self.ref_node.in_dim)
         num_areas = 0
         for star in abs_input.stars:
-            result, areas = mixed_single_relu_forward(star, self.heuristic, self.params)
+            result, areas = mixed_single_relu_forward(star, self.heuristic, self.params, self.layer_bounds)
             abs_output.stars = abs_output.stars.union(result)
             tot_areas = tot_areas + areas
             num_areas = num_areas + 1
@@ -1073,13 +1101,14 @@ class AbsFullyConnectedNode(AbsLayerNode):
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
         super().__init__(identifier, ref_node)
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 
@@ -1161,13 +1190,14 @@ class AbsSigmoidNode(AbsLayerNode):
 
         self.approx_levels = approx_levels
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 

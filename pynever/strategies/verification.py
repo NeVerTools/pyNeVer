@@ -16,6 +16,8 @@ import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 from pynever.tensor import Tensor
+from pynever.strategies.bound_propagation_gimelli.bounds_menager import *
+from pynever.strategies.bound_propagation_elena.verification.bounds.boundsmanagerelena import *
 
 logger_name = "pynever.strategies.verification"
 
@@ -265,6 +267,7 @@ class NeverVerification(VerificationStrategy):
     def __init__(self, heuristic: str = "best_n_neurons", params: List = None,
                  refinement_level: int = None):
 
+        self.layers_bounds = None
         self.heuristic = heuristic
         self.params = params
         self.refinement_level = refinement_level
@@ -321,7 +324,19 @@ class NeverVerification(VerificationStrategy):
 
         return abst_network
 
-    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty) -> (abst.StarSet, List):
+    def previous_value(self, dictionary, current_key):
+
+        # Get the list of keys from the OrderedDict
+        keys = list(dictionary.keys())
+
+        # Get an index of the current key and offset it by -1
+        index = keys.index(current_key) - 1
+
+        # return the previous key's value
+        return dictionary[keys[index]]
+
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dict) -> (
+    abst.StarSet, List):
 
         input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
         input_starset = abst.StarSet({input_star})
@@ -330,7 +345,15 @@ class NeverVerification(VerificationStrategy):
         n_areas = []
         while current_node is not None:
             time_start = time.perf_counter()
-            output_starset = current_node.forward(output_starset)
+
+            if isinstance(current_node, abst.AbsReLUNode):
+                current_node_identifier = current_node.identifier
+                current_layer_dict = self.previous_value(bounds_dict, current_node_identifier)
+                output_starset = current_node.forward(output_starset, current_layer_dict)
+
+            else:
+                output_starset = current_node.forward(output_starset)
+
             self.stars_dict[current_node.identifier] = output_starset
             time_end = time.perf_counter()
             if isinstance(current_node, abst.AbsReLUNode):
@@ -344,12 +367,20 @@ class NeverVerification(VerificationStrategy):
 
     def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
 
-        self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        # bound propagation calculation
+        bound_manager_elena = BoundsManagerElena(abst_network, prop)
+        _, elena_numeric_bounds, elena_post_bounds = bound_manager_elena.compute_bounds()
+
+        self.layers_bounds = elena_post_bounds
+
+        self.counterexample_stars = None
+
         ver_start_time = time.perf_counter()
         if isinstance(prop, NeVerProperty):
 
-            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop, self.layers_bounds)
 
             out_coef_mat = prop.out_coef_mat
             out_bias_mat = prop.out_bias_mat
