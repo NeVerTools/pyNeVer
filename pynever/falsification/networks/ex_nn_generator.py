@@ -19,4 +19,4 @@ nn.add_node(nodes.ReLUNode("Y", (2,)))
 # Convert network to ONNX
 converter = conversion.ONNXConverter()
 onnx_net = converter.from_neural_network(nn)
-conversion.save_network_path(onnx_net, 'exb.onnx')
+conversion.save_network_path(onnx_net, 'ex.onnx')
