@@ -132,11 +132,11 @@ class NeVerProperty(Property):
 
             f.write(';; --- INPUT VARIABLES ---\n')
             for v_name in input_vars:
-                f.write(f"(declare-fun {v_name} () Real)\n")
+                f.write(f"(declare-const {v_name} Real)\n")
 
             f.write('\n;; --- OUTPUT VARIABLES ---\n')
             for v_name in output_vars:
-                f.write(f"(declare-fun {v_name} () Real)\n")
+                f.write(f"(declare-const {v_name} Real)\n")
 
             # Constraints definition
             f.write('\n;; --- INPUT CONSTRAINTS ---\n')
