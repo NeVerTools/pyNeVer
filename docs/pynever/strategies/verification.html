@@ -513,10 +513,10 @@ def never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, filepat
         list_out_biases = prt.out_bias_mat
 
         for i in range(len(input_matrix[0])):
-            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {input_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(list_out_matrixes[0][0])):
-            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {output_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(input_matrix)):
 
@@ -574,10 +574,10 @@ def temp_never2smt(prt: NeVerProperty, input_prefix: str, output_prefix: str, fi
         out_biases = prt.out_bias_mat[0]
 
         for i in range(len(input_matrix[0])):
-            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {input_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(out_matrix[0])):
-            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {output_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(input_matrix)):
 
@@ -758,10 +758,10 @@ class LRPAnalyzer:
         list_out_biases = prt.out_bias_mat
 
         for i in range(len(input_matrix[0])):
-            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {input_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(list_out_matrixes[0][0])):
-            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {output_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(input_matrix)):
 
@@ -829,10 +829,10 @@ class LRPAnalyzer:
         out_biases = prt.out_bias_mat[0]
 
         for i in range(len(input_matrix[0])):
-            f.write(f&#34;(declare-fun {input_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {input_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(out_matrix[0])):
-            f.write(f&#34;(declare-fun {output_prefix}_{i} () Real)\n&#34;)
+            f.write(f&#34;(declare-const {output_prefix}_{i} Real)\n&#34;)
 
         for i in range(len(input_matrix)):
 
