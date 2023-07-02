@@ -1,22 +1,20 @@
 import abc
 import copy
-import logging
 import operator
 import time
 from typing import List, Optional, Callable
 
-import numpy as np
 import torch
 
 import pynever.networks as networks
-import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
+from pynever.strategies.bound_propagation_elena.verification.bounds.boundsmanagerelena import *
+from pynever.strategies.bound_propagation_gimelli.bounds_menager import *
 from pynever.tensor import Tensor
-from pynever.strategies.bound_propagation.verification.bounds.bounds_manager import *
 
 logger_name = "pynever.strategies.verification"
 
@@ -266,15 +264,14 @@ class NeverVerification(VerificationStrategy):
     def __init__(self, heuristic: str = "best_n_neurons", params: List = None,
                  refinement_level: int = None):
 
+        self.layers_bounds = None
         self.heuristic = heuristic
         self.params = params
         self.refinement_level = refinement_level
         self.logger = logging.getLogger(logger_name)
         self.counterexample_stars = None
-        self.layers_bounds = None
-        # dict whose keys are the layers identifier and the values. ONLY FOR TEST PURPOSE
-        self.stars_dict = dict()
 
+        self.stars_dict = dict()
 
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
@@ -325,10 +322,6 @@ class NeverVerification(VerificationStrategy):
         return abst_network
 
     def previous_value(self, dictionary, current_key):
-        """
-        This function gets in input a dict and a dict key. It returns the previous key.
-
-        """
 
         # Get the list of keys from the OrderedDict
         keys = list(dictionary.keys())
@@ -339,7 +332,8 @@ class NeverVerification(VerificationStrategy):
         # return the previous key's value
         return dictionary[keys[index]]
 
-    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dict) -> (abst.StarSet, List):
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dict) -> (
+            abst.StarSet, List):
 
         input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
         input_starset = abst.StarSet({input_star})
@@ -370,14 +364,15 @@ class NeverVerification(VerificationStrategy):
 
     def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
 
-        self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
 
-        # bound propagation
-        bound_manager = BoundsManager_2(abst_network, prop)
-        _, _, post_activation_bounds = bound_manager.compute_bounds()
+        # bound propagation calculation
+        bound_manager_elena = BoundsManagerElena(abst_network, prop)
+        _, elena_numeric_bounds, elena_post_bounds = bound_manager_elena.compute_bounds()
 
-        self.layers_bounds = post_activation_bounds
+        self.layers_bounds = elena_post_bounds
+
+        self.counterexample_stars = None
 
         ver_start_time = time.perf_counter()
         if isinstance(prop, NeVerProperty):
@@ -485,6 +480,9 @@ class NeverVerificationRef(VerificationStrategy):
         self.logger = logging.getLogger(logger_name)
         self.rel_ref = rel_ref
 
+        # dict whose keys are the layers identifier and the values
+        self.stars_dict = dict()
+
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
@@ -531,6 +529,7 @@ class NeverVerificationRef(VerificationStrategy):
         while current_node is not None:
             time_start = time.perf_counter()
             output_starset = current_node.forward(output_starset)
+            self.stars_dict[current_node.identifier] = output_starset
             time_end = time.perf_counter()
             if isinstance(current_node, abst.AbsReLUNode):
                 n_areas.append(current_node.n_areas)

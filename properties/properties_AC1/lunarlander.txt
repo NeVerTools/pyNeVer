@@ -1,0 +1,400 @@
+properties_lunar/lunarlander_case_safe_0.vnnlib 
+
+peak=17881337 
+
+time: 20.84879550198093 
+
+properties_lunar/lunarlander_case_safe_1.vnnlib 
+
+peak=13424482 
+
+time: 16.649484717985615 
+
+properties_lunar/lunarlander_case_safe_10.vnnlib 
+
+peak=1998070 
+
+time: 2.9515733108855784 
+
+properties_lunar/lunarlander_case_safe_11.vnnlib 
+
+peak=7067932 
+
+time: 4.088675186038017 
+
+properties_lunar/lunarlander_case_safe_12.vnnlib 
+
+time_limit_exception 
+
+properties_lunar/lunarlander_case_safe_13.vnnlib 
+
+peak=3841431 
+
+time: 3.407997898058966 
+
+properties_lunar/lunarlander_case_safe_14.vnnlib 
+
+peak=560321192 
+
+time: 148.28474427596666 
+
+properties_lunar/lunarlander_case_safe_15.vnnlib 
+
+peak=404497769 
+
+time: 141.88174144504592 
+
+properties_lunar/lunarlander_case_safe_17.vnnlib 
+
+peak=479034350 
+
+time: 168.94033825490624 
+
+properties_lunar/lunarlander_case_safe_18.vnnlib 
+
+peak=406165950 
+
+time: 190.97981517598964 
+
+properties_lunar/lunarlander_case_safe_19.vnnlib 
+
+peak=212016779 
+
+time: 39.665366305969656 
+
+properties_lunar/lunarlander_case_safe_2.vnnlib 
+
+peak=10845061 
+
+time: 13.915336720878258 
+
+properties_lunar/lunarlander_case_safe_21.vnnlib 
+
+peak=5509949 
+
+time: 4.518963860115036 
+
+properties_lunar/lunarlander_case_safe_22.vnnlib 
+
+peak=4071337 
+
+time: 2.967764324042946 
+
+properties_lunar/lunarlander_case_safe_23.vnnlib 
+
+peak=3255042 
+
+time: 3.9051223460119218 
+
+properties_lunar/lunarlander_case_safe_24.vnnlib 
+
+peak=1093672 
+
+time: 1.6399795431643724 
+
+properties_lunar/lunarlander_case_safe_25.vnnlib 
+
+peak=6798593 
+
+time: 4.319874757900834 
+
+properties_lunar/lunarlander_case_safe_26.vnnlib 
+
+peak=3215947 
+
+time: 2.3567350450903177 
+
+properties_lunar/lunarlander_case_safe_27.vnnlib 
+
+peak=1956822 
+
+time: 2.246739787980914 
+
+properties_lunar/lunarlander_case_safe_29.vnnlib 
+
+peak=1420642 
+
+time: 1.7276377480011433 
+
+properties_lunar/lunarlander_case_safe_30.vnnlib 
+
+peak=4719910 
+
+time: 3.388488464988768 
+
+properties_lunar/lunarlander_case_safe_31.vnnlib 
+
+peak=1195754 
+
+time: 1.625166523968801 
+
+properties_lunar/lunarlander_case_safe_32.vnnlib 
+
+peak=3548930 
+
+time: 2.7195221399888396 
+
+properties_lunar/lunarlander_case_safe_33.vnnlib 
+
+peak=2285579 
+
+time: 2.2504426341038197 
+
+properties_lunar/lunarlander_case_safe_34.vnnlib 
+
+peak=5813702 
+
+time: 3.7468980050180107 
+
+properties_lunar/lunarlander_case_safe_36.vnnlib 
+
+peak=8852792 
+
+time: 4.045318799791858 
+
+properties_lunar/lunarlander_case_safe_37.vnnlib 
+
+peak=1699850 
+
+time: 1.89410428609699 
+
+properties_lunar/lunarlander_case_safe_38.vnnlib 
+
+peak=4676886 
+
+time: 3.246365366037935 
+
+properties_lunar/lunarlander_case_safe_39.vnnlib 
+
+peak=5930628 
+
+time: 3.5508889800403267 
+
+properties_lunar/lunarlander_case_safe_40.vnnlib 
+
+peak=5629471 
+
+time: 4.276683617150411 
+
+properties_lunar/lunarlander_case_safe_41.vnnlib 
+
+peak=5919217 
+
+time: 4.028471433091909 
+
+properties_lunar/lunarlander_case_safe_42.vnnlib 
+
+peak=9453674 
+
+time: 3.995738008990884 
+
+properties_lunar/lunarlander_case_safe_43.vnnlib 
+
+peak=1162721 
+
+time: 1.6842682061251253 
+
+properties_lunar/lunarlander_case_safe_44.vnnlib 
+
+peak=2201071 
+
+time: 2.3058500420302153 
+
+properties_lunar/lunarlander_case_safe_46.vnnlib 
+
+peak=2262725 
+
+time: 2.041533769108355 
+
+properties_lunar/lunarlander_case_safe_47.vnnlib 
+
+peak=600246 
+
+time: 1.433709410019219 
+
+properties_lunar/lunarlander_case_safe_48.vnnlib 
+
+peak=10409880 
+
+time: 4.021222433075309 
+
+properties_lunar/lunarlander_case_safe_49.vnnlib 
+
+peak=2012678 
+
+time: 1.9394589480943978 
+
+properties_lunar/lunarlander_case_safe_5.vnnlib 
+
+peak=8205583 
+
+time: 9.356326424982399 
+
+properties_lunar/lunarlander_case_safe_50.vnnlib 
+
+peak=10721756 
+
+time: 4.006243740906939 
+
+properties_lunar/lunarlander_case_safe_52.vnnlib 
+
+peak=1432594 
+
+time: 1.7464732339140028 
+
+properties_lunar/lunarlander_case_safe_53.vnnlib 
+
+peak=1314431 
+
+time: 1.642869831994176 
+
+properties_lunar/lunarlander_case_safe_55.vnnlib 
+
+peak=7520254 
+
+time: 3.6068396649789065 
+
+properties_lunar/lunarlander_case_safe_56.vnnlib 
+
+peak=8371113 
+
+time: 3.9318982888944447 
+
+properties_lunar/lunarlander_case_safe_57.vnnlib 
+
+peak=9562575 
+
+time: 4.651660468894988 
+
+properties_lunar/lunarlander_case_safe_58.vnnlib 
+
+peak=9049759 
+
+time: 3.724497077986598 
+
+properties_lunar/lunarlander_case_safe_59.vnnlib 
+
+peak=7770001 
+
+time: 3.7622745560947806 
+
+properties_lunar/lunarlander_case_safe_6.vnnlib 
+
+peak=2011262 
+
+time: 2.303107813000679 
+
+properties_lunar/lunarlander_case_safe_60.vnnlib 
+
+peak=7930646 
+
+time: 3.819126879097894 
+
+properties_lunar/lunarlander_case_safe_62.vnnlib 
+
+peak=1954644 
+
+time: 2.216802363982424 
+
+properties_lunar/lunarlander_case_safe_63.vnnlib 
+
+peak=8978593 
+
+time: 4.181351190898567 
+
+properties_lunar/lunarlander_case_safe_66.vnnlib 
+
+peak=1455172 
+
+time: 1.9567053751088679 
+
+properties_lunar/lunarlander_case_safe_68.vnnlib 
+
+peak=1921768 
+
+time: 2.3821255590301007 
+
+properties_lunar/lunarlander_case_safe_7.vnnlib 
+
+peak=1956471 
+
+time: 2.167604934889823 
+
+properties_lunar/lunarlander_case_safe_71.vnnlib 
+
+peak=2093141 
+
+time: 1.9419309210497886 
+
+properties_lunar/lunarlander_case_safe_74.vnnlib 
+
+peak=4500968 
+
+time: 2.7072506700642407 
+
+properties_lunar/lunarlander_case_safe_77.vnnlib 
+
+peak=1366527 
+
+time: 1.6027287209872156 
+
+properties_lunar/lunarlander_case_safe_79.vnnlib 
+
+peak=1533440 
+
+time: 1.777428612112999 
+
+properties_lunar/lunarlander_case_safe_8.vnnlib 
+
+peak=1827896 
+
+time: 2.7590985109563917 
+
+properties_lunar/lunarlander_case_safe_80.vnnlib 
+
+peak=1730833 
+
+time: 1.81304667214863 
+
+properties_lunar/lunarlander_case_safe_81.vnnlib 
+
+peak=3504782 
+
+time: 2.207479401025921 
+
+properties_lunar/lunarlander_case_safe_83.vnnlib 
+
+peak=2081907 
+
+time: 2.2938794041983783 
+
+properties_lunar/lunarlander_case_safe_86.vnnlib 
+
+peak=717261 
+
+time: 1.3249886399134994 
+
+properties_lunar/lunarlander_case_safe_87.vnnlib 
+
+peak=603323 
+
+time: 1.322793415049091 
+
+properties_lunar/lunarlander_case_safe_88.vnnlib 
+
+peak=1272221 
+
+time: 1.5375956199131906 
+
+properties_lunar/lunarlander_case_safe_89.vnnlib 
+
+peak=2544224 
+
+time: 2.2862230490427464 
+
+properties_lunar/lunarlander_case_safe_9.vnnlib 
+
+peak=6139813 
+
+time: 4.2646050080657005 
+

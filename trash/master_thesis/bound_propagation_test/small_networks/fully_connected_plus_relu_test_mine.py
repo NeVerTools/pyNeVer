@@ -1,16 +1,27 @@
 import numpy as np
 
 from pynever.networks import SequentialNetwork as SeqNetwork
-from trash.master_thesis.csv_handler import from_stars_to_csv
 import pynever.nodes as nodes
 import pynever.strategies.verification as ver
 import pynever.strategies.abstraction as abst
 from pynever.strategies.bound_propagation_gimelli.bounds_menager import *
 from pynever.strategies.bound_propagation_elena.verification.bounds.boundsmanagerelena import *
 from pynever.strategies import smt_reading, verification
+from trash.master_thesis.csv_handler.csvhandler import print_to_csv_pynever_bounds
+from trash.master_thesis.csv_handler.violation_tester import ViolationsManager
+import os
+import time
 
 DEBUG = True
 
+pynever_bounds_folder = 'test_results/pynever_results/'
+gimelli_bounds_folder = 'test_results/elena_results/'
+elena_bounds_folder = 'test_results/gimelli_results/'
+obj = time.strftime("%H:%M:%S", time.localtime())
+time = str(obj)
+path = pynever_bounds_folder + time + '.csv'
+path2 = gimelli_bounds_folder + time + '.csv'
+path3 = elena_bounds_folder + time + '.csv'
 
 
 def getAbstractNetwork(net):
@@ -58,7 +69,7 @@ def getAbstractNetwork(net):
 
 
 def BigFullyConnectedLayers(network: SeqNetwork, logger=None):
-    fc_dim = 7
+    fc_dim = 30
     weight_matrix_1 = np.random.randn(fc_dim, 2)
     weight_matrix_2 = np.random.randn(fc_dim, fc_dim)
     weight_matrix_3 = np.random.randn(2, fc_dim)
@@ -173,20 +184,43 @@ def FiveInputNetwork2(network: SeqNetwork):
 
 
 if __name__ == '__main__':
-    fc_dim = 4
+    # # logger
+    # logger = logging.getLogger("bound_propagation.bounds_menager")
+    # # os.remove("../logs/numeric_bounds_mine.txt")
+    # fh_1 = logging.FileHandler("../logs/numeric_bounds_mine.txt")
+    # logger.setLevel(logging.DEBUG)
+    # fh_1.setLevel(logging.DEBUG)
+    # logger.addHandler(fh_1)
+
+    try:
+        os.remove('test_results/pynever_bounds.txt')
+    except:
+        pass
+
+    # clear all file in test_results
+    fc_dim = 7
 
     net = SeqNetwork("SmallNetwork", "IMP")
     BigNetwork(net, fc_dim)
-    property_path = "test/verification_test/property.smt2"
+    property_path = "property.smt2"
     parser = smt_reading.SmtPropertyParser(property_path, 'X', 'Y')
     prop = verification.NeVerProperty(*parser.parse_property())
+
+    bound_manager_gimelli = MyBoundsManager(getAbstractNetwork(net), prop)
+    bound_manager_gimelli.compute_bounds()
+
+    bound_manager_elena = BoundsManagerElena(getAbstractNetwork(net), prop)
+    bound_manager_elena.compute_bounds()
 
     heuristic = "best_n_neurons"
     params = [[1000] for _ in range(20)]
     verifier = ver.NeverVerification(heuristic, params)
-    safe = not verifier.verify(net, prop)
-    stars = verifier.stars_dict
-    dict = from_stars_to_csv(stars, "test/verification_test/test.csv")
-    print(dict)
+    safe = not verifier.verify(net, prop, 3, path2, path3)
 
+    print(safe)
 
+    print_to_csv_pynever_bounds('test_results/pynever_bounds.txt', path)
+
+    violations_manager = ViolationsManager(path,
+                                           path2, path3)
+    violations_manager.check()

@@ -19,7 +19,7 @@ logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
 logger_lb = logging.getLogger("pynever.strategies.abstraction.lb_times")
 logger_ub = logging.getLogger("pynever.strategies.abstraction.ub_times")
 
-parallel = True
+parallel = False
 
 
 class AbsElement(abc.ABC):
@@ -105,6 +105,12 @@ class Star:
 
             self.center = center
             self.basis_matrix = basis_matrix
+
+        # if lbs is None:
+        #     lbs = [None for _ in range(self.center.shape[0])]
+        #
+        # if ubs is None:
+        #     ubs = [None for _ in range(self.center.shape[0])]
 
         self.lbs = [None for _ in range(self.center.shape[0])]
         self.ubs = [None for _ in range(self.center.shape[0])]
@@ -502,30 +508,25 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
         is_positive_stable = False
         is_negative_stable = False
 
-        # da definire precisamente il comportamento in 0 tenendo condo dei problemi di numeric instabiliti
-        valore_soglia = 10 ** -15
-        if lower >= valore_soglia:
-            is_positive_stable = True
-            lb, ub = None, None
+        #lb, ub = star.get_bounds(var_index)
 
-        elif upper <= - valore_soglia:
+        if lower >= 0:
+            is_positive_stable = True
+
+        elif upper <= 0:
             is_negative_stable = True
-            lb, ub = None, None
 
         else:
             lb, ub = star.get_bounds(var_index)
-
-        assert lower <= upper, "ERROR: lower and upper bounds violation"
 
         if not star.is_empty:
             mask = np.identity(star.center.shape[0])
             mask[var_index, var_index] = 0
 
-            # short circuit
-            if is_positive_stable or (lb is not None and lb >= 0):
+            if is_positive_stable or lb >= 0:
                 abs_output = abs_output.union({star})
 
-            elif is_negative_stable or (ub is not None and ub <= 0):
+            elif is_negative_stable or ub <= 0:
                 new_center = np.matmul(mask, star.center)
                 new_basis_mat = np.matmul(mask, star.basis_matrix)
                 new_pred_mat = star.predicate_matrix
@@ -533,31 +534,9 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                 new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
                 abs_output = abs_output.union({new_star})
 
-                # if is_positive_stable:
-                #     abs_output = abs_output.union({star})
-                #
-                # elif is_negative_stable:
-                #     new_center = np.matmul(mask, star.center)
-                #     new_basis_mat = np.matmul(mask, star.basis_matrix)
-                #     new_pred_mat = star.predicate_matrix
-                #     new_pred_bias = star.predicate_bias
-                #     new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
-                #     abs_output = abs_output.union({new_star})
-                #
-                # elif lb >= 0:
-                #     abs_output = abs_output.union({star})
-                #
-                # elif ub <= 0:
-                #     new_center = np.matmul(mask, star.center)
-                #     new_basis_mat = np.matmul(mask, star.basis_matrix)
-                #     new_pred_mat = star.predicate_matrix
-                #     new_pred_bias = star.predicate_bias
-                #     new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
-                #     abs_output = abs_output.union({new_star})
-
             else:
-                if refinement_flag:
 
+                if refinement_flag:
                     # Creating lower bound star.
                     lower_star_center = np.matmul(mask, star.center)
                     lower_star_basis_mat = np.matmul(mask, star.basis_matrix)
@@ -629,8 +608,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List, layer_bo
 
         n_areas = []
         for i in range(star.center.shape[0]):
-            # this must be checked
-            if layer_bounds.lower[i] >= 0 or layer_bounds.upper[i] < 0:
+            if layer_bounds.lower[i] >= 0 or layer_bounds.upper[i] <= 0:
                 n_areas.append(0)
             else:
                 lb, ub = star.get_bounds(i)
@@ -932,6 +910,10 @@ class AbsLayerNode(abc.ABC):
 
         Parameters
         ----------
+        bounds
+        bounds
+            The overestimated bounds for each node of each layer
+
         abs_input : AbsElement
             The input abstract element.
 
@@ -1011,6 +993,7 @@ class AbsReLUNode(AbsLayerNode):
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 
@@ -1047,8 +1030,7 @@ class AbsReLUNode(AbsLayerNode):
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
         parallel_results = my_pool.starmap(mixed_single_relu_forward, zip(abs_input.stars,
                                                                           itertools.repeat(self.heuristic),
-                                                                          itertools.repeat(self.params),
-                                                                          itertools.repeat(self.layer_bounds)))
+                                                                          itertools.repeat(self.params)))
         my_pool.close()
 
         abs_output = StarSet()
@@ -1111,13 +1093,14 @@ class AbsFullyConnectedNode(AbsLayerNode):
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
         super().__init__(identifier, ref_node)
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 
@@ -1199,13 +1182,14 @@ class AbsSigmoidNode(AbsLayerNode):
 
         self.approx_levels = approx_levels
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds=None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
+        bounds
         abs_input : AbsElement
             The input abstract element.
 

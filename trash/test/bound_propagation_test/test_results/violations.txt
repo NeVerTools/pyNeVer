@@ -1,0 +1,166 @@
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+Iterazione fc_dim: 7
+violations.txt on gimelli_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0 -3.217495e-16            0.0
+1 -3.788748e-16            0.0
+2 -8.034424e-16            0.0
+3 -3.096843e-16            0.0
+4 -1.096384e-16            0.0
+5 -1.060368e-16            0.0
+6 -9.242352e-17            0.0
+
+violations.txt on gimelli_bounds_prop: AbsReLU_0_upper
+     pynever  broken_column
+0   0.866838       0.866838
+1   4.150094       4.150094
+2  10.355883      10.355883
+3   8.222798       8.222798
+4   1.265033       1.265033
+5   1.091689       1.091689
+6   2.041720       2.041720
+
+violations.txt on gimelli_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -1.411535e-15            0.0
+1 -3.344317e-16            0.0
+2 -6.422643e-16            0.0
+3 -5.980015e-16            0.0
+4 -3.658848e-16            0.0
+5 -4.965683e-16            0.0
+6 -9.775812e-16            0.0
+
+Iterazione fc_dim: 7
+violations.txt on gimelli_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0  0.000000e+00            0.0
+1 -7.776027e-16            0.0
+2 -2.685815e-16            0.0
+3 -1.170910e-16            0.0
+4 -2.952484e-16            0.0
+5 -3.294092e-17            0.0
+6 -1.273388e-16            0.0
+
+violations.txt on gimelli_bounds_prop: AbsReLU_0_upper
+    pynever  broken_column
+0  0.376414       0.376414
+1  9.874678       9.874678
+2  2.399713       2.399713
+3  0.850218       0.850218
+4  7.883872       7.883872
+5  0.296264       0.296264
+6  0.570077       0.570077
+
+violations.txt on gimelli_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -1.562049e-15            0.0
+1 -6.521926e-16            0.0
+2 -1.132223e-15            0.0
+3 -1.119872e-15            0.0
+4 -1.186259e-15            0.0
+5 -1.461068e-15            0.0
+6 -8.313613e-16            0.0
+
+Iterazione fc_dim: 7
+violations.txt on gimelli_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0 -8.853265e-17            0.0
+1 -4.391068e-16            0.0
+2 -2.807015e-17            0.0
+3 -2.913505e-17            0.0
+4 -3.471583e-16            0.0
+5 -3.330669e-16            0.0
+6 -3.112593e-17            0.0
+
+violations.txt on elena_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0 -8.853265e-17              0
+1 -4.391068e-16              0
+2 -2.807015e-17              0
+3 -2.913505e-17              0
+4 -3.471583e-16              0
+5 -3.330669e-16              0
+6 -3.112593e-17              0
+
+violations.txt on gimelli_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -5.822909e-16            0.0
+1 -2.597905e-15            0.0
+2 -4.258712e-15            0.0
+3 -2.586294e-15            0.0
+4 -2.092420e-15            0.0
+5 -2.197231e-15            0.0
+6 -3.288368e-15            0.0
+
+violations.txt on elena_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -5.822909e-16              0
+1 -2.597905e-15              0
+2 -4.258712e-15              0
+3 -2.586294e-15              0
+4 -2.092420e-15              0
+5 -2.197231e-15              0
+6 -3.288368e-15              0
+
+Iterazione fc_dim: 7
+violations.txt on gimelli_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0  0.000000e+00            0.0
+1 -1.057238e-17            0.0
+2 -1.026528e-17            0.0
+3 -2.252380e-16            0.0
+4 -2.359229e-17            0.0
+5 -2.028378e-17            0.0
+6 -2.126312e-16            0.0
+
+violations.txt on elena_bounds_prop: AbsReLU_0_lower
+        pynever  broken_column
+0  0.000000e+00              0
+1 -1.057238e-17              0
+2 -1.026528e-17              0
+3 -2.252380e-16              0
+4 -2.359229e-17              0
+5 -2.028378e-17              0
+6 -2.126312e-16              0
+
+violations.txt on gimelli_bounds_prop: AbsReLU_0_upper
+    pynever  broken_column
+0  1.511772       1.511772
+1  0.900913       0.900913
+2  0.597432       0.597432
+3  5.493488       5.493488
+4  0.345499       0.345499
+5  0.231438       0.231438
+6  5.318347       5.318347
+
+violations.txt on gimelli_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -1.070368e-15            0.0
+1 -3.799099e-15            0.0
+2 -5.954510e-16            0.0
+3 -6.161347e-16            0.0
+4 -1.394879e-15            0.0
+5 -1.400497e-15            0.0
+6 -1.095577e-15            0.0
+
+violations.txt on elena_bounds_prop: AbsReLU_1_lower
+        pynever  broken_column
+0 -1.070368e-15              0
+1 -3.799099e-15              0
+2 -5.954510e-16              0
+3 -6.161347e-16              0
+4 -1.394879e-15              0
+5 -1.400497e-15              0
+6 -1.095577e-15              0
+
