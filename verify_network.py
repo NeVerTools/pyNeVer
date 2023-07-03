@@ -222,8 +222,8 @@ def run(network_name: str, prop_name: str):
             stars_dict = verifier.stars_dict
     except TimeoutException as e:
         stars_dict = None
-
-    violations_manager = ViolationsManager(path_1, path_2, path_3, network, prop, stars_dict)
+    if stars_dict is not None:
+        violations_manager = ViolationsManager(path_1, path_2, path_3, network, prop, stars_dict)
     #violations_manager.check(0.00001, True)
 
 
