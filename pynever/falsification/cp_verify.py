@@ -11,7 +11,7 @@ from pynever.strategies import conversion, smt_reading, verification
 # programming
 
 
-def verify_cp(network_path, property_path):
+def verify_cp(network_path, property_path, get_output_bounds=False):
     # Load the network
     # TODO better error handling
     nn = conversion.load_network_path(network_path)
@@ -47,7 +47,7 @@ def verify_cp(network_path, property_path):
     # X_C @ x <= X_d
     # FIXME X and Y should be changed when they will be the same as the input and output of the network
     in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading.\
-        SmtPropertyParser(property_path, "X", "Y").parse_property()
+        SmtPropertyParser(property_path, "X", nn.get_last_node().identifier).parse_property()
 
     bounds = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 
@@ -111,25 +111,61 @@ def verify_cp(network_path, property_path):
     alts = [mdlr.logical_and(exprs) for exprs in alts]
     mdl.add(mdlr.logical_or(alts))
 
-    return mdl.solve().solve_status
+    output_bounds = None
+    if get_output_bounds:
+        y = expr.float_var_list(size=len(last_output), name="Y")
+        for idx, o in enumerate(last_output):
+            mdl.add(y[idx] == o)
+        var_bounds = mdl.propagate().solution.var_solutions_dict
+        output_bounds = []
+        for i in range(len(y)):
+            output_bounds.append(var_bounds[f'Y_{i}'].value)
+
+    mdl.solve()
+    #return mdl.solve().solve_status, output_bounds
+    return "placeholder", output_bounds
 
 
 if __name__ == "__main__":
-    import time
+    # import glob
+    # import time
+    #
+    # networks = glob.glob("networks/james/*.onnx")
+    # properties = ["properties/james_vnnlib.smt2"] * len(networks)
+    #
+    # results = []
+    # times = []
+    #
+    # for network, prop in zip(networks, properties):
+    #     print(network.split('/')[1].split('\\')[1])
+    #     start = time.time()
+    #     result = verify_cp(network, prop)
+    #     end = time.time()
+    #     results.append(result)
+    #     times.append(end - start)
+    #
+    # with open("cp_times.txt", "w") as f:
+    #     for network, prop, result, time in zip(networks, properties, results, times):
+    #         f.write(f"{network}\t{prop}\t{result}\t{time}\n")
 
-    networks = ["networks/ex.onnx"]
-    properties = ["properties/ex.smt2"]
-
-    results = []
-    times = []
-
-    for network, prop in zip(networks, properties):
-        start = time.time()
-        result = verify_cp(network, prop)
-        end = time.time()
-        results.append(result)
-        times.append(end - start)
-
-    with open("cp_times.txt", "w") as f:
-        for network, prop, result, time in zip(networks, properties, results, times):
-            f.write(f"{network}\t{prop}\t{result}\t{time}")
+    # import glob
+    # import time
+    #
+    # networks = glob.glob("networks/james/*.onnx")
+    # properties = ["properties/james_vnnlib.smt2"] * 5
+    #
+    # results = []
+    # times = []
+    #
+    # for network, prop in zip(networks, properties):
+    #     print(network.split('/')[1].split('\\')[1])
+    #     start = time.time()
+    #     _, result = verify_cp(network, prop, True)
+    #     end = time.time()
+    #     results.append(result)
+    #     times.append(end - start)
+    #
+    # with open("cp_bounds.txt", "w") as f:
+    #     for network, prop, result, time in zip(networks, properties, results, times):
+    #         f.write(f"{network}\t{prop}\t{result}\t{time}\n")
+    verify_cp("networks/ex.onnx", "properties/ex.smt2")
