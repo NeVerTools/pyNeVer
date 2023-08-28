@@ -526,6 +526,25 @@ class ONNXConverter(ConversionStrategy):
 
         onnx_nodes.append(onnx_node)
 
+    @staticmethod
+    def __add_onnx_transpose(current_node: nodes.TransposeNode, current_input: str, current_output: str,
+                             onnx_nodes: list):
+
+        # Since our representation do not consider the batch dimension we need to scale the perm by 1
+        # and add the 0 dimension when we pass to the onnx representation.
+        perm = [0]
+        for p in current_node.perm:
+            perm.append(p + 1)
+
+        onnx_node = onnx.helper.make_node(
+            'Transpose',
+            inputs=[current_input],
+            outputs=[current_output],
+            perm=perm
+        )
+
+        onnx_nodes.append(onnx_node)
+
     def from_neural_network(self, network: networks.NeuralNetwork) -> ONNXNetwork:
         """
         Convert the neural network of interest to a ONNX representation.
@@ -654,6 +673,10 @@ class ONNXConverter(ConversionStrategy):
                     elif isinstance(current_node, nodes.DropoutNode):
                         self.__add_onnx_dropout(current_node, current_input, current_output, onnx_nodes, input_info,
                                                 initializers)
+
+                    elif isinstance(current_node, nodes.TransposeNode):
+                        self.__add_onnx_transpose(current_node, current_input, current_output, onnx_nodes, input_info,
+                                                  initializers)
 
                     else:
                         raise NotImplementedError
@@ -987,6 +1010,19 @@ class ONNXConverter(ConversionStrategy):
 
                 ratio = parameters[node.input[1]][0]
                 network.add_node(nodes.DropoutNode(node.output[0], in_dim, ratio))
+
+            elif node.op_type == "Transpose":
+
+                perm = None
+                for att in node.attribute:
+                    if att.name == 'perm':
+                        # Must manage batch dimension
+                        if len(att.ints) > len(in_dim):
+                            perm = [att.ints[k] - 1 for k in range(1, len(att.ints))]
+                        else:
+                            perm = att.ints
+
+                network.add_node(nodes.TransposeNode(node.output[0], in_dim, perm))
 
             else:
                 raise NotImplementedError
