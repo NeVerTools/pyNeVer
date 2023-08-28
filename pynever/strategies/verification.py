@@ -4,6 +4,7 @@ import logging
 import operator
 import time
 from typing import List, Optional, Callable
+from fractions import Fraction
 
 import numpy as np
 import torch
@@ -190,8 +191,11 @@ class NeVerProperty(Property):
                     if k < len(coef) - 1 and any(coef[k + 1:]):
                         s = s + ' + '
 
-            # Add bias
-            s = s + f") <= ({float(bias)})"
+            # Add bias preventing exponential representation
+            bias_repr = float(bias)
+            if 'e' in str(bias_repr):
+                bias_repr = Fraction(bias)
+            s = s + f") <= ({bias_repr})"
             c_list.append(s)
 
         return c_list
