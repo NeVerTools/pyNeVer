@@ -1,11 +1,12 @@
-import pynever.utilities as utilities
-import numpy as np
-import pynever.strategies.verification as ver
-import pynever.nodes as nodes
-import pynever.networks as networks
-import time
 import logging
+import time
 
+import numpy as np
+
+import pynever.networks as networks
+import pynever.nodes as nodes
+import pynever.strategies.verification as ver
+import pynever.utilities as utilities
 
 if __name__ == "__main__":
 
@@ -131,7 +132,8 @@ if __name__ == "__main__":
 
             for k in range(len(weights)):
 
-                new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
+                new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0],
+                                                       weights[k],
                                                        biases[k], True)
                 network.add_node(new_fc_node)
 
@@ -143,7 +145,6 @@ if __name__ == "__main__":
             prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, [out_pred_mat], [out_pred_bias])
 
             for k in range(len(verification_parameters)):
-
                 heuristic = verification_parameters[k][0]
                 params = verification_parameters[k][1]
                 net_id = networks_ids[i][j]
@@ -163,4 +164,3 @@ if __name__ == "__main__":
                 time_end = time.perf_counter()
                 logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},{param_set_id[k]},{safe},"
                                       f"{time_end - time_start}")
-
