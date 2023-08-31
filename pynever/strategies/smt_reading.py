@@ -451,7 +451,7 @@ class SmtPropertyParser:
         """
 
         script = self.__as_script()
-        declarations = script.filter_by_command_name(['declare-const', 'declare-const'])
+        declarations = script.filter_by_command_name(['declare-fun', 'declare-const'])
         vec_list = []
 
         # Loop declarations and match with name
