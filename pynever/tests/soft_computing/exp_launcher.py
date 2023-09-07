@@ -6,6 +6,7 @@ import time
 import pynever.strategies.conversion as conv
 from pynever.strategies.conversion import ONNXConverter, ONNXNetwork
 from pynever.strategies.verification import NeVerProperty, NeverVerification
+from pynever.tests.soft_computing.timeout import time_limit, TimeoutException
 
 pynever_setting = [['Over-approx.', 'overapprox', [0]],
                    ['Mixed1', 'mixed', [1]],
@@ -19,6 +20,8 @@ logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 
 logger_stream.setLevel(logging.INFO)
 logger_file.setLevel(logging.INFO)
+
+TIMEOUT = 300  # 5 minutes
 
 if __name__ == '__main__':
 
@@ -39,14 +42,20 @@ if __name__ == '__main__':
             property_instance.from_smt_file(f"{folder}/Properties/{instance[1]}")
 
             for setting in pynever_setting:
-                logger_stream.info(f"Benchmark: {instance}")
+                inst_name = str(instance).replace(',', ' -')
+                logger_stream.info(f"Benchmark: {inst_name}")
                 logger_stream.info(f"PyNeVer setting: {setting[0]}")
 
-                strategy = NeverVerification(setting[1], setting[2])
-                time_start = time.perf_counter()
-                safe = not strategy.verify(onnx_net, property_instance)
-                time_end = time.perf_counter()
-                logger_file.info(f"{str(instance).replace(',', ' -')},{safe},{time_end - time_start}")
+                try:
+                    with time_limit(TIMEOUT):
+                        strategy = NeverVerification(setting[1], setting[2])
+                        time_start = time.perf_counter()
+                        safe = not strategy.verify(onnx_net, property_instance)
+                        time_end = time.perf_counter()
+                        logger_file.info(f"{inst_name},{safe},{time_end - time_start}")
+                except TimeoutException as e:
+                    logger_file.info(f"{inst_name},---,---")
+                    break
 
     # acas_dir = ('data/ACAS XU')
     # for property_file in os.listdir(f"{acas_dir}/Properties"):
