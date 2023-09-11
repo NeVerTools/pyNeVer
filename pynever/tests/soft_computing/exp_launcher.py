@@ -78,10 +78,10 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
 
 if __name__ == '__main__':
 
-    TEST_ACAS = True if sys.argv[1] == 1 else False
-    TEST_ACC = True if sys.argv[2] == 1 else False
-    TEST_RL = True if sys.argv[3] == 1 else False
-    TEST_DRONES = True if sys.argv[4] == 1 else False
+    TEST_ACAS = True if sys.argv[1] == '1' else False
+    TEST_ACC = True if sys.argv[2] == '1' else False
+    TEST_RL = True if sys.argv[3] == '1' else False
+    TEST_DRONES = True if sys.argv[4] == '1' else False
 
     logger_file.info('Benchmark,Over-approx.,,Mixed1,,Complete,,')
     logger_file.info(',Result,Time,Result,Time,Result,Time')
