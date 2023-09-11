@@ -3,6 +3,7 @@ import csv
 import logging
 import os
 import signal
+import sys
 import time
 from contextlib import contextmanager
 
@@ -77,21 +78,32 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
 
 if __name__ == '__main__':
 
+    TEST_ACAS = True if sys.argv[1] == 1 else False
+    TEST_ACC = True if sys.argv[2] == 1 else False
+    TEST_RL = True if sys.argv[3] == 1 else False
+    TEST_DRONES = True if sys.argv[4] == 1 else False
+
     logger_file.info('Benchmark,Over-approx.,,Mixed1,,Complete,,')
     logger_file.info(',Result,Time,Result,Time,Result,Time')
 
     # ACAS XU launcher
-    with open('data/ACAS XU/instances.csv') as instances:
-        folder = 'data/ACAS XU'
-        csv_reader = csv.reader(instances)
+    if TEST_ACAS:
+        with open('data/ACAS XU/instances.csv') as instances:
+            folder = 'data/ACAS XU'
+            csv_reader = csv.reader(instances)
 
-        for instance in csv_reader:
-            exec_instance(f"{folder}/Networks/{instance[0]}",
-                          f"{folder}/Properties/{instance[1]}",
-                          instance[1])
+            for instance in csv_reader:
+                exec_instance(f"{folder}/Networks/{instance[0]}",
+                              f"{folder}/Properties/{instance[1]}",
+                              instance[1])
 
     # ACC and RL launcher
-    dirs = ['data/ACC', 'data/RL/Cartpole', 'data/RL/Lunar Lander', 'data/RL/Dubins Rejoin']
+    dirs = []
+    if TEST_ACC:
+        dirs.append('data/ACC')
+
+    if TEST_RL:
+        dirs.extend(['data/RL/Cartpole', 'data/RL/Lunar Lander', 'data/RL/Dubins Rejoin'])
 
     for dir_name in dirs:
         for property_file in os.listdir(f"{dir_name}/Properties"):
@@ -105,11 +117,12 @@ if __name__ == '__main__':
                         exec_instance(n_f, p_f, property_file)
 
     # Drones launcher
-    with open('data/Drones/instances.csv') as instances:
-        folder = 'data/Drones'
-        csv_reader = csv.reader(instances)
+    if TEST_DRONES:
+        with open('data/Drones/instances.csv') as instances:
+            folder = 'data/Drones'
+            csv_reader = csv.reader(instances)
 
-        for instance in csv_reader:
-            exec_instance(f"{folder}/Networks/{instance[0]}",
-                          f"{folder}/Properties/{instance[1]}",
-                          instance[1])
+            for instance in csv_reader:
+                exec_instance(f"{folder}/Networks/{instance[0]}",
+                              f"{folder}/Properties/{instance[1]}",
+                              instance[1])
