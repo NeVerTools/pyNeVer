@@ -521,8 +521,12 @@ class SmtPropertyParser:
         else:  # Otherwise, separate in different matrices
             disjunct_list.reverse()
             for d in disjunct_list:
-                self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, [d]))
-                self.out_bias_mat.append(self.__get_bias_mat([d]))
+                if isinstance(d, list):
+                    self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, d))
+                    self.out_bias_mat.append(self.__get_bias_mat(d))
+                else:
+                    self.out_coef_mat.append(self.__get_coef_mat(self.y, self.y_name, [d]))
+                    self.out_bias_mat.append(self.__get_bias_mat([d]))
 
         return self.in_coef_mat, self.in_bias_mat, self.out_coef_mat, self.out_bias_mat
 
