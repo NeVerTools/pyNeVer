@@ -70,7 +70,7 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
             with time_limit(TIMEOUT):
                 strategy = NeverVerification(setting[1], setting[2])
                 time_start = time.perf_counter()
-                safe = strategy.verify(onnx_net, property_instance)
+                safe = not strategy.verify(onnx_net, property_instance)
                 time_end = time.perf_counter()
                 part_string += f"{safe},{time_end - time_start},"
         except TimeoutException:
