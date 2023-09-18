@@ -72,12 +72,12 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
                 time_start = time.perf_counter()
                 safe = strategy.verify(onnx_net, property_instance)
                 time_end = time.perf_counter()
-                part_string += f"{inst_name},{safe},{time_end - time_start}"
+                part_string += f"{inst_name},{safe},{time_end - time_start},"
         except TimeoutException:
-            part_string += f"{inst_name},---,---"
+            part_string += f"{inst_name},---,---,"
             break
 
-        logger_file.info(part_string)
+    logger_file.info(part_string[:-1])
 
 
 if __name__ == '__main__':
