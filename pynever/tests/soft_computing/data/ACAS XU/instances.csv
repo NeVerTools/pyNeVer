@@ -164,7 +164,8 @@ ACAS_XU_5_7.onnx,prop_4.vnnlib
 ACAS_XU_5_8.onnx,prop_4.vnnlib
 ACAS_XU_5_9.onnx,prop_4.vnnlib
 ACAS_XU_1_1.onnx,prop_5.vnnlib
-ACAS_XU_1_1.onnx,prop_6.vnnlib
+ACAS_XU_1_1.onnx,prop_6a.vnnlib
+ACAS_XU_1_1.onnx,prop_6b.vnnlib
 ACAS_XU_1_9.onnx,prop_7.vnnlib
 ACAS_XU_2_9.onnx,prop_8.vnnlib
 ACAS_XU_3_3.onnx,prop_9.vnnlib

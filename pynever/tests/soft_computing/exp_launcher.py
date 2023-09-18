@@ -59,10 +59,10 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
     property_instance = NeVerProperty()
     property_instance.from_smt_file(property_path)
 
-    part_string = ''
+    inst_name = f"[{network_instance.identifier} - {property_id}]"
+    part_string = f'{inst_name},'
 
     for setting in pynever_setting:
-        inst_name = f"[{network_instance.identifier} - {property_id}]"
         logger_stream.info(f"Benchmark: {inst_name}")
         logger_stream.info(f"PyNeVer setting: {setting[0]}")
 
@@ -72,9 +72,9 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
                 time_start = time.perf_counter()
                 safe = strategy.verify(onnx_net, property_instance)
                 time_end = time.perf_counter()
-                part_string += f"{inst_name},{safe},{time_end - time_start},"
+                part_string += f"{safe},{time_end - time_start},"
         except TimeoutException:
-            part_string += f"{inst_name},---,---,"
+            part_string += f"---,---,"
             break
 
     logger_file.info(part_string[:-1])
