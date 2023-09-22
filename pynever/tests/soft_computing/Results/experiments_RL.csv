@@ -40,10 +40,23 @@ Benchmark,Over-approx.,,Mixed1,,Complete,,
 [lunarlander - prop_87.vnnlib],True,2.6328702039900236,True,2.633901835011784,True,2.733241768029984
 [lunarlander - prop_70.vnnlib],True,2.6426024110405706,True,2.6668813740252517,True,2.876586722966749
 [lunarlander - prop_30.vnnlib],True,2.65947520500049,True,2.6745678869774565,True,3.3516746350214817
-[dubinsrejoin -prop_50.vnnlib],True,9.344124738010578,True,16.216442311997525,---,---
-[dubinsrejoin -prop_4.vnnlib],True,32.75673605297925,True,51.94097188202431,---,---
-[dubinsrejoin -prop_44.vnnlib],True,26.389202338992618,True,37.74363987101242,---,---
-[dubinsrejoin -prop_24.vnnlib],True,27.613570495974272,True,48.25644038699102,---,---
-[dubinsrejoin -prop_78.vnnlib],True,38.560648471990135,True,50.15909589902731,---,---
-[dubinsrejoin -prop_57.vnnlib],True,94.57959773397306,True,140.30140555999242,---,---
-[dubinsrejoin -prop_64.vnnlib],True,34.33091379801044,True,76.47547528595896,---,---
+[dubinsrejoin - prop_72.vnnlib],False,4.966559332999992,False,11.117564587999993,---,---
+[dubinsrejoin - prop_12.vnnlib],False,19.863619366000023,False,34.192338233000044,---,---
+[dubinsrejoin - prop_50.vnnlib],False,12.857818695999981,False,25.103221629000018,---,---
+[dubinsrejoin - prop_3.vnnlib],False,45.3709813779999,False,69.5508675189999,---,---
+[dubinsrejoin - prop_57.vnnlib],False,58.08942088899994,False,87.09199904499997,---,---
+[dubinsrejoin - prop_28.vnnlib],False,62.21903774800012,False,116.12313491199984,---,---
+[dubinsrejoin - prop_80.vnnlib],False,13.301503249000234,False,21.52928775800001,---,---
+[dubinsrejoin - prop_78.vnnlib],False,35.46018230899972,False,49.26580904100001,---,---
+[dubinsrejoin - prop_84.vnnlib],False,8.869499886000085,False,11.242672840000068,---,---
+[dubinsrejoin - prop_64.vnnlib],False,43.003178069000114,False,49.5985628100002,---,---
+[dubinsrejoin - prop_4.vnnlib],False,99.37683211600006,False,195.51671118400054,---,---
+[dubinsrejoin - prop_92.vnnlib],False,8.524922685000092,False,8.652224436999859,False,35.20794924199981
+[dubinsrejoin - prop_66.vnnlib],False,48.34350605599957,False,75.80107180899995,---,---
+[dubinsrejoin - prop_90.vnnlib],False,12.745512847999635,False,20.83845448900047,---,---
+[dubinsrejoin - prop_16.vnnlib],True,7.972422764999976,True,15.897245505,---,---
+[dubinsrejoin - prop_51.vnnlib],False,121.84385006499997,False,160.22738548899997,---,---
+[dubinsrejoin - prop_24.vnnlib],False,187.42715389800014,False,275.6887506840003,---,---
+[dubinsrejoin - prop_38.vnnlib],False,160.29940759199962,False,185.38424372099962,---,---
+[dubinsrejoin - prop_44.vnnlib],False,111.25997865499994,False,168.94848887900025,---,---
+[dubinsrejoin - prop_21.vnnlib],False,214.8872418530009,False,289.41700306500024,---,---
