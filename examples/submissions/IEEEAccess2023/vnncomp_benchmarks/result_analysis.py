@@ -39,10 +39,7 @@ def check_res_by_cs(results: pd.DataFrame, case_study: str):
     ord_mix_times = np.sort(mix_times[mix_times < 3600])
     ord_comp_times = np.sort(comp_times[comp_times < 3600])
 
-    times = np.array([over_times, mix_times, comp_times]).transpose()
-    labels = np.array(['overapprox', 'mixed', 'complete'])
-
-    plt.figure()
+    """plt.figure()
     plt.plot(ord_over_times, label='overapprox', color='red', marker='o', markevery=5)
     plt.plot(ord_mix_times, label='mixed', color='green', marker='v', markevery=5)
     plt.plot(ord_comp_times, label='complete', color='blue', marker='s', markevery=5)
@@ -51,7 +48,7 @@ def check_res_by_cs(results: pd.DataFrame, case_study: str):
     plt.title(f'CS: {case_study}')
     plt.tight_layout()
     plt.savefig(f"graphs/{case_study}_times_plot.eps")
-    plt.show()
+    plt.show()"""
 
     return ord_over_times, ord_mix_times, ord_comp_times
 
@@ -61,38 +58,79 @@ cp_times = check_res_by_cs(res_df, 'cartpole')
 ll_times = check_res_by_cs(res_df, 'lunarlander')
 dr_times = check_res_by_cs(res_df, 'dubinsrejoin')
 
-plt.rc('axes', labelsize=15)
+plt.rc('axes', labelsize=10)
 plt.rc('axes', titlesize=15)
 plt.rcParams['text.usetex'] = True
 
 linestyles = ['-', '--', ':']
 colors = ['red', 'green', 'blue']
 labels = ['overapprox', 'mixed', 'complete']
+markers = ['o', 'v', 's']
+marker_size = 20
+plot_lines = False
+plot_scatter = True
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
-for i in range(len(cp_times)):
-    ax1.plot(cp_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
-# ax1.grid()
-ax1.legend()
-ax1.set_yscale('log')
-ax1.set_ylabel('t')
-ax1.set_title("CS: cartpole")
 
-for i in range(len(cp_times)):
-    ax2.plot(ll_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
-# ax1.grid()
-ax2.legend()
-ax2.set_yscale('log')
-ax2.set_title("CS: lunarlander")
+if plot_lines:
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
+    for i in range(len(cp_times)):
+        ax1.plot(cp_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
+    # ax1.grid()
+    ax1.legend()
+    ax1.set_yscale('log')
+    ax1.set_ylabel('t')
+    ax1.set_title("CS: cartpole")
 
-for i in range(len(cp_times)):
-    ax3.plot(dr_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
-# ax1.grid()
-ax3.legend()
-ax3.set_yscale('log')
-ax3.set_title("CS: dubinsrejoin")
+    for i in range(len(cp_times)):
+        ax2.plot(ll_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
+    # ax1.grid()
+    ax2.legend()
+    ax2.set_yscale('log')
+    ax2.set_xlabel('solved queries')
+    ax2.set_title("CS: lunarlander")
 
-plt.tight_layout()
-plt.savefig("graphs/res_by_cs.eps")
-plt.savefig("graphs/res_by_cs.pdf")
-plt.show()
+    for i in range(len(cp_times)):
+        ax3.plot(dr_times[i], label=labels[i], color=colors[i], linestyle=linestyles[i])
+    # ax1.grid()
+    ax3.legend()
+    ax3.set_yscale('log')
+    ax3.set_title("CS: dubinsrejoin")
+
+    plt.tight_layout()
+    plt.savefig("graphs/res_by_cs.eps")
+    plt.savefig("graphs/res_by_cs.pdf")
+    plt.show()
+
+if plot_scatter:
+
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
+    for i in range(len(cp_times)):
+        ax1.scatter(range(len(cp_times[i])), cp_times[i], label=labels[i], edgecolors=colors[i], facecolors='none',
+                    marker=markers[i], s=marker_size)
+    # ax1.grid()
+    ax1.legend()
+    ax1.set_yscale('log')
+    ax1.set_ylabel('t')
+    ax1.set_title("CS: cartpole")
+
+    for i in range(len(ll_times)):
+        ax2.scatter(range(len(ll_times[i])), ll_times[i], label=labels[i], edgecolors=colors[i], facecolors='none',
+                    marker=markers[i], s=marker_size)
+    # ax1.grid()
+    ax2.legend()
+    ax2.set_yscale('log')
+    ax2.set_xlabel('solved queries')
+    ax2.set_title("CS: lunarlander")
+
+    for i in range(len(dr_times)):
+        ax3.scatter(range(len(dr_times[i])), dr_times[i], label=labels[i], edgecolors=colors[i], facecolors='none',
+                    marker=markers[i], s=marker_size)
+    # ax1.grid()
+    ax3.legend()
+    ax3.set_yscale('log')
+    ax3.set_title("CS: dubinsrejoin")
+
+    plt.tight_layout()
+    plt.savefig("graphs/res_by_cs.eps")
+    plt.savefig("graphs/res_by_cs.pdf")
+    plt.show()
