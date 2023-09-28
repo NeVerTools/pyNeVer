@@ -1,0 +1,28 @@
+; VDP spec with rad 0.37980702501135716 and log_prob 0.2555093881187115
+
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+
+(declare-const Y_0 Real)
+(declare-const Y_1 Real)
+(declare-const Y_2 Real)
+
+; Input constraints:
+(assert (<= X_0 2.5))
+(assert (>= X_0 -2.5))
+
+(assert (<= X_1 2.5))
+(assert (>= X_1 -2.5))
+
+(assert (<= X_2 5.0))
+(assert (>= X_2 0.0))
+
+
+; Output constraints (encoding the conditions for a property counter-example):
+(assert (<= Y_1 0.37980702501135716))
+(assert (>= Y_1 -0.37980702501135716))
+(assert (<= Y_2 0.37980702501135716))
+(assert (>= Y_2 -0.37980702501135716))
+(assert (>= Y_0 0.2555093881187115))
+

@@ -1,0 +1,80 @@
+; gcas with theta_max -0.6917637547441482 and scale 2.47234970895402
+
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+(declare-const X_4 Real)
+(declare-const X_5 Real)
+(declare-const X_6 Real)
+(declare-const X_7 Real)
+(declare-const X_8 Real)
+(declare-const X_9 Real)
+(declare-const X_10 Real)
+(declare-const X_11 Real)
+(declare-const X_12 Real)
+(declare-const X_13 Real)
+
+(declare-const Y_0 Real)
+(declare-const Y_1 Real)
+(declare-const Y_2 Real)
+(declare-const Y_3 Real)
+(declare-const Y_4 Real)
+(declare-const Y_5 Real)
+(declare-const Y_6 Real)
+(declare-const Y_7 Real)
+(declare-const Y_8 Real)
+(declare-const Y_9 Real)
+(declare-const Y_10 Real)
+(declare-const Y_11 Real)
+(declare-const Y_12 Real)
+(declare-const Y_13 Real)
+
+; Input constraints:
+(assert (<= X_0 1.7312612073369356))
+(assert (>= X_0 -1.7492930226200185))
+
+(assert (<= X_1 1.7194907929960244))
+(assert (>= X_1 -1.7306896924315087))
+
+(assert (<= X_2 4.262319371300338))
+(assert (>= X_2 -4.2544681942084015))
+
+(assert (<= X_3 1.7638442067420586))
+(assert (>= X_3 -1.7108058693099715))
+
+(assert (<= X_4 5.195179481948719))
+(assert (>= X_4 0.37946239980863533))
+
+(assert (<= X_5 4.297077855273765))
+(assert (>= X_5 -4.2305759189759895))
+
+(assert (<= X_6 4.243234377401164))
+(assert (>= X_6 -4.254739275598386))
+
+(assert (<= X_7 4.321347440367013))
+(assert (>= X_7 -4.331464446479538))
+
+(assert (<= X_8 4.230029972475666))
+(assert (>= X_8 -4.261814447656289))
+
+(assert (<= X_9 4.293297803709083))
+(assert (>= X_9 -4.29592636097012))
+
+(assert (<= X_10 4.219576705814713))
+(assert (>= X_10 -4.246175679988386))
+
+(assert (<= X_11 1.7230633312097163))
+(assert (>= X_11 -5.117915489174584))
+
+(assert (<= X_12 1.7192793482457187))
+(assert (>= X_12 -1.7504824551751277))
+
+(assert (<= X_13 3.5))
+(assert (>= X_13 0.0))
+
+
+; Output constraints (encoding the conditions for a property counter-example):
+(assert (<= Y_12 -2.2838113986655717))
+(assert (>= Y_0 -0.0))
+

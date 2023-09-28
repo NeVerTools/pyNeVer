@@ -1,0 +1,38 @@
+; Robot spec with rad 0.14063126799167602 and log_prob 0.06360789758578266
+
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+(declare-const X_4 Real)
+
+(declare-const Y_0 Real)
+(declare-const Y_1 Real)
+(declare-const Y_2 Real)
+(declare-const Y_3 Real)
+(declare-const Y_4 Real)
+
+; Input constraints:
+(assert (<= X_0 -1.2))
+(assert (>= X_0 -1.8))
+
+(assert (<= X_1 -1.2))
+(assert (>= X_1 -1.8))
+
+(assert (<= X_2 1.5707963267948966))
+(assert (>= X_2 0.0))
+
+(assert (<= X_3 1.5))
+(assert (>= X_3 1.0))
+
+(assert (<= X_4 2.5))
+(assert (>= X_4 0.0))
+
+
+; Output constraints (encoding the conditions for a property counter-example):
+(assert (<= Y_1 0.14063126799167602))
+(assert (>= Y_1 -0.14063126799167602))
+(assert (<= Y_2 0.14063126799167602))
+(assert (>= Y_2 -0.14063126799167602))
+(assert (>= Y_0 0.06360789758578266))
+
