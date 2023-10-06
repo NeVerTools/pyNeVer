@@ -24,8 +24,6 @@ logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 logger_stream.setLevel(logging.INFO)
 logger_file.setLevel(logging.INFO)
 
-TIMEOUT = 300  # 5 minutes
-
 
 class TimeoutException(Exception):
     """
@@ -50,7 +48,7 @@ def time_limit(seconds: int):
         signal.alarm(0)
 
 
-def exec_instance(network_path: str, property_path: str, property_id: str):
+def exec_instance(network_path: str, property_path: str, property_id: str, timeout_seconds: int):
     network_instance = conv.load_network_path(network_path)
     onnx_net = None
     if isinstance(network_instance, ONNXNetwork):
@@ -67,7 +65,7 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
         logger_stream.info(f"PyNeVer setting: {setting[0]}")
 
         try:
-            with time_limit(TIMEOUT):
+            with time_limit(timeout_seconds):
                 strategy = NeverVerification(setting[1], setting[2])
                 time_start = time.perf_counter()
                 safe = not strategy.verify(onnx_net, property_instance)
@@ -81,11 +79,17 @@ def exec_instance(network_path: str, property_path: str, property_id: str):
 
 
 if __name__ == '__main__':
+    '''
+    Usage: python exp_launcher.py 1 1 1 1 100 
+    for running all tests with 100 seconds timeout
+    
+    '''
 
     TEST_ACAS = True if sys.argv[1] == '1' else False
     TEST_ACC = True if sys.argv[2] == '1' else False
     TEST_RL = True if sys.argv[3] == '1' else False
     TEST_DRONES = True if sys.argv[4] == '1' else False
+    TIMEOUT = int(sys.argv[5])
 
     logger_file.info('Benchmark,Over-approx.,,Mixed1,,Complete,,')
     logger_file.info(',Result,Time,Result,Time,Result,Time')
@@ -99,7 +103,7 @@ if __name__ == '__main__':
             for instance in csv_reader:
                 exec_instance(f"{folder}/Networks/{instance[0]}",
                               f"{folder}/Properties/{instance[1]}",
-                              instance[1])
+                              instance[1], TIMEOUT)
 
     # ACC and RL launcher
     dirs = []
@@ -118,7 +122,7 @@ if __name__ == '__main__':
                     n_f = os.path.join(f"{dir_name}/Networks", network_file)
 
                     if os.path.isfile(n_f):
-                        exec_instance(n_f, p_f, property_file)
+                        exec_instance(n_f, p_f, property_file, TIMEOUT)
 
     # Drones launcher
     if TEST_DRONES:
@@ -129,4 +133,4 @@ if __name__ == '__main__':
             for instance in csv_reader:
                 exec_instance(f"{folder}/Networks/{instance[0]}",
                               f"{folder}/Properties/{instance[1]}",
-                              instance[1])
+                              instance[1], TIMEOUT)
