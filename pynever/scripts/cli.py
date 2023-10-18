@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 import csv
 
@@ -74,7 +75,33 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
                         ver_strategy = NeverVerification('best_n_neurons',
                                                          [[1] for _ in range(network.count_relu_layers())])
 
-                    return ver_strategy.verify(network, to_verify)
+                    model_name = os.path.basename(nn_path)
+                    property_name = os.path.basename(property_file)
+                    ver_start_time = time.perf_counter()
+                    list_return = ver_strategy.verify(network, to_verify)
+                    ver_end_time = time.perf_counter() - ver_start_time
+                    if type(list_return) is tuple:
+                        bool_verification = list_return
+                        tensor_counterexample = list_return[1]
+                    else:
+                        tensor_counterexample = None
+                        bool_verification = list_return
+                    if not bool_verification:
+                        if strategy == 'complete':
+                            answer = 'Falsified'
+                        else:
+                            answer = 'Unknown'
+                    else:
+                        answer = 'Verified'
+
+                    print("Benchmark ", model_name, ", ", property_name, "\n",
+                          "Answer: ", answer, "\n",
+                          "(if Falsified) Counterexample found: ", tensor_counterexample, "\n",
+                          "Time elapsed: ", ver_end_time)
+
+                    writer = csv.writer(open('ACC/output.csv', 'a', newline=''))
+                    writer.writerow([model_name, property_name, strategy, answer, ver_end_time, tensor_counterexample])
+                    return answer
             else:
                 print('The model is not an ONNX model.')
                 return False
