@@ -1,33 +1,36 @@
+import csv
 import os
-import sys
+import re
 import time
 
-import csv
+from numpy import array
 
 from pynever import tensor
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion
 from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
-from pynever.strategies.smt_reading import SmtPropertyParser
 from pynever.strategies.verification import NeVerProperty, NeverVerification
 
 
 def show_help():
-    print("usage: python never2.py [--verify] [model] [property] [strategy], [--batch] [CSV file] [strategy] ")
+    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy], "
+          "[--batch] [-s | -u] [CSV file] [strategy] ")
     print()
     print("Options and arguments:")
-    print("--verify args ... : verify the VNN-LIB property in args[1] on the\n"
-          "                    ONNX model in args[2] with the strategy in args[3]")
+    print("--verify args ... : verify the VNN-LIB property in args[2], "
+          "                    which specifies the safe or unsafe zone args[1],\n"
+          "                    on the ONNX model in args[3] with the strategy in args[4]")
     print()
     print("--batch args ...  : verify the VNN-LIB property for all the ONNX models\n"
           "                    specified in the CSV file in args[1] with the strategy in args[3]")
     print()
     print("[strategy]        : one between 'complete', 'approx', 'mixed' ")
+    print("[-s | -u]         : -s for safe and -u for the unsafe zone ")
     print("args ...          : arguments passed to program in sys.argv[1:]")
     print()
 
 
-def verify_single_model(model_file: str, property_file: str, strategy: str):
+def verify_single_model(property_type: str, model_file: str, property_file: str, strategy: str, writer_file):
     """
     This method starts the verification procedure on the network model
     provided in the model_file path and prints the result
@@ -38,8 +41,13 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
         Path to the .vnnlib or .smt2 file of the property
     model_file : str
         Path to the .onnx file of the network
+    property_type : str
+        Specifies if the property is for safe or unsafe zone
     strategy : str
         Verification strategy (either complete, approximate, mixed)
+    writer_file
+        Output File
+
     """
     nn_path = os.path.abspath(model_file)
     prop_path = os.path.abspath(property_file)
@@ -63,8 +71,14 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
                     #                            network.get_last_node().identifier)
                     # to_verify = NeVerProperty(*parser.parse_property())
                     to_verify = NeVerProperty()
-                    to_verify.from_smt_file(prop_path)
-
+                    if property_type == '-s':
+                        invert_conditions(prop_path)
+                        to_verify.from_smt_file(os.path.abspath('pynever/scripts/intermediate.vnnlib'))
+                    elif property_type == '-u':
+                        to_verify.from_smt_file(prop_path)
+                    else:
+                        show_help()
+                        return False
                     ver_strategy = None
                     if strategy == 'complete':
                         ver_strategy = NeverVerification('complete',
@@ -79,15 +93,13 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
                     model_name = os.path.basename(nn_path)
                     property_name = os.path.basename(property_file)
                     ver_start_time = time.perf_counter()
-                    safe = ver_strategy.verify(network, to_verify)
-                    ver_end_time = time.perf_counter() - ver_start_time
+                    unsafe = ver_strategy.verify(network, to_verify)
                     tensor_counterexample = None
 
-                    if safe:
+                    if unsafe:
                         if strategy == 'complete':
                             answer = 'Falsified'
                             counter_stars = ver_strategy.counterexample_stars
-
                             if counter_stars is not None:
                                 some_counterexamples = []
                                 for cex_star in counter_stars:
@@ -102,6 +114,7 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
                     else:
                         answer = 'Verified'
                     printable_counterexample = reformat_counterexample(tensor_counterexample)
+                    ver_end_time = time.perf_counter() - ver_start_time
                     print("Benchmark ", model_name, ", ", property_name, "\n",
                           "Answer: ", answer, "\n",
                           "Time elapsed: ", ver_end_time)
@@ -117,7 +130,7 @@ def verify_single_model(model_file: str, property_file: str, strategy: str):
                 return False
 
 
-def verify_CSV_model(csv_file: str, strategy: str):
+def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
     csv_file_path = os.path.abspath(csv_file)
     writer_file = open('ACC/output.csv', 'w', newline='')
     writer_file.close()
@@ -147,3 +160,37 @@ def reformat_counterexample(counterexample: tensor):
     response = response[:-1]
     response += "]"
     return response
+
+
+def invert_conditions(prop_path):
+    writer = open('pynever/scripts/intermediate.vnnlib', 'w', newline='')
+    reader = open(prop_path, 'r', newline='')
+    y_constraints = []
+    for row in reader:
+        if row[0:7] != '(assert':
+            writer.write(row)
+        else:
+            if row.find('<') > 0 and row.find('Y') > 0:
+                temp_row = row.replace('(assert (<=', '(>=')
+            elif row.find('>') > 0 and row.find('Y') > 0:
+                temp_row = row.replace('(assert (>=', '(<=')
+            else:
+                writer.write(row)
+                continue
+            pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+            result_str = re.sub(pattern, replace_with_negatives, temp_row)
+            result_str = result_str[:result_str.rfind(')')] + result_str[result_str.rfind(')') + 1:]
+            y_constraints.extend(result_str)
+    writer.write('(assert (or \n')
+    for row in y_constraints:
+        writer.write(row)
+    writer.write('\n))')
+
+
+def replace_with_negatives(match):
+    number = match.group()
+    if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
+        number = float(number)  # Convert the matched string to a float
+        negative_number = -number  # Calculate the negative value
+        return str(negative_number)  # Convert the result back to a string
+    return number
