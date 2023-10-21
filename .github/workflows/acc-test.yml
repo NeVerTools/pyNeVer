@@ -1,0 +1,37 @@
+name: ACC Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9.x
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+
+    - name: Run tests
+      run: |
+        python ACC/test.py
+
+    - name: Check test results
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "Tests passed"
+        else
+          echo "Tests failed, rejecting push"
+          exit 1
+        fi

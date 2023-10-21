@@ -13,7 +13,7 @@ from pynever.strategies.verification import NeVerProperty, NeverVerification
 
 
 def show_help():
-    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy], "
+    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy] | "
           "[--batch] [-s | -u] [CSV file] [strategy] ")
     print()
     print("Options and arguments:")
@@ -132,7 +132,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
 
 def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
     csv_file_path = os.path.abspath(csv_file)
-    writer_file = open('ACC/output.csv', 'w', newline='')
+    writer_file = open(os.path.abspath('output.csv'), 'w', newline='')
     writer_file.close()
     if not os.path.isfile(csv_file_path):
         print('Invalid path for the CSV file.')
@@ -146,10 +146,11 @@ def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
         else:
             for row in csv_file_iti:
                 if len(row) >= 2:
-                    writer_file = open('ACC/output.csv', 'a', newline='')
+                    writer_file = open(os.path.abspath('output.csv'), 'a', newline='')
                     verify_single_model(property_type, row[0], row[1], strategy, writer_file)
                 else:
                     print("This row is not valid: ", row, "\n")
+                    return False
 
 
 def reformat_counterexample(counterexample: tensor):
