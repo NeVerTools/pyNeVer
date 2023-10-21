@@ -29,7 +29,6 @@ jobs:
     - name: Run tests
       run: |
         python testing.py
-      working-directory: ../
 
     - name: Check test results
       run: |
