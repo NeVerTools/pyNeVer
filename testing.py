@@ -1,10 +1,9 @@
-from pynever.scripts import cli
 import csv
 
-if __name__ == "__main__":
+from pynever.scripts import cli
 
-    if not cli.verify_CSV_model("-u", "instances.csv", "complete"):
-        exit(1)
+if __name__ == "__main__":
+    cli.verify_CSV_model('-u', 'ACC/instances.csv', 'complete')
 
     reader = csv.reader(open("output.csv", 'r', newline=''))
 

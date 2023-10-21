@@ -28,7 +28,8 @@ jobs:
 
     - name: Run tests
       run: |
-        python ACC/test.py
+        python testing.py
+      working-directory: ./pyNeVer2
 
     - name: Check test results
       run: |
