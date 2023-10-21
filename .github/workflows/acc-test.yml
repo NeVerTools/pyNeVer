@@ -29,7 +29,7 @@ jobs:
     - name: Run tests
       run: |
         python testing.py
-      working-directory: ./pyNeVer2
+      working-directory: ../
 
     - name: Check test results
       run: |
