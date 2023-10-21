@@ -1,16 +1,13 @@
 import csv
 import os
-import re
-import time
 
-from numpy import array
+import time
 
 from pynever import tensor
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion
 from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
 from pynever.strategies.verification import NeVerProperty, NeverVerification
-from pynever.tensor import Tensor
 
 
 def show_help():
@@ -18,7 +15,7 @@ def show_help():
           "[--batch] [-s | -u] [CSV file] [strategy] ")
     print()
     print("Options and arguments:")
-    print("--verify args ... : verify the VNN-LIB property in args[2], "
+    print("--verify args ... : verify the VNN-LIB property in args[2],\n "
           "                    which specifies the safe or unsafe zone args[1],\n"
           "                    on the ONNX model in args[3] with the strategy in args[4]")
     print()
@@ -95,7 +92,6 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                     property_name = os.path.basename(property_file)
                     ver_start_time = time.perf_counter()
                     unsafe = ver_strategy.verify(network, to_verify)
-                    tensor_counterexample = None
                     printable_counterexample = None
                     if unsafe:
                         if strategy == 'complete':
@@ -121,12 +117,12 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                           "Answer: ", answer, "\n",
                           "Time elapsed: ", ver_end_time)
                     if answer == 'Falsified':
-                        print("Counterexample: ", printable_counterexample)
+                        print("Counterexample: ", printable_counterexample, "\n")
 
                     writer = csv.writer(writer_file)
                     writer.writerow(
                         [model_name, property_name, strategy, answer, ver_end_time, printable_counterexample])
-                    return answer
+                    return True
             else:
                 print('The model is not an ONNX model.')
                 return False
@@ -134,25 +130,31 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
 
 def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
     csv_file_path = os.path.abspath(csv_file)
+    folder = os.path.dirname(csv_file_path)
     writer_file = open(os.path.abspath('output.csv'), 'w', newline='')
     writer_file.close()
+    response = True
     if not os.path.isfile(csv_file_path):
         print('Invalid path for the CSV file.')
         return False
     else:
         try:
             csv_file_iti = csv.reader(open(csv_file_path, newline=''))
-        except Exception as e:
+        except Exception:
             print("Cannot open the file: ", csv_file, "\n")
             return False
         else:
             for row in csv_file_iti:
                 if len(row) >= 2:
                     writer_file = open(os.path.abspath('output.csv'), 'a', newline='')
-                    verify_single_model(property_type, row[0], row[1], strategy, writer_file)
+                    net_path = folder + chr(47) + row[0]
+                    prop_path = folder + chr(47) + row[1]
+                    response = response and verify_single_model(property_type, net_path, prop_path, strategy,
+                                                                writer_file)
                 else:
                     print("This row is not valid: ", row, "\n")
                     return False
+    return response
 
 
 def reformat_counterexample(counterexample: tensor):

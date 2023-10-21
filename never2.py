@@ -11,12 +11,16 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
-
     # CLI
     if len(sys.argv) == 5 and sys.argv[1] == '--batch':
-        cli.verify_CSV_model(sys.argv[2], sys.argv[3], sys.argv[4])
+        if not cli.verify_CSV_model(sys.argv[2], sys.argv[3], sys.argv[4]):
+            exit(1)
     elif len(sys.argv) == 6 and sys.argv[1] == '--verify':
-        writer = open('ACC/output.csv', 'w', newline='')
-        cli.verify_single_model(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], writer)
+        writer = open('output.csv', 'w', newline='')
+        if not cli.verify_single_model(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], writer):
+            exit(1)
     else:
         cli.show_help()
+        exit(1)
+
+    exit(0)
