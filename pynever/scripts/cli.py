@@ -10,10 +10,11 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion
 from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
 from pynever.strategies.verification import NeVerProperty, NeverVerification
+from pynever.tensor import Tensor
 
 
 def show_help():
-    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy], "
+    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy] | "
           "[--batch] [-s | -u] [CSV file] [strategy] ")
     print()
     print("Options and arguments:")
@@ -95,7 +96,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                     ver_start_time = time.perf_counter()
                     unsafe = ver_strategy.verify(network, to_verify)
                     tensor_counterexample = None
-
+                    printable_counterexample = None
                     if unsafe:
                         if strategy == 'complete':
                             answer = 'Falsified'
@@ -109,11 +110,12 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                                         print("Error finding the counterexample")
                                 if len(some_counterexamples) > 0:
                                     tensor_counterexample = some_counterexamples[0]
+                                    printable_counterexample = reformat_counterexample(tensor_counterexample)
                         else:
                             answer = 'Unknown'
                     else:
                         answer = 'Verified'
-                    printable_counterexample = reformat_counterexample(tensor_counterexample)
+
                     ver_end_time = time.perf_counter() - ver_start_time
                     print("Benchmark ", model_name, ", ", property_name, "\n",
                           "Answer: ", answer, "\n",
@@ -132,7 +134,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
 
 def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
     csv_file_path = os.path.abspath(csv_file)
-    writer_file = open('ACC/output.csv', 'w', newline='')
+    writer_file = open(os.path.abspath('output.csv'), 'w', newline='')
     writer_file.close()
     if not os.path.isfile(csv_file_path):
         print('Invalid path for the CSV file.')
@@ -146,10 +148,11 @@ def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
         else:
             for row in csv_file_iti:
                 if len(row) >= 2:
-                    writer_file = open('ACC/output.csv', 'a', newline='')
+                    writer_file = open(os.path.abspath('output.csv'), 'a', newline='')
                     verify_single_model(property_type, row[0], row[1], strategy, writer_file)
                 else:
                     print("This row is not valid: ", row, "\n")
+                    return False
 
 
 def reformat_counterexample(counterexample: tensor):
@@ -177,20 +180,20 @@ def invert_conditions(prop_path):
             else:
                 writer.write(row)
                 continue
-            pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
-            result_str = re.sub(pattern, replace_with_negatives, temp_row)
-            result_str = result_str[:result_str.rfind(')')] + result_str[result_str.rfind(')') + 1:]
-            y_constraints.extend(result_str)
+            # pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+            # temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+            temp_row = temp_row[:temp_row.rfind(')')] + temp_row[temp_row.rfind(')') + 1:]
+            y_constraints.extend(temp_row)
     writer.write('(assert (or \n')
     for row in y_constraints:
         writer.write(row)
     writer.write('\n))')
 
-
-def replace_with_negatives(match):
-    number = match.group()
-    if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
-        number = float(number)  # Convert the matched string to a float
-        negative_number = -number  # Calculate the negative value
-        return str(negative_number)  # Convert the result back to a string
-    return number
+#
+# def replace_with_negatives(match):
+#     number = match.group()
+#     if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
+#         number = float(number)  # Convert the matched string to a float
+#         negative_number = -number  # Calculate the negative value
+#         return str(negative_number)  # Convert the result back to a string
+#     return number
