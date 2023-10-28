@@ -1,6 +1,11 @@
 import abc
 
+import numpy as np
+import torch
+from torch import Tensor as torch_tensor
+
 import pynever.nodes as nodes
+from pynever.tensor import Tensor as never_tensor
 
 
 class NeuralNetwork(abc.ABC):
@@ -269,3 +274,16 @@ class SequentialNetwork(NeuralNetwork):
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
         return f"{self.identifier} : {body}"
+
+    def execute(self, input_tensor: never_tensor):
+        import pynever.strategies.conversion as cv
+        pytorch_converter = cv.PyTorchConverter()
+        py_net = pytorch_converter.from_neural_network(self)
+        py_net.pytorch_network.eval()
+        py_net.pytorch_network.float()
+
+        input_t = torch_tensor(np.array(input_tensor))
+        input_t = input_t.float()
+        output = py_net.pytorch_network(input_t.T)
+        output = np.array(output.data)
+        return  output

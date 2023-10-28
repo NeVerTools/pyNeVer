@@ -93,6 +93,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                     ver_start_time = time.perf_counter()
                     unsafe = ver_strategy.verify(network, to_verify)
                     printable_counterexample = None
+                    output = None
                     if unsafe:
                         if strategy == 'complete':
                             answer = 'Falsified'
@@ -106,7 +107,9 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                                         print("Error finding the counterexample")
                                 if len(some_counterexamples) > 0:
                                     tensor_counterexample = some_counterexamples[0]
+                                    output = network.execute(tensor_counterexample)
                                     printable_counterexample = reformat_counterexample(tensor_counterexample)
+                                    output = reformat_counterexample(output)
                         else:
                             answer = 'Unknown'
                     else:
@@ -117,11 +120,12 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                           "Answer: ", answer, "\n",
                           "Time elapsed: ", ver_end_time)
                     if answer == 'Falsified':
-                        print("Counterexample: ", printable_counterexample, "\n")
+                        print("Counterexample input: ", printable_counterexample,"\n",
+                              "Counterexample output: ", output, "\n")
 
                     writer = csv.writer(writer_file)
                     writer.writerow(
-                        [model_name, property_name, strategy, answer, ver_end_time, printable_counterexample])
+                        [model_name, property_name, strategy, answer, ver_end_time, printable_counterexample, output])
                     return True
             else:
                 print('The model is not an ONNX model.')
@@ -130,6 +134,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
 
 def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
     csv_file_path = os.path.abspath(csv_file)
+    print(csv_file_path)
     folder = os.path.dirname(csv_file_path)
     writer_file = open(os.path.abspath('output.csv'), 'w', newline='')
     writer_file.close()
@@ -147,7 +152,7 @@ def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
             for row in csv_file_iti:
                 if len(row) >= 2:
                     writer_file = open(os.path.abspath('output.csv'), 'a', newline='')
-                    net_path = folder + chr(47) + row[0]
+                    net_path = folder + chr(47) + row[0] + ".onnx"
                     prop_path = folder + chr(47) + row[1]
                     response = response and verify_single_model(property_type, net_path, prop_path, strategy,
                                                                 writer_file)
