@@ -3,12 +3,10 @@ import copy
 import logging
 import operator
 import time
-from typing import List, Optional, Callable
 from fractions import Fraction
+from typing import List, Optional, Callable
 
 import numpy as np
-import torch
-
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
@@ -16,6 +14,8 @@ import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
+import torch
+from pynever.strategies.sbp.bounds.bounds_manager import BoundsManager
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
@@ -232,6 +232,7 @@ class VerificationStrategy(abc.ABC):
             True is the neural network satisfy the property, False otherwise.
 
         """
+
         pass
 
 
@@ -264,6 +265,7 @@ class NeverVerification(VerificationStrategy):
     ----------
     verify(NeuralNetwork, Property)
         Verify that the neural network of interest satisfy the property given as argument.
+
     """
 
     def __init__(self, heuristic: str = "best_n_neurons", params: List = None,
@@ -274,6 +276,7 @@ class NeverVerification(VerificationStrategy):
         self.refinement_level = refinement_level
         self.logger = logging.getLogger(logger_name)
         self.counterexample_stars = None
+        self.layers_bounds = {}
 
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
@@ -323,19 +326,37 @@ class NeverVerification(VerificationStrategy):
 
         return abst_network
 
-    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty) -> (abst.StarSet, List):
+    def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dictionary: dict) \
+            -> (abst.StarSet, List):
+
+        def prev_key(element: dict, key) -> dict:
+            """
+            Function that retrieves the previous value of an OrderedDict
+
+            """
+
+            keys = list(element.keys())
+            idx = keys.index(key) - 1
+            return element[keys[idx]]
 
         input_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
         input_starset = abst.StarSet({input_star})
         current_node = abst_network.get_first_node()
         output_starset = input_starset
         n_areas = []
+
         while current_node is not None:
             time_start = time.perf_counter()
-            output_starset = current_node.forward(output_starset)
-            time_end = time.perf_counter()
+
             if isinstance(current_node, abst.AbsReLUNode):
+                cur_layer_dict = prev_key(bounds_dictionary, current_node.identifier)
+                output_starset = current_node.forward(output_starset, cur_layer_dict)
                 n_areas.append(current_node.n_areas)
+            else:
+                output_starset = current_node.forward(output_starset)
+
+            time_end = time.perf_counter()
+
             self.logger.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
                              f"{len(output_starset.stars)}. Time to compute: {time_end - time_start}s.")
 
@@ -347,10 +368,15 @@ class NeverVerification(VerificationStrategy):
 
         self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        # Compute symbolic bounds first
+        bound_manager = BoundsManager(abst_network, prop)
+        _, _, self.layers_bounds = bound_manager.compute_bounds()
+
         ver_start_time = time.perf_counter()
         if isinstance(prop, NeVerProperty):
 
-            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop, self.layers_bounds)
 
             out_coef_mat = prop.out_coef_mat
             out_bias_mat = prop.out_bias_mat
@@ -358,9 +384,10 @@ class NeverVerification(VerificationStrategy):
         else:
             raise Exception("Only NeVerProperty are supported at present")
 
-        # Now we check the itersection of the output starset with the output halfspaces defined by the output
+        # Now we check the intersection of the output starset with the output halfspaces defined by the output
         # constraints of our property of interest. We recall that the property is satisfiable if there exist at least
-        # one non-void intersection between the output starset and the halfspaces.
+        # one non-void intersection between the output starset and the halfspaces and SAFE = NOT SAT.
+
         unsafe_stars = []
         all_empty = []
         for i in range(len(out_coef_mat)):
@@ -385,7 +412,7 @@ class NeverVerification(VerificationStrategy):
         self.logger.info(f"The property is satisfiable: {is_satisfied}.")
         self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
-        return is_satisfied
+        return not is_satisfied
 
     def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
 

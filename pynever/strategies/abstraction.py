@@ -5,11 +5,12 @@ import math
 import multiprocessing
 import time
 import uuid
-from typing import Set, List, Union, Tuple
+from typing import Set, List, Union, Tuple, Optional
 
 import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
+from pynever.strategies.sbp.bounds.bounds import AbstractBounds
 
 import pynever.nodes as nodes
 from pynever.tensor import Tensor
@@ -76,7 +77,6 @@ class Star:
     check_if_empty()
         Function used to check if the star corresponds to an empty set.
 
-
     """
 
     def __init__(self, predicate_matrix: Tensor, predicate_bias: Tensor, center: Tensor = None,
@@ -106,12 +106,6 @@ class Star:
             self.center = center
             self.basis_matrix = basis_matrix
 
-        # if lbs is None:
-        #     lbs = [None for _ in range(self.center.shape[0])]
-        #
-        # if ubs is None:
-        #     ubs = [None for _ in range(self.center.shape[0])]
-
         self.lbs = [None for _ in range(self.center.shape[0])]
         self.ubs = [None for _ in range(self.center.shape[0])]
         self.is_empty = is_empty
@@ -128,6 +122,7 @@ class Star:
         ---------
         bool
             True if the star defines an empty set of points, False otherwise.
+
         """
 
         start_time = time.perf_counter()
@@ -159,6 +154,7 @@ class Star:
         ---------
         (float, float)
             Tuple containing the lower and upper bounds of the variable i of the star
+
         """
 
         if self.lbs[i] is None or self.ubs[i] is None or self.is_empty is None:
@@ -221,12 +217,15 @@ class Star:
         -------
         bool
             The result of the check as a boolean (True if the point is valid, False otherwise)
+
         """
 
         dim_error_msg = f"Wrong dimensionality for alpha_point: it should be {self.predicate_matrix.shape[1]} by one."
         assert alpha_point.shape[0] == self.predicate_matrix.shape[1], dim_error_msg
+
         tests = np.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
         test = np.all(tests)
+
         return test
 
     def check_point_inside(self, point: Tensor, epsilon: float) -> bool:
@@ -358,6 +357,7 @@ class Star:
         ---------
         (float, float)
             Tuple containing the lower and upper bounds of the variables of the predicate
+
         """
 
         starting_point = []
@@ -398,7 +398,9 @@ class Star:
         ---------
         (float, float)
             Tuple containing the lower and upper bounds of the variables of the predicate
+
         """
+
         starting_point = []
 
         solver = pywraplp.Solver.CreateSolver('GLOP')
@@ -444,6 +446,7 @@ class Star:
         ---------
         (pywraplp.Solver, list, list)
             Respectively the lp solver, the variables and the constraints.
+
         """
 
         solver = pywraplp.Solver.CreateSolver('GLOP')
@@ -471,6 +474,7 @@ class StarSet(AbsElement):
     ----------
     stars : Set[Star]
         Set of Star objects.
+
     """
 
     def __init__(self, stars: Set[Star] = None, identifier: str = None):
@@ -483,8 +487,9 @@ class StarSet(AbsElement):
 
 def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> Star:
     """
-    Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector and returns
-    the Star resulting from the intersection of the input Star with the halfspace.
+    Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector
+    and returns the Star resulting from the intersection of the input Star with the halfspace.
+
     """
 
     new_center = star.center
@@ -495,27 +500,40 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     new_pred_bias = np.vstack((star.predicate_bias, hs_pred_bias))
 
     new_star = Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
+
     return new_star
 
 
-def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool) -> Set[Star]:
+def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool, symb_lb: float, symb_ub: float) \
+        -> Set[Star]:
     abs_input = list(abs_input)
     abs_output = set()
 
     for i in range(len(abs_input)):
 
         star = abs_input[i]
-        lb, ub = star.get_bounds(var_index)
+        is_pos_stable = False
+        is_neg_stable = False
+        lb, ub = None, None
+        guard = 10e-15
+
+        # Check abstract bounds for stability
+        if symb_lb >= guard:
+            is_pos_stable = True
+        elif symb_ub <= -guard:
+            is_neg_stable = True
+        else:
+            lb, ub = star.get_bounds(var_index)
 
         if not star.is_empty:
 
             mask = np.identity(star.center.shape[0])
             mask[var_index, var_index] = 0
 
-            if lb >= 0:
+            if is_pos_stable or (lb is not None and lb >= 0):
                 abs_output = abs_output.union({star})
 
-            elif ub <= 0:
+            elif is_neg_stable or (ub is not None and ub <= 0):
                 new_center = np.matmul(mask, star.center)
                 new_basis_mat = np.matmul(mask, star.basis_matrix)
                 new_pred_mat = star.predicate_matrix
@@ -532,7 +550,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     lower_star_basis_mat = np.matmul(mask, star.basis_matrix)
                     # Adding x <= 0 constraints to the predicate.
                     lower_predicate_matrix = np.vstack((star.predicate_matrix, star.basis_matrix[var_index, :]))
-                    # Possibile problema sulla dimensionalita' di star.center[var_index]
+
                     lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
                     lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
                                       lower_star_basis_mat)
@@ -542,7 +560,7 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
                     upper_star_basis_mat = star.basis_matrix
                     # Adding x >= 0 constraints to the predicate.
                     upper_predicate_matrix = np.vstack((star.predicate_matrix, -star.basis_matrix[var_index, :]))
-                    # Possibile problema sulla dimensionalita' di star.center[var_index]
+
                     upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
                     upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
                                       upper_star_basis_mat)
@@ -581,11 +599,13 @@ def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: boo
     return abs_output
 
 
-def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple[Set[Star], np.ndarray]:
+def mixed_single_relu_forward(star: Star, heuristic: str, params: List, layer_bounds: AbstractBounds) \
+        -> Tuple[Set[Star], Optional[np.ndarray]]:
     """
     Utility function for the management of the forward for AbsReLUNode. It is outside
     the class scope since multiprocessing does not support parallelization with
     function internal to classes.
+
     """
 
     assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel", \
@@ -594,15 +614,15 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
     temp_abs_input = {star}
     if star.check_if_empty():
         return set(), None
-    else:
 
+    else:
         n_areas = []
         for i in range(star.center.shape[0]):
-            lb, ub = star.get_bounds(i)
-            if lb < 0 and ub > 0:
-                n_areas.append(-lb * ub / 2.0)
-            else:
+            if layer_bounds.get_lower()[i] >= 0 or layer_bounds.get_upper()[i] < 0:
                 n_areas.append(0)
+            else:
+                lb, ub = star.get_bounds(i)
+                n_areas.append(-lb * ub / 2.0)
 
         n_areas = np.array(n_areas)
 
@@ -638,7 +658,8 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List) -> Tuple
             raise NotImplementedError
 
         for i in range(star.center.shape[0]):
-            temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i])
+            temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i],
+                                               layer_bounds.get_lower()[i], layer_bounds.get_upper()[i])
 
         return temp_abs_input, n_areas
 
@@ -648,35 +669,16 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     Utility function for the management of the forward for AbsFullyConnectedNode. It is outside
     the class scope since multiprocessing does not support parallelization with
     function internal to classes.
+
     """
+
     assert (weight.shape[1] == star.basis_matrix.shape[0])
 
     new_basis_matrix = np.matmul(weight, star.basis_matrix)
     new_center = np.matmul(weight, star.center) + bias
     new_predicate_matrix = star.predicate_matrix
     new_predicate_bias = star.predicate_bias
-    #
-    # if propagate_bounds:
-    #     lbs = []
-    #     ubs = []
-    #     for i in range(new_center.shape[0]):
-    #
-    #         w = weight[i, :]
-    #         b = bias[i, 0]
-    #         lb = b
-    #         ub = b
-    #         for j in range(len(w)):
-    #             if star.lbs[j] is None or star.ubs[j] is None:
-    #                 star.get_bounds(j)
-    #
-    #             lb = lb + min(star.lbs[j] * w[j], star.ubs[j] * w[j])
-    #             ub = ub + max(star.lbs[j] * w[j], star.ubs[j] * w[j])
-    #         lbs.append(lb)
-    #         ubs.append(ub)
-    # else:
-    #     lbs = None
-    #     ubs = None
-    #
+
     new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
 
     return {new_star}
@@ -685,14 +687,18 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
 def sig(x: float) -> float:
     """
     Utility function computing the logistic function of the input.
+
     """
+
     return 1.0 / (1.0 + math.exp(-x))
 
 
 def sig_fod(x: float) -> float:
     """
     Utility function computing the first order derivative of the logistic function of the input.
+
     """
+
     return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
 
 
@@ -700,6 +706,7 @@ def area_sig_triangle(lb: float, ub: float) -> float:
     """
     Utility function computing the area of the triangle defined by an upper bound and a lower bound on the
     logistic function. In particular is the triangle composed by the two tangents and line passing by the two bounds.
+
     """
 
     x_p = (ub * sig_fod(ub) - lb * sig_fod(lb)) / (sig_fod(ub) - sig_fod(lb)) - \
@@ -843,7 +850,9 @@ def single_sigmoid_forward(star: Star, approx_levels: List[int]) -> Set[Star]:
     Utility function for the management of the forward for AbsSigmoidNode. It is outside
     the class scope since multiprocessing does not support parallelization with
     function internal to classes.
+
     """
+
     tolerance = 0.01
     temp_abs_input = {star}
     for i in range(star.center.shape[0]):
@@ -857,7 +866,9 @@ class RefinementState(abc.ABC):
     A class used for the internal control of the refinement strategies/heuristics applied in the abstraction refinement
     step. At present is not still used and it is just an abstract placeholder. It will be used in future
     implementations.
+
     """
+
     pass
 
 
@@ -872,7 +883,7 @@ class AbsLayerNode(abc.ABC):
         Identifier of the AbsLayerNode.
 
     ref_node : LayerNode
-        LayerNode di riferimento per l'abstract transformer.
+        Reference LayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -907,6 +918,7 @@ class AbsLayerNode(abc.ABC):
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
         """
+
         pass
 
     @abc.abstractmethod
@@ -919,6 +931,7 @@ class AbsLayerNode(abc.ABC):
         ref_state: RefinementState
             The RefinementState to update.
         """
+
         pass
 
 
@@ -937,18 +950,13 @@ class AbsReLUNode(AbsLayerNode):
     heuristic : str
         Heuristic used to decide the refinement level of the abstraction.
         At present can be only one of the following:
-        - given_flags: the neuron to be refined are selected referring to the list given in params
-        - best_n_neurons: for each star the n best neuron to refine are selected based on the loss of precision
-          the abstraction would incur using the coarse over_approximation.
-        - best_n_neurons_rel: for each star the n best neuron to refine are selected based on the loss of precision
-          the abstraction would incur using the coarse over_approximation together with the neuron relevances values.
+        - complete: for each star all the neurons are processed with a precise abstraction
+        - mixed: for each star a given number of neurons is processed with a precise abstraction
+        - overapprox: for each star all the neurons are processed with a coarse abstraction
 
     params : List
         Parameters for the heuristic of interest.
-        If the heuristic is given_flags then params is a List whose first element is the list of refinement flags.
-        If the heuristic is best_n_neurons then params is a List whose first element is the number of neurons to refine.
-        If the heuristic is best_n_neurons_rel then params is a List whose first element is a tuple containing
-        the number of neurons to refine and a list containing the relevances of the neurons.
+        It is a List with the number of neurons to process with a precise abstraction in this layer.
 
     Methods
     ----------
@@ -960,6 +968,7 @@ class AbsReLUNode(AbsLayerNode):
         Function which takes a reference to the refinement state and update both it and the state of the abstract
         transformer to control the refinement component of the abstraction. At present the function is just a
         placeholder for future implementations.
+
     """
 
     def __init__(self, identifier: str, ref_node: nodes.ReLUNode, heuristic: str, params: List):
@@ -968,9 +977,10 @@ class AbsReLUNode(AbsLayerNode):
 
         self.heuristic = heuristic
         self.params = params
+        self.layer_bounds = None
         self.n_areas = None
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds: dict = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -980,11 +990,18 @@ class AbsReLUNode(AbsLayerNode):
         abs_input : AbsElement
             The input abstract element.
 
+        bounds : dict
+            Optional bounds for this layer as computed by the previous
+
         Returns
         ----------
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
+
         """
+
+        if bounds is not None:
+            self.layer_bounds = bounds
 
         if isinstance(abs_input, StarSet):
             if parallel:
@@ -1002,7 +1019,9 @@ class AbsReLUNode(AbsLayerNode):
         ----------
         ref_state: RefinementState
             The RefinementState to update.
+
         """
+
         pass
 
     def __parallel_starset_forward(self, abs_input: StarSet) -> StarSet:
@@ -1010,7 +1029,8 @@ class AbsReLUNode(AbsLayerNode):
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
         parallel_results = my_pool.starmap(mixed_single_relu_forward, zip(abs_input.stars,
                                                                           itertools.repeat(self.heuristic),
-                                                                          itertools.repeat(self.params)))
+                                                                          itertools.repeat(self.params),
+                                                                          itertools.repeat(self.layer_bounds)))
         my_pool.close()
 
         abs_output = StarSet()
@@ -1036,7 +1056,7 @@ class AbsReLUNode(AbsLayerNode):
         tot_areas = np.zeros(self.ref_node.in_dim)
         num_areas = 0
         for star in abs_input.stars:
-            result, areas = mixed_single_relu_forward(star, self.heuristic, self.params)
+            result, areas = mixed_single_relu_forward(star, self.heuristic, self.params, self.layer_bounds)
             abs_output.stars = abs_output.stars.union(result)
             tot_areas = tot_areas + areas
             num_areas = num_areas + 1
