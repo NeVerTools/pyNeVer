@@ -15,7 +15,7 @@ import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 import torch
-from pynever.strategies.sbp.bounds.bounds_manager import BoundsManager
+from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"

@@ -1,9 +1,9 @@
 import pynever.strategies.abstraction
-from pynever.strategies.sbp.bounds.bounds import SymbolicLinearBounds
-from pynever.strategies.sbp.bounds.linearfunctions import LinearFunctions
-from pynever.strategies.sbp.utils.utils import get_positive_part, get_negative_part, \
+from pynever.strategies.bp.bounds import SymbolicLinearBounds
+from pynever.strategies.bp.linearfunctions import LinearFunctions
+from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.sbp.utils.property_converter import *
+from pynever.strategies.bp.utils.property_converter import *
 from collections import OrderedDict
 import numpy as np
 

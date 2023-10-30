@@ -10,7 +10,7 @@ from typing import Set, List, Union, Tuple, Optional
 import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
-from pynever.strategies.sbp.bounds.bounds import AbstractBounds
+from pynever.strategies.bp.bounds import AbstractBounds
 
 import pynever.nodes as nodes
 from pynever.tensor import Tensor

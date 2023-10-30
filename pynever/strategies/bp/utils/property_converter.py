@@ -1,5 +1,5 @@
 import numpy as np
-from pynever.strategies.sbp.bounds.bounds import HyperRectangleBounds
+from pynever.strategies.bp.bounds import HyperRectangleBounds
 
 DEBUG = False
 
