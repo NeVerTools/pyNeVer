@@ -15,6 +15,8 @@ import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 import torch
+
+from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.tensor import Tensor
 
@@ -329,7 +331,7 @@ class NeverVerification(VerificationStrategy):
     def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dictionary: dict) \
             -> (abst.StarSet, List):
 
-        def prev_key(element: dict, key) -> dict:
+        def prev_key(element: dict, key) -> AbstractBounds:
             """
             Function that retrieves the previous value of an OrderedDict
 
@@ -349,8 +351,11 @@ class NeverVerification(VerificationStrategy):
             time_start = time.perf_counter()
 
             if isinstance(current_node, abst.AbsReLUNode):
-                cur_layer_dict = prev_key(bounds_dictionary, current_node.identifier)
-                output_starset = current_node.forward(output_starset, cur_layer_dict)
+                if bounds_dictionary:
+                    cur_layer_bounds = prev_key(bounds_dictionary, current_node.identifier)
+                    output_starset = current_node.forward(output_starset, cur_layer_bounds)
+                else:
+                    output_starset = current_node.forward(output_starset)
                 n_areas.append(current_node.n_areas)
             else:
                 output_starset = current_node.forward(output_starset)
@@ -370,8 +375,12 @@ class NeverVerification(VerificationStrategy):
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
 
         # Compute symbolic bounds first
-        bound_manager = BoundsManager(abst_network, prop)
-        _, _, self.layers_bounds = bound_manager.compute_bounds()
+        try:
+            bound_manager = BoundsManager(abst_network, prop)
+            _, _, self.layers_bounds = bound_manager.compute_bounds()
+        except AssertionError:
+            self.logger.warning(f"Warning: Bound propagation is disabled for this property")
+            self.layers_bounds = {}
 
         ver_start_time = time.perf_counter()
         if isinstance(prop, NeVerProperty):

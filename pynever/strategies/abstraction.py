@@ -10,9 +10,9 @@ from typing import Set, List, Union, Tuple, Optional
 import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
-from pynever.strategies.bp.bounds import AbstractBounds
 
 import pynever.nodes as nodes
+from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.tensor import Tensor
 
 logger_empty = logging.getLogger("pynever.strategies.abstraction.empty_times")
@@ -504,18 +504,26 @@ def intersect_with_halfspace(star: Star, coef_mat: Tensor, bias_mat: Tensor) -> 
     return new_star
 
 
-def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool, symb_lb: float, symb_ub: float) \
-        -> Set[Star]:
+def __mixed_step_relu(abs_input: Set[Star], var_index: int, refinement_flag: bool,
+                      symb_lb: float = None, symb_ub: float = None) -> Set[Star]:
     abs_input = list(abs_input)
     abs_output = set()
 
+    guard = 10e-15
+
+    if symb_lb is None:
+        symb_lb = -100
+
+    if symb_ub is None:
+        symb_ub = 100
+
     for i in range(len(abs_input)):
 
-        star = abs_input[i]
         is_pos_stable = False
         is_neg_stable = False
         lb, ub = None, None
-        guard = 10e-15
+
+        star = abs_input[i]
 
         # Check abstract bounds for stability
         if symb_lb >= guard:
@@ -618,7 +626,7 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List, layer_bo
     else:
         n_areas = []
         for i in range(star.center.shape[0]):
-            if layer_bounds.get_lower()[i] >= 0 or layer_bounds.get_upper()[i] < 0:
+            if layer_bounds is not None and (layer_bounds.get_lower()[i] >= 0 or layer_bounds.get_upper()[i] < 0):
                 n_areas.append(0)
             else:
                 lb, ub = star.get_bounds(i)
@@ -657,9 +665,13 @@ def mixed_single_relu_forward(star: Star, heuristic: str, params: List, layer_bo
         else:
             raise NotImplementedError
 
-        for i in range(star.center.shape[0]):
-            temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i],
-                                               layer_bounds.get_lower()[i], layer_bounds.get_upper()[i])
+        if layer_bounds is None:
+            for i in range(star.center.shape[0]):
+                temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i])
+        else:
+            for i in range(star.center.shape[0]):
+                temp_abs_input = __mixed_step_relu(temp_abs_input, i, refinement_flags[i],
+                                                   layer_bounds.get_lower()[i], layer_bounds.get_upper()[i])
 
         return temp_abs_input, n_areas
 
@@ -980,7 +992,7 @@ class AbsReLUNode(AbsLayerNode):
         self.layer_bounds = None
         self.n_areas = None
 
-    def forward(self, abs_input: AbsElement, bounds: dict = None) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
