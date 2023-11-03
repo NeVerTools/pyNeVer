@@ -374,12 +374,13 @@ class NeverVerification(VerificationStrategy):
         self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
 
-        # Compute symbolic bounds first
+        # Compute symbolic bounds first. If the network architecture or the property
+        # do not have a corresponding bound propagation method then we ignore them.
         try:
             bound_manager = BoundsManager(abst_network, prop)
             _, _, self.layers_bounds = bound_manager.compute_bounds()
         except AssertionError:
-            self.logger.warning(f"Warning: Bound propagation is disabled for this property")
+            self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}
 
         ver_start_time = time.perf_counter()

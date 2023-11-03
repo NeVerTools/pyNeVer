@@ -947,6 +947,86 @@ class AbsLayerNode(abc.ABC):
         pass
 
 
+class AbsFullyConnectedNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Fully Connected Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : FullyConnectedNode
+        LayerNode di riferimento per l'abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_input: AbsElement) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+            
+        """
+
+        if isinstance(abs_input, StarSet):
+            return self.__starset_forward(abs_input)
+        else:
+            raise NotImplementedError
+
+    def __starset_forward(self, abs_input: StarSet) -> StarSet:
+
+        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+        # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
+        if self.ref_node.bias.shape != (self.ref_node.weight.shape[0], 1):
+            bias = np.expand_dims(self.ref_node.bias, 1)
+        else:
+            bias = self.ref_node.bias
+        parallel_results = my_pool.starmap(single_fc_forward, zip(abs_input.stars,
+                                                                  itertools.repeat(self.ref_node.weight),
+                                                                  itertools.repeat(bias)))
+        my_pool.close()
+        abs_output = StarSet()
+        for star_set in parallel_results:
+            abs_output.stars = abs_output.stars.union(star_set)
+
+        return abs_output
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+        pass
+
+
 class AbsReLUNode(AbsLayerNode):
     """
     A class used for our internal representation of a ReLU Abstract transformer.
@@ -1076,83 +1156,6 @@ class AbsReLUNode(AbsLayerNode):
         self.n_areas = tot_areas / num_areas
 
         return abs_output
-
-
-class AbsFullyConnectedNode(AbsLayerNode):
-    """
-    A class used for our internal representation of a Fully Connected Abstract transformer.
-
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the LayerNode.
-
-    ref_node : FullyConnectedNode
-        LayerNode di riferimento per l'abstract transformer.
-
-    Methods
-    ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
-    """
-
-    def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
-        super().__init__(identifier, ref_node)
-
-    def forward(self, abs_input: AbsElement) -> AbsElement:
-        """
-        Compute the output AbsElement based on the input AbsElement and the characteristics of the
-        concrete abstract transformer.
-
-        Parameters
-        ----------
-        abs_input : AbsElement
-            The input abstract element.
-
-        Returns
-        ----------
-        AbsElement
-            The AbsElement resulting from the computation corresponding to the abstract transformer.
-        """
-        if isinstance(abs_input, StarSet):
-            return self.__starset_forward(abs_input)
-        else:
-            raise NotImplementedError
-
-    def __starset_forward(self, abs_input: StarSet) -> StarSet:
-
-        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        # Need to expand bias since they are memorized like one-dimensional vector in fullyconnectednodes.
-        if self.ref_node.bias.shape != (self.ref_node.weight.shape[0], 1):
-            bias = np.expand_dims(self.ref_node.bias, 1)
-        else:
-            bias = self.ref_node.bias
-        parallel_results = my_pool.starmap(single_fc_forward, zip(abs_input.stars,
-                                                                  itertools.repeat(self.ref_node.weight),
-                                                                  itertools.repeat(bias)))
-        my_pool.close()
-        abs_output = StarSet()
-        for star_set in parallel_results:
-            abs_output.stars = abs_output.stars.union(star_set)
-
-        return abs_output
-
-    def backward(self, ref_state: RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        pass
 
 
 class AbsSigmoidNode(AbsLayerNode):
