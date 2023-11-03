@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 
 import time
 
@@ -120,7 +121,7 @@ def verify_single_model(property_type: str, model_file: str, property_file: str,
                           "Answer: ", answer, "\n",
                           "Time elapsed: ", ver_end_time)
                     if answer == 'Falsified':
-                        print("Counterexample input: ", printable_counterexample,"\n",
+                        print("Counterexample input: ", printable_counterexample, "\n",
                               "Counterexample output: ", output, "\n")
 
                     writer = csv.writer(writer_file)
@@ -181,14 +182,25 @@ def invert_conditions(prop_path):
             writer.write(row)
         else:
             if row.find('<') > 0 and row.find('Y') > 0:
-                temp_row = row.replace('(assert (<=', '(>=')
+                if row.find('(* -1.0') > 0:
+                    temp_row = row.replace('(assert (<= (* -1.0', '(<=')
+                    temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
+                    pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+                    temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+                else:
+                    temp_row = row.replace('(assert (<=', '(>=')
             elif row.find('>') > 0 and row.find('Y') > 0:
-                temp_row = row.replace('(assert (>=', '(<=')
+                if row.find('(* -1.0') > 0:
+                    temp_row = row.replace('(assert (>= (* -1.0', '(>=')
+                    temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
+                    pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+                    temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+                else:
+                    temp_row = row.replace('(assert (>=', '(<=')
             else:
                 writer.write(row)
                 continue
-            # pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
-            # temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+
             temp_row = temp_row[:temp_row.rfind(')')] + temp_row[temp_row.rfind(')') + 1:]
             y_constraints.extend(temp_row)
     writer.write('(assert (or \n')
@@ -196,11 +208,11 @@ def invert_conditions(prop_path):
         writer.write(row)
     writer.write('\n))')
 
-#
-# def replace_with_negatives(match):
-#     number = match.group()
-#     if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
-#         number = float(number)  # Convert the matched string to a float
-#         negative_number = -number  # Calculate the negative value
-#         return str(negative_number)  # Convert the result back to a string
-#     return number
+
+def replace_with_negatives(match):
+    number = match.group()
+    if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
+        number = float(number)
+        negative_number = -number
+        return str(negative_number)
+    return number
