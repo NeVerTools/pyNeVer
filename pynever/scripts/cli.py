@@ -1,169 +1,195 @@
 import csv
 import os
 import re
-
 import time
 
-from pynever import tensor
-from pynever.networks import SequentialNetwork
-from pynever.strategies import conversion
-from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
-from pynever.strategies.verification import NeVerProperty, NeverVerification
+import pynever.networks as nets
+import pynever.strategies.conversion as conv
+import pynever.strategies.verification as ver
+from pynever.tensor import Tensor
+from pynever.utilities import execute_network
 
 
-def show_help():
-    print("usage: python never2.py [--verify] [-s | -u] [model] [property] [strategy] | "
-          "[--batch] [-s | -u] [CSV file] [strategy] ")
-    print()
-    print("Options and arguments:")
-    print("--verify args ... : verify the VNN-LIB property in args[2],\n "
-          "                    which specifies the safe or unsafe zone args[1],\n"
-          "                    on the ONNX model in args[3] with the strategy in args[4]")
-    print()
-    print("--batch args ...  : verify the VNN-LIB property for all the ONNX models\n"
-          "                    specified in the CSV file in args[1] with the strategy in args[3]")
-    print()
-    print("[strategy]        : one between 'complete', 'approx', 'mixed' ")
-    print("[-s | -u]         : -s for safe and -u for the unsafe zone ")
-    print("args ...          : arguments passed to program in sys.argv[1:]")
-    print()
-
-
-def verify_single_model(property_type: str, model_file: str, property_file: str, strategy: str, writer_file):
+def verify_single_model(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
     """
     This method starts the verification procedure on the network model
     provided in the model_file path and prints the result
 
     Parameters
     ----------
-    property_file : str
-        Path to the .vnnlib or .smt2 file of the property
+    safety_prop : bool
+        Specifies if the property is for safe or unsafe zone
     model_file : str
         Path to the .onnx file of the network
-    property_type : str
-        Specifies if the property is for safe or unsafe zone
+    property_file : str
+        Path to the .vnnlib or .smt2 file of the property
     strategy : str
         Verification strategy (either complete, approximate, mixed)
-    writer_file
-        Output File
+    logfile : str
+        Path to CSV file output
+
+    Returns
+    ----------
+    bool
+        True if the network is safe, False otherwise
 
     """
+
     nn_path = os.path.abspath(model_file)
     prop_path = os.path.abspath(property_file)
+
     if not os.path.isfile(nn_path):
-        print('Invalid path for the network model.')
+        print(f'Error: file {nn_path} not found!')
         return False
+
     elif not os.path.isfile(prop_path):
-        print('Invalid path for the property.')
+        print(f'Error: file {prop_path} not found!')
         return False
+
     else:
         # Read the network file
-        alt_repr = conversion.load_network_path(nn_path)
+        alt_repr = conv.load_network_path(nn_path)
 
         if alt_repr is not None:
-            if isinstance(alt_repr, ONNXNetwork):
-                network = ONNXConverter().to_neural_network(alt_repr)
+            if isinstance(alt_repr, conv.ONNXNetwork):
+                network = conv.ONNXConverter().to_neural_network(alt_repr)
 
-                if isinstance(network, SequentialNetwork):
+                if isinstance(network, nets.SequentialNetwork):
                     # Read the property file
-                    # parser = SmtPropertyParser(prop_path, network.input_id,
-                    #                            network.get_last_node().identifier)
-                    # to_verify = NeVerProperty(*parser.parse_property())
-                    to_verify = NeVerProperty()
-                    if property_type == '-s':
+                    to_verify = ver.NeVerProperty()
+
+                    if safety_prop:
                         invert_conditions(prop_path)
                         to_verify.from_smt_file(os.path.abspath('pynever/scripts/intermediate.vnnlib'))
-                    elif property_type == '-u':
-                        to_verify.from_smt_file(prop_path)
+                        os.remove('pynever/scripts/intermediate.vnnlib')
                     else:
-                        show_help()
-                        return False
+                        to_verify.from_smt_file(prop_path)
+
                     ver_strategy = None
                     if strategy == 'complete':
-                        ver_strategy = NeverVerification('complete',
-                                                         [[10000] for _ in range(network.count_relu_layers())])
+                        ver_strategy = ver.NeverVerification('complete',
+                                                             [[10000] for _ in range(network.count_relu_layers())])
                     elif strategy == 'approx':
-                        ver_strategy = NeverVerification('best_n_neurons',
-                                                         [[0] for _ in range(network.count_relu_layers())])
+                        ver_strategy = ver.NeverVerification('best_n_neurons',
+                                                             [[0] for _ in range(network.count_relu_layers())])
                     elif strategy == 'mixed':
-                        ver_strategy = NeverVerification('best_n_neurons',
-                                                         [[1] for _ in range(network.count_relu_layers())])
+                        ver_strategy = ver.NeverVerification('best_n_neurons',
+                                                             [[1] for _ in range(network.count_relu_layers())])
 
                     model_name = os.path.basename(nn_path)
                     property_name = os.path.basename(property_file)
+
                     ver_start_time = time.perf_counter()
-                    unsafe = ver_strategy.verify(network, to_verify)
-                    printable_counterexample = None
-                    output = None
-                    if unsafe:
+                    safe = ver_strategy.verify(network, to_verify)
+                    fancy_cex = None
+                    fancy_out = None
+
+                    if not safe:
                         if strategy == 'complete':
                             answer = 'Falsified'
                             counter_stars = ver_strategy.counterexample_stars
                             if counter_stars is not None:
-                                some_counterexamples = []
+                                cexs = []
+
+                                # Extract counterexamples (one per star is enough)
                                 for cex_star in counter_stars:
-                                    try:
-                                        some_counterexamples.extend(cex_star.get_samples(num_samples=1))
-                                    except:
-                                        print("Error finding the counterexample")
-                                if len(some_counterexamples) > 0:
-                                    tensor_counterexample = some_counterexamples[0]
-                                    output = network.execute(tensor_counterexample)
-                                    printable_counterexample = reformat_counterexample(tensor_counterexample)
-                                    output = reformat_counterexample(output)
+                                    cexs.extend(cex_star.get_samples(num_samples=1))
+
+                                if len(cexs) > 0:
+                                    fancy_cex = reformat_counterexample(cexs[0])
+                                    fancy_out = reformat_counterexample(execute_network(network, cexs[0]))
                         else:
                             answer = 'Unknown'
                     else:
                         answer = 'Verified'
 
                     ver_end_time = time.perf_counter() - ver_start_time
-                    print("Benchmark ", model_name, ", ", property_name, "\n",
-                          "Answer: ", answer, "\n",
-                          "Time elapsed: ", ver_end_time)
-                    if answer == 'Falsified':
-                        print("Counterexample input: ", printable_counterexample, "\n",
-                              "Counterexample output: ", output, "\n")
+                    print(f"Benchmark: {model_name}, {property_name}")
+                    print('----------------------------')
+                    print(f"Result: {answer}")
 
-                    writer = csv.writer(writer_file)
-                    writer.writerow(
-                        [model_name, property_name, strategy, answer, ver_end_time, printable_counterexample, output])
+                    if answer == 'Falsified':
+                        print(f"Counterexample: {fancy_cex} -> {fancy_out}")
+
+                    print(f"Time elapsed: {ver_end_time}\n\n")
+
+                    with open(logfile, 'a+', newline='') as csv_out:
+                        # Init writer with current file pointer
+                        writer = csv.writer(csv_out)
+
+                        # Set file pointer to the beginning to read the first line
+                        csv_out.seek(0)
+                        if csv_out.readline() == '':
+                            writer.writerow(['Network', 'Property', 'Verification strategy', 'Verification time',
+                                             'Answer', 'Counterexample', 'Unsafe output'])
+
+                        # Write with the writer which still points at the end
+                        writer.writerow([model_name, property_name, strategy, ver_end_time,
+                                         answer, fancy_cex, fancy_out])
                     return True
+
             else:
                 print('The model is not an ONNX model.')
                 return False
 
 
-def verify_CSV_model(property_type: str, csv_file: str, strategy: str):
+def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
+    """
+    This method starts the verification procedure on the network model
+    provided in the model_file path and prints the result
+
+    Parameters
+    ----------
+    safety_prop : bool
+        Specifies if the property is for safe or unsafe zone
+    csv_file : str
+        Path to the .csv file of the instances
+    strategy : str
+        Verification strategy (either complete, approximate, mixed)
+    logfile : str
+        Path to CSV file output
+
+    Returns
+    ----------
+    bool
+        True if all the instances executed, False otherwise
+
+    """
+
     csv_file_path = os.path.abspath(csv_file)
-    print(csv_file_path)
     folder = os.path.dirname(csv_file_path)
-    writer_file = open(os.path.abspath('output.csv'), 'w', newline='')
-    writer_file.close()
-    response = True
+    exec_ok = True
+
     if not os.path.isfile(csv_file_path):
         print('Invalid path for the CSV file.')
         return False
+
     else:
-        try:
-            csv_file_iti = csv.reader(open(csv_file_path, newline=''))
-        except Exception:
-            print("Cannot open the file: ", csv_file, "\n")
-            return False
-        else:
-            for row in csv_file_iti:
-                if len(row) >= 2:
-                    writer_file = open(os.path.abspath('output.csv'), 'a', newline='')
-                    net_path = folder + chr(47) + row[0] + ".onnx"
-                    prop_path = folder + chr(47) + row[1]
-                    response = response and verify_single_model(property_type, net_path, prop_path, strategy,
-                                                                writer_file)
-                else:
-                    print("This row is not valid: ", row, "\n")
-                    return False
-    return response
+        with open(csv_file_path, newline='') as f:
+            try:
+                reader = csv.reader(f)
+            except OSError:
+                print("Cannot open file ", csv_file)
+                return False
+
+            else:
+                for row in reader:
+                    if len(row) >= 2:
+                        net_path = f'{folder}/{row[0]}'
+                        prop_path = f'{folder}/{row[1]}'
+                        verify_single_model(safety_prop, net_path, prop_path, strategy, logfile)
+                    else:
+                        print("Invalid row: ", row, "\n")
+                        exec_ok = False
+    return exec_ok
 
 
-def reformat_counterexample(counterexample: tensor):
+def reformat_counterexample(counterexample: Tensor) -> str:
+    """
+    This method writes the tensor data in a nice way for printing
+
+    """
+
     response = "["
     for component in counterexample:
         response += str(float(component))
@@ -178,7 +204,7 @@ def invert_conditions(prop_path):
     reader = open(prop_path, 'r', newline='')
     y_constraints = []
     for row in reader:
-        if row[0:7] != '(assert':
+        if not (row.find('Y') and row.find('assert')):
             writer.write(row)
         else:
             if row.find('<') > 0 and row.find('Y') > 0:
