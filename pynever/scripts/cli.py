@@ -59,7 +59,7 @@ def verify_single_model(safety_prop: bool, model_file: str, property_file: str, 
                     to_verify = ver.NeVerProperty()
 
                     if safety_prop:
-                        invert_conditions(prop_path)
+                        neg_post_condition(prop_path)
                         to_verify.from_smt_file(os.path.abspath('pynever/scripts/intermediate.vnnlib'))
                         os.remove('pynever/scripts/intermediate.vnnlib')
                     else:
@@ -104,14 +104,14 @@ def verify_single_model(safety_prop: bool, model_file: str, property_file: str, 
                         answer = 'Verified'
 
                     ver_end_time = time.perf_counter() - ver_start_time
-                    print(f"Benchmark: {model_name}, {property_name}")
+                    print(f'Benchmark: {model_name}, {property_name}')
                     print('----------------------------')
-                    print(f"Result: {answer}")
+                    print(f'Result: {answer}')
 
                     if answer == 'Falsified':
-                        print(f"Counterexample: {fancy_cex} -> {fancy_out}")
+                        print(f'Counterexample: {fancy_cex} -> {fancy_out}')
 
-                    print(f"Time elapsed: {ver_end_time}\n\n")
+                    print(f'Time elapsed: {ver_end_time}\n\n')
 
                     with open(logfile, 'a+', newline='') as csv_out:
                         # Init writer with current file pointer
@@ -169,7 +169,7 @@ def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: s
             try:
                 reader = csv.reader(f)
             except OSError:
-                print("Cannot open file ", csv_file)
+                print('Cannot open file ', csv_file)
                 return False
 
             else:
@@ -179,7 +179,7 @@ def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: s
                         prop_path = f'{folder}/{row[1]}'
                         verify_single_model(safety_prop, net_path, prop_path, strategy, logfile)
                     else:
-                        print("Invalid row: ", row, "\n")
+                        print('Invalid row: ', row)
                         exec_ok = False
     return exec_ok
 
@@ -190,55 +190,74 @@ def reformat_counterexample(counterexample: Tensor) -> str:
 
     """
 
-    response = "["
+    response = '['
     for component in counterexample:
         response += str(float(component))
-        response += " "
+        response += ' '
     response = response[:-1]
-    response += "]"
+    response += ']'
     return response
 
 
-def invert_conditions(prop_path):
-    writer = open('pynever/scripts/intermediate.vnnlib', 'w', newline='')
-    reader = open(prop_path, 'r', newline='')
-    y_constraints = []
-    for row in reader:
-        if not (row.find('Y') and row.find('assert')):
-            writer.write(row)
-        else:
-            if row.find('<') > 0 and row.find('Y') > 0:
-                if row.find('(* -1.0') > 0:
-                    temp_row = row.replace('(assert (<= (* -1.0', '(<=')
-                    temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
-                    pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
-                    temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+def neg_post_condition(prop_path: str) -> None:
+    """
+    This method negates the property post-condition in order
+    to represent both safety and unsafety properties
+
+    Parameters
+    ----------
+    prop_path : str
+        Path to the property file
+
+    """
+
+    def replace_with_negatives(match):
+        number = match.group()
+        if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
+            number = float(number)
+            negative_number = -number
+            return str(negative_number)
+        return number
+
+    with open(prop_path, 'r', newline='') as cur_prop:
+        with open('pynever/scripts/intermediate.vnnlib', 'w', newline='') as new_prop:
+            # List of post-condition constraints
+            y_constraints = []
+
+            # Read file
+            for row in cur_prop:
+                # Filter declarations
+                if not (row.find('Y') and row.find('assert')):
+                    new_prop.write(row)
+
                 else:
-                    temp_row = row.replace('(assert (<=', '(>=')
-            elif row.find('>') > 0 and row.find('Y') > 0:
-                if row.find('(* -1.0') > 0:
-                    temp_row = row.replace('(assert (>= (* -1.0', '(>=')
-                    temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
-                    pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
-                    temp_row = re.sub(pattern, replace_with_negatives, temp_row)
-                else:
-                    temp_row = row.replace('(assert (>=', '(<=')
-            else:
-                writer.write(row)
-                continue
+                    if row.find('<') > 0 and row.find('Y') > 0:
+                        if row.find('(* -1.0') > 0:
+                            temp_row = row.replace('(assert (<= (* -1.0', '(<=')
+                            temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
+                            pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+                            temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+                        else:
+                            temp_row = row.replace('(assert (<=', '(>=')
 
-            temp_row = temp_row[:temp_row.rfind(')')] + temp_row[temp_row.rfind(')') + 1:]
-            y_constraints.extend(temp_row)
-    writer.write('(assert (or \n')
-    for row in y_constraints:
-        writer.write(row)
-    writer.write('\n))')
+                    elif row.find('>') > 0 and row.find('Y') > 0:
+                        if row.find('(* -1.0') > 0:
+                            temp_row = row.replace('(assert (>= (* -1.0', '(>=')
+                            temp_row = temp_row[:temp_row.find(')')] + temp_row[temp_row.find(')') + 1:]
+                            pattern = r'(?<!_)-?\d+\.\d+|(?<!_)-?\d+'
+                            temp_row = re.sub(pattern, replace_with_negatives, temp_row)
+                        else:
+                            temp_row = row.replace('(assert (>=', '(<=')
 
+                    else:
+                        new_prop.write(row)
+                        continue
 
-def replace_with_negatives(match):
-    number = match.group()
-    if number not in ("0", "0.0") and match.string[match.start() - 1] != '_':
-        number = float(number)
-        negative_number = -number
-        return str(negative_number)
-    return number
+                    temp_row = temp_row[:temp_row.rfind(')')] + temp_row[temp_row.rfind(')') + 1:]
+                    y_constraints.extend(temp_row)
+
+            new_prop.write('(assert (or \n')
+
+            for row in y_constraints:
+                new_prop.write(row)
+            new_prop.write('\n))')
