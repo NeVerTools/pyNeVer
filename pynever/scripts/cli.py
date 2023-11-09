@@ -1,6 +1,8 @@
 import csv
+import logging
 import os
 import re
+import sys
 import time
 
 import pynever.networks as nets
@@ -8,6 +10,11 @@ import pynever.strategies.conversion as conv
 import pynever.strategies.verification as ver
 from pynever.tensor import Tensor
 from pynever.utilities import execute_network
+
+# Log to stdout
+logger = logging.getLogger('pynever.strategies.verification')
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def verify_single_model(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:

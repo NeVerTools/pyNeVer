@@ -1,15 +1,9 @@
 import argparse
-import logging
 import os
-import sys
 
 from pynever.scripts import cli
 
 if __name__ == "__main__":
-    # Log to stdout
-    logger = logging.getLogger('pynever.strategies.verification')
-    logger.setLevel(logging.INFO)
-    logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Parse arguments
     parser = argparse.ArgumentParser()
