@@ -8,7 +8,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser('pyNeVer')
 
-    parser.add_argument('strategy', choices=['approx', 'mixed', 'complete'],
+    parser.add_argument('strategy', choices=['overapprox', 'mixed', 'complete'],
                         default='complete', help='verification strategy to use, uses complete if not provided')
     parser.add_argument('-o', '--out', default='output.csv',
                         help='output file for execution log')
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     batch_parser.add_argument('csv', help='CSV file that specifies the instances')
 
     args = vars(parser.parse_args())
-    if args['s']:
+    if args['safety']:
         safety = True
     else:
         safety = False

@@ -8,7 +8,7 @@ import subprocess
 # Test single instances
 
 print("Test single instance of test_small")
-subprocess.run(['python', 'pynever.py', '-o', 'single.csv', 'approx', 'single', '-u',
+subprocess.run(['python', 'pynever.py', '-o', 'single.csv', 'overapprox', 'single', '-u',
                 'examples/data/regtest/test_small.onnx',
                 'examples/data/regtest/test_small.vnnlib'])
 

@@ -72,16 +72,14 @@ def verify_single_model(safety_prop: bool, model_file: str, property_file: str, 
                     else:
                         to_verify.from_smt_file(prop_path)
 
-                    ver_strategy = None
-                    if strategy == 'complete':
-                        ver_strategy = ver.NeverVerification('complete',
-                                                             [[10000] for _ in range(network.count_relu_layers())])
-                    elif strategy == 'approx':
-                        ver_strategy = ver.NeverVerification('best_n_neurons',
-                                                             [[0] for _ in range(network.count_relu_layers())])
+                    params = []
+                    if strategy == 'overapprox':
+                        params = [[0] for _ in range(network.count_relu_layers())]
                     elif strategy == 'mixed':
-                        ver_strategy = ver.NeverVerification('best_n_neurons',
-                                                             [[1] for _ in range(network.count_relu_layers())])
+                        params = [[1] for _ in range(network.count_relu_layers())]
+                    elif strategy == 'complete':
+                        params = [[10000] for _ in range(network.count_relu_layers())]
+                    ver_strategy = ver.NeverVerification(strategy, params)
 
                     model_name = os.path.basename(nn_path)
                     property_name = os.path.basename(property_file)

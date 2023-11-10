@@ -7,6 +7,8 @@ from fractions import Fraction
 from typing import List, Optional, Callable
 
 import numpy as np
+import torch
+
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
@@ -14,8 +16,6 @@ import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
-import torch
-
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.tensor import Tensor
@@ -280,6 +280,77 @@ class NeverVerification(VerificationStrategy):
         self.counterexample_stars = None
         self.layers_bounds = {}
 
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> bool:
+        """
+        Entry point for the verification algorithm for a network and a property
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The network model in the internal representation
+        prop : Property
+            The property specification
+
+        Returns
+        ----------
+        bool
+            True if the network is safe, False otherwise
+
+        """
+
+        self.counterexample_stars = None
+        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
+
+        # Compute symbolic bounds first. If the network architecture or the property
+        # do not have a corresponding bound propagation method then we ignore them.
+        try:
+            bound_manager = BoundsManager(abst_network, prop)
+            _, _, self.layers_bounds = bound_manager.compute_bounds()
+        except AssertionError:
+            self.logger.warning(f"Warning: Bound propagation unsupported")
+            self.layers_bounds = {}
+
+        ver_start_time = time.perf_counter()
+        if isinstance(prop, NeVerProperty):
+
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop, self.layers_bounds)
+
+            out_coef_mat = prop.out_coef_mat
+            out_bias_mat = prop.out_bias_mat
+
+        else:
+            raise Exception("Only NeVerProperty are supported at present")
+
+        # Now we check the intersection of the output starset with the output halfspaces defined by the output
+        # constraints of our property of interest. We recall that the property is satisfiable if there exist at least
+        # one non-void intersection between the output starset and the halfspaces and SAFE = NOT SAT.
+
+        unsafe_stars = []
+        all_empty = []
+        for i in range(len(out_coef_mat)):
+
+            empty = True
+            for star in output_starset.stars:
+                out_coef = out_coef_mat[i]
+                out_bias = out_bias_mat[i]
+                temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
+                if not temp_star.check_if_empty():
+                    empty = False
+                    if self.heuristic == 'complete':
+                        unsafe_stars.append(temp_star)
+
+            all_empty.append(empty)
+
+        is_satisfied = not all(all_empty)
+
+        if len(unsafe_stars) > 0:
+            self.counterexample_stars = self.__get_counterexample_stars(prop, unsafe_stars)
+        ver_end_time = time.perf_counter()
+        self.logger.info(f"The property is satisfiable: {is_satisfied}.")
+        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
+
+        return not is_satisfied
+
     @staticmethod
     def __build_abst_network(network: networks.NeuralNetwork, heuristic: str, params: List) -> abst.AbsSeqNetwork:
 
@@ -304,7 +375,7 @@ class NeverVerification(VerificationStrategy):
                     temp_params = [current_node.in_dim[0]]
                     temp_heuristic = "best_n_neurons"
                 elif heuristic == "mixed":
-                    temp_params = params
+                    temp_params = params[relu_count]
                     temp_heuristic = "best_n_neurons"
                 elif params is None and heuristic == "best_n_neurons":
                     temp_params = [0]
@@ -368,61 +439,6 @@ class NeverVerification(VerificationStrategy):
             current_node = abst_network.get_next_node(current_node)
 
         return output_starset, n_areas
-
-    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
-
-        self.counterexample_stars = None
-        abst_network = self.__build_abst_network(network, self.heuristic, self.params)
-
-        # Compute symbolic bounds first. If the network architecture or the property
-        # do not have a corresponding bound propagation method then we ignore them.
-        try:
-            bound_manager = BoundsManager(abst_network, prop)
-            _, _, self.layers_bounds = bound_manager.compute_bounds()
-        except AssertionError:
-            self.logger.warning(f"Warning: Bound propagation unsupported")
-            self.layers_bounds = {}
-
-        ver_start_time = time.perf_counter()
-        if isinstance(prop, NeVerProperty):
-
-            output_starset, n_areas = self.__compute_output_starset(abst_network, prop, self.layers_bounds)
-
-            out_coef_mat = prop.out_coef_mat
-            out_bias_mat = prop.out_bias_mat
-
-        else:
-            raise Exception("Only NeVerProperty are supported at present")
-
-        # Now we check the intersection of the output starset with the output halfspaces defined by the output
-        # constraints of our property of interest. We recall that the property is satisfiable if there exist at least
-        # one non-void intersection between the output starset and the halfspaces and SAFE = NOT SAT.
-
-        unsafe_stars = []
-        all_empty = []
-        for i in range(len(out_coef_mat)):
-
-            empty = True
-            for star in output_starset.stars:
-                out_coef = out_coef_mat[i]
-                out_bias = out_bias_mat[i]
-                temp_star = abst.intersect_with_halfspace(star, out_coef, out_bias)
-                if not temp_star.check_if_empty():
-                    empty = False
-                    if self.heuristic == 'complete':
-                        unsafe_stars.append(temp_star)
-
-            all_empty.append(empty)
-
-        is_satisfied = not all(all_empty)
-
-        if len(unsafe_stars) > 0:
-            self.counterexample_stars = self.__get_counterexample_stars(prop, unsafe_stars)
-        ver_end_time = time.perf_counter()
-        self.logger.info(f"The property is satisfiable: {is_satisfied}.")
-        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
-
-        return not is_satisfied
 
     def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
 
