@@ -23,25 +23,11 @@ if __name__ == "__main__":
     input_ub = [[1800, 0.06, 3.14, 1200, 1000], [1800, 0.06, 3.14, 1200, 800]]
 
     networks_ids = [["1_1", "1_3", "2_3", "4_3", "5_1"], ["1_1", "1_3", "3_2", "4_2"]]
-
-    # networks_ids = [["1_1"]]
-
-    # verification_parameters = [[False, 0, False, 0], [True, 1, False, 0], [False, 0.1, False, 0]]
-    # param_set_id = ["Over-Approx", "Complete", "Mixed"]
-
-    """verification_parameters = [["given_flags", [[False for i in range(50)]]], ["best_n_neurons", [1]],
-                               ["given_flags", [[True for i in range(50)]]]]"""
-    """verification_parameters = [["best_n_neurons", [[0], [0], [0], [0], [0], [0]]],
+    verification_parameters = [["best_n_neurons", [[0], [0], [0], [0], [0], [0]]],
                                ["best_n_neurons", [[1], [1], [1], [1], [1], [1]]],
-                               ["best_n_neurons", [[100], [100], [100], [100], [100], [100]]]]"""
+                               ["best_n_neurons", [[100], [100], [100], [100], [100], [100]]]]
 
-    """verification_parameters = [["best_n_neurons", [[0], [0], [0], [0], [0], [0]]],
-                               ["best_n_neurons", [[1], [1], [1], [1], [1], [1]]]]
-    
-    param_set_id = ["Over-Approx", "Mixed", "Complete"]"""
-
-    verification_parameters = [["mixed", [1]]]
-    param_set_id = ["Mixed"]
+    param_set_id = ["Over-Approx", "Mixed", "Complete"]
 
     # Loggers and Handler definition
 

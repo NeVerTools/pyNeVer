@@ -5,7 +5,6 @@ import torch
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.conversion as conv
-import pynever.strategies.smt_reading as reading
 import pynever.strategies.verification as ver
 import pynever.utilities as utilities
 
@@ -16,13 +15,6 @@ unsafe_mats = [[[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 
                [[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 0, -1]]]
 
 unsafe_vecs = [[[0], [0], [0], [0]], [[0], [0], [0], [0]]]
-
-"""
-unsafe_mats = [np.array([[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 0, -1]]),
-               np.array([[1, -1, 0, 0, 0], [1, 0, -1, 0, 0], [1, 0, 0, -1, 0], [1, 0, 0, 0, -1]])]
-
-unsafe_vecs = [np.array([[0], [0], [0], [0]]), np.array([[0], [0], [0], [0]])]
-"""
 
 p_id = ["P3", "P4"]
 
@@ -76,7 +68,6 @@ for i in range(1, 6):
                 out_pred_bias = np.array(unsafe_vecs[k])
 
                 prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, [out_pred_mat], [out_pred_bias])
-                # prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, unsafe_mats, unsafe_vecs)
 
                 input_prefix = network.input_id
                 output_prefix = network.get_last_node().identifier

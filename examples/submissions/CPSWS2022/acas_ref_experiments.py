@@ -51,86 +51,88 @@ logger_acas_stream.addHandler(acas_stream_handler)
 logger_acas_file.setLevel(logging.INFO)
 logger_acas_stream.setLevel(logging.INFO)
 
-# Begin Experiment
-logger_acas_file.info(f"Dataset,NetworkID,PropertyID,Methodology,Safety,Time\n")
-exp_params = [(True, 1), (False, 6)]
-for exp_p in exp_params:
 
-    only_rel, max_n = exp_p
-    if only_rel:
-        significance = "RO"
-    else:
-        significance = "PS"
+if __name__ == '__main__':
+    # Begin Experiment
+    logger_acas_file.info(f"Dataset,NetworkID,PropertyID,Methodology,Safety,Time\n")
+    exp_params = [(True, 1), (False, 6)]
+    for exp_p in exp_params:
 
-    for i in range(0, len(property_ids)):
+        only_rel, max_n = exp_p
+        if only_rel:
+            significance = "RO"
+        else:
+            significance = "PS"
 
-        for j in range(len(networks_ids[i])):
+        for i in range(0, len(property_ids)):
 
-            logger_acas_stream.info(f"Verifying {property_ids[i]} on Network {networks_ids[i][j]}.\n")
+            for j in range(len(networks_ids[i])):
 
-            # Loading of the values of interest of the corresponding ACAS XU network.
-            weights, biases, inputMeans, inputRanges, outputMean, outputRange = \
-                utilities.parse_nnet(f"nnet/ACASXU_experimental_v2a_{networks_ids[i][j]}.nnet")
+                logger_acas_stream.info(f"Verifying {property_ids[i]} on Network {networks_ids[i][j]}.\n")
 
-            # Creation of the matrixes defining the input set (i.e., in_pred_mat * x <= in_pred_bias).
+                # Loading of the values of interest of the corresponding ACAS XU network.
+                weights, biases, inputMeans, inputRanges, outputMean, outputRange = \
+                    utilities.parse_nnet(f"nnet/ACASXU_experimental_v2a_{networks_ids[i][j]}.nnet")
 
-            # Normalization of the lb and ub.
-            norm_input_lb = []
-            norm_input_ub = []
-            for k in range(len(input_lb[i])):
-                norm_input_lb.append((input_lb[i][k] - inputMeans[k]) / inputRanges[k])
-                norm_input_ub.append((input_ub[i][k] - inputMeans[k]) / inputRanges[k])
+                # Creation of the matrixes defining the input set (i.e., in_pred_mat * x <= in_pred_bias).
 
-            # Matrixes Creation.
-            in_pred_mat = []
-            in_pred_bias = []
-            for k in range(len(norm_input_lb)):
-                lb_constraint = np.zeros(len(norm_input_lb))
-                ub_constraint = np.zeros(len(norm_input_ub))
-                lb_constraint[k] = -1
-                ub_constraint[k] = 1
-                in_pred_mat.append(lb_constraint)
-                in_pred_mat.append(ub_constraint)
-                in_pred_bias.append([-norm_input_lb[k]])
-                in_pred_bias.append([norm_input_ub[k]])
+                # Normalization of the lb and ub.
+                norm_input_lb = []
+                norm_input_ub = []
+                for k in range(len(input_lb[i])):
+                    norm_input_lb.append((input_lb[i][k] - inputMeans[k]) / inputRanges[k])
+                    norm_input_ub.append((input_ub[i][k] - inputMeans[k]) / inputRanges[k])
 
-            in_pred_bias = np.array(in_pred_bias)
-            in_pred_mat = np.array(in_pred_mat)
+                # Matrixes Creation.
+                in_pred_mat = []
+                in_pred_bias = []
+                for k in range(len(norm_input_lb)):
+                    lb_constraint = np.zeros(len(norm_input_lb))
+                    ub_constraint = np.zeros(len(norm_input_ub))
+                    lb_constraint[k] = -1
+                    ub_constraint[k] = 1
+                    in_pred_mat.append(lb_constraint)
+                    in_pred_mat.append(ub_constraint)
+                    in_pred_bias.append([-norm_input_lb[k]])
+                    in_pred_bias.append([norm_input_ub[k]])
 
-            # Creation of the matrixes defining the negation of the wanted property (i.e., unsafe region)
-            # (i.e., out_pred_mat * y <= out_pred_bias).
-            out_pred_mat = np.array(unsafe_mats[i])
-            if property_ids[i] == "Property 1":
-                out_pred_bias = (np.array(unsafe_vecs[i]) - outputMean) / outputRange
-            else:
-                out_pred_bias = np.array(unsafe_vecs[i])
+                in_pred_bias = np.array(in_pred_bias)
+                in_pred_mat = np.array(in_pred_mat)
 
-            # Construction of our internal representation for the ACAS network.
+                # Creation of the matrixes defining the negation of the wanted property (i.e., unsafe region)
+                # (i.e., out_pred_mat * y <= out_pred_bias).
+                out_pred_mat = np.array(unsafe_mats[i])
+                if property_ids[i] == "Property 1":
+                    out_pred_bias = (np.array(unsafe_vecs[i]) - outputMean) / outputRange
+                else:
+                    out_pred_bias = np.array(unsafe_vecs[i])
 
-            network = networks.SequentialNetwork(f"ACAS_XU_{networks_ids[i][j]}", "X")
+                # Construction of our internal representation for the ACAS network.
 
-            for k in range(len(weights)):
+                network = networks.SequentialNetwork(f"ACAS_XU_{networks_ids[i][j]}", "X")
 
-                new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
-                                                       biases[k], True)
-                network.add_node(new_fc_node)
+                for k in range(len(weights)):
 
-                if k < len(weights) - 1:
-                    new_relu_node = nodes.ReLUNode(f"ReLU_{k}", (weights[k].shape[0],))
-                    network.add_node(new_relu_node)
+                    new_fc_node = nodes.FullyConnectedNode(f"FC_{k}", (weights[k].shape[1],), weights[k].shape[0], weights[k],
+                                                           biases[k], True)
+                    network.add_node(new_fc_node)
 
-            # Verification of the network of interest for the property of interest
-            prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, [out_pred_mat], [out_pred_bias])
+                    if k < len(weights) - 1:
+                        new_relu_node = nodes.ReLUNode(f"ReLU_{k}", (weights[k].shape[0],))
+                        network.add_node(new_relu_node)
 
-            net_id = networks_ids[i][j]
-            p_id = property_ids[i]
+                # Verification of the network of interest for the property of interest
+                prop = ver.NeVerProperty(in_pred_mat, in_pred_bias, [out_pred_mat], [out_pred_bias])
 
-            logger_acas_stream.info(f"Verification Methodology: CEGAR")
+                net_id = networks_ids[i][j]
+                p_id = property_ids[i]
 
-            verifier = ver.NeverVerificationRef(max_n, search_params, precision, only_rel)
+                logger_acas_stream.info(f"Verification Methodology: CEGAR")
 
-            time_start = time.perf_counter()
-            safe, counter_example = verifier.verify(network, prop)
-            time_end = time.perf_counter()
-            logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},CEGAR,SIG={significance},MaxN={max_n},{safe},"
-                                  f"{time_end - time_start}")
+                verifier = ver.NeverVerificationRef(max_n, search_params, precision, only_rel)
+
+                time_start = time.perf_counter()
+                safe, counter_example = verifier.verify(network, prop)
+                time_end = time.perf_counter()
+                logger_acas_file.info(f"ACASXU,{net_id},{property_ids[i]},CEGAR,SIG={significance},MaxN={max_n},{safe},"
+                                      f"{time_end - time_start}")
