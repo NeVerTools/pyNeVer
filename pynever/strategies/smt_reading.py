@@ -643,18 +643,26 @@ def refine_smt_statement(assertion: str, vec_name: str) -> str:
     tree = tree_converter.build_from_infix(assertion)
 
     # Case Xi REL_OP Xj -> Xi - Xj REL_OP 0
-    # This is skipped if the right node is leaf
-    if read_smt_num(tree.node_right.data) is None:
+    # This is skipped if one of the children is a number
+    if read_smt_num(tree.node_left.data) is None and read_smt_num(tree.node_right.data) is None:
         assertion = '((' + tree.node_left.as_infix() + ' - ' + \
                     tree.node_right.as_infix() + ') ' + tree.data + ' 0.0)'
 
     # Case beta REL_OP Xi -> (-1.0 * Xi) REL_OP eval(-beta)
-    if read_smt_num(tree.node_left.data) is not None:
-        sign = '-'
-        if read_smt_num(tree.node_left.data) <= 0:
-            sign = ''
-        assertion = '((-1.0 * ' + tree.node_right.as_infix() + ') ' + \
-                    tree.data + f" {sign}" + tree.node_left.as_infix().replace('-', '') + ')'
+    left_num = read_smt_num(tree.node_left.data)
+    if left_num is not None:
+        sign = '' if left_num <= 0 else '-'
+
+        if tree.node_right.is_leaf():
+            assertion = '((-1.0 * ' + tree.node_right.as_infix() + ') ' + \
+                        tree.data + f" {sign}" + tree.node_left.as_infix().replace('-', '') + ')'
+        else:
+            # Case beta REL_OP (alpha * Xi) -> (-alpha * Xi) REL_OP eval(-beta)
+            tokens = assertion.replace('(', '').replace(')', '').split(' ')
+            alpha_idx = tokens.index('*') - 1  # Assume there is only a * character
+            tokens[alpha_idx] = str(-read_smt_num(tokens[alpha_idx]))
+            assertion = ('((' + tokens[alpha_idx] + ' * ' + tokens[alpha_idx + 2] + ') ' + tokens[1] +
+                         f" {sign}" + tree.node_left.as_infix().replace('-', '') + ')')
 
     # Case (Xi + alpha) REL_OP beta -> Xi REL_OP eval(beta - alpha)
     # This is always performed
