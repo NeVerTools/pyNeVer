@@ -41,11 +41,14 @@ networks: therefore this kind of networks can be loaded using the respective fra
 internal representation used by __pyNeVer__.
 The properties for the verification and abstraction of the networks must be defined either in python code following
 the specification which can be found in the documentation, or via an SMT-LIB file compliant to the 
-[VNN-LIB](http://vnnlib.org) standard. Examples of the python specification of the properties can be found in all the 
-scripts in the directory examples/submissions/ATVA2021/.
+[VNN-LIB](http://vnnlib.org) standard.
 
 #### EXAMPLES
-**NB: All the scripts should be executed INSIDE the related directory!**  
+**NB: All the scripts should be executed INSIDE the related directory!**
+
+***All the examples described below are guaranteed to work until [Release v0.1.1a4](https://github.com/NeVerTools/pyNeVer/releases/tag/v0.1.1a4). 
+After this release, changes in the interface structure may add inconsistencies between test scripts and API, so
+the old examples will be removed and new examples will be created in future releases.***
 
 * The directory examples/ contains some examples of application of the __pyNeVer__ package. In particular the 
 [jupyter notebook](examples/notebooks/bidimensional_example_with_sigmoid.ipynb) shows a graphical example of the 
@@ -68,3 +71,5 @@ by __Stefano Demarchi__.
 _Students contributions_:
 
 * __Alessandro Drago__ - TensorFlow conversion
+* __Andrea Gimelli__ - Bound propagation integration
+* __Pedro Henrique Simão Achete__ - Command-line interface
