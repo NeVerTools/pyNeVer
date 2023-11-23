@@ -1,0 +1,52 @@
+; lunarlander property safe_23
+
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+(declare-const X_4 Real)
+(declare-const X_5 Real)
+(declare-const X_6 Real)
+(declare-const X_7 Real)
+
+(declare-const Y_0 Real)
+(declare-const Y_1 Real)
+(declare-const Y_2 Real)
+(declare-const Y_3 Real)
+
+; Input 0
+(assert (<= X_0 -0.8375994808214471))
+(assert (>= X_0 -0.942318119178553))
+
+; Input 1
+(assert (<= X_1 0.10784557717855295))
+(assert (>= X_1 0.003126938821447038))
+
+; Input 2
+(assert (<= X_2 1.187654919178553))
+(assert (>= X_2 1.082936280821447))
+
+; Input 3
+(assert (<= X_3 -0.27565175082144705))
+(assert (>= X_3 -0.380370389178553))
+
+; Input 4
+(assert (<= X_4 -0.356516000821447))
+(assert (>= X_4 -0.46123463917855295))
+
+; Input 5
+(assert (<= X_5 0.05235931583084326))
+(assert (>= X_5 -0.05235932252626266))
+
+; Input 6
+(assert (<= X_6 1.052359319178553))
+(assert (>= X_6 0.947640680821447))
+
+; Input 7
+(assert (<= X_7 0.05235931917855296))
+(assert (>= X_7 -0.05235931917855296))
+
+; unsafe if command is [0] (spec type maximal) 
+(assert 
+(<= Y_3 Y_0)
+)

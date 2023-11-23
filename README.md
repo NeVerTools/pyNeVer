@@ -61,7 +61,7 @@ abstraction modules.
 
 * The directory examples/submissions/ATVA2021 contains the experimental setup used for the experimental evaluation
 in our ATVA2021 paper. The experiments can be easily replicated by executing the python scripts 
-[acas_experiment.py](examples/submissions/ATVA2021/acas_experiments.py) from within the ATVA2021/ directory. 
+[acas_experiment.py](examples/submissions/2021_ATVA/acas_experiments.py) from within the ATVA2021/ directory. 
 The log files will be generated and will be saved in the logs/ directory.
 
 #### CONTRIBUTORS
