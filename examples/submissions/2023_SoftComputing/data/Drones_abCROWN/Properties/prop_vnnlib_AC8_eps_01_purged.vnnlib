@@ -1,0 +1,48 @@
+;; --- INPUT VARIABLES ---
+(declare-fun X_0 () Real)
+(declare-fun X_1 () Real)
+(declare-fun X_2 () Real)
+(declare-fun X_3 () Real)
+(declare-fun X_4 () Real)
+(declare-fun X_5 () Real)
+(declare-fun X_6 () Real)
+(declare-fun X_7 () Real)
+(declare-fun X_8 () Real)
+(declare-fun X_9 () Real)
+(declare-fun X_10 () Real)
+(declare-fun X_11 () Real)
+
+;; --- OUTPUT VARIABLES ---
+(declare-fun Y_0 () Real)
+
+;; --- INPUT CONSTRAINTS ---
+(assert (>= X_0 0.05277613699436187))
+(assert (<= X_0 0.25277613699436186))
+(assert (>= X_1 -0.2746464520692825))
+(assert (<= X_1 -0.07464645206928253))
+(assert (>= X_2 0.2945697844028473))
+(assert (<= X_2 0.49456978440284727))
+(assert (>= X_3 -0.2143166571855545))
+(assert (<= X_3 -0.014316657185554499))
+(assert (>= X_4 0.46280970573425295))
+(assert (<= X_4 0.6628097057342529))
+(assert (>= X_5 0.01749064922332763))
+(assert (<= X_5 0.21749064922332764))
+(assert (>= X_6 0.36719402074813845))
+(assert (<= X_6 0.5671940207481384))
+(assert (>= X_7 0.5235765814781189))
+(assert (<= X_7 0.7235765814781189))
+(assert (>= X_8 -0.8068316340446472))
+(assert (<= X_8 -0.6068316340446472))
+(assert (>= X_9 -0.9422951698303222))
+(assert (<= X_9 -0.7422951698303223))
+(assert (>= X_10 -0.03745382875204087))
+(assert (<= X_10 0.16254617124795914))
+(assert (>= X_11 0.693911337852478))
+(assert (<= X_11 0.893911337852478))
+
+;; --- OUTPUT CONSTRAINTS ---
+(assert (or
+	 (>= Y_0 13.139407586533899)
+	 (<= Y_0 -17.8052372450422) 
+))
