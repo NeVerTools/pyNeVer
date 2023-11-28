@@ -9,5 +9,4 @@ pyNeVer.egg-info/
 !**/logs/placeholder.txt
 !**/IEEEAccess2023/vnncomp_benchmarks/logs/*
 temp*
-**/data/*
 !**/data/placeholder.txt

@@ -820,3 +820,31 @@ class DropoutNode(LayerNode):
 
     def update_input(self, in_dim: Tuple):
         self.__init__(self.identifier, in_dim, self.p)
+
+
+class TransposeNode(LayerNode):
+    """
+    A class used for our internal representation of a Dropout Layer of a Neural Network.
+    The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
+    Attributes
+    ----------
+    perm : list, optional
+        Permutation to apply to the input dimsensions
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, perm: list = None):
+
+        if perm is None:
+            perm = [i for i in range(len(in_dim) - 1, -1, -1)]
+
+        if len(perm) != len(in_dim):
+            raise Exception("The perm parameter must be be a permutation of the input dimensions.")
+
+        self.perm = perm
+        out_dim = tuple(np.array(in_dim)[perm])
+
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim, self.perm)
