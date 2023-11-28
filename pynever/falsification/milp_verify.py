@@ -4,12 +4,19 @@ from pynever.networks import SequentialNetwork
 from pynever.nodes import FlattenNode, FullyConnectedNode, ReLUNode
 from pynever.strategies import conversion, smt_reading, verification
 
+from docplex.mp.model import Model
+from docplex.mp.model_reader import ModelReader
+
+from tempfile import NamedTemporaryFile
+
 # The following script takes as input an ONNX network, an SMT property with bounds on the input and the output of the
 # network, and generates a MILP problem which checks if the property on the output is satisfied given that on the input,
 # optionally writing it
 
 
-def verify_milp(network_path, property_path, file_path=""):
+def verify_milp(network_path, property_path, file_path="",
+                starting_point: list[float] = None,
+                print_solve_output=False) -> list[float] | None:
     # Big M definition
     M = 1e2
 
@@ -26,7 +33,7 @@ def verify_milp(network_path, property_path, file_path=""):
     # Checking that the first node is a fully connected node
     current_node = nn.get_first_node()
     if not isinstance(current_node, FullyConnectedNode):
-        # If the first node is a flatten node, it is skipped and the fully connected node after it is considered
+        # If the first node is a Flatten node, it is skipped and the fully connected node after it is considered
         if isinstance(current_node, FlattenNode):
             current_node = nn.get_next_node(current_node)
             if not isinstance(current_node, FullyConnectedNode):
@@ -107,8 +114,8 @@ def verify_milp(network_path, property_path, file_path=""):
             if bias is None:
                 bias = [0] * len(o_weights)
 
-            # The following conditional statement concerns the case in which a Fully Connected layer is not followed by a
-            # ReLU layer, and generates constraint which set the output to the product of the input and the weights
+            # The following conditional statement concerns the case in which a Fully Connected layer is not followed by
+            # a ReLU layer, and generates constraint which set the output to the product of the input and the weights
             if nn.get_next_node(current_node) is None:
                 new_last_output = []
                 for idx, row in enumerate(o_weights):
@@ -202,7 +209,7 @@ def verify_milp(network_path, property_path, file_path=""):
     coefficients = [float(x) for x in coefficients]
     rhs = [float(x) for x in rhs]
 
-    # Creating, writing and solving the problem
+    # Creating the problem by adding constraints and variables
     prob = cplex.Cplex()
 
     prob.objective.set_sense(prob.objective.sense.minimize)
@@ -214,82 +221,36 @@ def verify_milp(network_path, property_path, file_path=""):
 
     prob.linear_constraints.set_coefficients(zip(rows, variables, coefficients))
 
+    # A .lp file of the problem is created if a file path is specified
     if file_path != "":
         prob.write(file_path)
 
-    prob.solve()
-    try:
-        print(prob.solution.get_objective_value())
-        # Print the values of the x variables and the delta variables
-        print(prob.variables.get_names(list(range(m)) + delta_indices))
-        print(prob.solution.get_values(list(range(m)) + delta_indices))
-    except cplex.exceptions.errors.CplexSolverError:
-        pass
+    # Conversion from Cplex object to Model object
+    temp_file = NamedTemporaryFile(suffix='.lp', delete=False)
+    prob.write(temp_file.name)
+    model: Model = ModelReader.read(temp_file.name)
 
-    return prob.solution.get_status()
+    # Add starting point
+    if starting_point is not None:
+        warm_start = model.new_solution()
+        for idx, value in enumerate(starting_point):
+            warm_start.add_var_value(model.get_var_by_name(f"x{idx+1}"), value)
+        # TODO find better way
+        warm_start.add_var_value(model.get_var_by_name("delta0"), 1)
+        model.add_mip_start(warm_start, write_level=1)
+
+    # Solving the problem
+    solution = model.solve(log_output=print_solve_output)
+
+    if solution is None:
+        return None
+
+    counterexample = []
+    for i in range(1, m+1):
+        counterexample.append(solution.get_var_value(model.get_var_by_name(f"x{i}")))
+    return counterexample
 
 
 if __name__ == "__main__":
-    verify_milp("networks/ex.onnx", "properties/ex.smt2", "problems/ex.lp")
-    # import glob
-    # import time
-    #
-    # networks = glob.glob("networks/ACAS_XU*.onnx")
-    # properties = glob.glob("properties/ACAS\*.vnnlib")
-    #
-    # results = {}
-    # times = {}
-    #
-    # for network in networks:
-    #     for prop in properties:
-    #         print(network.split('\\')[1])#.split('\\')[1])
-    #         print(prop.split('/')[1].split('\\')[1])
-    #         start = time.time()
-    #         result = verify_milp(network, prop)
-    #         end = time.time()
-    #         results[f"{network}\t{prop}"] = result
-    #         times[f"{network}\t{prop}"] = end - start
-    #         print(end-start)
-    #
-    # with open("ACAS_milp_times.txt", "w") as f:
-    #     for result in results.keys():
-    #         f.write(f"{result}\t{results[result]}\t{times[result]}")
-    # import glob
-    # import time
-    #
-    # networks = glob.glob("networks/james/*.onnx")
-    # properties = ["properties/james_vnnlib.smt2"] * len(networks)
-    #
-    # results = []
-    # times = []
-    #
-    # for network, prop in zip(networks, properties):
-    #     print(network.split('/')[1].split('\\')[1])
-    #     start = time.time()
-    #     result = verify_milp(network, prop)
-    #     end = time.time()
-    #     results.append(result)
-    #     times.append(end - start)
-    #
-    # with open("milp_times.txt", "w") as f:
-    #     for network, prop, result, time in zip(networks, properties, results, times):
-    #         f.write(f"{network}\t{prop}\t{result}\t{time}\n")
-    # with open("times.txt", "w") as f:
-    #     networks = ["ACAS_XU_2_3.onnx",
-    #                 "ACAS_XU_1_3.onnx",
-    #                 "ACAS_XU_1_1.onnx",
-    #                 "ACAS_XU_4_3.onnx"]
-    #     prop = "ACAS.smt2"
-    #     for n in networks:
-    #         f.write(f"{n} \t {prop} \t {verify_milp(f'networks/{n}', f'properties/{prop}')}\n")
-
-    # with open("times.txt", "a") as f:
-    #     network = "mnist_clean.onnx"
-    #     properties = ["mnist_prop_1_0.03.vnnlib",
-    #                   "mnist_prop_1_0.05.vnnlib",
-    #                   "mnist_prop_2_0.03.vnnlib",
-    #                   "mnist_prop_2_0.05.vnnlib",
-    #                   "mnist_prop_3_0.03.vnnlib",
-    #                   "mnist_prop_3_0.05.vnnlib"]
-    #     for p in properties:
-    #         f.write(f"{network} \t {p} \t {verify_milp(f'networks/{network}', f'properties/{p}')}\n")
+    print(verify_milp("networks/cartpole.onnx", "properties/cartpole/cartpole_case_safe_30.vnnlib",
+                      starting_point=[0.46331893, -0.29093842, 0.03552729, 0.31410685]))
