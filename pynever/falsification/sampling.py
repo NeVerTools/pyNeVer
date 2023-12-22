@@ -1,10 +1,9 @@
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion, smt_reading, verification
+from pynever.strategies.bp.utils.property_converter import PropertyFormatConverter
 
 import numpy as np
 import torch
-# TODO substitute with appropriate import once pynever is updated
-from property_to_vector import PropertyFormatConverter
 
 np.random.seed(0)
 
@@ -29,7 +28,8 @@ def sampling(network: SequentialNetwork, property_path: str, n_points: int = 100
 
     prop = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 
-    lower_bounds, upper_bounds = PropertyFormatConverter(prop).get_vectors()
+    bounds = PropertyFormatConverter(prop).get_vectors()
+    lower_bounds, upper_bounds = bounds.get_lower(), bounds.get_upper()
     sample_points = []
 
     starting_point = np.array([np.random.uniform(lower_bounds[i], upper_bounds[i]) for i in range(len(lower_bounds))])
@@ -60,7 +60,7 @@ def sampling(network: SequentialNetwork, property_path: str, n_points: int = 100
     for idx, o in enumerate(sample_outputs):
         in_safe_region = True
         for C, d in zip(prop.out_coef_mat, prop.out_bias_mat):
-            if np.less_equal(C @ o, d.flatten()).any():
+            if np.less_equal(C @ o, d.flatten()).all():
                 in_safe_region = False
                 break
         if not in_safe_region:
