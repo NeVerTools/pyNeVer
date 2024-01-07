@@ -481,14 +481,27 @@ class SmtPropertyParser:
         tree_converter = ExpressionTreeConverter()
 
         # If y_assert contains some 'OR' statement I should separate
-        for a in y_assert:
-            if '|' in a:
-                tree = tree_converter.build_from_infix(a)
+        for asrt in y_assert:
+            if '|' in asrt:
+                tree = tree_converter.build_from_infix(asrt)
                 disjunct_list.extend(tree.get_disjunctions_infix())
+            else:
+                ands = []
+                for idx, a in enumerate(y_assert):
+                    if ' & ' in y_assert[idx]:
+                        and_expr = y_assert[idx].split(' & ')
 
+                        for out_asrt in and_expr:
+                            ands.append(self.remove_parentheses(out_asrt))
+
+                if len(ands) > 0:
+                    y_assert = ands
+
+        # Process 'and' in output properties disjunct
         for i in range(len(disjunct_list)):
-            # Process 'and' in output property
             if ' & ' in disjunct_list[i]:
+
+                # Here we "abuse" Python's freedom and make a list of lists out of a list of statements
                 disjunct_list[i] = disjunct_list[i].split(' & ')
 
                 count = 0
