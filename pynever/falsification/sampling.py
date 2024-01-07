@@ -5,6 +5,13 @@ from pynever.strategies.bp.utils.property_converter import PropertyFormatConvert
 import numpy as np
 import torch
 
+import sys
+import logging
+
+logger = logging.getLogger()
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logger.setLevel(logging.WARNING)
+
 np.random.seed(0)
 
 
@@ -47,7 +54,7 @@ def sampling(network: SequentialNetwork, property_path: str, n_points: int = 100
     # Check validity of all inputs
     for p in sample_points:
         if any(np.greater(prop.in_coef_mat @ p, prop.in_bias_mat.flatten())):
-            print(f"{p} is an invalid sample point")
+            logger.log(logging.DEBUG, f"{p} is an invalid sample point")
             raise Exception
 
     # Calculate outputs
@@ -64,38 +71,39 @@ def sampling(network: SequentialNetwork, property_path: str, n_points: int = 100
                 in_safe_region = False
                 break
         if not in_safe_region:
-            print(f"output {o} of input {sample_points[idx]} is not in the safe region")
+            logger.log(logging.DEBUG, f"output {o} of input {sample_points[idx]} is not in the safe region")
             return None
 
-    nearest_points = []
-    for C, d in zip(prop.out_coef_mat, prop.out_bias_mat):
-        min_distances = []
-        for _ in C:
-            min_distances.append([])
-        for idx, o in enumerate(sample_outputs):
-            distances = [float(abs(w @ o - b) / np.linalg.norm(w)) for w, b in zip(C, d)]
-            for index, distance in enumerate(distances):
-                min_distances[index].append((distance, idx))
-        for hp in min_distances:
-            hp.sort()
-            nearest_points.append(hp[:int(subset_percentage * n_points)])
-
-    avg_points = []
-    for hp in nearest_points:
-        points = []
-        distances = []
-        for distance, idx in hp:
-            points.append(sample_points[idx])
-            distances.append(distance)
-        avg_point = np.average(points, axis=0)
-        avg_distance = np.average(distances)
-        avg_points.append((avg_distance, avg_point))
-
-    avg_points.sort()
-    return avg_points
+    # nearest_points = []
+    # for C, d in zip(prop.out_coef_mat, prop.out_bias_mat):
+    #     min_distances = []
+    #     for _ in C:
+    #         min_distances.append([])
+    #     for idx, o in enumerate(sample_outputs):
+    #         distances = [float(abs(w @ o - b) / np.linalg.norm(w)) for w, b in zip(C, d)]
+    #         for index, distance in enumerate(distances):
+    #             min_distances[index].append((distance, idx))
+    #     for hp in min_distances:
+    #         hp.sort()
+    #         nearest_points.append(hp[:int(subset_percentage * n_points)])
+    #
+    # avg_points = []
+    # for hp in nearest_points:
+    #     points = []
+    #     distances = []
+    #     for distance, idx in hp:
+    #         points.append(sample_points[idx])
+    #         distances.append(distance)
+    #     avg_point = np.average(points, axis=0)
+    #     avg_distance = np.average(distances)
+    #     avg_points.append((avg_distance, avg_point))
+    #
+    # avg_points.sort()
+    # return avg_points
+    return []
 
 
 if __name__ == "__main__":
-    starting_points = sampling(load_network("networks/cartpole.onnx"),
-                               "properties/cartpole/cartpole_case_safe_30.vnnlib")
+    starting_points = sampling(load_network("networks/dubinsrejoin.onnx"),
+                               "properties/dubinsrejoin/dubinsrejoin_case_87.vnnlib")
     print(starting_points)
