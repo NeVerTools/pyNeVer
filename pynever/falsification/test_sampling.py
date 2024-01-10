@@ -30,25 +30,30 @@ def test_sampling(network_name: str, n_samples: list[int]):
     print(len(properties))
     assert len(ground_truth) == len(properties)
 
-    total = len(networks) * len(properties)
+    total = sum([not t["safe"] for t in ground_truth])
+    # total = len(networks) * len(properties)
     results = []
     for n in n_samples:
         correct = 0
         times = []
         for network in networks:
             for prop, truth in zip(properties, ground_truth):
-                logger.log(logging.INFO, f"Testing {prop} for {network}")
-                start = time.time()
-                result = sampling.sampling(sampling.load_network(network), prop, n_points=n)
-                end = time.time()
-                times.append(end - start)
-                if (result is None) != truth["safe"]:
-                    correct += 1
-        results.append({"sample_points": n, "accuracy": correct / total * 100, "average_time": np.mean(times)})
+                if not truth["safe"]:
+                    logger.log(logging.INFO, f"Testing {prop} for {network} with {n} samples")
+                    start = time.time()
+                    result = sampling.sampling(sampling.load_network(network), prop, n_points=n)
+                    end = time.time()
+                    times.append(end - start)
+                    if (result is None) != truth["safe"]:
+                        correct += 1
+        results.append({"sample_points": n,
+                        "accuracy": correct / total * 100,
+                        "average_time": np.mean(times),
+                        "total_time": np.sum(times), })
 
-    result_file = f"{network_name}_results.csv"
+    result_file = f"{network_name}_unsafe_results.csv"
 
-    field_names = ["sample_points", "accuracy", "average_time"]
+    field_names = ["sample_points", "accuracy", "average_time", "total_time"]
 
     with open(result_file, 'w') as file:
         csv_writer = csv.DictWriter(file, fieldnames=field_names)
@@ -60,7 +65,7 @@ def test_sampling(network_name: str, n_samples: list[int]):
 
 if __name__ == "__main__":
     np.random.seed(0)
-    samples = [100, 1000]
+    samples = [100, 1000, 5000, 10000, 100000]
     test_sampling("cartpole", samples)
     test_sampling("lunarlander", samples)
     test_sampling("dubinsrejoin", samples)

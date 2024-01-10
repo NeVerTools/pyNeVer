@@ -12,7 +12,7 @@ logger = logging.getLogger()
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.WARNING)
 
-np.random.seed(0)
+# np.random.seed(0)
 
 
 def load_network(network_path: str) -> SequentialNetwork:
