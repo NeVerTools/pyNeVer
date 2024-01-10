@@ -714,6 +714,16 @@ def sig_fod(x: float) -> float:
     return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
 
 
+def sig_movendo(x: float) -> float:
+    k = 3
+    x_0 = 0.42
+    return 1.0 / (1.0 + math.exp(-k * (x - x_0)))
+
+
+def sig_movendo_fod(x: float) -> float:
+    return sig_movendo(x) * (1 - sig_movendo(x))
+
+
 def area_sig_triangle(lb: float, ub: float) -> float:
     """
     Utility function computing the area of the triangle defined by an upper bound and a lower bound on the
@@ -721,15 +731,16 @@ def area_sig_triangle(lb: float, ub: float) -> float:
 
     """
 
-    x_p = (ub * sig_fod(ub) - lb * sig_fod(lb)) / (sig_fod(ub) - sig_fod(lb)) - \
-          (sig(ub) - sig(lb)) / (sig_fod(ub) - sig_fod(lb))
+    x_p = (ub * sig_movendo_fod(ub) - lb * sig_movendo_fod(lb)) / (sig_movendo_fod(ub) - sig_movendo_fod(lb)) - \
+          (sig_movendo(ub) - sig_movendo(lb)) / (sig_movendo_fod(ub) - sig_movendo_fod(lb))
 
-    y_p = sig_fod(ub) * (x_p - ub) + sig(ub)
+    y_p = sig_movendo_fod(ub) * (x_p - ub) + sig_movendo(ub)
 
-    height = abs(y_p - (sig(ub) - sig(lb)) / (ub - lb) * x_p + sig(lb) - lb * (sig(ub) - sig(lb)) / (ub - lb)) / \
-             math.sqrt(1 + math.pow((sig(ub) - sig(lb)) / (ub - lb), 2))
+    height = abs(y_p - (sig_movendo(ub) - sig_movendo(lb)) / (ub - lb) * x_p + sig_movendo(lb) - lb * (
+                sig_movendo(ub) - sig_movendo(lb)) / (ub - lb)) / \
+             math.sqrt(1 + math.pow((sig_movendo(ub) - sig_movendo(lb)) / (ub - lb), 2))
 
-    base = math.sqrt(math.pow(ub - lb, 2) + math.pow(sig(ub) - sig(lb), 2))
+    base = math.sqrt(math.pow(ub - lb, 2) + math.pow(sig_movendo(ub) - sig_movendo(lb), 2))
 
     return base * height / 2.0
 
@@ -762,36 +773,36 @@ def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: 
 
         if lb < 0 and ub <= 0:
 
-            c_mat_1 = np.hstack((np.array([sig_fod(lb) * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
-            c_mat_2 = np.hstack((np.array([sig_fod(ub) * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
-            coef_3 = - (sig(ub) - sig(lb)) / (ub - lb)
+            c_mat_1 = np.hstack((np.array([sig_movendo_fod(lb) * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
+            c_mat_2 = np.hstack((np.array([sig_movendo_fod(ub) * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
+            coef_3 = - (sig_movendo(ub) - sig_movendo(lb)) / (ub - lb)
             c_mat_3 = np.hstack((np.array([coef_3 * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
 
-            d_1 = np.array([-sig_fod(lb) * (star.center[var_index] - lb) - sig(lb)])
-            d_2 = np.array([-sig_fod(ub) * (star.center[var_index] - ub) - sig(ub)])
-            d_3 = np.array([-coef_3 * (star.center[var_index] - lb) + sig(lb)])
+            d_1 = np.array([-sig_movendo_fod(lb) * (star.center[var_index] - lb) - sig_movendo(lb)])
+            d_2 = np.array([-sig_movendo_fod(ub) * (star.center[var_index] - ub) - sig_movendo(ub)])
+            d_3 = np.array([-coef_3 * (star.center[var_index] - lb) + sig_movendo(lb)])
 
         else:
 
-            c_mat_1 = np.hstack((np.array([-sig_fod(lb) * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
-            c_mat_2 = np.hstack((np.array([-sig_fod(ub) * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
-            coef_3 = (sig(ub) - sig(lb)) / (ub - lb)
+            c_mat_1 = np.hstack((np.array([-sig_movendo_fod(lb) * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
+            c_mat_2 = np.hstack((np.array([-sig_movendo_fod(ub) * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
+            coef_3 = (sig_movendo(ub) - sig_movendo(lb)) / (ub - lb)
             c_mat_3 = np.hstack((np.array([coef_3 * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
 
-            d_1 = np.array([sig_fod(lb) * (star.center[var_index] - lb) + sig(lb)])
-            d_2 = np.array([sig_fod(ub) * (star.center[var_index] - ub) + sig(ub)])
-            d_3 = np.array([-coef_3 * (star.center[var_index] - lb) - sig(lb)])
+            d_1 = np.array([sig_movendo_fod(lb) * (star.center[var_index] - lb) + sig_movendo(lb)])
+            d_2 = np.array([sig_movendo_fod(ub) * (star.center[var_index] - ub) + sig_movendo(ub)])
+            d_3 = np.array([-coef_3 * (star.center[var_index] - lb) - sig_movendo(lb)])
 
         col_c_mat = star.predicate_matrix.shape[1]
 
         # Adding lb and ub bounds to enhance stability
         c_mat_lb = np.zeros((1, col_c_mat + 1))
         c_mat_lb[0, col_c_mat] = -1
-        d_lb = -sig(lb) * np.ones((1, 1))
+        d_lb = -sig_movendo(lb) * np.ones((1, 1))
 
         c_mat_ub = np.zeros((1, col_c_mat + 1))
         c_mat_ub[0, col_c_mat] = 1
-        d_ub = sig(ub) * np.ones((1, 1))
+        d_ub = sig_movendo(ub) * np.ones((1, 1))
 
         row_c_mat = star.predicate_matrix.shape[0]
         c_mat_0 = np.hstack((star.predicate_matrix, np.zeros((row_c_mat, 1))))
