@@ -1189,11 +1189,17 @@ class AbsSigmoidNode(AbsLayerNode):
         Identifier of the LayerNode.
 
     ref_node : SigmoidNode
-        LayerNode di riferimento per l'abstract transformer.
+        Reference LayerNode for the abstract transformer.
 
-    refinement_level : Union[int, List[int]]
+    B : float
+        Growth rate of the sigmoid function.
+
+    M : float
+        Starting value of the sigmoid function.
+
+    approx_levels : Union[int, List[int]]
         Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
-        the neurons of the layers, otherwise it is a list containing the refinement levels for each layers.
+        the neurons of the layers, otherwise it is a list containing the refinement levels for each layer.
 
     Methods
     ----------
@@ -1205,6 +1211,7 @@ class AbsSigmoidNode(AbsLayerNode):
         Function which takes a reference to the refinement state and update both it and the state of the abstract
         transformer to control the refinement component of the abstraction. At present the function is just a
         placeholder for future implementations.
+
     """
 
     def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, B: float = 1, M: float = 0,
@@ -1212,9 +1219,9 @@ class AbsSigmoidNode(AbsLayerNode):
         super().__init__(identifier, ref_node)
 
         if approx_levels is None:
-            approx_levels = [0 for i in range(ref_node.in_dim[-1])]
+            approx_levels = [0 for _ in range(ref_node.in_dim[-1])]
         elif isinstance(approx_levels, int):
-            approx_levels = [approx_levels for i in range(ref_node.in_dim[-1])]
+            approx_levels = [approx_levels for _ in range(ref_node.in_dim[-1])]
 
         self.approx_levels = approx_levels
         self.B = B
