@@ -824,7 +824,7 @@ class DropoutNode(LayerNode):
 
 class TransposeNode(LayerNode):
     """
-    A class used for our internal representation of a Dropout Layer of a Neural Network.
+    A class used for our internal representation of a Transpose Layer of a Neural Network.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
     Attributes
     ----------
@@ -848,3 +848,75 @@ class TransposeNode(LayerNode):
 
     def update_input(self, in_dim: Tuple):
         self.__init__(self.identifier, in_dim, self.perm)
+
+
+class ConcatNode(LayerNode):
+    """
+        A class used for our internal representation of a Concat Layer of a Neural Network.
+        Concatenate two tensors into a single tensor. All input tensors must have the same shape,
+        except for the dimension size of the axis to concatenate on.
+
+        Attributes
+        ----------
+        in_dim_second: Tuple
+            The shape of the tensor to concatenate to the first input.
+        axis : int, Optional
+            Which axis to concat on. A negative value means counting dimensions from the back.
+            Accepted range is [-r, r-1] where r is the number of dimension of the input (default: -1).
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, in_dim_second: Tuple, axis: int = -1):
+
+        if axis < -len(in_dim) or axis > len(in_dim) - 1:
+            raise Exception(f"The axis parameter must be in the range [{-len(in_dim)}, {len(in_dim) - 1}].")
+
+        if axis < 0:
+            jolly_dim = len(in_dim) + axis
+        else:
+            jolly_dim = axis
+
+        for i in range(len(in_dim)):
+            if i != jolly_dim and in_dim[i] != in_dim_second[i]:
+                raise Exception(f"All input tensors must have the same shape, except for dimension {jolly_dim}.")
+
+        self.axis = axis
+        self.in_dim_second = in_dim_second
+
+        out_dim = list(in_dim)
+        out_dim[jolly_dim] = in_dim[jolly_dim] + in_dim_second[jolly_dim]
+        out_dim = tuple(out_dim)
+
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim, self.in_dim_second, self.axis)
+
+
+class SumNode(LayerNode):
+    """
+        A class used for our internal representation of a Sum Layer of a Neural Network.
+        Element-wise sum of each of the input tensors.
+        All inputs and outputs must have the same data type.
+
+        Attributes
+        ----------
+        in_dim_second: Tuple
+            The shape of the tensor to add to the first input.
+
+    """
+
+    def __init__(self, identifier: str, in_dim: Tuple, in_dim_second: Tuple):
+
+        for i in range(len(in_dim)):
+            if in_dim[i] != in_dim_second[i]:
+                raise Exception("All input tensors must have the same shape.")
+
+        self.in_dim_second = in_dim_second
+
+        out_dim = in_dim
+
+        super().__init__(identifier, in_dim, out_dim)
+
+    def update_input(self, in_dim: Tuple):
+        self.__init__(self.identifier, in_dim, self.in_dim_second)
