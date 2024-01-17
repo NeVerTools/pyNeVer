@@ -873,6 +873,60 @@ def single_sigmoid_forward(star: Star, approx_levels: List[int]) -> Set[Star]:
     return temp_abs_input
 
 
+def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
+    """
+        Utility function for the management of the forward for AbsConcatNode. It is outside
+        the class scope since multiprocessing does not support parallelization with
+        function internal to classes.
+
+    """
+
+    new_basis_matrix = np.zeros((first_star.basis_matrix.shape[0] + second_star.basis_matrix.shape[0],
+                                 first_star.basis_matrix.shape[1] + second_star.basis_matrix.shape[1]))
+    new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] = first_star.basis_matrix
+    new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] = second_star.basis_matrix
+
+    new_center = np.hstack((first_star.center, second_star.center))
+
+    new_predicate_matrix = np.zeros((first_star.predicate_matrix.shape[0] + second_star.predicate_matrix.shape[0],
+                                     first_star.predicate_matrix.shape[1] + second_star.predicate_matrix.shape[1]))
+    new_predicate_matrix[0:first_star.predicate_matrix.shape[0], 0:first_star.predicate_matrix.shape[1]] = \
+        first_star.predicate_matrix
+    new_predicate_matrix[first_star.predicate_matrix.shape[0]:, first_star.predicate_matrix.shape[1]:] = \
+        second_star.predicate_matrix
+
+    new_predicate_bias = np.hstack((first_star.predicate_bias, second_star.predicate_bias))
+
+    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
+
+    return {new_star}
+
+
+def single_sum_forward(first_star: Star, second_star: Star) -> Set[Star]:
+    """
+        Utility function for the management of the forward for AbsSumNode. It is outside
+        the class scope since multiprocessing does not support parallelization with
+        function internal to classes.
+
+    """
+
+    new_basis_matrix = np.hstack((first_star.basis_matrix, second_star.basis_matrix))
+    new_center = first_star.center + second_star.center
+
+    new_predicate_matrix = np.zeros((first_star.predicate_matrix.shape[0] + second_star.predicate_matrix.shape[0],
+                                     first_star.predicate_matrix.shape[1] + second_star.predicate_matrix.shape[1]))
+    new_predicate_matrix[0:first_star.predicate_matrix.shape[0], 0:first_star.predicate_matrix.shape[1]] = \
+        first_star.predicate_matrix
+    new_predicate_matrix[first_star.predicate_matrix.shape[0]:, first_star.predicate_matrix.shape[1]:] = \
+        second_star.predicate_matrix
+
+    new_predicate_bias = np.hstack((first_star.predicate_bias, second_star.predicate_bias))
+
+    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
+
+    return {new_star}
+
+
 class RefinementState(abc.ABC):
     """
     A class used for the internal control of the refinement strategies/heuristics applied in the abstraction refinement
