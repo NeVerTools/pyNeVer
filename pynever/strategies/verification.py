@@ -441,7 +441,7 @@ class NeverVerification(VerificationStrategy):
 
         return output_starset, n_areas
 
-    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property):
+    def get_output_starset(self, network: networks.NeuralNetwork, prop: Property, bounds: dict = None):
 
         self.counterexample_stars = None
         abst_network = self.__build_abst_network(network, self.heuristic, self.params)
@@ -449,7 +449,7 @@ class NeverVerification(VerificationStrategy):
         computing_start_time = time.perf_counter()
 
         if isinstance(prop, NeVerProperty):
-            output_starset, n_areas = self.__compute_output_starset(abst_network, prop)
+            output_starset, n_areas = self.__compute_output_starset(abst_network, prop, bounds)
         else:
             raise NotImplementedError
 
