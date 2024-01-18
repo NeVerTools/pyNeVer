@@ -24,7 +24,7 @@ if __name__ == '__main__':
     abst_nn = abstraction.AbsSeqNetwork('movendo_abs_net')
     abst_nn.add_node(abstraction.AbsFullyConnectedNode('ABS_FC_1', fc_1))
     abst_nn.add_node(abstraction.AbsSigmoidNode('ABS_SIG_1', nodes.SigmoidNode('SIG', (1,)),
-                                                B=3, M=0.42, approx_levels=5))
+                                                B=3, M=0.42, approx_levels=4))
 
     # Create input star (center in normal values)
     norm_df = pd.read_excel('data/SI_info.xlsx', sheet_name='value_normality')
@@ -48,7 +48,7 @@ if __name__ == '__main__':
             vnn_prop.write(f'(assert (>= X_{i} '
                            f'{center[i] - noise if center[i] - noise > lbs[i] else float(lbs[i])}))\n')
 
-        vnn_prop.write('\n(assert (>= Y_0 50.0))')
+        vnn_prop.write('\n(assert (>= Y_0 0.5))')
 
     to_verify = NeVerProperty()
     to_verify.from_smt_file('prop.vnnlib')
@@ -57,5 +57,15 @@ if __name__ == '__main__':
     for _, abs_node in abst_nn.nodes.items():
         abs_input = abs_node.forward(abs_input)
 
-    for out_star in abs_input.stars:
-        print(out_star)
+    lbs = []
+    ubs = []
+    i = 0
+    for star in abs_input.stars:
+        lb, ub = star.get_bounds(0)
+        lbs.append(lb)
+        ubs.append(ub)
+
+    min_lb = np.min(np.array(lbs))
+    max_ub = np.max(np.array(ubs))
+
+    print(max_ub)
