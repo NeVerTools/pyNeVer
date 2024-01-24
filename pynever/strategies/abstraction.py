@@ -696,7 +696,7 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     return {new_star}
 
 
-def sig(x: float, B: float = 1, M: float = 0) -> float:
+def sig(x: float, k: float = 1, x0: float = 0) -> float:
     """
     Utility function computing the logistic function of the input.
     Additional parameters are derived from the generalized version.
@@ -705,36 +705,36 @@ def sig(x: float, B: float = 1, M: float = 0) -> float:
     ----------
     x : float
         The input value for the function
-    B : float
+    k : float
         The growth rate of the function
-    M : float
-        Starting value
+    x0 : float
+        Center of the function
 
     """
 
-    return 1.0 / (1.0 + math.exp(-B * (x - M)))
+    return 1.0 / (1.0 + math.exp(-k * (x - x0)))
 
 
-def sig_fod(x: float, B: float, M: float) -> float:
+def sig_fod(x: float, k: float, x0: float) -> float:
     """
     Utility function computing the first order derivative of the logistic function of the input.
 
     """
 
-    return sig(x, B, M) * (1 - sig(x, B, M))
+    return sig(x, k, x0) * (1 - sig(x, k, x0))
 
 
-def area_sig_triangle(lb: float, ub: float, B: float, M: float) -> float:
+def area_sig_triangle(lb: float, ub: float, k: float, x0: float) -> float:
     """
     Utility function computing the area of the triangle defined by an upper bound and a lower bound on the
     logistic function. In particular is the triangle composed by the two tangents and line passing by the two bounds.
 
     """
 
-    s_lb = sig(lb, B, M)
-    s_ub = sig(ub, B, M)
-    s_fod_lb = sig_fod(lb, B, M)
-    s_fod_ub = sig_fod(ub, B, M)
+    s_lb = sig(lb, k, x0)
+    s_ub = sig(ub, k, x0)
+    s_fod_lb = sig_fod(lb, k, x0)
+    s_fod_ub = sig_fod(ub, k, x0)
 
     x_p = (ub * s_fod_ub - lb * s_fod_lb) / (s_fod_ub - s_fod_lb) - \
           (s_ub - s_lb) / (s_fod_ub - s_fod_lb)
@@ -750,37 +750,37 @@ def area_sig_triangle(lb: float, ub: float, B: float, M: float) -> float:
 
 
 def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float,
-                             tolerance: float, B: float, M: float) -> Set[Star]:
+                             tolerance: float, k: float, x0: float) -> Set[Star]:
     assert approx_level >= 0
 
     if abs(ub - lb) < tolerance:
 
-        if ub <= 0:
-            if ub + tolerance > 0:
-                ub = 0
+        if ub <= x0:
+            if ub + tolerance > x0:
+                ub = x0
             else:
                 ub = ub + tolerance
             lb = lb - tolerance
         else:
-            if lb - tolerance < 0:
-                lb = 0
+            if lb - tolerance < x0:
+                lb = x0
             else:
                 lb = lb - tolerance
             ub = ub + tolerance
 
-    assert (lb <= 0 and ub <= 0) or (lb >= 0 and ub >= 0)
+    assert (lb <= x0 and ub <= x0) or (lb >= x0 and ub >= x0)
 
     mask = np.identity(star.center.shape[0])
     mask[var_index, var_index] = 0
 
     if approx_level == 0:
 
-        s_lb = sig(lb, B, M)
-        s_ub = sig(ub, B, M)
-        s_fod_lb = sig_fod(lb, B, M)
-        s_fod_ub = sig_fod(ub, B, M)
+        s_lb = sig(lb, k, x0)
+        s_ub = sig(ub, k, x0)
+        s_fod_lb = sig_fod(lb, k, x0)
+        s_fod_ub = sig_fod(ub, k, x0)
 
-        if lb < 0 and ub <= 0:
+        if lb < x0 and ub <= x0:
 
             c_mat_1 = np.hstack((np.array([s_fod_lb * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
             c_mat_2 = np.hstack((np.array([s_fod_ub * star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
@@ -843,42 +843,42 @@ def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: 
         best_boundary = None
         smallest_area = 99999999
         for boundary in boundaries:
-            area_1 = area_sig_triangle(lb, boundary, B, M)
-            area_2 = area_sig_triangle(boundary, ub, B, M)
+            area_1 = area_sig_triangle(lb, boundary, k, x0)
+            area_2 = area_sig_triangle(boundary, ub, k, x0)
             if area_1 + area_2 < smallest_area:
                 smallest_area = area_1 + area_2
                 best_boundary = boundary
 
         star_set = set()
         star_set = star_set.union(
-            __recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance, B, M))
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance, k, x0))
         star_set = star_set.union(
-            __recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance, B, M))
+            __recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance, k, x0))
 
         return star_set
 
 
 def __approx_step_sigmoid(abs_input: Set[Star], var_index: int, approx_level: int, tolerance: float,
-                          B: float, M: float) -> Set[Star]:
+                          k: float, x0: float) -> Set[Star]:
     abs_output = set()
     for star in abs_input:
 
         if not star.check_if_empty():
             lb, ub = star.get_bounds(var_index)
 
-            if (lb < 0) and (ub > 0):
-                abs_output = abs_output.union(__recursive_step_sigmoid(star, var_index, approx_level, lb, 0,
-                                                                       tolerance, B, M))
-                abs_output = abs_output.union(__recursive_step_sigmoid(star, var_index, approx_level, 0, ub,
-                                                                       tolerance, B, M))
+            if (lb < x0) and (ub > x0):
+                abs_output = abs_output.union(__recursive_step_sigmoid(star, var_index, approx_level, lb, x0,
+                                                                       tolerance, k, x0))
+                abs_output = abs_output.union(__recursive_step_sigmoid(star, var_index, approx_level, x0, ub,
+                                                                       tolerance, k, x0))
             else:
                 abs_output = abs_output.union(__recursive_step_sigmoid(star, var_index, approx_level, lb,
-                                                                       ub, tolerance, B, M))
+                                                                       ub, tolerance, k, x0))
 
     return abs_output
 
 
-def single_sigmoid_forward(star: Star, approx_levels: List[int], B: float, M: float) -> Set[Star]:
+def single_sigmoid_forward(star: Star, approx_levels: List[int], k: float, x0: float) -> Set[Star]:
     """
     Utility function for the management of the forward for AbsSigmoidNode. It is outside
     the class scope since multiprocessing does not support parallelization with
@@ -889,7 +889,7 @@ def single_sigmoid_forward(star: Star, approx_levels: List[int], B: float, M: fl
     tolerance = 0.01
     temp_abs_input = {star}
     for i in range(star.center.shape[0]):
-        temp_abs_input = __approx_step_sigmoid(temp_abs_input, i, approx_levels[i], tolerance, B, M)
+        temp_abs_input = __approx_step_sigmoid(temp_abs_input, i, approx_levels[i], tolerance, k, x0)
         print(f"Index {i}, NumStar: {len(temp_abs_input)}")
     return temp_abs_input
 
@@ -1191,11 +1191,11 @@ class AbsSigmoidNode(AbsLayerNode):
     ref_node : SigmoidNode
         Reference LayerNode for the abstract transformer.
 
-    B : float
+    k : float
         Growth rate of the sigmoid function.
 
-    M : float
-        Starting value of the sigmoid function.
+    x0 : float
+        Center of the sigmoid function.
 
     approx_levels : Union[int, List[int]]
         Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
@@ -1214,7 +1214,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, B: float = 1, M: float = 0,
+    def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, k: float = 1, x0: float = 0,
                  approx_levels: Union[int, List[int]] = None):
         super().__init__(identifier, ref_node)
 
@@ -1224,8 +1224,8 @@ class AbsSigmoidNode(AbsLayerNode):
             approx_levels = [approx_levels for _ in range(ref_node.in_dim[-1])]
 
         self.approx_levels = approx_levels
-        self.B = B
-        self.M = M
+        self.k = k
+        self.x0 = x0
 
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
@@ -1255,8 +1255,8 @@ class AbsSigmoidNode(AbsLayerNode):
             my_pool = multiprocessing.Pool(1)
             parallel_results = my_pool.starmap(single_sigmoid_forward, zip(abs_input.stars,
                                                                            itertools.repeat(self.approx_levels),
-                                                                           itertools.repeat(self.B),
-                                                                           itertools.repeat(self.M)))
+                                                                           itertools.repeat(self.k),
+                                                                           itertools.repeat(self.x0)))
             my_pool.close()
             for star_set in parallel_results:
                 abs_output.stars = abs_output.stars.union(star_set)
@@ -1265,7 +1265,7 @@ class AbsSigmoidNode(AbsLayerNode):
             for star in abs_input.stars:
                 abs_output.stars = abs_output.stars.union(single_sigmoid_forward(star,
                                                                                  self.approx_levels,
-                                                                                 self.B, self.M))
+                                                                                 self.k, self.x0))
 
         return abs_output
 

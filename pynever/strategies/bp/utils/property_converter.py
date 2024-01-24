@@ -1,4 +1,5 @@
 import numpy as np
+
 from pynever.strategies.bp.bounds import HyperRectangleBounds
 
 DEBUG = False
@@ -17,12 +18,9 @@ class PropertyFormatConverter:
            The representation of vector d
        """
 
-    def __init__(self, property=None):
-        if property is not None:
-            self.coeff = property.in_coef_mat
-            self.bias = property.in_bias_mat
-        else:
-            self.input_test()
+    def __init__(self, property: 'NeVerProperty'):
+        self.coeff = property.in_coef_mat
+        self.bias = property.in_bias_mat
 
         self.num_vars = self.coeff.shape[1]
 
