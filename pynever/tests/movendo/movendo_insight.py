@@ -21,7 +21,7 @@ if __name__ == '__main__':
     center = norm_df['mean_normality'].to_numpy()
     lbs = range_df['value_range [min]'].to_numpy()
     ubs = range_df['value_range [max]'].to_numpy()
-    noise = 0.005
+    noise = 0.01
 
     # Create directly the abstract network
     abst_nn = abstraction.AbsSeqNetwork('movendo_abs_net')
@@ -34,12 +34,12 @@ if __name__ == '__main__':
     # Create input star (center in normal values)
     # Write property for building Star (easier)
     with open('prop.vnnlib', 'w') as vnn_prop:
-        for i in range(31):
+        for i in range(29):
             vnn_prop.write(f'(declare-const X_{i} Real)\n')
 
         vnn_prop.write('\n(declare-const Y_0 Real)\n\n')
 
-        for i in range(31):
+        for i in range(29):
             # TODO use % noise for non-normalized inputs?
             vnn_prop.write(f'(assert (<= X_{i} '
                            f'{center[i] + noise if center[i] + noise < ubs[i] else float(ubs[i])}))\n')
@@ -54,11 +54,11 @@ if __name__ == '__main__':
     outputs = []
 
     for sample in samples:
-        outputs.append(movendo_sig(np.sum(sample * weights) + bias))
+        outputs.append(movendo_sig(np.sum(sample * weights[0, :29]) + bias))
 
-    print(f'Normality: {movendo_sig(np.sum(center * weights) + bias)}')
+    print(f'Normality: {movendo_sig(np.sum(center[:29] * weights[0, :29]) + bias)}')
 
-    print(min(outputs))
+    print(max(outputs))
 
     # abs_input = abstraction.StarSet({abstraction.Star(movendo_prop.in_coef_mat, movendo_prop.in_bias_mat)})
     #
