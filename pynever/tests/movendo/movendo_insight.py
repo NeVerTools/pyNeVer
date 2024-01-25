@@ -6,6 +6,9 @@ from pynever.strategies import abstraction
 from pynever.strategies.incomplete import sampling
 from pynever.strategies.verification import NeVerProperty
 
+def movendo_sig(x):
+    return 1.0 / (1.0 * np.exp(-3 * (x - 0.42)))
+
 if __name__ == '__main__':
 
     # Read data from files (w25 = 0)
@@ -46,7 +49,16 @@ if __name__ == '__main__':
     movendo_prop = NeVerProperty()
     movendo_prop.from_smt_file('prop.vnnlib')
 
+    # Sample the input and compute output
     samples = sampling.sample_property(movendo_prop, n_samples=10000)
+    outputs = []
+
+    for sample in samples:
+        outputs.append(movendo_sig(np.sum(sample * weights) + bias))
+
+    print(f'Normality: {movendo_sig(np.sum(center * weights) + bias)}')
+
+    print(min(outputs))
 
     # abs_input = abstraction.StarSet({abstraction.Star(movendo_prop.in_coef_mat, movendo_prop.in_bias_mat)})
     #
