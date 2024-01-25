@@ -1081,6 +1081,69 @@ class AbsFullyConnectedNode(AbsLayerNode):
         pass
 
 
+class AbsConvNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Convolutional Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : ConvNode
+        Reference LayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.ConvNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        bounds : dict
+            Optional bounds for this layer as computed by the previous
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+        pass
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+
+        """
+
+        pass
+
+
 class AbsReLUNode(AbsLayerNode):
     """
     A class used for our internal representation of a ReLU Abstract transformer.
@@ -1297,6 +1360,70 @@ class AbsSigmoidNode(AbsLayerNode):
         ref_state: RefinementState
             The RefinementState to update.
         """
+        pass
+
+
+class AbsMaxPoolNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a MaxPool Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : MaxPoolNode
+        Reference LayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.MaxPoolNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        bounds : dict
+            Optional bounds for this layer as computed by the previous
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+
+        pass
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+
+        """
+
         pass
 
 
