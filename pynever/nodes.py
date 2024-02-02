@@ -1,7 +1,7 @@
 import abc
 import copy
 import math
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 
@@ -37,6 +37,38 @@ class LayerNode(abc.ABC):
 
     @abc.abstractmethod
     def update_input(self, in_dim: Tuple):
+        pass
+
+
+class MultiInputLayerNode(abc.ABC):
+    """
+    An abstract class used for our internal representation of a generic multi-input Layer of a Neural Network.
+    Its concrete children correspond to real network layers.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+    in_dims : List[Tuple]
+        Dimension of the input Tensors as a tuples (ndarray.shape like).
+    out_dim : Tuple
+        Dimension of the output Tensor as a tuple (ndarray.shape like).
+
+    """
+
+    def __init__(self, identifier: str, in_dims: List[Tuple], out_dim: Tuple):
+        self.identifier = identifier
+        self.in_dims = in_dims
+        self.out_dim = out_dim
+
+    def __repr__(self):
+        return f"{self.identifier} ({self.__class__.__name__}) : in_dim = {self.in_dims}, out_dim = {self.out_dim}"
+
+    def __str__(self):
+        return self.__repr__()
+
+    @abc.abstractmethod
+    def update_input(self, in_dims: Tuple):
         pass
 
 
@@ -850,7 +882,7 @@ class TransposeNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.perm)
 
 
-class ConcatNode(LayerNode):
+class ConcatNode(MultiInputLayerNode):
     """
         A class used for our internal representation of a Concat Layer of a Neural Network.
         Concatenate two tensors into a single tensor. All input tensors must have the same shape,
@@ -858,42 +890,47 @@ class ConcatNode(LayerNode):
 
         Attributes
         ----------
-        in_dim_second: Tuple
-            The shape of the tensor to concatenate to the first input.
         axis : int, Optional
             Which axis to concat on. A negative value means counting dimensions from the back.
             Accepted range is [-r, r-1] where r is the number of dimension of the input (default: -1).
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, in_dim_second: Tuple, axis: int = -1):
-
-        if axis < -len(in_dim) or axis > len(in_dim) - 1:
-            raise Exception(f"The axis parameter must be in the range [{-len(in_dim)}, {len(in_dim) - 1}].")
+    def __init__(self, identifier: str, in_dims: List[Tuple], axis: int = -1):
 
         if axis < 0:
-            jolly_dim = len(in_dim) + axis
+            jolly_dim = len(in_dims[0]) + axis
         else:
             jolly_dim = axis
 
-        for i in range(len(in_dim)):
-            if i != jolly_dim and in_dim[i] != in_dim_second[i]:
-                raise Exception(f"All input tensors must have the same shape, except for dimension {jolly_dim}.")
+        jolly_dim_size = 0
+        for in_dim in in_dims:
+
+            if len(in_dims[0]) != len(in_dim):
+                raise Exception(f"All the input tensor should have the same number of dimensions.")
+
+            if axis < -len(in_dim) or axis > len(in_dim) - 1:
+                raise Exception(f"The axis parameter must be in the range [{-len(in_dim)}, {len(in_dim) - 1}].")
+
+            for i in range(len(in_dim)):
+                if i != jolly_dim and in_dims[0][i] != in_dim[i]:
+                    raise Exception(f"All input tensors must have the same shape, except for dimension {jolly_dim}.")
+
+            jolly_dim_size += in_dim[jolly_dim]
 
         self.axis = axis
-        self.in_dim_second = in_dim_second
 
-        out_dim = list(in_dim)
-        out_dim[jolly_dim] = in_dim[jolly_dim] + in_dim_second[jolly_dim]
+        out_dim = list(in_dims[0])
+        out_dim[jolly_dim] = jolly_dim_size
         out_dim = tuple(out_dim)
 
-        super().__init__(identifier, in_dim, out_dim)
+        super().__init__(identifier, in_dims, out_dim)
 
-    def update_input(self, in_dim: Tuple):
-        self.__init__(self.identifier, in_dim, self.in_dim_second, self.axis)
+    def update_input(self, in_dims: List[Tuple]):
+        self.__init__(self.identifier, in_dims, self.axis)
 
 
-class SumNode(LayerNode):
+class SumNode(MultiInputLayerNode):
     """
         A class used for our internal representation of a Sum Layer of a Neural Network.
         Element-wise sum of each of the input tensors.
@@ -901,22 +938,24 @@ class SumNode(LayerNode):
 
         Attributes
         ----------
-        in_dim_second: Tuple
-            The shape of the tensor to add to the first input.
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, in_dim_second: Tuple):
+    def __init__(self, identifier: str, in_dims: List[Tuple]):
 
-        for i in range(len(in_dim)):
-            if in_dim[i] != in_dim_second[i]:
-                raise Exception("All input tensors must have the same shape.")
+        for in_dim in in_dims:
 
-        self.in_dim_second = in_dim_second
+            if len(in_dims[0]) != len(in_dim):
+                raise Exception(f"All the input tensor should have the same number of dimensions.")
 
-        out_dim = in_dim
+            for i in range(len(in_dim)):
+                if in_dims[0][i] != in_dim[i]:
+                    raise Exception("All input tensors must have the same shape.")
 
-        super().__init__(identifier, in_dim, out_dim)
+        out_dim = in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
-        self.__init__(self.identifier, in_dim, self.in_dim_second)
+        super().__init__(identifier, in_dims, out_dim)
+
+    def update_input(self, in_dims: List[Tuple]):
+        self.__init__(self.identifier, in_dims)
+

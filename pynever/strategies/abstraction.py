@@ -886,7 +886,7 @@ def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
     new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] = first_star.basis_matrix
     new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] = second_star.basis_matrix
 
-    new_center = np.hstack((first_star.center, second_star.center))
+    new_center = np.vstack((first_star.center, second_star.center))
 
     new_predicate_matrix = np.zeros((first_star.predicate_matrix.shape[0] + second_star.predicate_matrix.shape[0],
                                      first_star.predicate_matrix.shape[1] + second_star.predicate_matrix.shape[1]))
@@ -895,7 +895,7 @@ def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
     new_predicate_matrix[first_star.predicate_matrix.shape[0]:, first_star.predicate_matrix.shape[1]:] = \
         second_star.predicate_matrix
 
-    new_predicate_bias = np.hstack((first_star.predicate_bias, second_star.predicate_bias))
+    new_predicate_bias = np.vstack((first_star.predicate_bias, second_star.predicate_bias))
 
     new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
 
@@ -920,7 +920,7 @@ def single_sum_forward(first_star: Star, second_star: Star) -> Set[Star]:
     new_predicate_matrix[first_star.predicate_matrix.shape[0]:, first_star.predicate_matrix.shape[1]:] = \
         second_star.predicate_matrix
 
-    new_predicate_bias = np.hstack((first_star.predicate_bias, second_star.predicate_bias))
+    new_predicate_bias = np.vstack((first_star.predicate_bias, second_star.predicate_bias))
 
     new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
 
@@ -978,6 +978,69 @@ class AbsLayerNode(abc.ABC):
         ----------
         abs_input : AbsElement
             The input abstract element.
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+        """
+
+        pass
+
+    @abc.abstractmethod
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+
+        pass
+
+
+class AbsMultiInputLayerNode(abc.ABC):
+    """
+    An abstract class used for our internal representation of a generic Abstract Transformer Multi Input Layer of an
+    AbsNeural Network. Its concrete children correspond to real abstract interpretation network layers.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the AbsLayerNode.
+
+    ref_node : MultiInputLayerNode
+        Reference MultiInputLayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(List[AbsElement])
+        Function which takes a list of AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.MultiInputLayerNode):
+        self.identifier = identifier
+        self.ref_node = ref_node
+
+    @abc.abstractmethod
+    def forward(self, abs_inputs: List[AbsElement]) -> AbsElement:
+        """
+        Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_inputs : List[AbsElement]
+            The input abstract elements.
 
         Returns
         ----------
@@ -1285,6 +1348,234 @@ class AbsSigmoidNode(AbsLayerNode):
             abs_output = StarSet()
             for star in abs_input.stars:
                 abs_output.stars = abs_output.stars.union(single_sigmoid_forward(star, self.approx_levels))
+
+        return abs_output
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+        pass
+
+
+class AbsConcatNode(AbsMultiInputLayerNode):
+    """
+    A class used for our internal representation of a Concat Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : ConcatNode
+        LayerNode di riferimento per l'abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.ConcatNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_inputs: List[AbsElement]) -> AbsElement:
+        """
+        Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_inputs : list[AbsElement]
+            The input abstract elements.
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+
+        all_starset = True
+        for abs_input in abs_inputs:
+            if not isinstance(abs_input, StarSet):
+                all_starset = False
+
+        if all_starset:
+            return self.__starset_list_forward(abs_inputs)
+        else:
+            raise NotImplementedError
+
+    def __starset_list_forward(self, abs_inputs: List[StarSet]) -> StarSet:
+
+        # If we have to concatenate a list of starset we need to concatenate them in order:
+        # the first one with the second one, the result with the third one and so on and so forth.
+
+        abs_output = StarSet()
+        for i in range(len(abs_inputs) - 1):
+            # if parallel:
+            #     temp_starset = self.__parallel_concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            # else:
+            #     temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            abs_output.stars = abs_output.stars.union(temp_starset.stars)
+
+        return abs_output
+
+    def __parallel_concat_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+
+        # TODO: not completely sure about how to do parallelization: given that the process does not generate
+        #       new stars, i would parallelize the couple given by the combination of the stars of the first starset
+        #       and the one of the second. At this time it gives an error: use the non-parallelized function.
+
+        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+        # We build the list of combination of stars between the two starset.
+        unique_combination = []
+        for first_star in first_starset.stars:
+            for second_star in second_starset.stars:
+                unique_combination.append((first_star, second_star))
+
+        parallel_results = my_pool.starmap(single_concat_forward, unique_combination)
+
+        my_pool.close()
+        abs_output = StarSet()
+        for star_set in parallel_results:
+            abs_output.stars = abs_output.stars.union(star_set)
+
+        return abs_output
+
+    def __concat_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+
+        abs_output = StarSet()
+        for first_star in first_starset.stars:
+            for second_star in second_starset.stars:
+                abs_output.stars = abs_output.stars.union(single_concat_forward(first_star, second_star))
+
+        return abs_output
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+        pass
+
+
+class AbsSumNode(AbsMultiInputLayerNode):
+    """
+    A class used for our internal representation of a Sum Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : SumNode
+        LayerNode di riferimento per l'abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.SumNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_inputs: List[AbsElement]) -> AbsElement:
+        """
+        Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_inputs : list[AbsElement]
+            The input abstract elements.
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+
+        all_starset = True
+        for abs_input in abs_inputs:
+            if not isinstance(abs_input, StarSet):
+                all_starset = False
+
+        if all_starset:
+            return self.__starset_list_forward(abs_inputs)
+        else:
+            raise NotImplementedError
+
+    def __starset_list_forward(self, abs_inputs: List[StarSet]) -> StarSet:
+
+        # If we have to concatenate a list of starset we need to concatenate them in order:
+        # the first one with the second one, the result with the third one and so on and so forth.
+
+        abs_output = StarSet()
+        for i in range(len(abs_inputs) - 1):
+            # if parallel:
+            #     temp_starset = self.__parallel_sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            # else:
+            #     temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            abs_output.stars = abs_output.stars.union(temp_starset.stars)
+
+        return abs_output
+
+    def __parallel_sum_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+
+        # TODO: not completely sure about how to do parallelization: given that the process does not generate
+        #       new stars, i would parallelize the couple given by the combination of the stars of the first starset
+        #       and the one of the second. At this time it gives an error: use the non-parallelized function.
+
+        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+        # We build the list of combination of stars between the two starset.
+        unique_combination = []
+        for first_star in first_starset.stars:
+            for second_star in second_starset.stars:
+                unique_combination.append((first_star, second_star))
+
+        parallel_results = my_pool.starmap(single_sum_forward, unique_combination)
+
+        my_pool.close()
+        abs_output = StarSet()
+        for star_set in parallel_results:
+            abs_output.stars = abs_output.stars.union(star_set)
+
+        return abs_output
+
+    def __sum_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+
+        abs_output = StarSet()
+        for first_star in first_starset.stars:
+            for second_star in second_starset.stars:
+                abs_output.stars = abs_output.stars.union(single_sum_forward(first_star, second_star))
 
         return abs_output
 
