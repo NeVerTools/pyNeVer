@@ -27,10 +27,9 @@ def get_bounds(kind: str) -> HyperRectangleBounds:
     return HyperRectangleBounds([1, 0], [2, 2])
 
 
-def verify(property: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
-    # in_star = Star(property.in_coef_mat, property.in_bias_mat, property.out_coef_mat, property.out_bias_mat)
-    in_star = None
-    # out_bounds = BoundsManager(nn, property).compute_bounds(params['bounds'])
+def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
+    in_star = prop.to_input_star()
+    # out_bounds = BoundsManager(nn, prop).compute_bounds(params['bounds'])
     out_bounds = get_bounds(params['bounds'])
 
     frontier = [(in_star, out_bounds)]
@@ -38,7 +37,7 @@ def verify(property: NeVerProperty, nn: SequentialNetwork, params: dict) -> list
 
     while len(frontier) > 0 or not stop_flag:
         current_star, out_bounds = frontier.pop()
-        result = check_intersection(out_bounds, property)
+        result = check_intersection(out_bounds, prop)
 
         if result == 'Unknown':
             target = params['heuristic'](current_star, out_bounds, nn)
@@ -47,7 +46,7 @@ def verify(property: NeVerProperty, nn: SequentialNetwork, params: dict) -> list
             )
 
         elif result == 'Not verified':
-            cex = get_counterexample(current_star, property, nn)
+            cex = get_counterexample(current_star, prop, nn)
             return ['Not verified', cex]
 
     if stop_flag:
@@ -57,12 +56,12 @@ def verify(property: NeVerProperty, nn: SequentialNetwork, params: dict) -> list
 
 
 if __name__ == '__main__':
-    params = {
+    parameters = {
         'heuristic': get_target,
         'bounds': 'symbolic'
     }
 
-    nn = SequentialNetwork('net', 'X')
+    network = SequentialNetwork('net', 'X')
     property = NeVerProperty()
 
-    print(verify(property, nn, params))
+    print(verify(property, network, parameters))
