@@ -1,25 +1,28 @@
-import numpy as np
-
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion
 from pynever.strategies.abstraction import Star
-from pynever.strategies.bp.bounds import HyperRectangleBounds, AbstractBounds
+from pynever.strategies.bp.bounds import HyperRectangleBounds, AbstractBounds, SymbolicLinearBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
 from pynever.strategies.verification import NeVerProperty
 from pynever.tensor import Tensor
 
 
-def check_intersection(out_bounds: HyperRectangleBounds, property: NeVerProperty) -> str:
-    return 'Not verified'
+def check_intersection(out_bounds: AbstractBounds, property: NeVerProperty) -> str:
+    if isinstance(out_bounds, SymbolicLinearBounds):
+        # TODO intersect out_bounds with output property
+        return 'Not verified'
+    else:
+        return 'Unsupported'
 
 
 def split_star(star: Star, neuron: 'TargetNeuron') -> list:
+    # TODO split on target neuron (represent target neuron?)
     return [(star, None)]
 
 
-def get_counterexample(star: Star, property: NeVerProperty, nn: SequentialNetwork) -> Tensor:
-    return np.zeros((2,))
+def get_counterexample(star: Star) -> Tensor:
+    return star.get_samples(num_samples=1)[0]
 
 
 def get_target(star: Star, out_bounds: HyperRectangleBounds, nn: SequentialNetwork) -> 'TargetNeuron':
@@ -29,6 +32,9 @@ def get_target(star: Star, out_bounds: HyperRectangleBounds, nn: SequentialNetwo
 def get_bounds(kind: str, nn: SequentialNetwork, prop: NeVerProperty) -> AbstractBounds:
     if kind == 'symbolic':
         return BoundsManager(nn, prop).compute_bounds()[0]
+    elif kind == 'autoLirpa':
+        # return something...
+        pass
 
 
 def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
@@ -38,18 +44,19 @@ def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
     frontier = [(in_star, out_bounds)]
     stop_flag = False
 
-    while len(frontier) > 0 or not stop_flag:
+    while len(frontier) > 0 or not stop_flag:  # stop_flag for timeout interruption using signals (LATER)
         current_star, out_bounds = frontier.pop()
         result = check_intersection(out_bounds, prop)
 
         if result == 'Unknown':
+            # How do I track partially split stars?
             target = params['heuristic'](current_star, out_bounds, nn)
             frontier.extend(
                 split_star(current_star, target)
             )
 
         elif result == 'Not verified':
-            cex = get_counterexample(current_star, prop, nn)
+            cex = get_counterexample(current_star)
             return ['Not verified', cex]
 
     if stop_flag:

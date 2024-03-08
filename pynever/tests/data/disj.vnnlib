@@ -1,0 +1,39 @@
+(declare-fun X_0 () Real)
+(declare-fun X_1 () Real)
+(declare-fun X_2 () Real)
+(declare-fun X_3 () Real)
+(declare-fun X_4 () Real)
+(declare-fun Y_0 () Real)
+(declare-fun Y_1 () Real)
+(declare-fun Y_2 () Real)
+(declare-fun Y_3 () Real)
+(declare-fun Y_4 () Real)
+
+(assert (<= (* -1.0 X_0) 0.30353115613746867))
+(assert (<= (* 1.0 X_0) -0.29855281193475053))
+(assert (<= (* -1.0 X_1) 0.009549296585513092))
+(assert (<= (* 1.0 X_1) 0.009549296585513092))
+(assert (<= (* -1.0 X_2) -0.4933803235848431))
+(assert (<= (* 1.0 X_2) 0.4997465213085185))
+(assert (<= (* -1.0 X_3) -0.3))
+(assert (<= (* 1.0 X_3) 0.5))
+(assert (<= (* -1.0 X_4) -0.3))
+(assert (<= (* 1.0 X_4) 0.3333333333333333))
+
+(assert (or
+    (assert (<= Y_0 Y_1))  ; It's not the case that ub_1 < lb_0
+    (assert (<= Y_0 Y_2))
+))
+
+; Y_0 [2, 3]
+; Y_1 [1, 1.3]
+; Y_2 [0.5, 1.2]
+
+
+ub_1 < lb_0 => Y_1 < Y_0
+
+
+(assert (<= Y_0 Y_1))
+if ub_1 < lb_0, then no
+if ub_0 < lb_1, then yes
+otherwise we don-t know
