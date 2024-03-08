@@ -78,3 +78,4 @@ if __name__ == '__main__':
     property.from_smt_file('../tests/data/acas.vnnlib', output_name='FC6')
 
     print(verify(property, network, parameters))
+
