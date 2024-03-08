@@ -187,7 +187,7 @@ class NeVerProperty(Property):
 
         """
 
-        return abst.Star(self.in_coef_mat, self.in_bias_mat, self.out_coef_mat, self.out_bias_mat)
+        return abst.Star(self.in_coef_mat, self.in_bias_mat)
 
     @staticmethod
     def __create_infix_constraints(variables: list, coef_mat: Tensor, bias_mat: Tensor) -> list:

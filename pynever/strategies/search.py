@@ -1,8 +1,11 @@
 import numpy as np
 
 from pynever.networks import SequentialNetwork
+from pynever.strategies import conversion
 from pynever.strategies.abstraction import Star
-from pynever.strategies.bp.bounds import HyperRectangleBounds
+from pynever.strategies.bp.bounds import HyperRectangleBounds, AbstractBounds
+from pynever.strategies.bp.bounds_manager import BoundsManager
+from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
 from pynever.strategies.verification import NeVerProperty
 from pynever.tensor import Tensor
 
@@ -23,14 +26,14 @@ def get_target(star: Star, out_bounds: HyperRectangleBounds, nn: SequentialNetwo
     print('Hi')
 
 
-def get_bounds(kind: str) -> HyperRectangleBounds:
-    return HyperRectangleBounds([1, 0], [2, 2])
+def get_bounds(kind: str, nn: SequentialNetwork, prop: NeVerProperty) -> AbstractBounds:
+    if kind == 'symbolic':
+        return BoundsManager(nn, prop).compute_bounds()[0]
 
 
 def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
     in_star = prop.to_input_star()
-    # out_bounds = BoundsManager(nn, prop).compute_bounds(params['bounds'])
-    out_bounds = get_bounds(params['bounds'])
+    out_bounds = get_bounds(params['bounds'], nn, prop)
 
     frontier = [(in_star, out_bounds)]
     stop_flag = False
@@ -61,7 +64,10 @@ if __name__ == '__main__':
         'bounds': 'symbolic'
     }
 
-    network = SequentialNetwork('net', 'X')
+    network = conversion.load_network_path('../tests/data/acas.onnx')
+    if isinstance(network, ONNXNetwork):
+        network = ONNXConverter().to_neural_network(network)
     property = NeVerProperty()
+    property.from_smt_file('../tests/data/acas.vnnlib', output_name='FC6')
 
     print(verify(property, network, parameters))
