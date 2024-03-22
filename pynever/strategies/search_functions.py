@@ -1,6 +1,7 @@
 import numpy as np
 
 import pynever.strategies.abstraction as abst
+from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds import HyperRectangleBounds, AbstractBounds
@@ -20,7 +21,7 @@ def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> Abs
     nn : SequentialNetwork
         The neural network of interest in the internal representation
     prop : NeVerProperty
-        The prperty of interest
+        The property of interest
     strategy : str
         The strategy to use for computing the bounds [symbolic, lirpa, ...]
 
@@ -37,6 +38,52 @@ def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> Abs
         # return something...
         pass
     # TODO add more strategies
+
+
+def abs_propagation(star: Star, bounds: AbstractBounds, target: tuple, network_list: list) -> Star:
+    """
+    This method performs the abstract propagation of a single star starting
+    from a specific layer and neuron. The output is a single star that uses
+    approximation in the next layers
+
+    Parameters
+    ----------
+    star : Star
+        The star to process
+    bounds : AbstractBounds
+        The bounds for the layers
+    target : tuple
+        The target layer and neuron to start from wrapped in a tuple
+    network_list : list
+        The neural network represented as a list
+
+    Returns
+    ----------
+    Star
+        The resulting star approximate with the abstract propagation
+
+    """
+
+    start_layer = star.ref_layer
+
+    for layer in network_list[start_layer:]:
+        i = network_list.index(layer)
+        if isinstance(layer, nodes.FullyConnectedNode):
+            # Propagate fully connected entirely
+            star = abst.single_fc_forward(star, layer.weight, layer.bias)
+
+        elif isinstance(layer, nodes.ReLUNode):
+            # Propagate ReLU starting from target
+            # TODO assign correct bound values
+            if i == target[0]:
+                star = abst.approx_relu_forward(star, bounds, layer.in_dim[0], start_idx=target[1])
+            else:
+                star = abst.approx_relu_forward(star, bounds, layer.in_dim[0])
+
+        else:
+            raise NotImplementedError('Unsupported layer')
+
+    return star
 
 
 def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
@@ -78,42 +125,37 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
     return safe, unsafe_stars
 
 
-def abs_propagation(star: Star, bounds: AbstractBounds, nn: SequentialNetwork) -> Star:
-    # TODO propagate with abstraction from last refined neuron
-    #   and using the bounds instead of computing them
-    return star
-
-
 def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
-    # TODO split on target neuron (represent target neuron?)
-    # Assignee: Stefano
-
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
     also takes into account what layer the star comes from.
 
     When splitting I also need to update the bounds and return them
-    """
 
-    precision_guard = 10e-15
-    lb = cur_bounds.get_lower()[index]
-    ub = cur_bounds.get_upper()[index]
+    """
 
     mask = np.identity(star.center.shape[0])
     mask[index, index] = 0
 
+    # TODO link bounds to layer
+    stable = abst.check_stable(index, cur_bounds)
+
     # Positive stable
-    if lb >= precision_guard:
+    if stable == 1:
+        star.ref_layer += 1
         return [(star, cur_bounds)]
 
     # Negative stable
-    elif ub <= -precision_guard:
+    elif stable == -1:
         new_c = np.matmul(mask, star.center)
         new_b = np.matmul(mask, star.basis_matrix)
         new_pred = star.predicate_matrix
         new_bias = star.predicate_bias
-        return [(Star(new_pred, new_bias, new_c, new_b), cur_bounds)]
+        new_star = Star(new_pred, new_bias, new_c, new_b)
+        new_star.ref_layer = star.ref_layer + 1
+
+        return [(new_star, cur_bounds)]
 
     # Unstable
     else:
@@ -122,17 +164,21 @@ def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
         lower_b = np.matmul(mask, star.basis_matrix)
         lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
         lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
+        lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
+        lower_star.ref_layer = star.ref_layer + 1
 
         # Upper star
         upper_c = star.center
         upper_b = star.basis_matrix
         upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
         upper_bias = np.vstack((star.predicate_bias, star.center[index]))
+        upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
+        upper_star.ref_layer = star.ref_layer + 1
 
         # TODO update bounds
         return [
-            (Star(lower_pred, lower_bias, lower_c, lower_b), cur_bounds),
-            (Star(upper_pred, upper_bias, upper_c, upper_b), cur_bounds)
+            (lower_star, cur_bounds),
+            (upper_star, cur_bounds)
         ]
 
 
