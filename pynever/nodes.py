@@ -857,7 +857,7 @@ class DropoutNode(LayerNode):
 
 class TransposeNode(LayerNode):
     """
-    A class used for our internal representation of a Transpose Layer of a Neural Network.
+    A class used for our internal representation of a Dropout Layer of a Neural Network.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
     Attributes
     ----------
