@@ -875,9 +875,9 @@ def single_sigmoid_forward(star: Star, approx_levels: List[int]) -> Set[Star]:
 
 def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
     """
-        Utility function for the management of the forward for AbsConcatNode. It is outside
-        the class scope since multiprocessing does not support parallelization with
-        function internal to classes.
+    Utility function for the management of the forward for AbsConcatNode. It is outside
+    the class scope since multiprocessing does not support parallelization with
+    function internal to classes.
 
     """
 
@@ -904,9 +904,9 @@ def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
 
 def single_sum_forward(first_star: Star, second_star: Star) -> Set[Star]:
     """
-        Utility function for the management of the forward for AbsSumNode. It is outside
-        the class scope since multiprocessing does not support parallelization with
-        function internal to classes.
+    Utility function for the management of the forward for AbsSumNode. It is outside
+    the class scope since multiprocessing does not support parallelization with
+    function internal to classes.
 
     """
 
@@ -1144,6 +1144,69 @@ class AbsFullyConnectedNode(AbsLayerNode):
         pass
 
 
+class AbsConvNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Convolutional Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : ConvNode
+        Reference LayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.ConvNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        bounds : dict
+            Optional bounds for this layer as computed by the previous
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+        pass
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+
+        """
+
+        pass
+
+
 class AbsReLUNode(AbsLayerNode):
     """
     A class used for our internal representation of a ReLU Abstract transformer.
@@ -1275,111 +1338,6 @@ class AbsReLUNode(AbsLayerNode):
         return abs_output
 
 
-class AbsConvNode(AbsLayerNode):
-    """
-    A class used for our internal representation of a Convolutional Abstract transformer.
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the LayerNode.
-    ref_node : ConvNode
-        Reference LayerNode for the abstract transformer.
-    Methods
-    ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
-    """
-
-    def __init__(self, identifier: str, ref_node: nodes.ConvNode):
-        super().__init__(identifier, ref_node)
-
-    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
-        """
-        Compute the output AbsElement based on the input AbsElement and the characteristics of the
-        concrete abstract transformer.
-        Parameters
-        ----------
-        abs_input : AbsElement
-            The input abstract element.
-        bounds : dict
-            Optional bounds for this layer as computed by the previous
-        Returns
-        ----------
-        AbsElement
-            The AbsElement resulting from the computation corresponding to the abstract transformer.
-        """
-        pass
-
-    def backward(self, ref_state: RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-
-        pass
-
-
-class AbsMaxPoolNode(AbsLayerNode):
-    """
-    A class used for our internal representation of a MaxPool Abstract transformer.
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the LayerNode.
-    ref_node : MaxPoolNode
-        Reference LayerNode for the abstract transformer.
-    Methods
-    ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
-    """
-
-    def __init__(self, identifier: str, ref_node: nodes.MaxPoolNode):
-        super().__init__(identifier, ref_node)
-
-    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
-        """
-        Compute the output AbsElement based on the input AbsElement and the characteristics of the
-        concrete abstract transformer.
-        Parameters
-        ----------
-        abs_input : AbsElement
-            The input abstract element.
-        bounds : dict
-            Optional bounds for this layer as computed by the previous
-        Returns
-        ----------
-        AbsElement
-            The AbsElement resulting from the computation corresponding to the abstract transformer.
-        """
-
-        pass
-
-    def backward(self, ref_state: RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-
-        pass
-
-
 class AbsSigmoidNode(AbsLayerNode):
     """
     A class used for our internal representation of a Sigmoid transformer.
@@ -1390,7 +1348,7 @@ class AbsSigmoidNode(AbsLayerNode):
         Identifier of the LayerNode.
 
     ref_node : SigmoidNode
-        LayerNode di riferimento per l'abstract transformer.
+        Reference LayerNode for the abstract transformer.
 
     refinement_level : Union[int, List[int]]
         Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
@@ -1478,7 +1436,7 @@ class AbsConcatNode(AbsMultiInputLayerNode):
         Identifier of the LayerNode.
 
     ref_node : ConcatNode
-        LayerNode di riferimento per l'abstract transformer.
+        Reference LayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -1541,8 +1499,8 @@ class AbsConcatNode(AbsMultiInputLayerNode):
     def __parallel_concat_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         # TODO: not completely sure about how to do parallelization: given that the process does not generate
-        #       new stars, i would parallelize the couple given by the combination of the stars of the first starset
-        #       and the one of the second. At this time it gives an error: use the non-parallelized function.
+        #   new stars, i would parallelize the couple given by the combination of the stars of the first starset
+        #   and the one of the second. At this time it gives an error: use the non-parallelized function.
 
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
@@ -1561,7 +1519,8 @@ class AbsConcatNode(AbsMultiInputLayerNode):
 
         return abs_output
 
-    def __concat_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+    @staticmethod
+    def __concat_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         abs_output = StarSet()
         for first_star in first_starset.stars:
@@ -1592,7 +1551,7 @@ class AbsSumNode(AbsMultiInputLayerNode):
         Identifier of the LayerNode.
 
     ref_node : SumNode
-        LayerNode di riferimento per l'abstract transformer.
+        Reference LayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -1655,8 +1614,8 @@ class AbsSumNode(AbsMultiInputLayerNode):
     def __parallel_sum_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         # TODO: not completely sure about how to do parallelization: given that the process does not generate
-        #       new stars, i would parallelize the couple given by the combination of the stars of the first starset
-        #       and the one of the second. At this time it gives an error: use the non-parallelized function.
+        #   new stars, i would parallelize the couple given by the combination of the stars of the first starset
+        #   and the one of the second. At this time it gives an error: use the non-parallelized function.
 
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
@@ -1675,7 +1634,8 @@ class AbsSumNode(AbsMultiInputLayerNode):
 
         return abs_output
 
-    def __sum_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
+    @staticmethod
+    def __sum_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         abs_output = StarSet()
         for first_star in first_starset.stars:
@@ -1693,6 +1653,70 @@ class AbsSumNode(AbsMultiInputLayerNode):
         ref_state: RefinementState
             The RefinementState to update.
         """
+        pass
+
+
+class AbsMaxPoolNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a MaxPool Abstract transformer.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the LayerNode.
+
+    ref_node : MaxPoolNode
+        Reference LayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.MaxPoolNode):
+        super().__init__(identifier, ref_node)
+
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        bounds : dict
+            Optional bounds for this layer as computed by the previous
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+
+        """
+
+        pass
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+
+        """
+
         pass
 
 

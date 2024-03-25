@@ -198,6 +198,7 @@ class TanhNode(LayerNode):
     ----------
 
     """
+
     def __init__(self, identifier: str, in_dim: Tuple):
         if not len(in_dim) >= 1:
             raise Exception("TanhNode: in_dim cannot be void")
@@ -884,15 +885,15 @@ class TransposeNode(LayerNode):
 
 class ConcatNode(MultiInputLayerNode):
     """
-        A class used for our internal representation of a Concat Layer of a Neural Network.
-        Concatenate two tensors into a single tensor. All input tensors must have the same shape,
-        except for the dimension size of the axis to concatenate on.
+    A class used for our internal representation of a Concat Layer of a Neural Network.
+    Concatenate two tensors into a single tensor. All input tensors must have the same shape,
+    except for the dimension size of the axis to concatenate on.
 
-        Attributes
-        ----------
-        axis : int, Optional
-            Which axis to concat on. A negative value means counting dimensions from the back.
-            Accepted range is [-r, r-1] where r is the number of dimension of the input (default: -1).
+    Attributes
+    ----------
+    axis : int, Optional
+        Which axis to concat on. A negative value means counting dimensions from the back.
+        Accepted range is [-r, r-1] where r is the number of dimension of the input (default: -1).
 
     """
 
@@ -932,12 +933,9 @@ class ConcatNode(MultiInputLayerNode):
 
 class SumNode(MultiInputLayerNode):
     """
-        A class used for our internal representation of a Sum Layer of a Neural Network.
-        Element-wise sum of each of the input tensors.
-        All inputs and outputs must have the same data type.
-
-        Attributes
-        ----------
+    A class used for our internal representation of a Sum Layer of a Neural Network.
+    Element-wise sum of each of the input tensors.
+    All inputs and outputs must have the same data type.
 
     """
 
@@ -958,4 +956,3 @@ class SumNode(MultiInputLayerNode):
 
     def update_input(self, in_dims: List[Tuple]):
         self.__init__(self.identifier, in_dims)
-
