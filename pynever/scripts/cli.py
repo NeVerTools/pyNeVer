@@ -8,7 +8,7 @@ import time
 import pynever.networks as nets
 import pynever.strategies.conversion as conv
 import pynever.strategies.verification as ver
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 from pynever.utilities import execute_network
 
 # Log to stdout

@@ -1,7 +1,7 @@
 import numpy as np
 from pysmt.smtlib.parser import SmtLibParser
 
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 
 class ExprNode:

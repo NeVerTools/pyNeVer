@@ -18,7 +18,7 @@ import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 logger_name = "pynever.strategies.verification"
 

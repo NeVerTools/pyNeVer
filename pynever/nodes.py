@@ -5,7 +5,7 @@ from typing import Tuple, List
 
 import numpy as np
 
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 
 class LayerNode(abc.ABC):

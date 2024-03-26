@@ -13,7 +13,7 @@ from ortools.linear_solver import pywraplp
 
 import pynever.nodes as nodes
 from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 logger_empty = logging.getLogger("pynever.strategies.abstraction.empty_times")
 logger_lp = logging.getLogger("pynever.strategies.abstraction.lp_times")
