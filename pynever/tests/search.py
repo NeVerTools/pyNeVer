@@ -45,8 +45,9 @@ def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
                 target = (target[0], target[1] + 1)
 
             # Unknown, target updated
+            # TODO split on ReLU layer!!!
             frontier.extend(
-                sf.split_star(current_star, target[1], nn_bounds)
+                sf.split_star(current_star, target[1], net_list, nn_bounds)
             )
 
     if stop_flag:

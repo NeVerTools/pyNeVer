@@ -132,7 +132,7 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
     return intersects, unsafe_stars
 
 
-def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
+def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -140,18 +140,36 @@ def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
 
     When splitting I also need to update the bounds and return them
 
+    Parameters
+    ----------
+    star : Star
+        The star object to split
+    index : int
+        The neuron index to split the star
+    network_list : list
+        The neural network as a list of layers
+    bounds_dict : dict
+        The bounds of the network layers
+
+    Returns
+    ----------
+    list
+        A list of one or two 'Star' elements, depending on the stability
+        of the current neuron
+
     """
 
     mask = np.identity(star.center.shape[0])
     mask[index, index] = 0
 
-    # TODO link bounds to layer
+    cur_bounds = bounds_dict[network_list[star.ref_layer].identifier]
     stable = abst.check_stable(index, cur_bounds)
 
     # Positive stable
     if stable == 1:
-        star.ref_layer += 1
-        return [(star, cur_bounds)]
+        if index == star.center.shape[0]:
+            star.ref_layer += 1
+        return [(star, bounds_dict)]
 
     # Negative stable
     elif stable == -1:
@@ -160,9 +178,11 @@ def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
         new_pred = star.predicate_matrix
         new_bias = star.predicate_bias
         new_star = Star(new_pred, new_bias, new_c, new_b)
-        new_star.ref_layer = star.ref_layer + 1
 
-        return [(new_star, cur_bounds)]
+        if index == star.center.shape[0]:
+            new_star.ref_layer = star.ref_layer + 1
+
+        return [(new_star, bounds_dict)]
 
     # Unstable
     else:
@@ -172,7 +192,9 @@ def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
         lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
         lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
-        lower_star.ref_layer = star.ref_layer + 1
+
+        if index == star.center.shape[0]:
+            lower_star.ref_layer = star.ref_layer + 1
 
         # Upper star
         upper_c = star.center
@@ -180,12 +202,14 @@ def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:
         upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
         upper_bias = np.vstack((star.predicate_bias, star.center[index]))
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
-        upper_star.ref_layer = star.ref_layer + 1
+
+        if index == star.center.shape[0]:
+            upper_star.ref_layer = star.ref_layer + 1
 
         # TODO update bounds
         return [
-            (lower_star, cur_bounds),
-            (upper_star, cur_bounds)
+            (lower_star, bounds_dict),
+            (upper_star, bounds_dict)
         ]
 
 
