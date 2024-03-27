@@ -948,8 +948,8 @@ class AbsLayerNode(abc.ABC):
     identifier : str
         Identifier of the AbsLayerNode.
 
-    ref_node : LayerNode
-        Reference LayerNode for the abstract transformer.
+    ref_node : SingleInputLayerNode
+        Reference SingleInputLayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -964,7 +964,7 @@ class AbsLayerNode(abc.ABC):
 
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.LayerNode):
+    def __init__(self, identifier: str, ref_node: nodes.SingleInputLayerNode):
         self.identifier = identifier
         self.ref_node = ref_node
 
@@ -1071,10 +1071,10 @@ class AbsFullyConnectedNode(AbsLayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the LayerNode.
+        Identifier of the SingleInputLayerNode.
 
     ref_node : FullyConnectedNode
-        LayerNode di riferimento per l'abstract transformer.
+        SingleInputLayerNode di riferimento per l'abstract transformer.
 
     Methods
     ----------
@@ -1151,10 +1151,10 @@ class AbsReLUNode(AbsLayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the LayerNode.
+        Identifier of the SingleInputLayerNode.
 
     ref_node : ReLUNode
-        Reference LayerNode for the abstract transformer.
+        Reference SingleInputLayerNode for the abstract transformer.
 
     heuristic : str
         Heuristic used to decide the refinement level of the abstraction.
@@ -1282,10 +1282,10 @@ class AbsSigmoidNode(AbsLayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the LayerNode.
+        Identifier of the SingleInputLayerNode.
 
     ref_node : SigmoidNode
-        Reference LayerNode for the abstract transformer.
+        Reference SingleInputLayerNode for the abstract transformer.
 
     refinement_level : Union[int, List[int]]
         Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
@@ -1370,10 +1370,10 @@ class AbsConcatNode(AbsMultiInputLayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the LayerNode.
+        Identifier of the SingleInputLayerNode.
 
     ref_node : ConcatNode
-        Reference LayerNode for the abstract transformer.
+        Reference SingleInputLayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -1485,10 +1485,10 @@ class AbsSumNode(AbsMultiInputLayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the LayerNode.
+        Identifier of the SingleInputLayerNode.
 
     ref_node : SumNode
-        Reference LayerNode for the abstract transformer.
+        Reference SingleInputLayerNode for the abstract transformer.
 
     Methods
     ----------
@@ -1602,7 +1602,7 @@ class AbsNeuralNetwork(abc.ABC):
 
     Attributes
     ----------
-    nodes : dict <str, LayerNode>
+    nodes : dict <str, SingleInputLayerNode>
         Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,
         the identifier of the node of interest is used as a key in the nodes dictionary.
 
@@ -1671,13 +1671,13 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
     Methods
     -------
-    add_node(LayerNode)
+    add_node(SingleInputLayerNode)
         Procedure to add a new AbsLayerNode to the sequential AbsNeuralNetwork.
 
     get_first_node()
         Procedure to extract the first AbsLayerNode of the sequential AbsNeuralNetwork.
 
-    get_next_node(LayerNode)
+    get_next_node(SingleInputLayerNode)
         Procedure to get the next AbsLayerNode of the AbsNeuralNetwork given an input AbsLayerNode
 
     get_last_node()
@@ -1746,7 +1746,7 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
         Return
         ---------
-        LayerNode
+        SingleInputLayerNode
             The next node of the network.
 
         """

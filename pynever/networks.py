@@ -1,9 +1,11 @@
 import abc
+from typing import List, Optional
+import copy
 
 import pynever.nodes as nodes
 
 
-class NeuralNetwork(abc.ABC):
+class NeuralNetwork:
     """
     An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of LayerNodes
     and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
@@ -35,6 +37,93 @@ class NeuralNetwork(abc.ABC):
         self.alt_rep_cache = []
         self.up_to_date = True
         self.identifier = identifier
+
+    def get_children(self, node: nodes.LayerNode) -> List[nodes.LayerNode]:
+
+        child_nodes = [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
+        return child_nodes
+
+    def get_parents(self, node: nodes.LayerNode) -> List[nodes.LayerNode]:
+
+        parent_nodes = [self.nodes[parent_node_id] for parent_node_id, end_nodes_ids in self.edges.items() if
+                        node.identifier in end_nodes_ids]
+
+        return parent_nodes
+
+    def has_parents(self, node: nodes.LayerNode) -> bool:
+        return len(self.get_parents(node)) != 0
+
+    def has_children(self, node: nodes.LayerNode) -> bool:
+        return len(self.get_children(node)) != 0
+
+    def get_roots(self) -> List[nodes.LayerNode]:
+
+        root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if not self.has_parents(root_node)]
+        return root_nodes
+
+    def get_leaves(self) -> List[nodes.LayerNode]:
+
+        leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if not self.has_children(leaf_node)]
+        return leaf_nodes
+
+    def remove_node(self, node: nodes.LayerNode):
+
+        for parent_node in self.get_parents(node):
+            self.edges[parent_node.identifier].remove(node.identifier)
+
+        self.edges.pop(node.identifier)
+        self.nodes.pop(node.identifier)
+
+        return
+
+    def generic_add_node(self, node: nodes.LayerNode, parents: Optional[List[nodes.LayerNode]] = None,
+                         children: Optional[List[nodes.LayerNode]] = None):
+
+        if parents is None:
+            parents = []
+
+        if children is None:
+            children = []
+
+        for parent_node in parents:
+
+            if parent_node.identifier not in self.nodes.keys():
+                raise Exception(f"Parent Node {parent_node.identifier} is not a node of the Network.")
+
+        for child_node in children:
+
+            if child_node.identifier not in self.nodes.keys():
+                raise Exception(f"Child Node {child_node.identifier} is not a node of the Network.")
+
+        self.nodes[node.identifier] = node
+        self.edges[node.identifier] = [c_node.identifier for c_node in children]
+
+        for parent in parents:
+            self.edges[parent.identifier].append(node.identifier)
+
+    def is_acyclic(self):
+
+        aux_network = copy.deepcopy(self)
+        root_nodes = aux_network.get_roots()
+        topologically_sorted = []
+
+        while len(root_nodes) > 0:
+
+            temp_node = root_nodes[0]
+            root_nodes.remove(temp_node)
+
+            topologically_sorted.append(temp_node)
+            for child_node in aux_network.get_children(temp_node):
+                aux_network.edges[temp_node.identifier].remove(child_node.identifier)
+                if not aux_network.has_parents(child_node):
+                    root_nodes.append(child_node)
+
+        has_edges = False
+        for start_node_id, end_nodes_ids in aux_network.edges.items():
+            if len(end_nodes_ids) > 0:
+                has_edges = True
+
+        return not has_edges
 
 
 class SequentialNetwork(NeuralNetwork):
@@ -88,7 +177,7 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        return not bool(self.nodes)
+        return len(self.nodes) == 0
 
     def add_node(self, node: nodes.LayerNode):
         """
@@ -102,16 +191,17 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        if len(self.nodes.keys()) == 0:
-            self.nodes[node.identifier] = node
-            self.edges[node.identifier] = []
-        else:
-            previous_node_key = self.get_last_node().identifier
-            self.nodes[node.identifier] = node
-            self.edges[previous_node_key].append(node.identifier)
-            self.edges[node.identifier] = []
+        if not isinstance(node, nodes.SingleInputLayerNode):
+            raise Exception(f"{node.identifier} is not a SingleInputLayerNode! Only SingleInputLayerNode can be "
+                            f"added to SequentialNetwork!")
 
-    def get_first_node(self) -> nodes.LayerNode:
+        if self.is_empty():
+            self.generic_add_node(node)
+        else:
+            parents = [self.get_last_node()]
+            self.generic_add_node(node, parents=parents)
+
+    def get_first_node(self) -> nodes.SingleInputLayerNode:
         """
         Procedure to get the first LayerNode of the network.
 
@@ -125,15 +215,13 @@ class SequentialNetwork(NeuralNetwork):
         if self.is_empty():
             raise Exception('The network is empty')
 
-        keys = [key for key in self.nodes.keys()]
-        for key in self.nodes.keys():
-            for sub_key in self.nodes.keys():
-                if sub_key in self.edges[key]:
-                    keys.remove(sub_key)
+        first_node = self.get_roots()[0]
+        if not isinstance(first_node, nodes.SingleInputLayerNode):
+            raise Exception(f"{first_node.identifier} is not a SingleInputLayerNode!")
 
-        return self.nodes[keys[0]]
+        return first_node
 
-    def get_next_node(self, node: nodes.LayerNode) -> nodes.LayerNode:
+    def get_next_node(self, node: nodes.SingleInputLayerNode) -> nodes.SingleInputLayerNode:
         """
         Procedure to get the next LayerNode of the network given an input LayerNode.
 
@@ -147,18 +235,18 @@ class SequentialNetwork(NeuralNetwork):
         if self.is_empty():
             raise Exception('The network is empty')
 
-        next_node = None
-        if node is not None:
-            current_key = node.identifier
-            if len(self.edges[current_key]) != 0:
-                next_key = self.edges[current_key][0]
-                next_node = self.nodes[next_key]
+        children = self.get_children(node)
+        if len(children) == 0:
+            next_node = None
         else:
-            next_node = self.get_first_node()
+            next_node = children[0]
+
+        if next_node is not None and not isinstance(next_node, nodes.SingleInputLayerNode):
+            raise Exception(f"{next_node.identifier} is not a SingleInputLayerNode!")
 
         return next_node
 
-    def get_last_node(self) -> nodes.LayerNode:
+    def get_last_node(self) -> nodes.SingleInputLayerNode:
         """
         Procedure to get the last LayerNode of the network.
 
@@ -172,13 +260,14 @@ class SequentialNetwork(NeuralNetwork):
         if self.is_empty():
             raise Exception('The network is empty')
 
-        current_node = self.get_first_node()
-        while self.get_next_node(current_node) is not None:
-            current_node = self.get_next_node(current_node)
+        last_node = self.get_leaves()[0]
 
-        return current_node
+        if not isinstance(last_node, nodes.SingleInputLayerNode):
+            raise Exception(f"{last_node.identifier} is not a SingleInputLayerNode!")
 
-    def delete_last_node(self) -> nodes.LayerNode:
+        return last_node
+
+    def delete_last_node(self) -> nodes.SingleInputLayerNode:
         """
         Procedure to remove the last LayerNode from the network.
 
@@ -192,15 +281,9 @@ class SequentialNetwork(NeuralNetwork):
         if self.is_empty():
             raise Exception('The network is empty')
 
-        last = self.nodes.pop(self.get_last_node().identifier)
-        self.edges.pop(last.identifier)
-
-        # Delete reference in edges dict
-        if not self.is_empty():
-            for k, v in self.edges.items():
-                if last.identifier in v:
-                    self.edges[k] = []
-        return last
+        last_node = self.get_last_node()
+        self.remove_node(last_node)
+        return last_node
 
     def get_input_len(self) -> int:
         """
@@ -269,3 +352,21 @@ class SequentialNetwork(NeuralNetwork):
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
         return f"{self.identifier} : {body}"
+
+
+class AcyclicNetwork(NeuralNetwork):
+
+    def __init__(self, identifier: str, input_ids: List[str]):
+        super().__init__(identifier)
+        self.input_ids = input_ids
+
+    def add_node(self, node: nodes.LayerNode, parents: Optional[List[nodes.LayerNode]] = None,
+                 children: Optional[List[nodes.LayerNode]] = None):
+
+        self.generic_add_node(node, parents, children)
+        if not self.is_acyclic():
+            self.remove_node(node)
+            raise Exception(f"Adding {node.identifier} with the provided parents and children would create a cycle"
+                            f" in the Network!")
+
+
