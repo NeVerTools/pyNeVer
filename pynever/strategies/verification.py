@@ -319,7 +319,7 @@ class NeverVerification(VerificationStrategy):
         # Compute symbolic bounds first. If the network architecture or the property
         # does not have a corresponding bound propagation method we skip the computation
         try:
-            bound_manager = BoundsManager(abst_network, prop)
+            bound_manager = BoundsManager(network, prop)
             _, _, self.layers_bounds = bound_manager.compute_bounds()
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
@@ -437,7 +437,7 @@ class NeverVerification(VerificationStrategy):
 
             if isinstance(current_node, abst.AbsReLUNode):
                 if bounds_dictionary:
-                    cur_layer_bounds = prev_key(bounds_dictionary, current_node.identifier)
+                    cur_layer_bounds = prev_key(bounds_dictionary, current_node.ref_node.identifier)
                     output_starset = current_node.forward(output_starset, cur_layer_bounds)
                 else:
                     output_starset = current_node.forward(output_starset)

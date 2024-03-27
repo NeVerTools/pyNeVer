@@ -10,7 +10,7 @@ from pynever.strategies.verification import NeVerProperty
 from pynever.tensor import Tensor
 
 
-def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> AbstractBounds:
+def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> dict:
     """
     This function gets the bounds of the neural network for the given property
     of interest. The bounds are computed based on a strategy that allows to
@@ -27,20 +27,21 @@ def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> Abs
 
     Returns
     ----------
-    AbstractBounds
-        The bounds wrapped in an AbstractBounds object
+    dict
+        The dictionary of the bounds wrapped in an AbstractBounds object for each layer
 
     """
 
     if strategy == 'symbolic':
-        return BoundsManager(nn, prop).compute_bounds()[0]
+        # Return the pre-activation bounds for ReLU layers
+        return BoundsManager(nn, prop).compute_bounds()[1]
     elif strategy == 'lirpa':
         # return something...
         pass
     # TODO add more strategies
 
 
-def abs_propagation(star: Star, bounds: AbstractBounds, target: tuple, network_list: list) -> Star:
+def abs_propagation(star: Star, bounds: dict, target: tuple, network_list: list) -> Star:
     """
     This method performs the abstract propagation of a single star starting
     from a specific layer and neuron. The output is a single star that uses
@@ -50,8 +51,8 @@ def abs_propagation(star: Star, bounds: AbstractBounds, target: tuple, network_l
     ----------
     star : Star
         The star to process
-    bounds : AbstractBounds
-        The bounds for the layers
+    bounds : dict
+        The bounds of the network layers
     target : tuple
         The target layer and neuron to start from wrapped in a tuple
     network_list : list
@@ -68,17 +69,23 @@ def abs_propagation(star: Star, bounds: AbstractBounds, target: tuple, network_l
 
     for layer in network_list[start_layer:]:
         i = network_list.index(layer)
-        if isinstance(layer, nodes.FullyConnectedNode):
-            # Propagate fully connected entirely
-            star = abst.single_fc_forward(star, layer.weight, layer.bias)
 
-        elif isinstance(layer, nodes.ReLUNode):
-            # Propagate ReLU starting from target
-            # TODO assign correct bound values
-            if i == target[0]:
-                star = abst.approx_relu_forward(star, bounds, layer.in_dim[0], start_idx=target[1])
+        # Propagate fully connected entirely
+        if isinstance(layer, nodes.FullyConnectedNode):
+            # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
+            if layer.bias.shape != (layer.weight.shape[0], 1):
+                bias = np.expand_dims(layer.bias, 1)
             else:
-                star = abst.approx_relu_forward(star, bounds, layer.in_dim[0])
+                bias = layer.bias
+            star = abst.single_fc_forward(star, layer.weight, bias).pop()
+
+        # Propagate ReLU starting from target
+        elif isinstance(layer, nodes.ReLUNode):
+            l_bounds = bounds[layer.identifier]
+            if i == target[0]:
+                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=target[1])
+            else:
+                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0])
 
         else:
             raise NotImplementedError('Unsupported layer')
@@ -110,7 +117,7 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
 
     """
 
-    safe = True
+    intersects = False
     unsafe_stars = []
 
     # Loop possible disjunctions
@@ -119,10 +126,10 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
                                                      property.out_coef_mat[i],
                                                      property.out_bias_mat[i])
         if not intersection.check_if_empty():
-            safe = False
+            intersects = True
             unsafe_stars.append(intersection)
 
-    return safe, unsafe_stars
+    return intersects, unsafe_stars
 
 
 def split_star(star: Star, index: int, cur_bounds: AbstractBounds) -> list:

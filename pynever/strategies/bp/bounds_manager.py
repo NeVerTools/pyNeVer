@@ -1,16 +1,16 @@
+from collections import OrderedDict
+
 from pynever import nodes
+from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
+from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.bp.utils.property_converter import *
 from collections import OrderedDict
-import numpy as np
-from collections import OrderedDict
-
-import numpy as np
 
 from pynever import nodes
+from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
@@ -174,9 +174,23 @@ def get_lin_upper_bound_coefficients(lower, upper):
     return mult, add
 
 
-def net2list(network):
-    # Create the layers representation and the input hyper rectangle
-    layers = []
+def net2list(network: SequentialNetwork) -> list:
+    """
+    Create the layers representation as a list
+
+    Parameters
+    ----------
+    network : SequentialNetwork
+        The network in the internal representation
+
+    Returns
+    ----------
+    list
+        The list of the layers
+
+    """
+
+    layers = list()
     node = network.get_first_node()
     layers.append(node)
 
