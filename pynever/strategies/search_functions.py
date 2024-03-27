@@ -4,10 +4,8 @@ import pynever.strategies.abstraction as abst
 from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
-from pynever.strategies.bp.bounds import HyperRectangleBounds, AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.strategies.verification import NeVerProperty
-from pynever.tensor import Tensor
 
 
 def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> dict:
@@ -41,7 +39,7 @@ def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> dic
     # TODO add more strategies
 
 
-def abs_propagation(star: Star, bounds: dict, target: tuple, network_list: list) -> Star:
+def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> Star:
     """
     This method performs the abstract propagation of a single star starting
     from a specific layer and neuron. The output is a single star that uses
@@ -55,7 +53,7 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, network_list: list)
         The bounds of the network layers
     target : tuple
         The target layer and neuron to start from wrapped in a tuple
-    network_list : list
+    nn_list : list
         The neural network represented as a list
 
     Returns
@@ -67,8 +65,8 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, network_list: list)
 
     start_layer = star.ref_layer
 
-    for layer in network_list[start_layer:]:
-        i = network_list.index(layer)
+    for layer in nn_list[start_layer:]:
+        i = nn_list.index(layer)
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -93,7 +91,57 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, network_list: list)
     return star
 
 
-def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
+def propagate_until_relu(star: Star, bounds: dict, nn_list: list) -> Star:
+    """
+    This function performs the star propagation throughout Fully Connected layers
+    only, until a ReLU layer is encountered. This is used in order to process
+    Fully Connected layers only once per cycle
+
+    Parameters
+    ----------
+    star : Star
+        The star to process
+    bounds : dict
+        The bounds of the network layers
+    nn_list : list
+        The neural network represented as a list
+
+    Returns
+    ----------
+    Star
+        The resulting star before the next ReLU layer
+
+    """
+
+    start_layer = star.ref_layer
+    i = 0
+
+    for layer in nn_list[start_layer:]:
+
+        # Propagate fully connected entirely
+        if isinstance(layer, nodes.FullyConnectedNode):
+            # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
+            if layer.bias.shape != (layer.weight.shape[0], 1):
+                bias = np.expand_dims(layer.bias, 1)
+            else:
+                bias = layer.bias
+            star = abst.single_fc_forward(star, layer.weight, bias).pop()
+            i += 1
+
+        elif isinstance(layer, nodes.ReLUNode):
+            # Interrupt cycle
+            break
+
+        else:
+            raise NotImplementedError('Unsupported layer')
+
+    # Set reference layer
+    star.ref_layer = start_layer + i
+
+    return star
+
+
+def check_intersection(star: Star, prop: NeVerProperty) -> (bool, list):
     """
     This function checks whether a star intersects with the output property
     using a linear program. Since the output property may contain disjunction
@@ -105,7 +153,7 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
     ----------
     star : Star
         The star to intersect with the output property
-    property : NeVerProperty
+    prop : NeVerProperty
         The property of interest
 
     Returns
@@ -121,10 +169,10 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
     unsafe_stars = []
 
     # Loop possible disjunctions
-    for i in range(len(property.out_coef_mat)):
+    for i in range(len(prop.out_coef_mat)):
         intersection = abst.intersect_with_halfspace(star,
-                                                     property.out_coef_mat[i],
-                                                     property.out_bias_mat[i])
+                                                     prop.out_coef_mat[i],
+                                                     prop.out_bias_mat[i])
         if not intersection.check_if_empty():
             intersects = True
             unsafe_stars.append(intersection)
@@ -132,7 +180,7 @@ def check_intersection(star: Star, property: NeVerProperty) -> (bool, list):
     return intersects, unsafe_stars
 
 
-def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) -> list:
+def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -144,9 +192,9 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
     ----------
     star : Star
         The star object to split
-    index : int
-        The neuron index to split the star
-    network_list : list
+    target : tuple
+        The target layer and neuron to refine
+    nn_list : list
         The neural network as a list of layers
     bounds_dict : dict
         The bounds of the network layers
@@ -159,16 +207,17 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
 
     """
 
+    index = target[1]
+
     mask = np.identity(star.center.shape[0])
     mask[index, index] = 0
 
-    cur_bounds = bounds_dict[network_list[star.ref_layer].identifier]
+    cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
     stable = abst.check_stable(index, cur_bounds)
 
     # Positive stable
     if stable == 1:
-        if index == star.center.shape[0]:
-            star.ref_layer += 1
+        star.ref_layer = target[0]
         return [(star, bounds_dict)]
 
     # Negative stable
@@ -179,8 +228,7 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
         new_bias = star.predicate_bias
         new_star = Star(new_pred, new_bias, new_c, new_b)
 
-        if index == star.center.shape[0]:
-            new_star.ref_layer = star.ref_layer + 1
+        new_star.ref_layer = target[0]
 
         return [(new_star, bounds_dict)]
 
@@ -193,8 +241,7 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
         lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
-        if index == star.center.shape[0]:
-            lower_star.ref_layer = star.ref_layer + 1
+        lower_star.ref_layer = target[0]
 
         # Upper star
         upper_c = star.center
@@ -203,8 +250,7 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
         upper_bias = np.vstack((star.predicate_bias, star.center[index]))
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
 
-        if index == star.center.shape[0]:
-            upper_star.ref_layer = star.ref_layer + 1
+        upper_star.ref_layer = target[0]
 
         # TODO update bounds
         return [
@@ -213,11 +259,43 @@ def split_star(star: Star, index: int, network_list: list, bounds_dict: dict) ->
         ]
 
 
-def get_counterexample(star: Star) -> Tensor:
-    return star.get_samples(num_samples=1)[0]
+def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> tuple:
+    """
+    This function updates the target for the refinement of the star using
+    a sequential approach. For each ReLU layer all neurons are refined
+    sequentially.
 
+    Parameters
+    ----------
+    star : Star
+        The star to refine
+    current_target : tuple
+        The current target to update
+    nn_list : list
+        The list of the neural network's layers
 
-def get_target(star: Star, out_bounds: HyperRectangleBounds, nn: SequentialNetwork) -> 'TargetNeuron':
-    # TODO select next neuron
-    # Assignee: Stefano
-    print('Hi')
+    Returns
+    ----------
+    tuple
+        The new target for the refinement. If it is None, there is
+        no more refinement to do for this star
+
+    """
+
+    new_target = (1, 8)
+
+    # Qui aggiorno il target sia di layer sia di neurone
+
+    # if target[1] > current_star.center.shape[0]:
+    #     if target[0] > len(net_list):
+    #         # Not verified
+    #         cex = sf.get_counterexample(out_star)
+    #         return ['Not verified', cex]
+    #     else:
+    #         # Increment the layer
+    #         target = (target[0] + 1, 0)
+    # else:
+    #     # Increment the neuron
+    #     target = (target[0], target[1] + 1)
+
+    return new_target

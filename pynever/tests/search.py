@@ -27,28 +27,27 @@ def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
 
     while len(frontier) > 0 and not stop_flag:  # stop_flag for timeout interruption using signals (LATER)
         current_star, nn_bounds = frontier.pop()
+
         out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
         intersects, unsafe_stars = sf.check_intersection(out_star, prop)
 
-        # OK FINO QUI
         if intersects:
-            if target[1] > current_star.center.shape[0]:
-                if target[0] > len(net_list):
-                    # Not verified
-                    cex = sf.get_counterexample(out_star)
-                    return ['Not verified', cex]
-                else:
-                    # Increment the layer
-                    target = (target[0] + 1, 0)
-            else:
-                # Increment the neuron
-                target = (target[0], target[1] + 1)
+            # Propagate current star to the next ReLU layer
+            current_star = sf.propagate_until_relu(current_star, nn_bounds, net_list)
 
-            # Unknown, target updated
-            # TODO split on ReLU layer!!!
-            frontier.extend(
-                sf.split_star(current_star, target[1], net_list, nn_bounds)
-            )
+            # If new target is None there is no more refinement to do
+            target = params['refinement'](current_star, target, net_list)
+
+            if target is None:
+                # Not verified
+                cex = out_star.get_samples(num_samples=1)[0]
+                return ['Not verified', cex]
+
+            else:
+                # Unknown, target updated
+                frontier.extend(
+                    sf.split_star(current_star, target, net_list, nn_bounds)
+                )
 
     if stop_flag:
         return ['Unknown', 'parameters']
@@ -58,20 +57,20 @@ def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
 
 if __name__ == '__main__':
     parameters = {
-        'heuristic': sf.get_target,
+        'refinement': sf.get_target_sequential,
         'bounds': 'symbolic'
     }
 
     start = time.perf_counter()
     network = conversion.load_network_path('../tests/data/acas.onnx')
+
     if isinstance(network, ONNXNetwork):
         network = ONNXConverter().to_neural_network(network)
-    property = NeVerProperty()
-    property.from_smt_file('../tests/data/acas.vnnlib', output_name='FC6')
 
-    print(verify(property, network, parameters))
+        if isinstance(network, SequentialNetwork):
+            ver_property = NeVerProperty()
+            ver_property.from_smt_file('../tests/data/acas.vnnlib', output_name='FC6')
 
-    # strategy = NeverVerification('overapprox', None)
-    # print(strategy.verify(network, property))
-
-    print(f'Elapsed time: {time.perf_counter() - start}')
+            result = verify(ver_property, network, parameters)
+            print(result)
+            print(f'Elapsed time: {time.perf_counter() - start}')
