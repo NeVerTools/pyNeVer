@@ -16,6 +16,22 @@ logger_file = logging.getLogger("log_file")
 logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 logger_file.setLevel(logging.INFO)
 
+
+def format_csv(answer: list) -> str:
+    if len(answer) == 1:
+        return answer[0]
+
+    else:
+        fancy_cex = '['
+        for component in answer[1]:
+            fancy_cex += str(float(component))
+            fancy_cex += ' '
+        fancy_cex = fancy_cex[:-1]
+        fancy_cex += ']'
+
+        return f'{answer[0]},{fancy_cex}'
+
+
 if __name__ == '__main__':
     networks = [f'{NETS_PATH}/{nn_name}' for nn_name in os.listdir(NETS_PATH)]
 
@@ -46,11 +62,11 @@ if __name__ == '__main__':
                     prop = verification.NeVerProperty()
                     prop.from_smt_file(prop_path)
 
+                    logger_stream.info(f'Instance: {network_name} - {prop_path.split("/")[-1]}')
+
                     start_time = time.perf_counter()
                     result = ver_strategy.verify(net, prop)
                     lap = time.perf_counter() - start_time
 
-                    logger_stream.info(f'Instance: {network_name} - {prop_path.split("/")[-1]}')
                     logger_stream.info(f'{result} - {lap}')
-
-                    logger_file.info(f'{network_name} - {prop_path.split("/")[-1]},{lap},{result}')
+                    logger_file.info(f'{network_name} - {prop_path.split("/")[-1]},{lap},{format_csv(result)}')
