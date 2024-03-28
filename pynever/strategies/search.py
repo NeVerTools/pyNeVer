@@ -5,10 +5,9 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds_manager import BoundsManager
-from pynever.strategies.verification import NeVerProperty
 
 
-def get_bounds(nn: SequentialNetwork, prop: NeVerProperty, strategy: str) -> dict:
+def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> dict:
     """
     This function gets the bounds of the neural network for the given property
     of interest. The bounds are computed based on a strategy that allows to
@@ -139,7 +138,7 @@ def propagate_until_relu(star: Star, nn_list: list) -> Star:
     return star
 
 
-def check_intersection(star: Star, prop: NeVerProperty) -> (bool, list):
+def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
     """
     This function checks whether a star intersects with the output property
     using a linear program. Since the output property may contain disjunction

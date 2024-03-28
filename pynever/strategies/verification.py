@@ -13,11 +13,12 @@ import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
+import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.conversion as conv
+import pynever.strategies.search as sf
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.tensor import Tensor
 
 logger_name = "pynever.strategies.verification"
@@ -251,6 +252,80 @@ class VerificationStrategy(abc.ABC):
         pass
 
 
+class SearchVerification(VerificationStrategy):
+    """
+
+    """
+
+    def __init__(self, search_params: dict = None):
+        if search_params is not None:
+            self.search_params = search_params
+        else:
+            self.search_params = {
+                'refinement': sf.get_target_sequential,
+                'bounds': 'symbolic'
+            }
+
+        self.logger = logging.getLogger(logger_name)
+
+    def verify(self, network: networks.SequentialNetwork, prop: NeVerProperty) -> list:
+        """
+
+        :param network:
+        :param prop:
+        :return:
+        """
+
+        in_star = prop.to_input_star()
+        in_star.ref_layer = 0
+
+        # The bounds here are a dict (key: layer.id)
+        nn_bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
+
+        # Frontier is a stack of tuples (Star, AbstractBounds)
+        frontier = [(in_star, nn_bounds)]
+        stop_flag = False
+
+        # Init target refinement neuron (first index for the layer, second for the neuron)
+        target = (0, 0)
+
+        # Translate the network in a list
+        net_list = bm.net2list(network)
+
+        # Retrieve the last ReLU layer index
+        last_relu_idx = 0
+        for layer in net_list[::-1]:
+            if isinstance(layer, nodes.ReLUNode):
+                last_relu_idx = net_list.index(layer)
+                break
+
+        while len(frontier) > 0 and not stop_flag:  # TODO stop_flag for timeout interruption using signals (LATER)
+            current_star, nn_bounds = frontier.pop()
+
+            out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
+            intersects, unsafe_stars = sf.check_intersection(out_star, prop)
+
+            if intersects:
+                # If new target is None there is no more refinement to do
+                target, current_star = self.search_params['refinement'](current_star, target, net_list, last_relu_idx)
+
+                if target is None:
+                    # Not verified
+                    cex = out_star.get_samples(num_samples=1)[0]
+                    return ['Not verified', cex]
+
+                else:
+                    # Unknown, target updated
+                    frontier.extend(
+                        sf.split_star(current_star, target, net_list, nn_bounds)
+                    )
+
+        if stop_flag:
+            return ['Unknown', 'parameters']
+        else:
+            return ['Verified']
+
+
 class NeverVerification(VerificationStrategy):
     """
     Class used to represent the Never verification strategy.
@@ -319,7 +394,7 @@ class NeverVerification(VerificationStrategy):
         # Compute symbolic bounds first. If the network architecture or the property
         # does not have a corresponding bound propagation method we skip the computation
         try:
-            bound_manager = BoundsManager(network, prop)
+            bound_manager = bm.BoundsManager(network, prop)
             _, _, self.layers_bounds = bound_manager.compute_bounds()
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
