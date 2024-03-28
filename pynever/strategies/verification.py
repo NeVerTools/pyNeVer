@@ -254,6 +254,19 @@ class VerificationStrategy(abc.ABC):
 
 class SearchVerification(VerificationStrategy):
     """
+    Class used to represent the search-based verification strategy. It employs
+    star propagation with Symbolic Bounds Propagation and an abstraction-refinement
+    loop for better readability, structure and functionality
+
+    Attributes
+    ----------
+    search_params : dict
+        The parameters to guide the search algorithm
+
+    Methods
+    ----------
+    verify(SequentialNetwork, NeVerProperty)
+        Verify that the neural network of interest satisfies the property given as argument.
 
     """
 
@@ -263,24 +276,42 @@ class SearchVerification(VerificationStrategy):
         else:
             self.search_params = {
                 'refinement': sf.get_target_sequential,
-                'bounds': 'symbolic'
+                'bounds': 'symbolic',
+                'timeout': 300
             }
 
         self.logger = logging.getLogger(logger_name)
 
-    def verify(self, network: networks.SequentialNetwork, prop: NeVerProperty) -> list:
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+        """
+        Entry point for the abstraction-refinement search algorithm
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The network model in the internal representation
+        prop : Property
+            The property specification
+
+        Returns
+        ----------
+        bool, Optional[Tensor]
+            True if the network is safe, False otherwise. If the result is False and the
+            search is complete it also returns a counterexample
+
         """
 
-        :param network:
-        :param prop:
-        :return:
-        """
+        if isinstance(prop, NeVerProperty):
+            in_star = prop.to_input_star()
+            in_star.ref_layer = 0
+        else:
+            raise NotImplementedError('Only NeVerProperty objects are supported at present')
 
-        in_star = prop.to_input_star()
-        in_star.ref_layer = 0
-
-        # The bounds here are a dict (key: layer.id)
-        nn_bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
+        if isinstance(network, networks.SequentialNetwork):
+            # The bounds here are a dict (key: layer.id)
+            nn_bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
+        else:
+            raise NotImplementedError('Only SequantialNetwork objects are supported at present')
 
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
@@ -299,7 +330,11 @@ class SearchVerification(VerificationStrategy):
                 last_relu_idx = net_list.index(layer)
                 break
 
-        while len(frontier) > 0 and not stop_flag:  # TODO stop_flag for timeout interruption using signals (LATER)
+        # Start timer
+        timer = 0
+        start_time = time.perf_counter()
+
+        while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
             out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
@@ -312,7 +347,7 @@ class SearchVerification(VerificationStrategy):
                 if target is None:
                     # Not verified
                     cex = out_star.get_samples(num_samples=1)[0]
-                    return ['Not verified', cex]
+                    return False, cex
 
                 else:
                     # Unknown, target updated
@@ -320,10 +355,16 @@ class SearchVerification(VerificationStrategy):
                         sf.split_star(current_star, target, net_list, nn_bounds)
                     )
 
+            timer += (time.perf_counter() - start_time)
+            if timer > self.search_params['timeout']:
+                stop_flag = True
+            else:
+                start_time = time.perf_counter()
+
         if stop_flag:
-            return ['Unknown', 'parameters']
+            return False,
         else:
-            return ['Verified']
+            return True,
 
 
 class NeverVerification(VerificationStrategy):
