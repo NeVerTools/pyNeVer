@@ -346,7 +346,7 @@ class SearchVerification(VerificationStrategy):
 
                 if target is None:
                     # Not verified
-                    cex = out_star.get_samples(num_samples=1)[0]
+                    cex = unsafe_stars[0].get_samples(num_samples=1)[0]
                     return False, cex
 
                 else:
