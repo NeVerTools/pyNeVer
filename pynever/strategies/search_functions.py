@@ -91,7 +91,7 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> S
     return star
 
 
-def propagate_until_relu(star: Star, bounds: dict, nn_list: list) -> Star:
+def propagate_until_relu(star: Star, nn_list: list) -> Star:
     """
     This function performs the star propagation throughout Fully Connected layers
     only, until a ReLU layer is encountered. This is used in order to process
@@ -101,8 +101,6 @@ def propagate_until_relu(star: Star, bounds: dict, nn_list: list) -> Star:
     ----------
     star : Star
         The star to process
-    bounds : dict
-        The bounds of the network layers
     nn_list : list
         The neural network represented as a list
 
@@ -259,7 +257,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         ]
 
 
-def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> tuple:
+def get_target_sequential(star: Star, current_target: tuple, nn_list: list, last_relu_layer: int) -> (tuple, Star):
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -272,30 +270,45 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> t
     current_target : tuple
         The current target to update
     nn_list : list
-        The list of the neural network's layers
+        The list of the network layers
+    last_relu_layer : int
+        The index of the last ReLU layer
 
     Returns
     ----------
-    tuple
-        The new target for the refinement. If it is None, there is
-        no more refinement to do for this star
+    tuple, Star
+        The new target for the refinement, it is None when there is no more
+        refinement to do for this star, and the propagated star
 
     """
 
-    new_target = (1, 8)
+    new_target = None
 
-    # Qui aggiorno il target sia di layer sia di neurone
+    # Propagate current star to the next ReLU layer
+    star = propagate_until_relu(star, nn_list)
+    target_layer = star.ref_layer
 
-    # if target[1] > current_star.center.shape[0]:
-    #     if target[0] > len(net_list):
-    #         # Not verified
-    #         cex = sf.get_counterexample(out_star)
-    #         return ['Not verified', cex]
-    #     else:
-    #         # Increment the layer
-    #         target = (target[0] + 1, 0)
-    # else:
-    #     # Increment the neuron
-    #     target = (target[0], target[1] + 1)
+    # Check if the neurons in the layer have been all processed
+    if current_target[1] == star.center.shape[0] - 1:
 
-    return new_target
+        # Check if all the layers have been processed
+        if target_layer < last_relu_layer:
+
+            # Go to the first neuron of next ReLU layer
+            next_relu = target_layer
+            for layer in nn_list[target_layer + 1:]:
+                if isinstance(layer, nodes.ReLUNode):
+                    next_relu = nn_list.index(layer)
+                    break
+
+            new_target = (next_relu, 0)
+            star.ref_layer += 1
+            star = propagate_until_relu(star, nn_list)
+    else:
+        # Increment the neuron
+        if target_layer != current_target[0]:
+            new_target = (target_layer, 0)
+        else:
+            new_target = (target_layer, current_target[1] + 1)
+
+    return new_target, star

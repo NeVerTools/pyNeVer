@@ -1,11 +1,17 @@
+import logging
 import time
 
 import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.search_functions as sf
+from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion
 from pynever.strategies.conversion import ONNXNetwork, ONNXConverter
 from pynever.strategies.verification import NeVerProperty
+
+logger_stream = logging.getLogger()
+logger_stream.addHandler(logging.StreamHandler())
+logger_stream.setLevel(logging.INFO)
 
 
 def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
@@ -25,18 +31,23 @@ def verify(prop: NeVerProperty, nn: SequentialNetwork, params: dict) -> list:
     # Translate the network in a list
     net_list = bm.net2list(nn)
 
+    # Retrieve the last ReLU layer index
+    last_relu_idx = 0
+    for layer in net_list[::-1]:
+        if isinstance(layer, nodes.ReLUNode):
+            last_relu_idx = net_list.index(layer)
+            break
+
     while len(frontier) > 0 and not stop_flag:  # stop_flag for timeout interruption using signals (LATER)
+        logger_stream.info(len(frontier))
         current_star, nn_bounds = frontier.pop()
 
         out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
         intersects, unsafe_stars = sf.check_intersection(out_star, prop)
 
         if intersects:
-            # Propagate current star to the next ReLU layer
-            current_star = sf.propagate_until_relu(current_star, nn_bounds, net_list)
-
             # If new target is None there is no more refinement to do
-            target = params['refinement'](current_star, target, net_list)
+            target, current_star = params['refinement'](current_star, target, net_list, last_relu_idx)
 
             if target is None:
                 # Not verified
@@ -62,14 +73,14 @@ if __name__ == '__main__':
     }
 
     start = time.perf_counter()
-    network = conversion.load_network_path('../tests/data/acas.onnx')
+    network = conversion.load_network_path('data/Networks/dubinsrejoin.onnx')
 
     if isinstance(network, ONNXNetwork):
         network = ONNXConverter().to_neural_network(network)
 
         if isinstance(network, SequentialNetwork):
             ver_property = NeVerProperty()
-            ver_property.from_smt_file('../tests/data/acas.vnnlib', output_name='FC6')
+            ver_property.from_smt_file('data/Properties/dubinsrejoin_case_unsafe_52.vnnlib', output_name='Y')
 
             result = verify(ver_property, network, parameters)
             print(result)
