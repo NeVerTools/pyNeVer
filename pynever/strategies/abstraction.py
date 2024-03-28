@@ -306,13 +306,13 @@ class Star:
             direction = direction / la.norm(direction)
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
-                if np.isclose(np.matmul(self.predicate_matrix[i, :], direction), 0):
-                    lambdas.append(np.nan)
-                else:
+
+                if not np.isclose(np.matmul(self.predicate_matrix[i, :], direction), 0):
                     temp = auxiliary_points[i] - current_point
                     lam = np.matmul(self.predicate_matrix[i, :], temp) / (np.matmul(self.predicate_matrix[i, :],
                                                                                     direction))
                     lambdas.append(lam)
+
             lambdas = np.array(lambdas)
 
             try:
@@ -342,6 +342,7 @@ class Star:
             List of the auxiliary points: one for each plane of the predicate.
 
         """
+
         aux_points = []
         for i in range(self.predicate_matrix.shape[0]):
             p = np.zeros((self.predicate_matrix.shape[1], 1))
