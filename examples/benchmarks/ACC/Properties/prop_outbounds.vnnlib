@@ -1,8 +1,8 @@
-(declare-fun X_0 () Real)
-(declare-fun X_1 () Real)
-(declare-fun X_2 () Real)
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
 
-(declare-fun Y_0 () Real)
+(declare-const Y_0 Real)
 
 (assert (<= (* -1.0 X_0) 0.0))
 (assert (<= X_0 50.0))

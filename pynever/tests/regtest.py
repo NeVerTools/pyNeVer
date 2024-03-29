@@ -9,16 +9,16 @@ import subprocess
 
 print("Test single instance of test_small")
 subprocess.run(['python', 'pynever.py', '-o', 'single.csv', 'overapprox', 'single', '-u',
-                'examples/data/regtest/test_small.onnx',
-                'examples/data/regtest/test_small.vnnlib'])
+                'examples/benchmarks/Test/test_small.onnx',
+                'examples/benchmarks/Test/test_small.vnnlib'])
 
 print("Test single instance of test_ACC")
-subprocess.run(['python', 'pynever.py', 'mixed', 'single', '-s',
-                'examples/data/regtest/test_ACC.onnx',
-                'examples/data/regtest/test_ACC.vnnlib'])
+subprocess.run(['python', 'pynever.py', 'mixed', 'single', '-u',
+                'examples/benchmarks/ACC/Networks/NET_0_1.5_5.onnx',
+                'examples/benchmarks/ACC/Properties/prop_far0_eps0.vnnlib'])
 
 # Test batch instances
 
 print("Test ACC batch instances")
-subprocess.run(['python', 'pynever.py', 'complete', 'batch', '-s',
-                'examples/data/regtest/instances.csv'])
+subprocess.run(['python', 'pynever.py', 'complete', 'batch', '-u',
+                'examples/benchmarks/ACC/instances.csv'])

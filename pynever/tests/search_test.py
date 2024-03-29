@@ -24,7 +24,7 @@ def format_csv(answer: list) -> str:
     else:
         fancy_cex = '['
         for component in answer[1]:
-            fancy_cex += str(float(component))
+            fancy_cex += str(float(component[0]))
             fancy_cex += ' '
         fancy_cex = fancy_cex[:-1]
         fancy_cex += ']'
@@ -63,4 +63,4 @@ def launch_instances(instances_file: str):
 
 
 if __name__ == '__main__':
-    launch_instances(f'{BENCHMARKS_PATH}/RL/instances.csv')
+    launch_instances(f'{BENCHMARKS_PATH}/Test/instances.csv')
