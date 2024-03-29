@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+import numpy as np
+
 from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
@@ -80,13 +82,14 @@ class BoundsManager:
         return symbolic_bounds, numeric_preactivation_bounds, numeric_postactivation_bounds
 
     def compute_dense_output_bounds(self, layer, inputs):
-        weights = layer.weight
-        weights_plus = get_positive_part(weights)
-        weights_minus = get_negative_part(weights)
-        bias = layer.bias
+        weights_plus = get_positive_part(layer.weight)
+        weights_minus = get_negative_part(layer.weight)
+
+        if layer.bias is None:
+            layer.bias = np.zeros(layer.weight.shape[0])
 
         lower_matrix, lower_offset, upper_matrix, upper_offset = \
-            compute_lin_lower_and_upper(weights_minus, weights_plus, bias,
+            compute_lin_lower_and_upper(weights_minus, weights_plus, layer.bias,
                                         inputs.get_lower().get_matrix(),
                                         inputs.get_upper().get_matrix(),
                                         inputs.get_lower().get_offset(),
