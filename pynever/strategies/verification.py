@@ -311,19 +311,20 @@ class SearchVerification(VerificationStrategy):
             # The bounds here are a dict (key: layer.id)
             nn_bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
         else:
-            raise NotImplementedError('Only SequantialNetwork objects are supported at present')
+            raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
         stop_flag = False
 
         # Init target refinement neuron (first index for the layer, second for the neuron)
-        target = (0, 0)
+        target = (0, 0)  # TODO Use a class? For ResNets what does it mean?
 
         # Translate the network in a list
         net_list = bm.net2list(network)
 
         # Retrieve the last ReLU layer index
+        # TODO make a function out of this
         last_relu_idx = 0
         for layer in net_list[::-1]:
             if isinstance(layer, nodes.ReLUNode):
@@ -337,7 +338,10 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
+            # Compute the output abstract star from current_star/bounds
             out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
+            # Check intersection using a LP
+            # TODO is it possible to check whether it is fully inside?
             intersects, unsafe_stars = sf.check_intersection(out_star, prop)
 
             if intersects:
@@ -345,15 +349,20 @@ class SearchVerification(VerificationStrategy):
                 target, current_star = self.search_params['refinement'](current_star, target, net_list, last_relu_idx)
 
                 if target is None:
-                    # Not verified
+                    # Nothing else to split, or
+                    # Found a counterexample
                     cex = unsafe_stars[0].get_samples(num_samples=1)[0]
                     return False, cex
 
                 else:
-                    # Unknown, target updated
+                    # We cannot conclude anything at this point.
+                    # Split the current branch according to the target
                     frontier.extend(
                         sf.split_star(current_star, target, net_list, nn_bounds)
                     )
+
+            else:
+                """This branch is safe, no refinement needed"""
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:
