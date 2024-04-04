@@ -338,11 +338,11 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
-            # Compute the output abstract star from current_star/bounds
-            out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
-            # Check intersection using a LP
-            # TODO is it possible to check whether it is fully inside?
-            intersects, unsafe_stars = sf.check_intersection(out_star, prop)
+            # TODO this is to use stars or symb bounds
+            #intersects, unsafe_stars = self.intersect_star_lp(current_star, net_list, nn_bounds, prop, target)
+            intersects, unsafe_stars = self.intersect_symb_lp(current_star, net_list, nn_bounds, prop, target)
+            # y0 >= 0.25 x0
+            # y0 <= 0.25 x0 + 0.25
 
             if intersects:
                 # If new target is None there is no more refinement to do
@@ -374,6 +374,26 @@ class SearchVerification(VerificationStrategy):
             return False,
         else:
             return True,
+
+    def intersect_star_lp(self, current_star, net_list, nn_bounds, prop, target):
+        # Compute the output abstract star from current_star/bounds
+        out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
+        # Check intersection using a LP
+        # TODO is it possible to check whether it is fully inside?
+        intersects, unsafe_stars = sf.check_intersection(out_star, prop)
+        return intersects, unsafe_stars
+
+    def intersect_symb_lp(self, current_star, net_list, nn_bounds, prop, target):
+        # Compute the output abstract star from current_star/bounds
+        out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
+
+        #output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
+        #output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
+
+        # Check intersection using a LP
+        # TODO is it possible to check whether it is fully inside?
+        intersects, unsafe_stars = sf.check_intersection(out_star, prop)
+        return intersects, unsafe_stars
 
 
 class NeverVerification(VerificationStrategy):

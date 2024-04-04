@@ -51,6 +51,7 @@ class BoundsManager:
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         symbolic_bounds = dict()
+        # TODO change the structure of symbolic?bounds
 
         current_input_bounds = input_bounds
         for i in range(0, len(layers)):
