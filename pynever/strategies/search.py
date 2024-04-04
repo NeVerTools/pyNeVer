@@ -31,7 +31,7 @@ def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> d
 
     if strategy == 'symbolic':
         # Return the pre-activation bounds for ReLU layers
-        return BoundsManager(nn, prop).compute_bounds()#[1]
+        return BoundsManager(nn, prop).compute_bounds()  # [1]
     elif strategy == 'lirpa':
         # return something...
         pass
@@ -177,6 +177,97 @@ def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
     return intersects, unsafe_stars
 
 
+def intersect_star_lp(current_star, net_list, nn_bounds, prop, target):
+    # Compute the output abstract star from current_star/bounds
+    out_star = abs_propagation(current_star, nn_bounds, target, net_list)
+
+    # Check intersection using a LP
+    # TODO is it possible to check whether it is fully inside?
+    intersects, unsafe_stars = check_intersection(out_star, prop)
+
+    return intersects, unsafe_stars
+
+
+def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target):
+    # Compute the output abstract star from current_star/bounds
+    out_star = abs_propagation(current_star, nn_bounds, target, net_list)
+
+    # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
+    # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
+
+    # Check intersection using a LP
+    # TODO is it possible to check whether it is fully inside?
+    intersects, unsafe_stars = check_intersection(out_star, prop)
+    return intersects, unsafe_stars
+
+
+def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (tuple, Star):
+    """
+    This function updates the target for the refinement of the star using
+    a sequential approach. For each ReLU layer all neurons are refined
+    sequentially.
+
+    Parameters
+    ----------
+    star : Star
+        The star to refine
+    current_target : tuple
+        The current target to update
+    nn_list : list
+        The list of the network layers
+
+    Returns
+    ----------
+    tuple, Star
+        The new target for the refinement, it is None when there is no more
+        refinement to do for this star, and the propagated star
+
+    """
+
+    def get_last_relu(net_list: list):
+        last_relu_idx = 0
+        for net_layer in net_list[::-1]:
+            if isinstance(net_layer, nodes.ReLUNode):
+                last_relu_idx = net_list.index(net_layer)
+                break
+
+        return last_relu_idx
+
+    # TODO update target only based on the star parameters, not the previous target
+
+    new_target = None
+
+    # Propagate current star to the next ReLU layer
+    star = propagate_until_relu(star, nn_list)
+    target_layer = star.ref_layer
+
+    # Check if the target refers to a previous layer
+    if target_layer != current_target[0]:
+        new_target = (target_layer, 0)
+
+    # Check if the neurons in the layer have been all processed
+    elif current_target[1] == star.center.shape[0] - 1:
+
+        # Check if all the layers have been processed
+        if target_layer < get_last_relu(nn_list):
+
+            # Go to the first neuron of next ReLU layer
+            next_relu = target_layer
+            for layer in nn_list[target_layer + 1:]:
+                if isinstance(layer, nodes.ReLUNode):
+                    next_relu = nn_list.index(layer)
+                    break
+
+            new_target = (next_relu, 0)
+            star.ref_layer += 1
+            star = propagate_until_relu(star, nn_list)
+    else:
+        # Increment the neuron
+        new_target = (target_layer, current_target[1] + 1)
+
+    return new_target, star
+
+
 def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
@@ -254,63 +345,3 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
             (lower_star, bounds_dict),
             (upper_star, bounds_dict)
         ]
-
-
-def get_target_sequential(star: Star, current_target: tuple, nn_list: list, last_relu_layer: int) -> (tuple, Star):
-    """
-    This function updates the target for the refinement of the star using
-    a sequential approach. For each ReLU layer all neurons are refined
-    sequentially.
-
-    Parameters
-    ----------
-    star : Star
-        The star to refine
-    current_target : tuple
-        The current target to update
-    nn_list : list
-        The list of the network layers
-    last_relu_layer : int
-        The index of the last ReLU layer
-
-    Returns
-    ----------
-    tuple, Star
-        The new target for the refinement, it is None when there is no more
-        refinement to do for this star, and the propagated star
-
-    """
-
-    # TODO update target only based on the star parameters, not the previous target
-
-    new_target = None
-
-    # Propagate current star to the next ReLU layer
-    star = propagate_until_relu(star, nn_list)
-    target_layer = star.ref_layer
-
-    # Check if the target refers to a previous layer
-    if target_layer != current_target[0]:
-        new_target = (target_layer, 0)
-
-    # Check if the neurons in the layer have been all processed
-    elif current_target[1] == star.center.shape[0] - 1:
-
-        # Check if all the layers have been processed
-        if target_layer < last_relu_layer:
-
-            # Go to the first neuron of next ReLU layer
-            next_relu = target_layer
-            for layer in nn_list[target_layer + 1:]:
-                if isinstance(layer, nodes.ReLUNode):
-                    next_relu = nn_list.index(layer)
-                    break
-
-            new_target = (next_relu, 0)
-            star.ref_layer += 1
-            star = propagate_until_relu(star, nn_list)
-    else:
-        # Increment the neuron
-        new_target = (target_layer, current_target[1] + 1)
-
-    return new_target, star

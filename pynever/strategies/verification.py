@@ -282,6 +282,28 @@ class SearchVerification(VerificationStrategy):
 
         self.logger = logging.getLogger(logger_name)
 
+    def init_search(self, network: networks.SequentialNetwork, prop: NeVerProperty):
+        """
+        Initialize the search algorithm and compute the starting values for
+        the bounds, the star and the target
+
+        Parameters
+        ----------
+        network
+        prop
+
+        Returns
+        -------
+
+        """
+
+        in_star = prop.to_input_star()
+        in_star.ref_layer = 0
+
+        return (in_star,
+                sf.get_bounds(network, prop, self.search_params['bounds']),
+                bm.net2list(network))
+
     def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
         """
         Entry point for the abstraction-refinement search algorithm
@@ -301,17 +323,11 @@ class SearchVerification(VerificationStrategy):
 
         """
 
-        if isinstance(prop, NeVerProperty):
-            in_star = prop.to_input_star()
-            in_star.ref_layer = 0
+        if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
+            in_star, nn_bounds, net_list = self.init_search(network, prop)
+            nn_bounds = nn_bounds[1]  # TODO use symbolic
         else:
-            raise NotImplementedError('Only NeVerProperty objects are supported at present')
-
-        if isinstance(network, networks.SequentialNetwork):
-            # The bounds here are a dict (key: layer.id)
-            nn_bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
-        else:
-            raise NotImplementedError('Only SequentialNetwork objects are supported at present')
+            raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
@@ -319,17 +335,6 @@ class SearchVerification(VerificationStrategy):
 
         # Init target refinement neuron (first index for the layer, second for the neuron)
         target = (0, 0)  # TODO Use a class? For ResNets what does it mean?
-
-        # Translate the network in a list
-        net_list = bm.net2list(network)
-
-        # Retrieve the last ReLU layer index
-        # TODO make a function out of this
-        last_relu_idx = 0
-        for layer in net_list[::-1]:
-            if isinstance(layer, nodes.ReLUNode):
-                last_relu_idx = net_list.index(layer)
-                break
 
         # Start timer
         timer = 0
@@ -339,14 +344,14 @@ class SearchVerification(VerificationStrategy):
             current_star, nn_bounds = frontier.pop()
 
             # TODO this is to use stars or symb bounds
-            #intersects, unsafe_stars = self.intersect_star_lp(current_star, net_list, nn_bounds, prop, target)
-            intersects, unsafe_stars = self.intersect_symb_lp(current_star, net_list, nn_bounds, prop, target)
+            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop, target)
+            # intersects, unsafe_stars = sf.intersect_symb_lp(current_star, net_list, nn_bounds, prop, target)
             # y0 >= 0.25 x0
             # y0 <= 0.25 x0 + 0.25
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = self.search_params['refinement'](current_star, target, net_list, last_relu_idx)
+                target, current_star = self.search_params['refinement'](current_star, target, net_list)
 
                 if target is None:
                     # Nothing else to split, or
@@ -374,26 +379,6 @@ class SearchVerification(VerificationStrategy):
             return False,
         else:
             return True,
-
-    def intersect_star_lp(self, current_star, net_list, nn_bounds, prop, target):
-        # Compute the output abstract star from current_star/bounds
-        out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
-        # Check intersection using a LP
-        # TODO is it possible to check whether it is fully inside?
-        intersects, unsafe_stars = sf.check_intersection(out_star, prop)
-        return intersects, unsafe_stars
-
-    def intersect_symb_lp(self, current_star, net_list, nn_bounds, prop, target):
-        # Compute the output abstract star from current_star/bounds
-        out_star = sf.abs_propagation(current_star, nn_bounds, target, net_list)
-
-        #output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
-        #output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
-
-        # Check intersection using a LP
-        # TODO is it possible to check whether it is fully inside?
-        intersects, unsafe_stars = sf.check_intersection(out_star, prop)
-        return intersects, unsafe_stars
 
 
 class NeverVerification(VerificationStrategy):
