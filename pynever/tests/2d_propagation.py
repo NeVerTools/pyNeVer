@@ -1,10 +1,8 @@
 import numpy as np
-from pynever.strategies import verification
 
 from pynever import nodes
-
-import pynever.strategies.abstraction as abst
 from pynever.networks import SequentialNetwork
+from pynever.strategies import verification
 
 # NETWORK DEFINITION
 W = np.ones((2, 2))

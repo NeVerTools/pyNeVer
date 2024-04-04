@@ -281,14 +281,20 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list, last
 
     """
 
+    # TODO update target only based on the star parameters, not the previous target
+
     new_target = None
 
     # Propagate current star to the next ReLU layer
     star = propagate_until_relu(star, nn_list)
     target_layer = star.ref_layer
 
+    # Check if the target refers to a previous layer
+    if target_layer != current_target[0]:
+        new_target = (target_layer, 0)
+
     # Check if the neurons in the layer have been all processed
-    if current_target[1] == star.center.shape[0] - 1:
+    elif current_target[1] == star.center.shape[0] - 1:
 
         # Check if all the layers have been processed
         if target_layer < last_relu_layer:
@@ -305,9 +311,6 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list, last
             star = propagate_until_relu(star, nn_list)
     else:
         # Increment the neuron
-        if target_layer != current_target[0]:
-            new_target = (target_layer, 0)
-        else:
-            new_target = (target_layer, current_target[1] + 1)
+        new_target = (target_layer, current_target[1] + 1)
 
     return new_target, star
