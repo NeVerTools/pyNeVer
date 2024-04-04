@@ -63,4 +63,4 @@ def launch_instances(instances_file: str):
 
 
 if __name__ == '__main__':
-    launch_instances(f'{BENCHMARKS_PATH}/Test/instances.csv')
+    launch_instances(f'{BENCHMARKS_PATH}/Drones/instances.csv')

@@ -112,6 +112,7 @@ def propagate_until_relu(star: Star, nn_list: list) -> Star:
 
     start_layer = star.ref_layer
     i = 0
+    skip = True
 
     for layer in nn_list[start_layer:]:
 
@@ -126,8 +127,14 @@ def propagate_until_relu(star: Star, nn_list: list) -> Star:
             i += 1
 
         elif isinstance(layer, nodes.ReLUNode):
-            # Interrupt cycle
-            break
+            # If all the neurons have been processed...
+            if star.predicate_matrix.shape[0] - star.initial_pred == star.center.shape[0] and skip:
+                skip = False
+                i += 1
+                continue
+            # Otherwise, stay on this layer and interrupt cycle
+            else:
+                break
 
         else:
             raise NotImplementedError('Unsupported layer')
@@ -233,8 +240,6 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (
 
         return last_relu_idx
 
-    # TODO update target only based on the star parameters, not the previous target
-
     new_target = None
 
     # Propagate current star to the next ReLU layer
@@ -242,7 +247,7 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (
     target_layer = star.ref_layer
 
     # Check if the target refers to a previous layer
-    if target_layer != current_target[0]:
+    if target_layer != current_target[0] and target_layer < len(nn_list):
         new_target = (target_layer, 0)
 
     # Check if the neurons in the layer have been all processed
@@ -330,6 +335,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
         lower_star.ref_layer = target[0]
+        lower_star.initial_pred = star.initial_pred
 
         # Upper star
         upper_c = star.center
@@ -339,6 +345,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
 
         upper_star.ref_layer = target[0]
+        upper_star.initial_pred = star.initial_pred
 
         # TODO update bounds
         return [
