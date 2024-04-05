@@ -140,7 +140,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
 
         elif isinstance(layer, nodes.ReLUNode):
             # If all the neurons have been processed...
-            if skip: #star.ref_neuron == star.center.shape[0] - 1 and skip:
+            if skip:  # star.ref_neuron == star.center.shape[0] - 1 and skip:
                 skip = False
                 i += 1
                 continue
@@ -458,4 +458,4 @@ def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
         temp_star.predicate_bias = copy.deepcopy(unsafe_star.predicate_bias)
         counterexample_stars.append(temp_star)
 
-    return unsafe_stars[0].get_samples(num_samples=1)[0]
+    return counterexample_stars[0].get_samples(num_samples=1)[0]
