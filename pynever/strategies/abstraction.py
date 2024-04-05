@@ -114,7 +114,7 @@ class Star:
         self.ref_layer = None
 
         # Starting number of predicates (used in search verification)
-        self.initial_pred = self.predicate_matrix.shape[0]
+        self.ref_neuron = 0
 
         # Private Attributes used for the sampling of the star.
         self.__auxiliary_points = None

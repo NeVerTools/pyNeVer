@@ -75,7 +75,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     """
 
     start_layer = star.ref_layer
-    neuron_idx = star.predicate_matrix.shape[0] - star.initial_pred
+    neuron_idx = star.ref_neuron
 
     for layer in nn_list[start_layer:]:
         i = nn_list.index(layer)
@@ -103,7 +103,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     return star
 
 
-def propagate_until_relu(star: Star, nn_list: list) -> Star:
+def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     """
     This function performs the star propagation throughout Fully Connected layers
     only, until a ReLU layer is encountered. This is used in order to process
@@ -125,7 +125,6 @@ def propagate_until_relu(star: Star, nn_list: list) -> Star:
 
     start_layer = star.ref_layer
     i = 0
-    skip = True
 
     for layer in nn_list[start_layer:]:
 
@@ -141,7 +140,7 @@ def propagate_until_relu(star: Star, nn_list: list) -> Star:
 
         elif isinstance(layer, nodes.ReLUNode):
             # If all the neurons have been processed...
-            if star.predicate_matrix.shape[0] - star.initial_pred == star.center.shape[0] and skip:
+            if skip: #star.ref_neuron == star.center.shape[0] - 1 and skip:
                 skip = False
                 i += 1
                 continue
@@ -222,15 +221,67 @@ def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target):
 
 def get_next_target(ref_heur: str,
                     star: Star,
-                    current_target: RefinementTarget,
                     nn_list: list) -> (RefinementTarget, Star):
     if ref_heur == 'sequential':
-        return get_target_sequential(star, current_target, nn_list)
+        return get_target_sequential(star, nn_list)
     else:
         raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_target_sequential(star: Star, current_target: RefinementTarget, nn_list: list) -> (RefinementTarget, Star):
+def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star):
+    """
+    This function updates the target for the refinement of the star using
+    a sequential approach. For each ReLU layer all neurons are refined
+    sequentially.
+
+    Parameters
+    ----------
+    star : Star
+        The star to refine
+    nn_list : list
+        The list of the network layers
+
+    Returns
+    ----------
+    tuple, Star
+        The new target for the refinement, which is None when there is no more
+        refinement to do for this star, and the propagated star
+
+    """
+
+    def get_last_relu(net_list: list):
+        last_relu_idx = 0
+        for net_layer in net_list[::-1]:
+            if isinstance(net_layer, nodes.ReLUNode):
+                last_relu_idx = net_list.index(net_layer)
+                break
+
+        return last_relu_idx
+
+    star = propagate_until_relu(star, nn_list, False)
+    current_neuron = star.ref_neuron
+
+    if current_neuron < star.center.shape[0]:
+        # There are more neurons in the layer: increment the neuron count
+        new_target = RefinementTarget(star.ref_layer, current_neuron)
+
+    else:
+        if star.ref_layer == get_last_relu(nn_list):
+            # There are no more neurons and no more layers
+            new_target = None
+
+        else:
+            # There is another ReLU layer: propagate the star to that layer and reset the neuron
+            star = propagate_until_relu(star, nn_list, True)
+            star.ref_neuron = 0
+            next_layer = star.ref_layer
+            new_target = RefinementTarget(next_layer, 0)
+
+    return new_target, star
+
+
+# TODO Deprecated
+def get_target_sequential_OLD(star: Star, current_target: RefinementTarget, nn_list: list) -> (RefinementTarget, Star):
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -333,6 +384,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
     # Positive stable
     if stable == 1:
         star.ref_layer = target.layer_idx
+        star.ref_neuron += 1
         return [(star, bounds_dict)]
 
     # Negative stable
@@ -344,6 +396,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         new_star = Star(new_pred, new_bias, new_c, new_b)
 
         new_star.ref_layer = target.layer_idx
+        new_star.ref_neuron = star.ref_neuron + 1
 
         return [(new_star, bounds_dict)]
 
@@ -357,7 +410,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
         lower_star.ref_layer = target.layer_idx
-        lower_star.initial_pred = star.initial_pred
+        lower_star.ref_neuron = star.ref_neuron + 1
 
         # Upper star
         upper_c = star.center
@@ -367,7 +420,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
 
         upper_star.ref_layer = target.layer_idx
-        upper_star.initial_pred = star.initial_pred
+        upper_star.ref_neuron = star.ref_neuron + 1
 
         # TODO update bounds
         return [

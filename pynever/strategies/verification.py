@@ -333,9 +333,6 @@ class SearchVerification(VerificationStrategy):
         frontier = [(in_star, nn_bounds)]
         stop_flag = False
 
-        # Init target refinement neuron (first index for the layer, second for the neuron)
-        target = sf.RefinementTarget(0, 0)
-
         # Start timer
         timer = 0
         start_time = time.perf_counter()
@@ -348,10 +345,7 @@ class SearchVerification(VerificationStrategy):
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.search_params['heuristic'],
-                                                          current_star,
-                                                          target,
-                                                          net_list)
+                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list)
 
                 if target is None:
                     # Nothing else to split, or
