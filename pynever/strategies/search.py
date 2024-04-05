@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 
 import pynever.strategies.abstraction as abst
@@ -5,6 +7,18 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds_manager import BoundsManager
+from pynever.tensor import Tensor
+
+
+class RefinementTarget:
+    """
+
+    """
+
+    # TODO how to use with ResNets? Layer identifier?
+    def __init__(self, layer: int, neuron: int):
+        self.layer_idx = layer
+        self.neuron_idx = neuron
 
 
 def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> dict:
@@ -38,7 +52,7 @@ def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> d
     # TODO add more strategies
 
 
-def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> Star:
+def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     """
     This method performs the abstract propagation of a single star starting
     from a specific layer and neuron. The output is a single star that uses
@@ -50,8 +64,6 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> S
         The star to process
     bounds : dict
         The bounds of the network layers
-    target : tuple
-        The target layer and neuron to start from wrapped in a tuple
     nn_list : list
         The neural network represented as a list
 
@@ -63,6 +75,7 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> S
     """
 
     start_layer = star.ref_layer
+    neuron_idx = star.predicate_matrix.shape[0] - star.initial_pred
 
     for layer in nn_list[start_layer:]:
         i = nn_list.index(layer)
@@ -79,8 +92,8 @@ def abs_propagation(star: Star, bounds: dict, target: tuple, nn_list: list) -> S
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
             l_bounds = bounds[layer.identifier]
-            if i == target[0]:
-                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=target[1])
+            if i == start_layer:
+                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=neuron_idx)
             else:
                 star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0])
 
@@ -184,31 +197,40 @@ def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
     return intersects, unsafe_stars
 
 
-def intersect_star_lp(current_star, net_list, nn_bounds, prop, target):
+def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     # Compute the output abstract star from current_star/bounds
-    out_star = abs_propagation(current_star, nn_bounds, target, net_list)
+    out_star = abs_propagation(current_star, nn_bounds, net_list)
 
     # Check intersection using a LP
-    # TODO is it possible to check whether it is fully inside?
     intersects, unsafe_stars = check_intersection(out_star, prop)
 
     return intersects, unsafe_stars
 
 
 def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target):
-    # Compute the output abstract star from current_star/bounds
-    out_star = abs_propagation(current_star, nn_bounds, target, net_list)
-
+    output = None
     # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
     # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
+    # y0 >= 0.25 x0
+    # y0 <= 0.25 x0 + 0.25
+    # I can build a star from this!
 
-    # Check intersection using a LP
     # TODO is it possible to check whether it is fully inside?
-    intersects, unsafe_stars = check_intersection(out_star, prop)
+    intersects, unsafe_stars = check_intersection(output, prop)
     return intersects, unsafe_stars
 
 
-def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (tuple, Star):
+def get_next_target(ref_heur: str,
+                    star: Star,
+                    current_target: RefinementTarget,
+                    nn_list: list) -> (RefinementTarget, Star):
+    if ref_heur == 'sequential':
+        return get_target_sequential(star, current_target, nn_list)
+    else:
+        raise NotImplementedError('Only sequential refinement supported')
+
+
+def get_target_sequential(star: Star, current_target: RefinementTarget, nn_list: list) -> (RefinementTarget, Star):
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -218,7 +240,7 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (
     ----------
     star : Star
         The star to refine
-    current_target : tuple
+    current_target : RefinementTarget
         The current target to update
     nn_list : list
         The list of the network layers
@@ -247,11 +269,11 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (
     target_layer = star.ref_layer
 
     # Check if the target refers to a previous layer
-    if target_layer != current_target[0] and target_layer < len(nn_list):
-        new_target = (target_layer, 0)
+    if target_layer != current_target.layer_idx and target_layer < get_last_relu(nn_list):
+        new_target = RefinementTarget(target_layer, 0)
 
     # Check if the neurons in the layer have been all processed
-    elif current_target[1] == star.center.shape[0] - 1:
+    elif current_target.neuron_idx == star.center.shape[0] - 1:
 
         # Check if all the layers have been processed
         if target_layer < get_last_relu(nn_list):
@@ -263,17 +285,17 @@ def get_target_sequential(star: Star, current_target: tuple, nn_list: list) -> (
                     next_relu = nn_list.index(layer)
                     break
 
-            new_target = (next_relu, 0)
+            new_target = RefinementTarget(next_relu, 0)
             star.ref_layer += 1
             star = propagate_until_relu(star, nn_list)
     else:
         # Increment the neuron
-        new_target = (target_layer, current_target[1] + 1)
+        new_target = RefinementTarget(target_layer, current_target.neuron_idx + 1)
 
     return new_target, star
 
 
-def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> list:
+def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -285,7 +307,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
     ----------
     star : Star
         The star object to split
-    target : tuple
+    target : RefinementTarget
         The target layer and neuron to refine
     nn_list : list
         The neural network as a list of layers
@@ -300,7 +322,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
 
     """
 
-    index = target[1]
+    index = target.neuron_idx
 
     mask = np.identity(star.center.shape[0])
     mask[index, index] = 0
@@ -310,7 +332,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
 
     # Positive stable
     if stable == 1:
-        star.ref_layer = target[0]
+        star.ref_layer = target.layer_idx
         return [(star, bounds_dict)]
 
     # Negative stable
@@ -321,7 +343,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         new_bias = star.predicate_bias
         new_star = Star(new_pred, new_bias, new_c, new_b)
 
-        new_star.ref_layer = target[0]
+        new_star.ref_layer = target.layer_idx
 
         return [(new_star, bounds_dict)]
 
@@ -334,7 +356,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
-        lower_star.ref_layer = target[0]
+        lower_star.ref_layer = target.layer_idx
         lower_star.initial_pred = star.initial_pred
 
         # Upper star
@@ -344,7 +366,7 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
         upper_bias = np.vstack((star.predicate_bias, star.center[index]))
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
 
-        upper_star.ref_layer = target[0]
+        upper_star.ref_layer = target.layer_idx
         upper_star.initial_pred = star.initial_pred
 
         # TODO update bounds
@@ -352,3 +374,35 @@ def split_star(star: Star, target: tuple, nn_list: list, bounds_dict: dict) -> l
             (lower_star, bounds_dict),
             (upper_star, bounds_dict)
         ]
+
+
+def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
+    """
+    This function is used to extract a counterexample from a star.
+    The counterexample that we are interested into is the witness, i.e.,
+    the input assignment that resulted in an intersection.
+
+    Parameters
+    ----------
+    unsafe_stars : list
+        Unsafe stars in output
+    prop : NeverProperty
+        The property of interest
+
+    Returns
+    ----------
+    Tensor
+        The counterexample input Tensor
+
+    """
+
+    # Extract counterexample stars
+    counterexample_stars = []
+
+    for unsafe_star in unsafe_stars:
+        temp_star = abst.Star(prop.in_coef_mat, prop.in_bias_mat)
+        temp_star.predicate_matrix = copy.deepcopy(unsafe_star.predicate_matrix)
+        temp_star.predicate_bias = copy.deepcopy(unsafe_star.predicate_bias)
+        counterexample_stars.append(temp_star)
+
+    return unsafe_stars[0].get_samples(num_samples=1)[0]

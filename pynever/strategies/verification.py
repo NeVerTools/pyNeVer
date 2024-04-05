@@ -275,7 +275,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = search_params
         else:
             self.search_params = {
-                'refinement': sf.get_target_sequential,
+                'heuristic': 'sequential',
                 'bounds': 'symbolic',
                 'timeout': 300
             }
@@ -334,7 +334,7 @@ class SearchVerification(VerificationStrategy):
         stop_flag = False
 
         # Init target refinement neuron (first index for the layer, second for the neuron)
-        target = (0, 0)  # TODO Use a class? For ResNets what does it mean?
+        target = sf.RefinementTarget(0, 0)
 
         # Start timer
         timer = 0
@@ -343,20 +343,20 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
-            # TODO this is to use stars or symb bounds
-            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop, target)
-            # intersects, unsafe_stars = sf.intersect_symb_lp(current_star, net_list, nn_bounds, prop, target)
-            # y0 >= 0.25 x0
-            # y0 <= 0.25 x0 + 0.25
+            # TODO use stars or symb bounds
+            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = self.search_params['refinement'](current_star, target, net_list)
+                target, current_star = sf.get_next_target(self.search_params['heuristic'],
+                                                          current_star,
+                                                          target,
+                                                          net_list)
 
                 if target is None:
                     # Nothing else to split, or
                     # Found a counterexample
-                    cex = unsafe_stars[0].get_samples(num_samples=1)[0]
+                    cex = sf.get_counterexample(unsafe_stars, prop)
                     return False, cex
 
                 else:
