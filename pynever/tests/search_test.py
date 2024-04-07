@@ -2,8 +2,10 @@ import csv
 import logging
 import time
 
-from pynever.networks import SequentialNetwork
+from pynever import utilities
+from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies import verification, conversion
+from pynever.tensor import Tensor
 
 BENCHMARKS_PATH = '../../examples/benchmarks'
 
@@ -16,12 +18,23 @@ logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 logger_file.setLevel(logging.INFO)
 
 
-def format_csv(answer: list) -> str:
+def format_csv(answer: list, nn: NeuralNetwork, prop_name: str) -> str:
     # If answer is False without counterexample -> timeout
     if len(answer) == 1:
-        return 'Verified' if answer[0] else 'Unknown'
+        if answer[0]:
+            with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
+                out.write('unsat')
+
+            return 'Verified'
+        else:
+            with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
+                out.write('unknown')
+
+            return 'Unknown'
 
     else:
+        print_cex_file(answer[1], nn, prop_name)
+
         fancy_cex = '['
         for component in answer[1]:
             fancy_cex += str(float(component[0]))
@@ -30,6 +43,25 @@ def format_csv(answer: list) -> str:
         fancy_cex += ']'
 
         return f'Falsified,{fancy_cex}'
+
+
+def print_cex_file(cex_input: Tensor, net: NeuralNetwork, p_name: str):
+    """
+    sat (not verified) + cex input
+    """
+
+    unsafe_out = utilities.execute_network(net, cex_input)
+    text = ''
+    for i in range(len(cex_input)):
+        text += f'(X_{i} {cex_input[i]})\n'
+
+    for j in range(len(unsafe_out)):
+        text += f'(Y_{j} {unsafe_out[j]})\n'
+    text = text.replace('[', '').replace(']', '')[:-1]
+
+    with open(f'logs/{net.identifier}-{p_name}_result.txt', 'w') as out:
+        out.write('sat\n')
+        out.write(f'({text})')
 
 
 def launch_instances(instances_file: str):
@@ -50,7 +82,8 @@ def launch_instances(instances_file: str):
                     prop = verification.NeVerProperty()
                     prop.from_smt_file(f'{folder}/{instance[1]}')
 
-                    inst_name = f'{instance[0].split("/")[-1]} - {instance[1].split("/")[-1]}'
+                    p_name = instance[1].split("/")[-1]
+                    inst_name = f'{instance[0].split("/")[-1]} - {p_name}'
 
                     logger_stream.info(f'Instance: {inst_name}')
 
@@ -59,8 +92,8 @@ def launch_instances(instances_file: str):
                     lap = time.perf_counter() - start_time
 
                     logger_stream.info(f'{result} - {lap}')
-                    logger_file.info(f'{inst_name},{lap},{format_csv(result)}')
+                    logger_file.info(f'{inst_name},{lap},{format_csv(result, net, p_name)}')
 
 
 if __name__ == '__main__':
-    launch_instances(f'{BENCHMARKS_PATH}/ACAS XU/instances.csv')
+    launch_instances(f'{BENCHMARKS_PATH}/RL/instances.csv')
