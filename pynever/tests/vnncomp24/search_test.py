@@ -7,7 +7,7 @@ from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies import verification, conversion
 from pynever.tensor import Tensor
 
-BENCHMARKS_PATH = '../../examples/benchmarks'
+BENCHMARKS_PATH = '../../../examples/benchmarks'
 
 logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
