@@ -1,17 +1,29 @@
-import pynever.strategies.abstraction
+from collections import OrderedDict
+
+import numpy as np
+
+from pynever import nodes
+from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
+from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.bp.utils.property_converter import *
 from collections import OrderedDict
-import numpy as np
+
+from pynever import nodes
+from pynever.networks import SequentialNetwork
+from pynever.strategies.bp.bounds import SymbolicLinearBounds
+from pynever.strategies.bp.linearfunctions import LinearFunctions
+from pynever.strategies.bp.utils.property_converter import *
+from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
+    compute_lin_lower_and_upper
 
 
 class BoundsManager:
-    def __init__(self, abst_net, prop):
+    def __init__(self, net, prop):
         self.numeric_bounds = None
-        self.abst_net = abst_net
+        self.net = net
         self.prop = prop
 
     def __repr__(self):
@@ -29,7 +41,7 @@ class BoundsManager:
         input_hyper_rect = property_converter.get_vectors()
 
         # Get layers
-        layers = get_abstract_network(self.abst_net)
+        layers = net2list(self.net)
 
         input_size = input_hyper_rect.get_size()
         lower = LinearFunctions(np.identity(input_size), np.zeros(input_size))
@@ -39,17 +51,18 @@ class BoundsManager:
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         symbolic_bounds = dict()
+        # TODO change the structure of symbolic?bounds
 
         current_input_bounds = input_bounds
         for i in range(0, len(layers)):
 
-            if isinstance(layers[i], pynever.strategies.abstraction.AbsReLUNode):
+            if isinstance(layers[i], nodes.ReLUNode):
                 symbolic_activation_output_bounds = self.compute_relu_output_bounds(symbolic_dense_output_bounds,
                                                                                     input_hyper_rect)
                 postactivation_bounds = HyperRectangleBounds(np.maximum(preactivation_bounds.get_lower(), 0),
                                                              np.maximum(preactivation_bounds.get_upper(), 0))
 
-            elif isinstance(layers[i], pynever.strategies.abstraction.AbsFullyConnectedNode):
+            elif isinstance(layers[i], nodes.FullyConnectedNode):
                 symbolic_dense_output_bounds = self.compute_dense_output_bounds(layers[i], current_input_bounds)
                 preactivation_bounds = symbolic_dense_output_bounds.to_hyper_rectangle_bounds(input_hyper_rect)
 
@@ -70,13 +83,14 @@ class BoundsManager:
         return symbolic_bounds, numeric_preactivation_bounds, numeric_postactivation_bounds
 
     def compute_dense_output_bounds(self, layer, inputs):
-        weights = layer.ref_node.weight
-        weights_plus = get_positive_part(weights)
-        weights_minus = get_negative_part(weights)
-        bias = layer.ref_node.bias
+        weights_plus = get_positive_part(layer.weight)
+        weights_minus = get_negative_part(layer.weight)
+
+        if layer.bias is None:
+            layer.bias = np.zeros(layer.weight.shape[0])
 
         lower_matrix, lower_offset, upper_matrix, upper_offset = \
-            compute_lin_lower_and_upper(weights_minus, weights_plus, bias,
+            compute_lin_lower_and_upper(weights_minus, weights_plus, layer.bias,
                                         inputs.get_lower().get_matrix(),
                                         inputs.get_upper().get_matrix(),
                                         inputs.get_lower().get_offset(),
@@ -164,14 +178,28 @@ def get_lin_upper_bound_coefficients(lower, upper):
     return mult, add
 
 
-def get_abstract_network(abst_network):
-    # Create the layers representation and the input hyper rectangle
-    layers = []
-    node = abst_network.get_first_node()
+def net2list(network: SequentialNetwork) -> list:
+    """
+    Create the layers representation as a list
+
+    Parameters
+    ----------
+    network : SequentialNetwork
+        The network in the internal representation
+
+    Returns
+    ----------
+    list
+        The list of the layers
+
+    """
+
+    layers = list()
+    node = network.get_first_node()
     layers.append(node)
 
-    while node is not abst_network.get_last_node():
-        node = abst_network.get_next_node(node)
+    while node is not network.get_last_node():
+        node = network.get_next_node(node)
         layers.append(node)
 
     return layers

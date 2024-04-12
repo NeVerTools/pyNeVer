@@ -13,11 +13,12 @@ import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
+import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.conversion as conv
 import pynever.strategies.smt_reading as reading
+import pynever.strategies.search as sf
 import pynever.utilities as utils
 from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.tensors import Tensor
 
 logger_name = "pynever.strategies.verification"
@@ -176,6 +177,19 @@ class NeVerProperty(Property):
                 s = s + '))'
                 f.write(s)
 
+    def to_input_star(self) -> abst.Star:
+        """
+        This method creates the input star based on the property specification
+
+        Returns
+        ----------
+        Star
+            The input star
+
+        """
+
+        return abst.Star(self.in_coef_mat, self.in_bias_mat)
+
     @staticmethod
     def __create_infix_constraints(variables: list, coef_mat: Tensor, bias_mat: Tensor) -> list:
         c_list = []
@@ -236,6 +250,129 @@ class VerificationStrategy(abc.ABC):
         """
 
         pass
+
+
+class SearchVerification(VerificationStrategy):
+    """
+    Class used to represent the search-based verification strategy. It employs
+    star propagation with Symbolic Bounds Propagation and an abstraction-refinement
+    loop for better readability, structure and functionality
+
+    Attributes
+    ----------
+    search_params : dict
+        The parameters to guide the search algorithm
+
+    Methods
+    ----------
+    verify(SequentialNetwork, NeVerProperty)
+        Verify that the neural network of interest satisfies the property given as argument.
+
+    """
+
+    def __init__(self, search_params: dict = None):
+        if search_params is not None:
+            self.search_params = search_params
+        else:
+            self.search_params = {
+                'heuristic': 'sequential',
+                'bounds': 'symbolic',
+                'timeout': 300
+            }
+
+        self.logger = logging.getLogger(logger_name)
+
+    def init_search(self, network: networks.SequentialNetwork, prop: NeVerProperty):
+        """
+        Initialize the search algorithm and compute the starting values for
+        the bounds, the star and the target
+
+        Parameters
+        ----------
+        network
+        prop
+
+        Returns
+        -------
+
+        """
+
+        in_star = prop.to_input_star()
+        in_star.ref_layer = 0
+
+        return (in_star,
+                sf.get_bounds(network, prop, self.search_params['bounds']),
+                bm.net2list(network))
+
+    def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
+        """
+        Entry point for the abstraction-refinement search algorithm
+
+        Parameters
+        ----------
+        network : NeuralNetwork
+            The network model in the internal representation
+        prop : Property
+            The property specification
+
+        Returns
+        ----------
+        bool, Optional[Tensor]
+            True if the network is safe, False otherwise. If the result is False and the
+            search is complete it also returns a counterexample
+
+        """
+
+        if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
+            in_star, nn_bounds, net_list = self.init_search(network, prop)
+            nn_bounds = nn_bounds[1]  # TODO use symbolic
+        else:
+            raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
+
+        # Frontier is a stack of tuples (Star, AbstractBounds)
+        frontier = [(in_star, nn_bounds)]
+        stop_flag = False
+
+        # Start timer
+        timer = 0
+        start_time = time.perf_counter()
+
+        while len(frontier) > 0 and not stop_flag:
+            current_star, nn_bounds = frontier.pop()
+
+            # TODO use stars or symb bounds
+            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+
+            if intersects:
+                # If new target is None there is no more refinement to do
+                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list)
+
+                if target is None:
+                    # Nothing else to split, or
+                    # Found a counterexample
+                    cex = sf.get_counterexample(unsafe_stars, prop)
+                    return False, cex
+
+                else:
+                    # We cannot conclude anything at this point.
+                    # Split the current branch according to the target
+                    frontier.extend(
+                        sf.split_star(current_star, target, net_list, nn_bounds)
+                    )
+
+            else:
+                """This branch is safe, no refinement needed"""
+
+            timer += (time.perf_counter() - start_time)
+            if timer > self.search_params['timeout']:
+                stop_flag = True
+            else:
+                start_time = time.perf_counter()
+
+        if stop_flag:
+            return False,
+        else:
+            return True,
 
 
 class NeverVerification(VerificationStrategy):
@@ -306,7 +443,7 @@ class NeverVerification(VerificationStrategy):
         # Compute symbolic bounds first. If the network architecture or the property
         # does not have a corresponding bound propagation method we skip the computation
         try:
-            bound_manager = BoundsManager(abst_network, prop)
+            bound_manager = bm.BoundsManager(network, prop)
             _, _, self.layers_bounds = bound_manager.compute_bounds()
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
@@ -424,7 +561,7 @@ class NeverVerification(VerificationStrategy):
 
             if isinstance(current_node, abst.AbsReLUNode):
                 if bounds_dictionary:
-                    cur_layer_bounds = prev_key(bounds_dictionary, current_node.identifier)
+                    cur_layer_bounds = prev_key(bounds_dictionary, current_node.ref_node.identifier)
                     output_starset = current_node.forward(output_starset, cur_layer_bounds)
                 else:
                     output_starset = current_node.forward(output_starset)
