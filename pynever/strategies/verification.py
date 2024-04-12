@@ -15,8 +15,8 @@ import pynever.pytorch_layers as pyt_layers
 import pynever.strategies.abstraction as abst
 import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.conversion as conv
-import pynever.strategies.smt_reading as reading
 import pynever.strategies.search as sf
+import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.tensors import Tensor

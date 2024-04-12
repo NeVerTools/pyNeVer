@@ -7,7 +7,7 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds_manager import BoundsManager
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 
 class RefinementTarget:
