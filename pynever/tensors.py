@@ -20,7 +20,6 @@ BACKEND = BackEnd.TENSORFLOW
 
 
 def random_uniform(low: Union[float, int], high: Union[float, int], size: Union[int, Iterable, tuple[int]]):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.random.default_rng().uniform(low=low, high=high, size=size)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -30,7 +29,6 @@ def random_uniform(low: Union[float, int], high: Union[float, int], size: Union[
 
 
 def ones(shape: Union[int, tuple[int]], dtype=float):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.ones(shape=shape, dtype=dtype)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -86,7 +84,6 @@ def array(array_like):
 
 
 def loadtxt(fname: str, dtype=float, delimiter: str = ' '):
-
     np_a = numpy.loadtxt(fname=fname, dtype=dtype, delimiter=delimiter)
     if BACKEND == BackEnd.NUMPY:
         return np_a
@@ -98,7 +95,6 @@ def loadtxt(fname: str, dtype=float, delimiter: str = ' '):
 
 def random_normal(mean: Union[float, Iterable[float]], std: Union[float, Iterable[float]],
                   size: Union[int, tuple[int]]):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.random.default_rng().normal(loc=mean, scale=std, size=size)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -108,7 +104,6 @@ def random_normal(mean: Union[float, Iterable[float]], std: Union[float, Iterabl
 
 
 def identity(n: int, dtype=float):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.identity(n=n, dtype=dtype)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -118,7 +113,6 @@ def identity(n: int, dtype=float):
 
 
 def matmul(x1: Tensor, x2: Tensor):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.matmul(x1, x2)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -128,7 +122,6 @@ def matmul(x1: Tensor, x2: Tensor):
 
 
 def reduce_all(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.all(a=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -138,7 +131,6 @@ def reduce_all(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] =
 
 
 def random_standard_normal(size: Union[int, Iterable, tuple[int], None] = None, dtype=float):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.random.default_rng().standard_normal(size=size, dtype=dtype)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -148,12 +140,10 @@ def random_standard_normal(size: Union[int, Iterable, tuple[int], None] = None, 
 
 
 def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False):
-
     return numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def reduce_min(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None, keepdims: bool = False):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.min(a=in_tensor, axis=axis, keepdims=keepdims)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -163,7 +153,6 @@ def reduce_min(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] =
 
 
 def reduce_max(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None, keepdims: bool = False):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.max(a=in_tensor, axis=axis, keepdims=keepdims)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -173,7 +162,6 @@ def reduce_max(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] =
 
 
 def argmax(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.argmax(a=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -183,7 +171,6 @@ def argmax(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = Non
 
 
 def argmin(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.argmin(a=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -195,7 +182,6 @@ def argmin(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = Non
 def where(condition: Union[Tensor, Iterable, float, int, bool],
           x: Union[Tensor, Iterable, int, float],
           y: Union[Tensor, Iterable, int, float]):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.where(condition=condition, x=x, y=y)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -205,7 +191,6 @@ def where(condition: Union[Tensor, Iterable, float, int, bool],
 
 
 def vstack(tup: tuple):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.vstack(tup)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -215,7 +200,6 @@ def vstack(tup: tuple):
 
 
 def hstack(tup: tuple):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.hstack(tup)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -225,7 +209,6 @@ def hstack(tup: tuple):
 
 
 def stack(arrays: Union[Iterable[Tensor], Iterable, int, float], axis: Optional[int] = 0):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.stack(arrays=arrays, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -235,7 +218,6 @@ def stack(arrays: Union[Iterable[Tensor], Iterable, int, float], axis: Optional[
 
 
 def flip(in_tensor: Tensor, axis: Union[None, int, Iterable, tuple[int]] = None):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.flip(m=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -245,7 +227,6 @@ def flip(in_tensor: Tensor, axis: Union[None, int, Iterable, tuple[int]] = None)
 
 
 def argsort(in_tensor: Tensor, axis: Optional[int] = -1):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.argsort(a=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -256,7 +237,6 @@ def argsort(in_tensor: Tensor, axis: Optional[int] = -1):
 
 def linspace(start: Union[Tensor, Iterable, int, float], stop: Union[Tensor, Iterable, int, float],
              num: Optional[int] = 50, endpoint: Optional[bool] = True, axis: Optional[int] = 0):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:
@@ -267,7 +247,6 @@ def linspace(start: Union[Tensor, Iterable, int, float], stop: Union[Tensor, Ite
 
 
 def expand_dims(in_tensor: Union[Tensor, Iterable, int, float], axis: Union[int, Iterable, tuple[int]]):
-
     if BACKEND == BackEnd.NUMPY:
         return numpy.expand_dims(a=in_tensor, axis=axis)
     elif BACKEND == BackEnd.TENSORFLOW:

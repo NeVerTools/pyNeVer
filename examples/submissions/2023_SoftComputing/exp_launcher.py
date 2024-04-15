@@ -96,22 +96,24 @@ if __name__ == '__main__':
 
     # ACAS XU launcher
     if TEST_ACAS:
-        with open('data/ACAS XU/instances.csv') as instances:
-            folder = 'data/ACAS XU'
+        with open('../../benchmarks/ACAS XU/instances.csv') as instances:
+            folder = '../../benchmarks/ACAS XU'
             csv_reader = csv.reader(instances)
 
             for instance in csv_reader:
-                exec_instance(f"{folder}/Networks/{instance[0]}",
-                              f"{folder}/Properties/{instance[1]}",
+                exec_instance(f"{folder}/{instance[0]}",
+                              f"{folder}/{instance[1]}",
                               instance[1], TIMEOUT)
 
     # ACC and RL launcher
     dirs = []
     if TEST_ACC:
-        dirs.append('data/ACC')
+        dirs.append('../../benchmarks/ACC')
 
     if TEST_RL:
-        dirs.extend(['data/RL/Cartpole', 'data/RL/Lunar Lander', 'data/RL/Dubins Rejoin'])
+        dirs.extend(['../../benchmarks/RL/Cartpole',
+                     '../../benchmarks/RL/Lunar Lander',
+                     '../../benchmarks/RL/Dubins Rejoin'])
 
     for dir_name in dirs:
         for property_file in os.listdir(f"{dir_name}/Properties"):
@@ -126,11 +128,11 @@ if __name__ == '__main__':
 
     # Drones launcher
     if TEST_DRONES:
-        with open('data/Drones/instances.csv') as instances:
-            folder = 'data/Drones'
+        with open('../../benchmarks/Drones/instances.csv') as instances:
+            folder = '../../benchmarks/Drones'
             csv_reader = csv.reader(instances)
 
             for instance in csv_reader:
-                exec_instance(f"{folder}/Networks/{instance[0]}",
-                              f"{folder}/Properties/{instance[1]}",
+                exec_instance(f"{folder}/{instance[0]}",
+                              f"{folder}/{instance[1]}",
                               instance[1], TIMEOUT)
