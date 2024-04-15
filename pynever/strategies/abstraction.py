@@ -1,4 +1,5 @@
 import abc
+import copy
 import itertools
 import logging
 import math
@@ -964,7 +965,7 @@ class AbsLayerNode(abc.ABC):
 
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.SingleInputLayerNode):
+    def __init__(self, identifier: str, ref_node: nodes.LayerNode):
         self.identifier = identifier
         self.ref_node = ref_node
 
@@ -1001,7 +1002,69 @@ class AbsLayerNode(abc.ABC):
         pass
 
 
-class AbsMultiInputLayerNode(abc.ABC):
+class AbsSingleInputLayerNode(AbsLayerNode):
+    """
+    An abstract class used for our internal representation of a Single Input Abstract Transformer Layer of an
+    AbsNeural Network. Its concrete children correspond to real abstract interpretation network layers.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the AbsSingleInputLayerNode.
+
+    ref_node : SingleInputLayerNode
+        Reference SingleInputLayerNode for the abstract transformer.
+
+    Methods
+    ----------
+    forward(AbsElement)
+        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
+        transformer.
+
+    backward(RefinementState)
+        Function which takes a reference to the refinement state and update both it and the state of the abstract
+        transformer to control the refinement component of the abstraction. At present the function is just a
+        placeholder for future implementations.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.SingleInputLayerNode):
+        super().__init__(identifier, ref_node)
+
+    @abc.abstractmethod
+    def forward(self, abs_input: AbsElement) -> AbsElement:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformer.
+
+        Parameters
+        ----------
+        abs_input : AbsElement
+            The input abstract element.
+
+        Returns
+        ----------
+        AbsElement
+            The AbsElement resulting from the computation corresponding to the abstract transformer.
+        """
+
+        pass
+
+    @abc.abstractmethod
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+
+        pass
+
+
+class AbsMultiInputLayerNode(AbsLayerNode):
     """
     An abstract class used for our internal representation of a generic Abstract Transformer Multi Input Layer of an
     AbsNeural Network. Its concrete children correspond to real abstract interpretation network layers.
@@ -1009,7 +1072,7 @@ class AbsMultiInputLayerNode(abc.ABC):
     Attributes
     ----------
     identifier : str
-        Identifier of the AbsLayerNode.
+        Identifier of the AbsMultiInputLayerNode.
 
     ref_node : MultiInputLayerNode
         Reference MultiInputLayerNode for the abstract transformer.
@@ -1028,8 +1091,7 @@ class AbsMultiInputLayerNode(abc.ABC):
     """
 
     def __init__(self, identifier: str, ref_node: nodes.MultiInputLayerNode):
-        self.identifier = identifier
-        self.ref_node = ref_node
+        super().__init__(identifier, ref_node)
 
     @abc.abstractmethod
     def forward(self, abs_inputs: List[AbsElement]) -> AbsElement:
@@ -1064,7 +1126,7 @@ class AbsMultiInputLayerNode(abc.ABC):
         pass
 
 
-class AbsFullyConnectedNode(AbsLayerNode):
+class AbsFullyConnectedNode(AbsSingleInputLayerNode):
     """
     A class used for our internal representation of a Fully Connected Abstract transformer.
 
@@ -1144,7 +1206,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
         pass
 
 
-class AbsReLUNode(AbsLayerNode):
+class AbsReLUNode(AbsSingleInputLayerNode):
     """
     A class used for our internal representation of a ReLU Abstract transformer.
 
@@ -1275,7 +1337,7 @@ class AbsReLUNode(AbsLayerNode):
         return abs_output
 
 
-class AbsSigmoidNode(AbsLayerNode):
+class AbsSigmoidNode(AbsSingleInputLayerNode):
     """
     A class used for our internal representation of a Sigmoid transformer.
 
@@ -1335,7 +1397,6 @@ class AbsSigmoidNode(AbsLayerNode):
 
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        # parallel = True
         if parallel:
             abs_output = StarSet()
             my_pool = multiprocessing.Pool(1)
@@ -1424,20 +1485,17 @@ class AbsConcatNode(AbsMultiInputLayerNode):
 
         abs_output = StarSet()
         for i in range(len(abs_inputs) - 1):
-            # if parallel:
-            #     temp_starset = self.__parallel_concat_starset(abs_inputs[i], abs_inputs[i + 1])
-            # else:
-            #     temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
-            temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            if parallel:
+                temp_starset = self.__parallel_concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            else:
+                temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
+
             abs_output.stars = abs_output.stars.union(temp_starset.stars)
 
         return abs_output
 
-    def __parallel_concat_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
-
-        # TODO: not completely sure about how to do parallelization: given that the process does not generate
-        #   new stars, i would parallelize the couple given by the combination of the stars of the first starset
-        #   and the one of the second. At this time it gives an error: use the non-parallelized function.
+    @staticmethod
+    def __parallel_concat_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
@@ -1539,20 +1597,17 @@ class AbsSumNode(AbsMultiInputLayerNode):
 
         abs_output = StarSet()
         for i in range(len(abs_inputs) - 1):
-            # if parallel:
-            #     temp_starset = self.__parallel_sum_starset(abs_inputs[i], abs_inputs[i + 1])
-            # else:
-            #     temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
-            temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            if parallel:
+                temp_starset = self.__parallel_sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            else:
+                temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
+
             abs_output.stars = abs_output.stars.union(temp_starset.stars)
 
         return abs_output
 
-    def __parallel_sum_starset(self, first_starset: StarSet, second_starset: StarSet) -> StarSet:
-
-        # TODO: not completely sure about how to do parallelization: given that the process does not generate
-        #   new stars, i would parallelize the couple given by the combination of the stars of the first starset
-        #   and the one of the second. At this time it gives an error: use the non-parallelized function.
+    @staticmethod
+    def __parallel_sum_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
         my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
@@ -1602,7 +1657,7 @@ class AbsNeuralNetwork(abc.ABC):
 
     Attributes
     ----------
-    nodes : dict <str, SingleInputLayerNode>
+    nodes : dict <str, AbsLayerNode>
         Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,
         the identifier of the node of interest is used as a key in the nodes dictionary.
 
@@ -1626,6 +1681,93 @@ class AbsNeuralNetwork(abc.ABC):
     def __init__(self):
         self.nodes = {}
         self.edges = {}
+
+    def get_children(self, node: AbsLayerNode) -> List[AbsLayerNode]:
+
+        child_nodes = [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
+        return child_nodes
+
+    def get_parents(self, node: AbsLayerNode) -> List[AbsLayerNode]:
+
+        parent_nodes = [self.nodes[parent_node_id] for parent_node_id, end_nodes_ids in self.edges.items() if
+                        node.identifier in end_nodes_ids]
+
+        return parent_nodes
+
+    def has_parents(self, node: AbsLayerNode) -> bool:
+        return len(self.get_parents(node)) != 0
+
+    def has_children(self, node: AbsLayerNode) -> bool:
+        return len(self.get_children(node)) != 0
+
+    def get_roots(self) -> List[AbsLayerNode]:
+
+        root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if not self.has_parents(root_node)]
+        return root_nodes
+
+    def get_leaves(self) -> List[AbsLayerNode]:
+
+        leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if not self.has_children(leaf_node)]
+        return leaf_nodes
+
+    def remove_node(self, node: AbsLayerNode):
+
+        for parent_node in self.get_parents(node):
+            self.edges[parent_node.identifier].remove(node.identifier)
+
+        self.edges.pop(node.identifier)
+        self.nodes.pop(node.identifier)
+
+        return
+
+    def generic_add_node(self, node: AbsLayerNode, parents: Optional[List[AbsLayerNode]] = None,
+                         children: Optional[List[AbsLayerNode]] = None):
+
+        if parents is None:
+            parents = []
+
+        if children is None:
+            children = []
+
+        for parent_node in parents:
+
+            if parent_node.identifier not in self.nodes.keys():
+                raise Exception(f"Parent Node {parent_node.identifier} is not a node of the Network.")
+
+        for child_node in children:
+
+            if child_node.identifier not in self.nodes.keys():
+                raise Exception(f"Child Node {child_node.identifier} is not a node of the Network.")
+
+        self.nodes[node.identifier] = node
+        self.edges[node.identifier] = [c_node.identifier for c_node in children]
+
+        for parent in parents:
+            self.edges[parent.identifier].append(node.identifier)
+
+    def is_acyclic(self):
+
+        aux_network = copy.deepcopy(self)
+        root_nodes = aux_network.get_roots()
+        topologically_sorted = []
+
+        while len(root_nodes) > 0:
+
+            temp_node = root_nodes[0]
+            root_nodes.remove(temp_node)
+
+            topologically_sorted.append(temp_node)
+            for child_node in aux_network.get_children(temp_node):
+                aux_network.edges[temp_node.identifier].remove(child_node.identifier)
+                if not aux_network.has_parents(child_node):
+                    root_nodes.append(child_node)
+
+        has_edges = False
+        for start_node_id, end_nodes_ids in aux_network.edges.items():
+            if len(end_nodes_ids) > 0:
+                has_edges = True
+
+        return not has_edges
 
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
@@ -1803,6 +1945,92 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         while current_node is not None:
             abs_input = current_node.forward(abs_input)
             current_node = self.get_next_node(current_node)
+
+        return abs_input
+
+    def backward(self, ref_state: RefinementState):
+        """
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+        """
+        pass
+
+
+class AbsAcyclicNetwork(AbsNeuralNetwork):
+
+    def __init__(self, identifier: str, input_ids: List[str], input_edges: dict):
+        super().__init__()
+        self.identifier = identifier
+        self.input_ids = input_ids
+        self.input_edges = input_edges
+
+    def add_node(self, node: AbsLayerNode, parents: Optional[List[AbsLayerNode]] = None,
+                 children: Optional[List[AbsLayerNode]] = None):
+
+        self.generic_add_node(node, parents, children)
+        if not self.is_acyclic():
+            self.remove_node(node)
+            raise Exception(f"Adding {node.identifier} with the provided parents and children would create a cycle"
+                            f" in the Network!")
+
+    def get_node_inputs(self, node: AbsLayerNode):
+
+        node_input_ids = [key for key, value in self.input_edges if value == node.identifier]
+        return node_input_ids
+
+    def forward(self, abs_inputs: List[AbsElement]) -> List[AbsElement]:
+        """
+        Compute the output AbsElement based on the input AbsElement and the characteristics of the
+        concrete abstract transformers.
+
+        Parameters
+        ----------
+        abs_inputs : List[AbsElement]
+            The input abstract element.
+
+        Returns
+        ----------
+        List[AbsElement]
+            The AbsElements resulting from the computation corresponding to the abstract transformer.
+        """
+
+        abs_input_ids = [abs_elem.identifier for abs_elem in abs_inputs]
+        if set(abs_input_ids) != set(self.input_ids):
+            raise Exception("The IDs of the Abstract Elements do not corresponds to the expected Input IDs!")
+
+        if set(abs_input_ids) != set(self.input_edges.keys()):
+            raise Exception("The IDs of the Abstract Elements do not corresponds to the Keys of the Input Edges Dict!")
+
+        if [] in self.input_edges.values():
+            raise Exception("Every Input in the Input Edges Dictionary should have at least an Edge!")
+
+        nodes_stack = self.get_roots()
+
+        temp_abs_inputs = copy.deepcopy(abs_inputs)
+
+        while nodes_stack.__len__() != 0:
+
+            current_node = nodes_stack.pop(0)
+            if not self.has_parents(current_node):
+                input_ids = self.get_node_inputs(current_node)
+            else:
+                input_ids = [parent.identifier for parent in self.get_parents(current_node)]
+
+            current_node_inputs = [a_input for a_input in temp_abs_inputs if a_input.identifier in input_ids]
+
+
+
+
+
+
+
+
+
+
 
         return abs_input
 

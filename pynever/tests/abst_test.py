@@ -1,3 +1,4 @@
+
 import numpy as np
 
 import pynever.nodes as pyn_nodes
@@ -131,9 +132,32 @@ def test_abst_sum_node():
         print_star_data(star)
 
 
-test_single_concat()
-test_abst_concat_node()
-print("\n\n\n")
-test_single_sum()
-test_abst_sum_node()
+def test_relu():
+
+    first_predicate_matrix = np.array([[-1.0], [1.0]])
+    first_predicate_bias = np.array([[0.0], [1.0]])
+
+    print("FIRST STAR: ")
+    print_star_data(pyn_abst.Star(first_predicate_matrix, first_predicate_bias))
+
+    first_starset = pyn_abst.StarSet({pyn_abst.Star(first_predicate_matrix, first_predicate_bias)})
+    abst_relu_node = pyn_abst.AbsReLUNode("TEST", pyn_nodes.ReLUNode("TEST", (2,)), heuristic="best_n_neurons", params=[2])
+
+    output_starset = abst_relu_node.forward(first_starset)
+
+    print("\nOUTPUT STARSET:")
+
+    for i, star in enumerate(output_starset.stars):
+        print(f"\nSTAR {i}:")
+        print_star_data(star)
+
+
+
+if __name__ == "__main__":
+    test_single_concat()
+    test_abst_concat_node()
+    print("\n\n\n")
+    test_single_sum()
+    test_abst_sum_node()
+    # test_relu()
 

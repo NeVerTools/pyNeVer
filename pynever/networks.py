@@ -370,3 +370,11 @@ class AcyclicNetwork(NeuralNetwork):
                             f" in the Network!")
 
 
+        
+
+
+
+
+
+
+

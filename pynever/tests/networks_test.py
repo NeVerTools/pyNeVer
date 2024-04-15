@@ -152,6 +152,8 @@ def test_acyclic_network():
 
 if __name__ == "__main__":
     test_neural_network()
+    test_sequential_network()
+    test_acyclic_network()
 
 
 
