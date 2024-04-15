@@ -2095,7 +2095,7 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
     def get_node_inputs(self, node: AbsLayerNode):
 
-        node_input_ids = [key for key, value in self.input_edges if value == node.identifier]
+        node_input_ids = [key for key, value in self.input_edges.items() if node.identifier in value]
         return node_input_ids
 
     def forward(self, abs_inputs: List[AbsElement]) -> List[AbsElement]:
@@ -2125,7 +2125,6 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
             raise Exception("Every Input in the Input Edges Dictionary should have at least an Edge!")
 
         nodes_stack = self.get_roots()
-
         temp_abs_inputs = copy.deepcopy(abs_inputs)
 
         while nodes_stack.__len__() != 0:
@@ -2138,17 +2137,32 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
             current_node_inputs = [a_input for a_input in temp_abs_inputs if a_input.identifier in input_ids]
 
+            # TODO: At this time we need to check the difference between the inputs for multinputlayernodes and single
+            # input layer nodes. Once nodes refactor is done it can be simplified.
+            if isinstance(current_node, AbsSingleInputLayerNode):
 
+                if len(current_node_inputs) > 1:
+                    raise Exception(f"{current_node.__class__} should have a single input!")
+                else:
+                    current_abs_output = current_node.forward(current_node_inputs[0])
 
+            elif isinstance(current_node, AbsMultiInputLayerNode):
+                current_abs_output = current_node.forward(current_node_inputs)
+            else:
+                raise NotImplementedError
 
+            current_abs_output.identifier = current_node.identifier
+            temp_abs_inputs.append(current_abs_output)
 
+            current_children = self.get_children(current_node)
+            for child in current_children:
+                if child not in nodes_stack:
+                    nodes_stack.append(child)
 
+        leaves_ids = [leaf.identifier for leaf in self.get_leaves()]
+        final_outputs = [final_output for final_output in temp_abs_inputs if final_output.identifier in leaves_ids]
 
-
-
-
-
-        return abs_input
+        return final_outputs
 
     def backward(self, ref_state: RefinementState):
         """

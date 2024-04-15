@@ -1,5 +1,7 @@
 
 import numpy as np
+import networkx
+import matplotlib.pyplot as plt
 
 import pynever.nodes as pyn_nodes
 import pynever.strategies.abstraction as pyn_abst
@@ -152,12 +154,80 @@ def test_relu():
         print_star_data(star)
 
 
+def test_abst_acy_net():
+
+    first_predicate_matrix = np.array([[-1.0], [1.0]])
+    first_predicate_bias = np.array([[0.0], [1.0]])
+
+    second_predicate_matrix = np.array([[-1.0], [1.0]])
+    second_predicate_bias = np.array([[-2.0], [3.0]])
+
+    print("FIRST STAR: ")
+    print_star_data(pyn_abst.Star(first_predicate_matrix, first_predicate_bias))
+    print("\nSECOND STAR: ")
+    print_star_data(pyn_abst.Star(second_predicate_matrix, second_predicate_bias))
+
+    first_starset = pyn_abst.StarSet({pyn_abst.Star(first_predicate_matrix, first_predicate_bias)},
+                                     identifier='input1')
+
+    second_starset = pyn_abst.StarSet({pyn_abst.Star(second_predicate_matrix, second_predicate_bias)},
+                                      identifier='input2')
+
+    abs_inputs = [first_starset, second_starset]
+
+    abs_network = pyn_abst.AbsAcyclicNetwork("Test Neural Network", ['input1', 'input2'],
+                                             input_edges={'input1': ['root1'], 'input2': ['root2']})
+
+    root_node_1 = pyn_nodes.FullyConnectedNode("root1", (1,), 16)
+    abs_root_node_1 = pyn_abst.AbsFullyConnectedNode("root1", root_node_1)
+    root_node_2 = pyn_nodes.FullyConnectedNode("root2", (1,), 32)
+    abs_root_node_2 = pyn_abst.AbsFullyConnectedNode("root2", root_node_2)
+
+    child_node_1 = pyn_nodes.ReLUNode("inter1", (16,))
+    abs_child_node_1 = pyn_abst.AbsReLUNode("inter1", child_node_1, heuristic="best_n_neurons", params=[0])
+    child_node_2 = pyn_nodes.ReLUNode("inter2", (32,))
+    abs_child_node_2 = pyn_abst.AbsReLUNode("inter2", child_node_2, heuristic="best_n_neurons", params=[0])
+
+    multi_input_node = pyn_nodes.ConcatNode("union", [(16,), (32,)])
+    abs_multi_input_node = pyn_abst.AbsConcatNode("union", multi_input_node)
+
+    leaf_node_1 = pyn_nodes.FullyConnectedNode("leaf1", (48,), 8)
+    abs_leaf_node_1 = pyn_abst.AbsFullyConnectedNode("leaf1", leaf_node_1)
+    leaf_node_2 = pyn_nodes.FullyConnectedNode("leaf2", (48,), 4)
+    abs_leaf_node_2 = pyn_abst.AbsFullyConnectedNode("leaf2", leaf_node_2)
+
+    abs_network.add_node(abs_root_node_1)
+    abs_network.add_node(abs_root_node_2)
+
+    abs_network.add_node(abs_child_node_1, [abs_root_node_1])
+    abs_network.add_node(abs_child_node_2, [abs_root_node_2])
+
+    abs_network.add_node(abs_leaf_node_1)
+
+    abs_network.add_node(abs_multi_input_node, [abs_child_node_1, abs_child_node_2], [abs_leaf_node_1])
+
+    abs_network.add_node(abs_leaf_node_2, [abs_multi_input_node])
+
+    temp_g = networkx.DiGraph(abs_network.edges)
+    networkx.draw_networkx(temp_g)
+    plt.show()
+
+    output_starsets = abs_network.forward(abs_inputs)
+
+    print("\nOUTPUT STARSETS:")
+
+    for k, output_starset in enumerate(output_starsets):
+        print(f"\nSTARSET {k}:")
+
+        for i, star in enumerate(output_starset.stars):
+            print(f"\nSTAR {i}:")
+            print_star_data(star)
+
 
 if __name__ == "__main__":
-    test_single_concat()
-    test_abst_concat_node()
-    print("\n\n\n")
-    test_single_sum()
-    test_abst_sum_node()
-    # test_relu()
+    # test_single_concat()
+    # test_abst_concat_node()
+    # test_single_sum()
+    # test_abst_sum_node()
+    test_abst_acy_net()
 
