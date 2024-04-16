@@ -5,9 +5,9 @@ import time
 from pynever import utilities
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies import verification, conversion
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
-BENCHMARKS_PATH = '../../../examples/benchmarks'
+BENCHMARKS_PATH = '../../examples/benchmarks'
 
 logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
@@ -17,23 +17,27 @@ logger_file = logging.getLogger("log_file")
 logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 logger_file.setLevel(logging.INFO)
 
+generate_files = False
 
 def format_csv(answer: list, nn: NeuralNetwork, prop_name: str) -> str:
     # If answer is False without counterexample -> timeout
     if len(answer) == 1:
         if answer[0]:
-            with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
-                out.write('unsat')
+            if generate_files:
+                with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
+                    out.write('unsat')
 
             return 'Verified'
         else:
-            with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
-                out.write('unknown')
+            if generate_files:
+                with open(f'logs/{nn.identifier}-{prop_name}_result.txt', 'w') as out:
+                    out.write('unknown')
 
             return 'Unknown'
 
     else:
-        print_cex_file(answer[1], nn, prop_name)
+        if generate_files:
+            print_cex_file(answer[1], nn, prop_name)
 
         fancy_cex = '['
         for component in answer[1]:

@@ -280,72 +280,6 @@ def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star)
     return new_target, star
 
 
-# TODO Deprecated
-def get_target_sequential_OLD(star: Star, current_target: RefinementTarget, nn_list: list) -> (RefinementTarget, Star):
-    """
-    This function updates the target for the refinement of the star using
-    a sequential approach. For each ReLU layer all neurons are refined
-    sequentially.
-
-    Parameters
-    ----------
-    star : Star
-        The star to refine
-    current_target : RefinementTarget
-        The current target to update
-    nn_list : list
-        The list of the network layers
-
-    Returns
-    ----------
-    tuple, Star
-        The new target for the refinement, it is None when there is no more
-        refinement to do for this star, and the propagated star
-
-    """
-
-    def get_last_relu(net_list: list):
-        last_relu_idx = 0
-        for net_layer in net_list[::-1]:
-            if isinstance(net_layer, nodes.ReLUNode):
-                last_relu_idx = net_list.index(net_layer)
-                break
-
-        return last_relu_idx
-
-    new_target = None
-
-    # Propagate current star to the next ReLU layer
-    star = propagate_until_relu(star, nn_list)
-    target_layer = star.ref_layer
-
-    # Check if the target refers to a previous layer
-    if target_layer != current_target.layer_idx and target_layer < get_last_relu(nn_list):
-        new_target = RefinementTarget(target_layer, 0)
-
-    # Check if the neurons in the layer have been all processed
-    elif current_target.neuron_idx == star.center.shape[0] - 1:
-
-        # Check if all the layers have been processed
-        if target_layer < get_last_relu(nn_list):
-
-            # Go to the first neuron of next ReLU layer
-            next_relu = target_layer
-            for layer in nn_list[target_layer + 1:]:
-                if isinstance(layer, nodes.ReLUNode):
-                    next_relu = nn_list.index(layer)
-                    break
-
-            new_target = RefinementTarget(next_relu, 0)
-            star.ref_layer += 1
-            star = propagate_until_relu(star, nn_list)
-    else:
-        # Increment the neuron
-        new_target = RefinementTarget(target_layer, current_target.neuron_idx + 1)
-
-    return new_target, star
-
-
 def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
@@ -374,59 +308,65 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
     """
 
     index = target.neuron_idx
-
-    mask = np.identity(star.center.shape[0])
-    mask[index, index] = 0
-
     cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
-    stable = abst.check_stable(index, cur_bounds)
 
-    # Positive stable
-    if stable == 1:
-        star.ref_layer = target.layer_idx
-        star.ref_neuron += 1
-        return [(star, bounds_dict)]
+    # Loop to filter positive stable neurons
+    while index < star.center.shape[0]:
 
-    # Negative stable
-    elif stable == -1:
-        new_c = np.matmul(mask, star.center)
-        new_b = np.matmul(mask, star.basis_matrix)
-        new_pred = star.predicate_matrix
-        new_bias = star.predicate_bias
-        new_star = Star(new_pred, new_bias, new_c, new_b)
+        mask = np.identity(star.center.shape[0])
+        mask[index, index] = 0
 
-        new_star.ref_layer = target.layer_idx
-        new_star.ref_neuron = star.ref_neuron + 1
+        stable = abst.check_stable(index, cur_bounds)
 
-        return [(new_star, bounds_dict)]
+        # Positive stable
+        if stable == 1:
+            star.ref_layer = target.layer_idx
+            star.ref_neuron += 1
+            index += 1
 
-    # Unstable
-    else:
-        # Lower star
-        lower_c = np.matmul(mask, star.center)
-        lower_b = np.matmul(mask, star.basis_matrix)
-        lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
-        lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
-        lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
+        # Negative stable
+        elif stable == -1:
+            new_c = np.matmul(mask, star.center)
+            new_b = np.matmul(mask, star.basis_matrix)
+            new_pred = star.predicate_matrix
+            new_bias = star.predicate_bias
+            new_star = Star(new_pred, new_bias, new_c, new_b)
 
-        lower_star.ref_layer = target.layer_idx
-        lower_star.ref_neuron = star.ref_neuron + 1
+            new_star.ref_layer = target.layer_idx
+            new_star.ref_neuron = star.ref_neuron + 1
 
-        # Upper star
-        upper_c = star.center
-        upper_b = star.basis_matrix
-        upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
-        upper_bias = np.vstack((star.predicate_bias, star.center[index]))
-        upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
+            return [(new_star, bounds_dict)]
 
-        upper_star.ref_layer = target.layer_idx
-        upper_star.ref_neuron = star.ref_neuron + 1
+        # Unstable
+        else:
+            # Lower star
+            lower_c = np.matmul(mask, star.center)
+            lower_b = np.matmul(mask, star.basis_matrix)
+            lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
+            lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
+            lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
-        # TODO update bounds
-        return [
-            (lower_star, bounds_dict),
-            (upper_star, bounds_dict)
-        ]
+            lower_star.ref_layer = target.layer_idx
+            lower_star.ref_neuron = star.ref_neuron + 1
+
+            # Upper star
+            upper_c = star.center
+            upper_b = star.basis_matrix
+            upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
+            upper_bias = np.vstack((star.predicate_bias, star.center[index]))
+            upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
+
+            upper_star.ref_layer = target.layer_idx
+            upper_star.ref_neuron = star.ref_neuron + 1
+
+            # TODO update bounds
+            return [
+                (lower_star, bounds_dict),
+                (upper_star, bounds_dict)
+            ]
+
+    # I get here only if I complete the while loop
+    return [(star, bounds_dict)]
 
 
 def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
