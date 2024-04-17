@@ -356,9 +356,10 @@ class SequentialNetwork(NeuralNetwork):
 
 class AcyclicNetwork(NeuralNetwork):
 
-    def __init__(self, identifier: str, input_ids: List[str]):
+    def __init__(self, identifier: str, input_ids: List[str], input_edges: dict):
         super().__init__(identifier)
         self.input_ids = input_ids
+        self.input_edges = input_edges
 
     def add_node(self, node: nodes.LayerNode, parents: Optional[List[nodes.LayerNode]] = None,
                  children: Optional[List[nodes.LayerNode]] = None):

@@ -537,6 +537,66 @@ class NeverVerification(VerificationStrategy):
 
         return abst_network
 
+    @staticmethod
+    def build_abst_acy_network(network: networks.AcyclicNetwork, heuristic: str, params: List) \
+            -> abst.AbsAcyclicNetwork:
+
+        abst_network = abst.AbsAcyclicNetwork("Abstract Network", network.input_ids, network.input_edges)
+        node_queue = network.get_roots()
+        relu_count = 0
+
+        while node_queue.__len__() != 0:
+
+            current_node = node_queue.pop(0)
+
+            if isinstance(current_node, nodes.FullyConnectedNode):
+                current_abst_node = abst.AbsFullyConnectedNode(current_node.identifier, current_node)
+
+            elif isinstance(current_node, nodes.ReLUNode):
+
+                if heuristic == "overapprox":
+                    temp_params = [0]
+                    temp_heuristic = "best_n_neurons"
+                elif heuristic == "complete":
+                    temp_params = [current_node.in_dim[0]]
+                    temp_heuristic = "best_n_neurons"
+                elif heuristic == "mixed":
+                    temp_params = params[relu_count]
+                    temp_heuristic = "best_n_neurons"
+                elif params is None and heuristic == "best_n_neurons":
+                    temp_params = [0]
+                    temp_heuristic = heuristic
+                elif params is None and heuristic == "given_flags":
+                    temp_params = [False for i in range(len(current_node.in_dim[0]))]
+                    temp_heuristic = heuristic
+                else:
+                    temp_params = params[relu_count]
+                    temp_heuristic = heuristic
+
+                current_abst_node = abst.AbsReLUNode(current_node.identifier, current_node,
+                                                     temp_heuristic, temp_params)
+                relu_count += 1
+
+            elif isinstance(current_node, nodes.SumNode):
+                current_abst_node = abst.AbsSumNode(current_node.identifier, current_node)
+
+            elif isinstance(current_node, nodes.ConcatNode):
+                current_abst_node = abst.AbsConcatNode(current_node.identifier, current_node)
+
+            else:
+                raise Exception(f"Node type: {current_node.__class__.__name__} not supported")
+
+            parents_ids = [parent.identifier for parent in network.get_parents(current_node)]
+            abst_network.add_node(current_abst_node, parents_ids)
+
+            current_children = network.get_children(current_node)
+
+            for child in current_children:
+                if child not in node_queue:
+                    node_queue.append(child)
+
+        return abst_network
+
     def __compute_output_starset(self, abst_network: abst.AbsSeqNetwork, prop: NeVerProperty, bounds_dictionary: dict) \
             -> (abst.StarSet, List):
 

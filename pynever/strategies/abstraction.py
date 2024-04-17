@@ -1836,8 +1836,8 @@ class AbsNeuralNetwork(abc.ABC):
 
         return
 
-    def generic_add_node(self, node: AbsLayerNode, parents: Optional[List[AbsLayerNode]] = None,
-                         children: Optional[List[AbsLayerNode]] = None):
+    def generic_add_node(self, node: AbsLayerNode, parents: Optional[List[str]] = None,
+                         children: Optional[List[str]] = None):
 
         if parents is None:
             parents = []
@@ -1845,21 +1845,21 @@ class AbsNeuralNetwork(abc.ABC):
         if children is None:
             children = []
 
-        for parent_node in parents:
+        for parent_id in parents:
 
-            if parent_node.identifier not in self.nodes.keys():
-                raise Exception(f"Parent Node {parent_node.identifier} is not a node of the Network.")
+            if parent_id not in self.nodes.keys():
+                raise Exception(f"Parent Node {parent_id} is not a node of the Network.")
 
-        for child_node in children:
+        for child_id in children:
 
-            if child_node.identifier not in self.nodes.keys():
-                raise Exception(f"Child Node {child_node.identifier} is not a node of the Network.")
+            if child_id not in self.nodes.keys():
+                raise Exception(f"Child Node {child_id} is not a node of the Network.")
 
         self.nodes[node.identifier] = node
-        self.edges[node.identifier] = [c_node.identifier for c_node in children]
+        self.edges[node.identifier] = [c_id for c_id in children]
 
-        for parent in parents:
-            self.edges[parent.identifier].append(node.identifier)
+        for parent_id in parents:
+            self.edges[parent_id].append(node.identifier)
 
     def is_acyclic(self):
 
@@ -2084,8 +2084,8 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
         self.input_ids = input_ids
         self.input_edges = input_edges
 
-    def add_node(self, node: AbsLayerNode, parents: Optional[List[AbsLayerNode]] = None,
-                 children: Optional[List[AbsLayerNode]] = None):
+    def add_node(self, node: AbsLayerNode, parents: Optional[List[str]] = None,
+                 children: Optional[List[str]] = None):
 
         self.generic_add_node(node, parents, children)
         if not self.is_acyclic():
@@ -2095,8 +2095,12 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
     def get_node_inputs(self, node: AbsLayerNode):
 
-        node_input_ids = [key for key, value in self.input_edges.items() if node.identifier in value]
-        return node_input_ids
+        if not self.has_parents(node):
+            input_ids = [key for key, value in self.input_edges.items() if node.identifier in value]
+        else:
+            input_ids = [parent.identifier for parent in self.get_parents(node)]
+
+        return input_ids
 
     def forward(self, abs_inputs: List[AbsElement]) -> List[AbsElement]:
         """
@@ -2124,16 +2128,13 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
         if [] in self.input_edges.values():
             raise Exception("Every Input in the Input Edges Dictionary should have at least an Edge!")
 
-        nodes_stack = self.get_roots()
+        node_queue = self.get_roots()
         temp_abs_inputs = copy.deepcopy(abs_inputs)
 
-        while nodes_stack.__len__() != 0:
+        while node_queue.__len__() != 0:
 
-            current_node = nodes_stack.pop(0)
-            if not self.has_parents(current_node):
-                input_ids = self.get_node_inputs(current_node)
-            else:
-                input_ids = [parent.identifier for parent in self.get_parents(current_node)]
+            current_node = node_queue.pop(0)
+            input_ids = self.get_node_inputs(current_node)
 
             current_node_inputs = [a_input for a_input in temp_abs_inputs if a_input.identifier in input_ids]
 
@@ -2156,8 +2157,8 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
             current_children = self.get_children(current_node)
             for child in current_children:
-                if child not in nodes_stack:
-                    nodes_stack.append(child)
+                if child not in node_queue:
+                    node_queue.append(child)
 
         leaves_ids = [leaf.identifier for leaf in self.get_leaves()]
         final_outputs = [final_output for final_output in temp_abs_inputs if final_output.identifier in leaves_ids]

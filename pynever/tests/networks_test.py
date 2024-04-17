@@ -1,5 +1,6 @@
 import pynever.networks as pyn_networks
 import pynever.nodes as pyn_nodes
+import pynever.strategies.verification as pyn_ver
 import networkx
 import matplotlib.pyplot as plt
 
@@ -103,7 +104,7 @@ def test_sequential_network():
 
 def test_acyclic_network():
 
-    network = pyn_networks.AcyclicNetwork("Test Neural Network", ['X', 'Z'])
+    network = pyn_networks.AcyclicNetwork("Test Neural Network", ['X', 'Z'], {'X': ["FC_1"], 'Z': ["FC_2"]})
 
     root_node_1 = pyn_nodes.FullyConnectedNode("FC_1", (2,), 16)
     root_node_2 = pyn_nodes.FullyConnectedNode("FC_2", (3,), 32)
@@ -146,13 +147,17 @@ def test_acyclic_network():
     print(network.has_parents(root_node_2))
     print(network.has_children(leaf_node_2))
 
-    cycle_node = pyn_nodes.FullyConnectedNode("FC_cycle", (8,), 2)
-    network.add_node(cycle_node, [leaf_node_1], [root_node_1])
+    abs_acy_net = pyn_ver.NeverVerification.build_abst_acy_network(network, heuristic="overapprox", params=[])
+    temp_g = networkx.DiGraph(abs_acy_net.edges)
+    networkx.draw_networkx(temp_g)
+    plt.show()
+
+
 
 
 if __name__ == "__main__":
-    test_neural_network()
-    test_sequential_network()
+    # test_neural_network()
+    # test_sequential_network()
     test_acyclic_network()
 
 
