@@ -19,6 +19,7 @@ logger_file.setLevel(logging.INFO)
 
 generate_files = False
 
+
 def format_csv(answer: list, nn: NeuralNetwork, prop_name: str) -> str:
     # If answer is False without counterexample -> timeout
     if len(answer) == 1:

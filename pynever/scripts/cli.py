@@ -17,10 +17,10 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
-def verify_single_model(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
+def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
     """
     This method starts the verification procedure on the network model
-    provided in the model_file path and prints the result
+    provided in the model_file path and prints the result with the SSLP algorithm
 
     Parameters
     ----------
@@ -138,10 +138,10 @@ def verify_single_model(safety_prop: bool, model_file: str, property_file: str, 
                 return False
 
 
-def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
+def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
     """
     This method starts the verification procedure on the network model
-    provided in the model_file path and prints the result
+    provided in the model_file path and prints the result with the SSLP algorithm
 
     Parameters
     ----------
@@ -182,7 +182,7 @@ def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: s
                     if len(row) >= 2:
                         net_path = f'{folder}/{row[0]}'
                         prop_path = f'{folder}/{row[1]}'
-                        verify_single_model(safety_prop, net_path, prop_path, strategy, logfile)
+                        sslp_verify_single(safety_prop, net_path, prop_path, strategy, logfile)
                     else:
                         print('Invalid row: ', row)
                         exec_ok = False
@@ -195,13 +195,14 @@ def reformat_counterexample(counterexample: Tensor) -> str:
 
     """
 
-    response = '['
+    formatted = '['
     for component in counterexample:
-        response += str(float(component))
-        response += ' '
-    response = response[:-1]
-    response += ']'
-    return response
+        formatted += str(float(component[0]))
+        formatted += ' '
+    formatted = formatted[:-1]
+    formatted += ']'
+
+    return formatted
 
 
 def neg_post_condition(prop_path: str) -> None:

@@ -50,11 +50,11 @@ if __name__ == "__main__":
 
     # Execution
     if 'model' in args.keys():
-        if not cli.verify_single_model(safety, args['model'], args['property'], args['strategy'], logfile):
+        if not cli.sslp_verify_single(safety, args['model'], args['property'], args['strategy'], logfile):
             exit(1)
 
     elif 'csv' in args.keys():
-        if not cli.verify_CSV_batch(safety, args['csv'], args['strategy'], logfile):
+        if not cli.sslp_verify_batch(safety, args['csv'], args['strategy'], logfile):
             exit(1)
 
     else:
