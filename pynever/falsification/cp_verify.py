@@ -47,7 +47,7 @@ def verify_cp(network_path, property_path, get_output_bounds=False):
     # X_C @ x <= X_d
     # FIXME X and Y should be changed when they will be the same as the input and output of the network
     in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading.\
-        SmtPropertyParser(property_path, "X", nn.get_last_node().identifier).parse_property()
+        SmtPropertyParser(property_path, "X", "Y").parse_property()
 
     bounds = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 
@@ -121,9 +121,9 @@ def verify_cp(network_path, property_path, get_output_bounds=False):
         for i in range(len(y)):
             output_bounds.append(var_bounds[f'Y_{i}'].value)
 
-    mdl.solve()
+    # mdl.solve()
     #return mdl.solve().solve_status, output_bounds
-    return "placeholder", output_bounds
+    return mdl.solve().solve_status
 
 
 if __name__ == "__main__":
@@ -168,4 +168,31 @@ if __name__ == "__main__":
     # with open("cp_bounds.txt", "w") as f:
     #     for network, prop, result, time in zip(networks, properties, results, times):
     #         f.write(f"{network}\t{prop}\t{result}\t{time}\n")
-    verify_cp("networks/ex.onnx", "properties/ex.smt2")
+    import glob
+    import time
+
+    networks = glob.glob("networks/james/*.onnx")
+    properties = glob.glob("properties/james/*.vnnlib")
+
+    # networks = glob.glob("networks/ex/ex*.onnx")
+    # properties = glob.glob("properties/ex/ex*.smt2")
+
+    results = {}
+    times = {}
+
+    for prop in properties:
+        for network in networks:
+            print(network.split('/')[2])
+            print(prop.split('/')[2])
+            start = time.time()
+            result = verify_cp(network, prop)
+            end = time.time()
+            results[(network, prop)] = result
+            times[(network, prop)] = end - start
+
+    with open("cp_times.txt", "w") as f:
+        for prop in properties:
+            for network in networks:
+                f.write(
+                    f"{network.split('/')[2]}\t{prop.split('/')[2]}\t{results[(network, prop)]}\t{times[network, prop]}\n")
+
