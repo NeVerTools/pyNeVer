@@ -7,26 +7,32 @@ import subprocess
 
 # Test SSBP
 
-print('Test SSBP')
-subprocess.run(['python', 'never2_single.py', '-o', 'ssbp.csv',
+print('Test SSBP single')
+subprocess.run(['python', 'never2_single.py', '-o', 'ssbp_single.csv',
                 'examples/benchmarks/Test/test_small.onnx',
                 'examples/benchmarks/Test/test_small.vnnlib',
                 '-t', '60', 'ssbp'])
 
-# Test single instances
+print('Test SSBP batch')
+subprocess.run(['python', 'never2_batch.py', '-o', 'ssbp_batch.csv',
+                'examples/benchmarks/Test/instances.csv',
+                '-t', '60', 'ssbp'])
 
-print("Test single instance of test_small")
-subprocess.run(['python', 'pynever.py', '-o', 'single.csv', 'overapprox', 'single', '-u',
+# Test SSLP
+
+print('Test SSLP single - complete')
+subprocess.run(['python', 'never2_single.py', '-o', 'sslp_single1.csv',
+                'examples/benchmarks/RL/Networks/cartpole.onnx',
+                'examples/benchmarks/RL/Properties/cartpole_case_safe_99.vnnlib',
+                'sslp', '-s', 'complete'])
+
+print('Test SSLP single - approx')
+subprocess.run(['python', 'never2_single.py', '-o', 'sslp_single2.csv',
                 'examples/benchmarks/Test/test_small.onnx',
-                'examples/benchmarks/Test/test_small.vnnlib'])
+                'examples/benchmarks/Test/test_small.vnnlib',
+                'sslp', '-s', 'overapprox'])
 
-print("Test single instance of test_ACC")
-subprocess.run(['python', 'pynever.py', 'mixed', 'single', '-u',
-                'examples/benchmarks/ACC/Networks/NET_0_1.5_5.onnx',
-                'examples/benchmarks/ACC/Properties/prop_far0_eps0.vnnlib'])
-
-# Test batch instances
-
-print("Test ACC batch instances")
-subprocess.run(['python', 'pynever.py', 'complete', 'batch', '-u',
-                'examples/benchmarks/ACC/instances.csv'])
+print('Test SSLP batch')
+subprocess.run(['python', 'never2_batch.py', '-o', 'sslp_batch.csv',
+                'examples/benchmarks/Test/instances.csv',
+                'sslp', '-s', 'mixed'])
