@@ -140,11 +140,7 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
                 return False
 
 
-def ssbp_verify_single(model_file: str,
-                       property_file: str,
-                       logfile: str,
-                       timeout: int = 300,
-                       params_file: str = '') -> bool:
+def ssbp_verify_single(model_file: str, property_file: str, logfile: str, timeout: int, params_file: str) -> bool:
     """
     This method starts the verification procedure on the network model provided
     in the model_file path for the property specified in property_file, using
@@ -275,8 +271,55 @@ def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: 
     return exec_ok
 
 
-def ssbp_verify_batch(param, param1, logfile):
-    return None
+def ssbp_verify_batch(csv_file: str, logfile: str, timeout: int, params_file: str) -> bool:
+    """
+    This method starts the verification procedure on the batch of instances
+    provided in the csv_file path, using the SSBP algorithm
+
+    Parameters
+    ----------
+    csv_file : str
+        Path to the instances file
+    logfile : str
+        Path to the CSV output file
+    timeout : int
+        Execution timeout, optional
+    params_file : str, optional
+        Path to the JSON parameters file
+
+    Returns
+    ----------
+    bool
+        True if all the instances executed, False otherwise
+
+    """
+
+    csv_file_path = os.path.abspath(csv_file)
+    folder = os.path.dirname(csv_file_path)
+    exec_ok = True
+
+    if not os.path.isfile(csv_file_path):
+        print('Invalid path for the CSV file.')
+        return False
+
+    else:
+        with open(csv_file_path, newline='') as f:
+            try:
+                reader = csv.reader(f)
+            except OSError:
+                print('Cannot open file ', csv_file)
+                return False
+
+            else:
+                for row in reader:
+                    if len(row) >= 2:
+                        net_path = f'{folder}/{row[0]}'
+                        prop_path = f'{folder}/{row[1]}'
+                        ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+                    else:
+                        print('Invalid row: ', row)
+                        exec_ok = False
+    return exec_ok
 
 
 def dump_results(name, net, ans, t, out):
