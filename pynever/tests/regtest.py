@@ -5,6 +5,14 @@ using the command-line interface in the different possible modes.
 
 import subprocess
 
+# Test SSBP
+
+print('Test SSBP')
+subprocess.run(['python', 'never2_single.py', '-o', 'ssbp.csv',
+                'examples/benchmarks/Test/test_small.onnx',
+                'examples/benchmarks/Test/test_small.vnnlib',
+                '-t', '60', 'ssbp'])
+
 # Test single instances
 
 print("Test single instance of test_small")

@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 import os
 import re
@@ -8,6 +9,7 @@ import time
 import pynever.networks as nets
 import pynever.strategies.conversion as conv
 import pynever.strategies.verification as ver
+from pynever import utilities
 from pynever.tensors import Tensor
 from pynever.utilities import execute_network
 
@@ -138,10 +140,94 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
                 return False
 
 
+def ssbp_verify_single(model_file: str,
+                       property_file: str,
+                       logfile: str,
+                       timeout: int = 300,
+                       params_file: str = '') -> bool:
+    """
+    This method starts the verification procedure on the network model provided
+    in the model_file path for the property specified in property_file, using
+    the SSBP algorithm
+
+    Parameters
+    ----------
+    model_file : str
+        Path to the ONNX network file
+    property_file : str
+        Path to the VNNLIB property file
+    logfile : str
+        Path to the CSV output file
+    timeout : int
+        Execution timeout, optional
+    params_file : str, optional
+        Path to the JSON parameters file
+
+    Returns
+    ----------
+    bool
+        True if the network is safe w.r.t. the property, False otherwise
+
+    """
+
+    nn_path = os.path.abspath(model_file)
+    prop_path = os.path.abspath(property_file)
+    params_path = os.path.abspath(params_file)
+    params = None
+
+    if not os.path.isfile(nn_path):
+        print(f'Error: file {nn_path} not found!')
+        return False
+
+    elif not os.path.isfile(prop_path):
+        print(f'Error: file {prop_path} not found!')
+        return False
+
+    elif params_file != '' and not os.path.isfile(params_path):
+        print(f'Error: file {params_path} not found!')
+        return False
+
+    else:
+        # Read the network file
+        alt_repr = conv.load_network_path(nn_path)
+
+        if alt_repr is not None:
+            if isinstance(alt_repr, conv.ONNXNetwork):
+                network = conv.ONNXConverter().to_neural_network(alt_repr)
+
+                if isinstance(network, nets.SequentialNetwork):
+                    # Read the property file
+                    to_verify = ver.NeVerProperty()
+                    to_verify.from_smt_file(prop_path)
+
+                    if os.path.isfile(params_path):
+                        params = json.loads(params_path)
+
+                    ver_strategy = ver.SearchVerification(params)
+                    ver_strategy.search_params['timeout'] = timeout
+
+                    start_time = time.perf_counter()
+                    result = ver_strategy.verify(network, to_verify)
+                    lap = time.perf_counter() - start_time
+
+                    p_name = prop_path.split('/')[-1].split('\\')[-1]
+                    net_name = network.identifier.split('/')[-1].split('\\')[-1]
+                    instance_name = f'{net_name} - {p_name}'
+                    dump_results(instance_name, network, result, lap, logfile)
+
+                    return result[0]
+            else:
+                print('Not an ONNX model.')
+                return False
+        else:
+            print('The model is not readable.')
+            return False
+
+
 def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
     """
-    This method starts the verification procedure on the network model
-    provided in the model_file path and prints the result with the SSLP algorithm
+    This method starts the verification procedure on the instances provided
+    in the csv_file path and prints the result with the SSLP algorithm
 
     Parameters
     ----------
@@ -187,6 +273,43 @@ def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: 
                         print('Invalid row: ', row)
                         exec_ok = False
     return exec_ok
+
+
+def ssbp_verify_batch(param, param1, logfile):
+    return None
+
+
+def dump_results(name, net, ans, t, out):
+    """
+    This method prints the result of the verification procedure to a CSV file and to a single instance file
+    as per VNN-COMP directive
+
+    """
+
+    # CSV structure: name,time,result
+    with open(out, 'a', encoding='utf-8') as csv_out, open(f'{name.replace(".vnnlib", "")}.txt', 'w') as inst_out:
+        csv_out.write(f'{name},')
+
+        # If answer is False with no counterexample -> timeout
+        if len(ans) == 1:
+            if ans[0]:
+                csv_out.write(f'{t},Verified\n')
+                inst_out.write('unsat')
+            else:
+                csv_out.write(f'-,Unknown\n')
+                inst_out.write('unknown')
+        else:
+            unsafe_out = utilities.execute_network(net, ans[1])
+            text = ''
+            for i in range(len(ans[1])):
+                text += f'(X_{i} {ans[1][i]})\n'
+
+            for j in range(len(unsafe_out)):
+                text += f'(Y_{j} {unsafe_out[j]})\n'
+            text = text.replace('[', '').replace(']', '')[:-1]
+
+            csv_out.write(f'{t},Unsafe\n')
+            inst_out.write(f'sat\n({text})')
 
 
 def reformat_counterexample(counterexample: Tensor) -> str:
