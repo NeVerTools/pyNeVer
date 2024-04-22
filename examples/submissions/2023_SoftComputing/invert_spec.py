@@ -1,6 +1,6 @@
 import os
 
-property_path = 'data/Drones/Properties'
+property_path = '../../benchmarks/Drones/Properties'
 
 lines = []
 

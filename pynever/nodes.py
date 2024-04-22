@@ -1,11 +1,11 @@
 import abc
 import copy
 import math
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 
 class LayerNode(abc.ABC):
@@ -17,6 +17,22 @@ class LayerNode(abc.ABC):
     ----------
     identifier : str
         Identifier of the LayerNode.
+
+    """
+
+    def __init__(self, identifier: str):
+        self.identifier = identifier
+
+
+class SingleInputLayerNode(LayerNode):
+    """
+    An abstract class used for our internal representation of a generic Single Input Layer of a Neural Network.
+    Its concrete children correspond to real network layers.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the SingleInputLayerNode.
     in_dim : Tuple
         Dimension of the input Tensor as a tuple (ndarray.shape like).
     out_dim : Tuple
@@ -25,7 +41,7 @@ class LayerNode(abc.ABC):
     """
 
     def __init__(self, identifier: str, in_dim: Tuple, out_dim: Tuple):
-        self.identifier = identifier
+        super().__init__(identifier)
         self.in_dim = in_dim
         self.out_dim = out_dim
 
@@ -40,7 +56,39 @@ class LayerNode(abc.ABC):
         pass
 
 
-class ReLUNode(LayerNode):
+class MultiInputLayerNode(LayerNode):
+    """
+    An abstract class used for our internal representation of a generic multi-input Layer of a Neural Network.
+    Its concrete children correspond to real network layers.
+
+    Attributes
+    ----------
+    identifier : str
+        Identifier of the SingleInputLayerNode.
+    in_dims : List[Tuple]
+        Dimension of the input Tensors as a tuples (ndarray.shape like).
+    out_dim : Tuple
+        Dimension of the output Tensor as a tuple (ndarray.shape like).
+
+    """
+
+    def __init__(self, identifier: str, in_dims: List[Tuple], out_dim: Tuple):
+        super().__init__(identifier)
+        self.in_dims = in_dims
+        self.out_dim = out_dim
+
+    def __repr__(self):
+        return f"{self.identifier} ({self.__class__.__name__}) : in_dim = {self.in_dims}, out_dim = {self.out_dim}"
+
+    def __str__(self):
+        return self.__repr__()
+
+    @abc.abstractmethod
+    def update_input(self, in_dims: List[Tuple]):
+        pass
+
+
+class ReLUNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a ReLU Layer of a Neural Network.
 
@@ -60,7 +108,7 @@ class ReLUNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class ELUNode(LayerNode):
+class ELUNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a ELU Layer of a Neural Network.
 
@@ -86,7 +134,7 @@ class ELUNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class CELUNode(LayerNode):
+class CELUNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a CELU Layer of a Neural Network.
 
@@ -112,7 +160,7 @@ class CELUNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class LeakyReLUNode(LayerNode):
+class LeakyReLUNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Leaky ReLU Layer of a Neural Network.
 
@@ -138,7 +186,7 @@ class LeakyReLUNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class SigmoidNode(LayerNode):
+class SigmoidNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Sigmoid Layer of a Neural Network.
 
@@ -158,7 +206,7 @@ class SigmoidNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class TanhNode(LayerNode):
+class TanhNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Tanh Layer of a Neural Network.
 
@@ -166,6 +214,7 @@ class TanhNode(LayerNode):
     ----------
 
     """
+
     def __init__(self, identifier: str, in_dim: Tuple):
         if not len(in_dim) >= 1:
             raise Exception("TanhNode: in_dim cannot be void")
@@ -177,7 +226,7 @@ class TanhNode(LayerNode):
         self.__init__(self.identifier, in_dim)
 
 
-class FullyConnectedNode(LayerNode):
+class FullyConnectedNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Fully Connected layer of a Neural Network
 
@@ -245,7 +294,7 @@ class FullyConnectedNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.out_features, self.weight, self.bias, self.has_bias)
 
 
-class BatchNormNode(LayerNode):
+class BatchNormNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a one dimensional Batch Normalization Layer.
     N.B. There are some problem for compatibility between pytorch and onnx: pytorch provide 3 different kind
@@ -339,7 +388,7 @@ class BatchNormNode(LayerNode):
                       self.eps, self.momentum, self.affine, self.track_running_stats)
 
 
-class ConvNode(LayerNode):
+class ConvNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Convolutional layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
@@ -459,7 +508,7 @@ class ConvNode(LayerNode):
                       self.has_bias, self.bias, self.weight)
 
 
-class AveragePoolNode(LayerNode):
+class AveragePoolNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a AveragePool layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
@@ -530,7 +579,7 @@ class AveragePoolNode(LayerNode):
                       self.padding, self.ceil_mode, self.count_include_pad)
 
 
-class MaxPoolNode(LayerNode):
+class MaxPoolNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a MaxPool layer of a Neural Network.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
@@ -609,7 +658,7 @@ class MaxPoolNode(LayerNode):
                       self.padding, self.dilation, self.ceil_mode, self.return_indices)
 
 
-class LRNNode(LayerNode):
+class LRNNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a LocalResponseNormalization Layer of a Neural Network.
 
@@ -642,7 +691,7 @@ class LRNNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.size, self.alpha, self.beta, self.k)
 
 
-class SoftMaxNode(LayerNode):
+class SoftMaxNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a SoftMax Layer of a Neural Network.
 
@@ -669,7 +718,7 @@ class SoftMaxNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.axis)
 
 
-class UnsqueezeNode(LayerNode):
+class UnsqueezeNode(SingleInputLayerNode):
     """
     A class used for our internal representation of an Unsqueeze Layer.
     We follow the ONNX operator convention for attributes and definitions.
@@ -717,7 +766,7 @@ class UnsqueezeNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.axes)
 
 
-class ReshapeNode(LayerNode):
+class ReshapeNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Reshape layer of a Neural Network.
     We follow the ONNX operator convention for attributes and definitions.
@@ -765,7 +814,7 @@ class ReshapeNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.shape, self.allow_zero)
 
 
-class FlattenNode(LayerNode):
+class FlattenNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Flatten layer of a Neural Network. We follow the ONNX operator
     convention for attributes and definitions.
@@ -800,7 +849,7 @@ class FlattenNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.axis)
 
 
-class DropoutNode(LayerNode):
+class DropoutNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Dropout Layer of a Neural Network.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
@@ -822,7 +871,7 @@ class DropoutNode(LayerNode):
         self.__init__(self.identifier, in_dim, self.p)
 
 
-class TransposeNode(LayerNode):
+class TransposeNode(SingleInputLayerNode):
     """
     A class used for our internal representation of a Dropout Layer of a Neural Network.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
@@ -848,3 +897,78 @@ class TransposeNode(LayerNode):
 
     def update_input(self, in_dim: Tuple):
         self.__init__(self.identifier, in_dim, self.perm)
+
+
+class ConcatNode(MultiInputLayerNode):
+    """
+    A class used for our internal representation of a Concat Layer of a Neural Network.
+    Concatenate two tensors into a single tensor. All input tensors must have the same shape,
+    except for the dimension size of the axis to concatenate on.
+
+    Attributes
+    ----------
+    axis : int, Optional
+        Which axis to concat on. A negative value means counting dimensions from the back.
+        Accepted range is [-r, r-1] where r is the number of dimension of the input (default: -1).
+
+    """
+
+    def __init__(self, identifier: str, in_dims: List[Tuple], axis: int = -1):
+
+        if axis < 0:
+            jolly_dim = len(in_dims[0]) + axis
+        else:
+            jolly_dim = axis
+
+        jolly_dim_size = 0
+        for in_dim in in_dims:
+
+            if len(in_dims[0]) != len(in_dim):
+                raise Exception(f"All the input tensor should have the same number of dimensions.")
+
+            if axis < -len(in_dim) or axis > len(in_dim) - 1:
+                raise Exception(f"The axis parameter must be in the range [{-len(in_dim)}, {len(in_dim) - 1}].")
+
+            for i in range(len(in_dim)):
+                if i != jolly_dim and in_dims[0][i] != in_dim[i]:
+                    raise Exception(f"All input tensors must have the same shape, except for dimension {jolly_dim}.")
+
+            jolly_dim_size += in_dim[jolly_dim]
+
+        self.axis = axis
+
+        out_dim = list(in_dims[0])
+        out_dim[jolly_dim] = jolly_dim_size
+        out_dim = tuple(out_dim)
+
+        super().__init__(identifier, in_dims, out_dim)
+
+    def update_input(self, in_dims: List[Tuple]):
+        self.__init__(self.identifier, in_dims, self.axis)
+
+
+class SumNode(MultiInputLayerNode):
+    """
+    A class used for our internal representation of a Sum Layer of a Neural Network.
+    Element-wise sum of each of the input tensors.
+    All inputs and outputs must have the same data type.
+
+    """
+
+    def __init__(self, identifier: str, in_dims: List[Tuple]):
+
+        for in_dim in in_dims:
+
+            if len(in_dims[0]) != len(in_dim):
+                raise Exception(f"All the input tensor should have the same number of dimensions.")
+
+            for i in range(len(in_dim)):
+                if in_dims[0][i] != in_dim[i]:
+                    raise Exception("All input tensors must have the same shape.")
+
+        out_dim = in_dims[0]
+
+        super().__init__(identifier, in_dims, out_dim)
+
+    def update_input(self, in_dims: List[Tuple]):
+        self.__init__(self.identifier, in_dims)

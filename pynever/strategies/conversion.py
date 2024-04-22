@@ -562,16 +562,15 @@ class ONNXConverter(ConversionStrategy):
 
             if isinstance(network, networks.SequentialNetwork):
 
-                current_node = None
+                current_node = network.get_first_node()
                 previous_output = network.input_id
                 input_info = []
                 output_info = []
                 initializers = []
                 onnx_nodes = []
 
-                while network.get_next_node(current_node) is not None:
+                while current_node is not None:
 
-                    current_node = network.get_next_node(current_node)
                     current_input = previous_output
                     current_output = current_node.identifier
 
@@ -656,6 +655,7 @@ class ONNXConverter(ConversionStrategy):
                         raise NotImplementedError
 
                     previous_output = current_output
+                    current_node = network.get_next_node(current_node)
 
                 onnx_graph = onnx.helper.make_graph(
                     nodes=onnx_nodes,

@@ -10,7 +10,7 @@ import pynever.networks as networks
 import pynever.pytorch_layers as ptl
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as cv
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 logger_name = "pynever.utilities"
 
@@ -42,7 +42,7 @@ def execute_network(network: networks.NeuralNetwork, net_input: Tensor) -> Tenso
 
     output = py_net.pytorch_network(input_t.float().T)
 
-    return output.detach().numpy()
+    return output.detach().numpy().T
 
 
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.Linear:

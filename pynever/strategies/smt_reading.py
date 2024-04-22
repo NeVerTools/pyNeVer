@@ -1,7 +1,7 @@
 import numpy as np
 from pysmt.smtlib.parser import SmtLibParser
 
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 
 class ExprNode:
@@ -257,8 +257,8 @@ class SmtPropertyParser:
         self.y_name = y_name
         self.x = self.get_components_of(self.x_name)
         self.y = self.get_components_of(self.y_name)
-        self.in_coef_mat = Tensor([])
-        self.in_bias_mat = Tensor([])
+        self.in_coef_mat = []
+        self.in_bias_mat = []
         self.out_coef_mat = []
         self.out_bias_mat = []
 
