@@ -325,7 +325,6 @@ class SearchVerification(VerificationStrategy):
 
         if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
             in_star, nn_bounds, net_list = self.init_search(network, prop)
-            nn_bounds = nn_bounds[1]  # TODO use symbolic
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
@@ -444,7 +443,7 @@ class NeverVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         try:
             bound_manager = bm.BoundsManager(network, prop)
-            _, _, self.layers_bounds = bound_manager.compute_bounds()
+            self.layers_bounds = bound_manager.compute_bounds()['numeric_post']
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}

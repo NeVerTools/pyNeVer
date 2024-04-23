@@ -1,7 +1,5 @@
 from collections import OrderedDict
 
-import numpy as np
-
 from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
@@ -29,7 +27,7 @@ class BoundsManager:
     def __repr__(self):
         return str(self.numeric_bounds)
 
-    def compute_bounds(self):
+    def compute_bounds(self) -> dict:
         """
         precomputes bounds for all nodes using symbolic linear propagation
         """
@@ -80,7 +78,11 @@ class BoundsManager:
             current_input_bounds = symbolic_activation_output_bounds
             self.numeric_bounds = numeric_postactivation_bounds
 
-        return symbolic_bounds, numeric_preactivation_bounds, numeric_postactivation_bounds
+        return {
+            'symbolic': symbolic_bounds,
+            'numeric_pre': numeric_preactivation_bounds,
+            'numeric_post': numeric_postactivation_bounds
+        }
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)

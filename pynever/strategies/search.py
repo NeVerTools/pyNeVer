@@ -44,8 +44,8 @@ def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> d
     """
 
     if strategy == 'symbolic':
-        # Return the pre-activation bounds for ReLU layers
-        return BoundsManager(nn, prop).compute_bounds()  # [1]
+        # Return the symbolic bounds for ReLU layers
+        return BoundsManager(nn, prop).compute_bounds()['symbolic']
     elif strategy == 'lirpa':
         # return something...
         pass
