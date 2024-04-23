@@ -73,7 +73,7 @@ class BoundsManager:
             else:
                 raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
 
-            symbolic_bounds[layers[i].identifier] = (symbolic_dense_output_bounds, symbolic_activation_output_bounds)
+            symbolic_bounds[layers[i].identifier] = symbolic_activation_output_bounds
             numeric_preactivation_bounds[layers[i].identifier] = preactivation_bounds
             numeric_postactivation_bounds[layers[i].identifier] = postactivation_bounds
 
