@@ -206,16 +206,25 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target):
-    output = None
+def intersect_symb_lp(nn_bounds, prop):
+    out_neurons = nn_bounds[list(nn_bounds.keys())[-1]].lower.matrix.shape[0]
+
+    basis = np.eye(out_neurons, out_neurons)
+    center = np.zeros((out_neurons, 1))
+
+    # TODO fill the predicate
+    predicate_matrix = np.ones((2 * out_neurons, out_neurons))
+    predicate_bias = np.ones((2 * out_neurons, 1))
+
     # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
     # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
     # y0 >= 0.25 x0
     # y0 <= 0.25 x0 + 0.25
     # I can build a star from this!
+    output = Star(predicate_matrix, predicate_bias, center, basis)
 
-    # TODO is it possible to check whether it is fully inside?
     intersects, unsafe_stars = check_intersection(output, prop)
+
     return intersects, unsafe_stars
 
 

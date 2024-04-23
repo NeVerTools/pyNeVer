@@ -277,6 +277,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = {
                 'heuristic': 'sequential',
                 'bounds': 'symbolic',
+                'intersection': 'bounds_lp',
                 'timeout': 300
             }
 
@@ -339,8 +340,12 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
-            # TODO use stars or symb bounds
-            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            if self.search_params['intersection'] == 'star_lp':
+                intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            elif self.search_params['intersection'] == 'bounds_lp':
+                intersects, unsafe_stars = sf.intersect_symb_lp(nn_bounds, prop)
+            else:
+                raise NotImplementedError('Intersection strategy not supported')
 
             if intersects:
                 # If new target is None there is no more refinement to do
