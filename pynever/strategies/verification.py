@@ -249,7 +249,7 @@ class VerificationStrategy(abc.ABC):
 
         """
 
-        pass
+        raise NotImplementedError('Call to abstract base class')
 
 
 class SearchVerification(VerificationStrategy):
@@ -261,7 +261,11 @@ class SearchVerification(VerificationStrategy):
     Attributes
     ----------
     search_params : dict
-        The parameters to guide the search algorithm
+        The parameters to guide the search algorithm:
+            - heuristic: the branching heuristic (sequential)
+            - bounds: the bounds propagation to use (symbolic, LiRPA)
+            - intersection: the output intersection strategy (bounds_lp, star_lp)
+            - timeout: the stopping criteria for the search algorithm in seconds
 
     Methods
     ----------
@@ -287,14 +291,6 @@ class SearchVerification(VerificationStrategy):
         """
         Initialize the search algorithm and compute the starting values for
         the bounds, the star and the target
-
-        Parameters
-        ----------
-        network
-        prop
-
-        Returns
-        -------
 
         """
 

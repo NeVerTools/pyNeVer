@@ -7,15 +7,6 @@ from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from collections import OrderedDict
-
-from pynever import nodes
-from pynever.networks import SequentialNetwork
-from pynever.strategies.bp.bounds import SymbolicLinearBounds
-from pynever.strategies.bp.linearfunctions import LinearFunctions
-from pynever.strategies.bp.utils.property_converter import *
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
-    compute_lin_lower_and_upper
 
 
 class BoundsManager:
