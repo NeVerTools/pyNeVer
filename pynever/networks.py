@@ -1,8 +1,9 @@
-import abc
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import copy
 
 import pynever.nodes as nodes
+
+from pynever.exceptions import EmptyNetworkError, InvalidNodeError
 
 
 class NeuralNetwork:
@@ -20,12 +21,6 @@ class NeuralNetwork:
     edges : dict <str, list <str>>
         Dictionary of identifiers of LayerNodes, it contains for each node identified by the keys, the list of nodes
         connected to it.
-    alt_rep_cache : List<AlternativeRepresentation>
-        Dictionary of containing str keys and AlternativeRepresentation values, it contains the
-        AlternativeRepresentations of out network.
-    up_to_date : bool
-        Boolean Flag which shows if the internal representation is up-to-date with respect to the
-        AlternativeRepresentations.
     identifier : str
         Identifier of the Sequential Neural Network.
 
@@ -34,8 +29,6 @@ class NeuralNetwork:
     def __init__(self, identifier: str = ''):
         self.nodes = {}
         self.edges = {}
-        self.alt_rep_cache = []
-        self.up_to_date = True
         self.identifier = identifier
 
     def get_children(self, node: nodes.LayerNode) -> List[nodes.LayerNode]:
@@ -128,10 +121,10 @@ class NeuralNetwork:
 
 class SequentialNetwork(NeuralNetwork):
     """
-    Concrete children of NeuralNetwork representing a sequential NeuralNetwork. It consists of a graph of LayerNodes
-    and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
-    to compute the input-output relation defined by the network. The computational graph of a SequentialNetwork must
-    correspond to a standard list.
+    Concrete children of NeuralNetwork representing a sequential NeuralNetwork. It consists of a graph of
+    ConcreteLayerNodes and a list of AlternativeRepresentations. It should be noted that this data structure it is not
+    able to compute the input-output relation defined by the network. The computational graph of a SequentialNetwork
+    must correspond to a standard list.
 
     Attributes
     ----------
@@ -146,7 +139,7 @@ class SequentialNetwork(NeuralNetwork):
         Procedure to add a new LayerNode to the sequential Neural Network.
     get_first_node()
         Procedure to extract the first node of the sequential Neural Network.
-    get_next_node(LayerNode)
+    get_next_node(ConcreteLayerNode)
         Procedure to get the next node of the network given an input LayerNode.
     get_last_node()
         Procedure to extract the last node of the sequential Neural Network.
@@ -166,6 +159,24 @@ class SequentialNetwork(NeuralNetwork):
         super().__init__(identifier)
         self.input_id = input_id
 
+    @staticmethod
+    def __is_single_concrete(node: nodes.LayerNode) -> bool:
+        """
+        Procedure to check whether the LayerNode given as a parameter is a ConcreteLayerNode with a single input.
+        Parameters
+        ----------
+        node: LayerNode
+            The node to be checked.
+        Returns
+        -------
+        bool
+            True if the LayerNode is a ConcreteLayerNode with a single input, False otherwise.
+
+        """
+        return ((node is not None) and
+                isinstance(node, nodes.ConcreteLayerNode) and
+                isinstance(node.get_input_dim(), Tuple))
+
     def is_empty(self) -> bool:
         """
         Procedure to check whether the network is empty.
@@ -179,21 +190,19 @@ class SequentialNetwork(NeuralNetwork):
 
         return len(self.nodes) == 0
 
-    def add_node(self, node: nodes.LayerNode):
+    def add_node(self, node: nodes.ConcreteLayerNode):
         """
-        Procedure to add a new LayerNode. In sequential network the new node must be connected directly to the
+        Procedure to add a new ConcreteLayerNode. In sequential network the new node must be connected directly to the
         previous node forming a list.
 
         Parameters
         ----------
-        node : LayerNode
+        node : ConcreteLayerNode
             New node to add to the Sequential network.
 
         """
-
-        if not isinstance(node, nodes.SingleInputLayerNode):
-            raise Exception(f"{node.identifier} is not a SingleInputLayerNode! Only SingleInputLayerNode can be "
-                            f"added to SequentialNetwork!")
+        if not SequentialNetwork.__is_single_concrete(node):
+            raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
 
         if self.is_empty():
             self.generic_add_node(node)
@@ -201,39 +210,39 @@ class SequentialNetwork(NeuralNetwork):
             parents = [self.get_last_node()]
             self.generic_add_node(node, parents=parents)
 
-    def get_first_node(self) -> nodes.SingleInputLayerNode:
+    def get_first_node(self) -> nodes.ConcreteLayerNode:
         """
-        Procedure to get the first LayerNode of the network.
+        Procedure to get the first ConcreteLayerNode of the network.
 
         Return
         ---------
-        LayerNode
+        ConcreteLayerNode
             The first node of the network.
 
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         first_node = self.get_roots()[0]
-        if not isinstance(first_node, nodes.SingleInputLayerNode):
-            raise Exception(f"{first_node.identifier} is not a SingleInputLayerNode!")
+        if not SequentialNetwork.__is_single_concrete(first_node):
+            raise InvalidNodeError(f'{first_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return first_node
 
-    def get_next_node(self, node: nodes.SingleInputLayerNode) -> nodes.SingleInputLayerNode:
+    def get_next_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode:
         """
-        Procedure to get the next LayerNode of the network given an input LayerNode.
+        Procedure to get the next ConcreteLayerNode of the network given an input ConcreteLayerNode.
 
         Return
         ---------
-        LayerNode
+        ConcreteLayerNode
             The next node of the network.
 
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         children = self.get_children(node)
         if len(children) == 0:
@@ -241,45 +250,45 @@ class SequentialNetwork(NeuralNetwork):
         else:
             next_node = children[0]
 
-        if next_node is not None and not isinstance(next_node, nodes.SingleInputLayerNode):
-            raise Exception(f"{next_node.identifier} is not a SingleInputLayerNode!")
+        if next_node is not None and not SequentialNetwork.__is_single_concrete(next_node):
+            raise Exception(f'{next_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return next_node
 
-    def get_last_node(self) -> nodes.SingleInputLayerNode:
+    def get_last_node(self) -> nodes.ConcreteLayerNode:
         """
-        Procedure to get the last LayerNode of the network.
+        Procedure to get the last ConcreteLayerNode of the network.
 
         Return
         ---------
-        LayerNode
+        ConcreteLayerNode
             The last node of the network.
 
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         last_node = self.get_leaves()[0]
 
-        if not isinstance(last_node, nodes.SingleInputLayerNode):
-            raise Exception(f"{last_node.identifier} is not a SingleInputLayerNode!")
+        if not SequentialNetwork.__is_single_concrete(last_node):
+            raise Exception(f'{last_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return last_node
 
-    def delete_last_node(self) -> nodes.SingleInputLayerNode:
+    def delete_last_node(self) -> nodes.ConcreteLayerNode:
         """
-        Procedure to remove the last LayerNode from the network.
+        Procedure to remove the last ConcreteLayerNode from the network.
 
         Returns
         ---------
-        LayerNode
+        ConcreteLayerNode
             The last node of the network.
 
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         last_node = self.get_last_node()
         self.remove_node(last_node)
@@ -297,11 +306,11 @@ class SequentialNetwork(NeuralNetwork):
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         count = 0
-        for d in range(len(self.get_first_node().in_dim)):
-            count += self.get_first_node().in_dim[d]
+        for d in range(len(self.get_first_node().get_input_dim())):
+            count += self.get_first_node().get_input_dim()[d]
 
         return count
 
@@ -317,11 +326,11 @@ class SequentialNetwork(NeuralNetwork):
         """
 
         if self.is_empty():
-            raise Exception('The network is empty')
+            raise EmptyNetworkError()
 
         count = 0
-        for d in range(len(self.get_last_node().out_dim)):
-            count += self.get_last_node().out_dim[d]
+        for d in range(len(self.get_last_node().get_output_dim())):
+            count += self.get_last_node().get_output_dim()[d]
 
         return count
 
