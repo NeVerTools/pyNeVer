@@ -5,9 +5,8 @@ from typing import Tuple, List
 
 import numpy as np
 
+from exceptions import InvalidDimensionError, OutOfRangeError
 from pynever.tensors import Tensor
-
-from exceptions import InvalidDimensionError
 
 
 class LayerNode(abc.ABC):
@@ -255,11 +254,6 @@ class FullyConnectedNode(ConcreteLayerNode):
         if len(in_dim) < 1:
             raise InvalidDimensionError("FullyConnectedNode: in_dim cannot be empty")
 
-        """in_dim_error = f"Wrong value for in_features ({in_features}): " \
-                       f"should be equal to the last element of in_dim ({in_dim[-1]})."
-        if not in_dim[-1] == in_features:
-            raise Exception(in_dim_error)"""
-
         temp = list(in_dim)
         temp[-1] = out_features
         out_dim = tuple(temp)
@@ -278,7 +272,7 @@ class FullyConnectedNode(ConcreteLayerNode):
                        f"and in_features ({in_features}) respectively."
 
         if not (weight.shape[0] == out_features and weight.shape[1] == in_features):
-            raise Exception(weight_error)
+            raise InvalidDimensionError(weight_error)
 
         if has_bias:
             if bias is None:
@@ -374,10 +368,10 @@ class BatchNormNode(ConcreteLayerNode):
             bias = np.zeros(num_features)
 
         if weight.shape[0] != num_features:
-            raise Exception("The dimension of the weight should be equal to num_features")
+            raise InvalidDimensionError("The dimension of the weight should be equal to num_features")
 
         if bias.shape[0] != num_features:
-            raise Exception("The dimension of the bias should be equal to num_features")
+            raise InvalidDimensionError("The dimension of the bias should be equal to num_features")
 
         self.weight = weight
         self.bias = bias
@@ -734,7 +728,7 @@ class SoftMaxNode(ConcreteLayerNode):
             raise InvalidDimensionError("in_dim cannot be void")
 
         if not (-len(in_dim) <= axis <= len(in_dim) - 1):
-            raise Exception(f"axis must be in [-{len(in_dim)}, {len(in_dim) - 1}]")
+            raise OutOfRangeError(axis, -len(in_dim), len(in_dim) - 1)
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
@@ -773,10 +767,11 @@ class UnsqueezeNode(ConcreteLayerNode):
         for e in axes:
             if e < - (len(in_dim) + len(axes)) or e > (len(in_dim) + len(axes) - 1):
                 check_axes_values = False
+                break
 
         if not check_axes_values:
-            raise Exception(f"Every axes element must be in [{- (len(in_dim) + len(axes))}, "
-                            f"{(len(in_dim) + len(axes) - 1)}]")
+            raise OutOfRangeError(f"Every axes element must be in [{- (len(in_dim) + len(axes))}, "
+                                  f"{(len(in_dim) + len(axes) - 1)}]")
 
         # We add the singleton dimensions to the out_dim
         out_dim = copy.deepcopy(in_dim)
@@ -817,7 +812,7 @@ class ReshapeNode(ConcreteLayerNode):
     def __init__(self, identifier: str, in_dim: Tuple, shape: Tuple, allow_zero: bool = False):
 
         if list(shape).count(-1) > 1:
-            raise Exception("At most one dimension of the new shape can be -1")
+            raise InvalidDimensionError("At most one dimension of the new shape can be -1")
 
         temp_shape = []
         for i in range(len(shape)):
@@ -826,8 +821,8 @@ class ReshapeNode(ConcreteLayerNode):
                 temp_shape.append(e)
             elif e == 0 and not allow_zero:
                 if i >= len(in_dim):
-                    raise Exception(f"0 value for new shape in position {i} but original shape has only "
-                                    f"{len(in_dim)} elements")
+                    raise InvalidDimensionError(f"0 value for new shape in position {i} but original shape has only "
+                                                f"{len(in_dim)} elements")
                 temp_shape.append(in_dim[i])
             else:
                 temp_shape.append(e)
@@ -866,7 +861,7 @@ class FlattenNode(ConcreteLayerNode):
 
     def __init__(self, identifier: str, in_dim: Tuple, axis: int = 0):
         if not (-len(in_dim) <= axis <= len(in_dim)):
-            raise Exception(f"Axis must be in [{-len(in_dim)}, {len(in_dim)}]")
+            raise InvalidDimensionError(f"Axis must be in [{-len(in_dim)}, {len(in_dim)}]")
 
         temp_input = np.ones(in_dim)
         new_shape = (-1,) if axis == 0 else (np.prod(in_dim[0:axis]).astype(int), -1)
@@ -902,7 +897,7 @@ class DropoutNode(ConcreteLayerNode):
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
         if not (0 <= p <= 1):
-            raise Exception("The p parameter must be between [0, 1]")
+            raise OutOfRangeError(p, 0, 1)
         self.p = p
 
     def get_input_dim(self) -> Tuple:
@@ -971,7 +966,7 @@ class ConcatNode(ConcreteLayerNode):
                 raise InvalidDimensionError(f"All the input tensor should have the same number of dimensions.")
 
             if axis < -len(in_dim) or axis > len(in_dim) - 1:
-                raise Exception(f"The axis parameter must be in the range [{-len(in_dim)}, {len(in_dim) - 1}].")
+                raise OutOfRangeError(axis, -len(in_dim), len(in_dim) - 1)
 
             for i in range(len(in_dim)):
                 if i != jolly_dim and in_dims[0][i] != in_dim[i]:
