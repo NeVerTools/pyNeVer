@@ -1,5 +1,8 @@
 from multipledispatch import dispatch
 
+import nodes
+import networks
+
 
 class InvalidDimensionError(Exception):
     def __init__(self, message):
@@ -25,3 +28,14 @@ class EmptyNetworkError(Exception):
 class InvalidNodeError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class NotInNetworkError(Exception):
+
+    @dispatch(str)
+    def __init__(self, message):
+        super().__init__(message)
+
+    @dispatch(nodes.LayerNode)
+    def __init__(self, node):
+        super().__init__(f'{node.identifier} is not a node of the Network')

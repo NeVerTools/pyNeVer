@@ -1,15 +1,15 @@
-from typing import List, Optional, Tuple
+import abc
 import copy
 
 import pynever.nodes as nodes
 
-from pynever.exceptions import EmptyNetworkError, InvalidNodeError
+from pynever.exceptions import EmptyNetworkError, InvalidNodeError, NotInNetworkError
 
 
-class NeuralNetwork:
+class NeuralNetwork(abc.ABC):
     """
-    An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of LayerNodes
-    and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
+    An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of
+    LayerNodes and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
     to compute the input-output relation defined by the network. The properties of the computational graph are
     specialized in the concrete classes.
 
@@ -23,54 +23,148 @@ class NeuralNetwork:
         connected to it.
     identifier : str
         Identifier of the Sequential Neural Network.
+    input_ids : dict <str, str | None>
+        Dictionary containing the inputs of the networks as keys and the corresponding layer identifier of the Node of
+        which they are the input.
 
     """
 
-    def __init__(self, identifier: str = ''):
+    def __init__(self, identifier: str, input_ids: list[str]):
         self.nodes = {}
         self.edges = {}
         self.identifier = identifier
+        self.input_ids: dict[str, str | None] = {i: None for i in input_ids}
 
-    def get_children(self, node: nodes.LayerNode) -> List[nodes.LayerNode]:
+    def get_children(self, node: nodes.LayerNode) -> list[nodes.LayerNode]:
+        """
+        Procedure to return the children of a node as a list of LayerNodes.
 
+        Parameters
+        ----------
+        node: LayerNode
+            The node whose children should be returned.
+
+        Returns
+        -------
+        list[LayerNodes]
+            The children of the node passed as argument.
+
+        """
         child_nodes = [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
         return child_nodes
 
-    def get_parents(self, node: nodes.LayerNode) -> List[nodes.LayerNode]:
+    def get_parents(self, node: nodes.LayerNode) -> list[nodes.LayerNode]:
+        """
+        Procedure to return the parents of a node as a list of LayerNodes.
 
+        Parameters
+        ----------
+        node: LayerNode
+            The node whose parents should be returned.
+
+        Returns
+        -------
+        list[LayerNodes]
+            The parents of the node passed as argument.
+
+        """
         parent_nodes = [self.nodes[parent_node_id] for parent_node_id, end_nodes_ids in self.edges.items() if
                         node.identifier in end_nodes_ids]
 
         return parent_nodes
 
     def has_parents(self, node: nodes.LayerNode) -> bool:
+        """
+        Procedure to check if a node has parents.
+        Parameters
+        ----------
+        node: LayerNode
+            The node of which the existence of its parents should be checked.
+        Returns
+        -------
+        bool
+            True if the node has parents, False otherwise.
+        """
         return len(self.get_parents(node)) != 0
 
     def has_children(self, node: nodes.LayerNode) -> bool:
+        """
+        Procedure to check if a node has children.
+        Parameters
+        ----------
+        node: LayerNode
+            The node of which the existence of its children should be checked.
+        Returns
+        -------
+        bool
+            True if the node has children, False otherwise.
+        """
         return len(self.get_children(node)) != 0
 
-    def get_roots(self) -> List[nodes.LayerNode]:
-
+    def get_roots(self) -> list[nodes.LayerNode]:
+        """
+        Procedure to return the roots of the network as a list of LayerNodes.
+        Returns
+        -------
+        list[LayerNodes]
+            The roots of the network as a list of LayerNodes.
+        """
         root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if not self.has_parents(root_node)]
         return root_nodes
 
-    def get_leaves(self) -> List[nodes.LayerNode]:
-
+    def get_leaves(self) -> list[nodes.LayerNode]:
+        """
+        Procedure to return the leaves of the network as a list of LayerNodes.
+        Returns
+        -------
+        list[LayerNodes]
+            The leaves of the network as a list of LayerNodes.
+        """
         leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if not self.has_children(leaf_node)]
         return leaf_nodes
 
     def remove_node(self, node: nodes.LayerNode):
+        """
+        Procedure to remove a node from the network.
+        Parameters
+        ----------
+        node: LayerNode
+            The node to be removed.
 
+        """
         for parent_node in self.get_parents(node):
             self.edges[parent_node.identifier].remove(node.identifier)
 
         self.edges.pop(node.identifier)
         self.nodes.pop(node.identifier)
 
-        return
+        for i, n in self.input_ids.items():
+            if n == node.identifier:
+                self.input_ids[i] = None
 
-    def generic_add_node(self, node: nodes.LayerNode, parents: Optional[List[nodes.LayerNode]] = None,
-                         children: Optional[List[nodes.LayerNode]] = None):
+    def generic_add_node(self, node: nodes.LayerNode, parents: list[nodes.LayerNode] | None = None,
+                         children: list[nodes.LayerNode] | None = None,
+                         input_ids: list[str] | None = None):
+        """
+        Procedure to add a node to the network. A node cannot have both parents and inputs.
+        Parameters
+        ----------
+        node: LayerNode
+            The node to be added to the network.
+        parents: list[LayerNode] | None
+            The parents of the node. (Optional)
+        children: list[LayerNode] | None
+            The children of the node. (Optional)
+        input_ids: list[LayerNode] | None
+            The inputs of the node. (Optional)
+
+        """
+
+        if input_ids is not None and parents is not None:
+            raise Exception("A node cannot have both a parent and an input!")
+
+        if input_ids is None:
+            input_ids = []
 
         if parents is None:
             parents = []
@@ -81,12 +175,17 @@ class NeuralNetwork:
         for parent_node in parents:
 
             if parent_node.identifier not in self.nodes.keys():
-                raise Exception(f"Parent Node {parent_node.identifier} is not a node of the Network.")
+                raise NotInNetworkError(parent_node)
 
         for child_node in children:
 
             if child_node.identifier not in self.nodes.keys():
-                raise Exception(f"Child Node {child_node.identifier} is not a node of the Network.")
+                raise NotInNetworkError(child_node)
+
+        for input_id in input_ids:
+
+            if input_id not in self.input_ids.keys():
+                raise NotInNetworkError(f'{input_id} is not an input of the network')
 
         self.nodes[node.identifier] = node
         self.edges[node.identifier] = [c_node.identifier for c_node in children]
@@ -94,7 +193,19 @@ class NeuralNetwork:
         for parent in parents:
             self.edges[parent.identifier].append(node.identifier)
 
-    def is_acyclic(self):
+        for input_id in input_ids:
+            if self.input_ids[input_id] is not None:
+                raise Exception(f'{input_id} has already been set as input to node {self.input_ids[input_id]}')
+            self.input_ids[input_id] = node.identifier
+
+    def is_acyclic(self) -> bool:
+        """
+        Procedure to check whether the network is acyclic.
+        Returns
+        -------
+        bool
+            True if network is acyclic, False otherwise.
+        """
 
         aux_network = copy.deepcopy(self)
         root_nodes = aux_network.get_roots()
@@ -126,11 +237,6 @@ class SequentialNetwork(NeuralNetwork):
     able to compute the input-output relation defined by the network. The computational graph of a SequentialNetwork
     must correspond to a standard list.
 
-    Attributes
-    ----------
-    input_id : str
-        Identifier for the input of the Sequential Neural Network.
-
     Methods
     -------
     is_empty()
@@ -155,9 +261,7 @@ class SequentialNetwork(NeuralNetwork):
     """
 
     def __init__(self, identifier: str, input_id: str):
-
-        super().__init__(identifier)
-        self.input_id = input_id
+        super().__init__(identifier, [input_id])
 
     @staticmethod
     def __is_single_concrete(node: nodes.LayerNode) -> bool:
@@ -175,7 +279,17 @@ class SequentialNetwork(NeuralNetwork):
         """
         return ((node is not None) and
                 isinstance(node, nodes.ConcreteLayerNode) and
-                isinstance(node.get_input_dim(), Tuple))
+                isinstance(node.get_input_dim(), tuple))
+
+    def __get_input_id(self) -> str:
+        """
+        Procedure to return the input_id of the network.
+        Returns
+        -------
+        str
+            The input_id of the network.
+        """
+        return list(self.input_ids.keys())[0]
 
     def is_empty(self) -> bool:
         """
@@ -190,7 +304,7 @@ class SequentialNetwork(NeuralNetwork):
 
         return len(self.nodes) == 0
 
-    def add_node(self, node: nodes.ConcreteLayerNode):
+    def append_node(self, node: nodes.ConcreteLayerNode):
         """
         Procedure to add a new ConcreteLayerNode. In sequential network the new node must be connected directly to the
         previous node forming a list.
@@ -205,7 +319,7 @@ class SequentialNetwork(NeuralNetwork):
             raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
 
         if self.is_empty():
-            self.generic_add_node(node)
+            self.generic_add_node(node, input_ids=[self.__get_input_id()])
         else:
             parents = [self.get_last_node()]
             self.generic_add_node(node, parents=parents)
@@ -251,7 +365,7 @@ class SequentialNetwork(NeuralNetwork):
             next_node = children[0]
 
         if next_node is not None and not SequentialNetwork.__is_single_concrete(next_node):
-            raise Exception(f'{next_node.identifier} is not a ConcreteLayerNode with a single input!')
+            raise InvalidNodeError(f'{next_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return next_node
 
@@ -272,7 +386,7 @@ class SequentialNetwork(NeuralNetwork):
         last_node = self.get_leaves()[0]
 
         if not SequentialNetwork.__is_single_concrete(last_node):
-            raise Exception(f'{last_node.identifier} is not a ConcreteLayerNode with a single input!')
+            raise InvalidNodeError(f'{last_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return last_node
 
@@ -365,26 +479,15 @@ class SequentialNetwork(NeuralNetwork):
 
 class AcyclicNetwork(NeuralNetwork):
 
-    def __init__(self, identifier: str, input_ids: List[str], input_edges: dict):
-        super().__init__(identifier)
-        self.input_ids = input_ids
+    def __init__(self, identifier: str, input_ids: list[str], input_edges: dict):
+        super().__init__(identifier, input_ids)
         self.input_edges = input_edges
 
-    def add_node(self, node: nodes.LayerNode, parents: Optional[List[nodes.LayerNode]] = None,
-                 children: Optional[List[nodes.LayerNode]] = None):
+    def add_node(self, node: nodes.LayerNode, parents: list[nodes.LayerNode] | None = None,
+                 children: list[nodes.LayerNode] | None = None):
 
         self.generic_add_node(node, parents, children)
         if not self.is_acyclic():
             self.remove_node(node)
             raise Exception(f"Adding {node.identifier} with the provided parents and children would create a cycle"
                             f" in the Network!")
-
-
-        
-
-
-
-
-
-
-
