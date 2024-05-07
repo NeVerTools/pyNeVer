@@ -277,6 +277,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = {
                 'heuristic': 'sequential',
                 'bounds': 'symbolic',
+                'intersection': 'symbolic',
                 'timeout': 300
             }
 
@@ -286,14 +287,6 @@ class SearchVerification(VerificationStrategy):
         """
         Initialize the search algorithm and compute the starting values for
         the bounds, the star and the target
-
-        Parameters
-        ----------
-        network
-        prop
-
-        Returns
-        -------
 
         """
 
@@ -325,7 +318,7 @@ class SearchVerification(VerificationStrategy):
 
         if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
             in_star, nn_bounds, net_list = self.init_search(network, prop)
-            nn_bounds = nn_bounds[1]  # TODO use symbolic
+            nn_bounds = nn_bounds[0]
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
@@ -340,8 +333,12 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
-            # TODO use stars or symb bounds
-            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            if self.search_params['intersection'] == 'symbolic':
+                intersects, unsafe_stars = sf.intersect_symb_lp(net_list, nn_bounds, prop)
+            elif self.search_params['intersection'] == 'star':
+                intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            else:
+                raise NotImplementedError(f'Parameter intersection {self.search_params["intersection"]} not supported')
 
             if intersects:
                 # If new target is None there is no more refinement to do

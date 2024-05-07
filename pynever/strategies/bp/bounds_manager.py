@@ -1,7 +1,5 @@
 from collections import OrderedDict
 
-import numpy as np
-
 from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
@@ -51,7 +49,7 @@ class BoundsManager:
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         symbolic_bounds = dict()
-        # TODO change the structure of symbolic?bounds
+        # TODO change the structure of symbolic_bounds
 
         current_input_bounds = input_bounds
         for i in range(0, len(layers)):
@@ -73,7 +71,7 @@ class BoundsManager:
             else:
                 raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
 
-            symbolic_bounds[layers[i].identifier] = (symbolic_dense_output_bounds, symbolic_activation_output_bounds)
+            symbolic_bounds[layers[i].identifier] = symbolic_activation_output_bounds
             numeric_preactivation_bounds[layers[i].identifier] = preactivation_bounds
             numeric_postactivation_bounds[layers[i].identifier] = postactivation_bounds
 

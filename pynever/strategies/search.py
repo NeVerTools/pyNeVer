@@ -206,15 +206,17 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target):
+def intersect_symb_lp(net_list, nn_bounds, prop):
     output = None
+
     # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
     # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
     # y0 >= 0.25 x0
     # y0 <= 0.25 x0 + 0.25
     # I can build a star from this!
 
-    # TODO is it possible to check whether it is fully inside?
+    # TODO bounds are symbolic now
+
     intersects, unsafe_stars = check_intersection(output, prop)
     return intersects, unsafe_stars
 
