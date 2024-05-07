@@ -31,7 +31,7 @@
             <h2>API Documentation</h2>
                 <ul class="memberlist">
             <li>
-                    <a class="class" href="#LayerNode">LayerNode</a>
+                    <a class="class" href="#LayerNode">SingleInputLayerNode</a>
                             <ul class="memberlist">
                         <li>
                                 <a class="variable" href="#LayerNode.identifier">identifier</a>
@@ -442,7 +442,7 @@
 </span><span id="L-8"><a href="#L-8"><span class="linenos">  8</span></a><span class="kn">from</span> <span class="nn">pynever.tensor</span> <span class="kn">import</span> <span class="n">Tensor</span>
 </span><span id="L-9"><a href="#L-9"><span class="linenos">  9</span></a>
 </span><span id="L-10"><a href="#L-10"><span class="linenos"> 10</span></a>
-</span><span id="L-11"><a href="#L-11"><span class="linenos"> 11</span></a><span class="k">class</span> <span class="nc">LayerNode</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos"> 11</span></a><span class="k">class</span> <span class="nc">SingleInputLayerNode</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
 </span><span id="L-12"><a href="#L-12"><span class="linenos"> 12</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos"> 13</span></a><span class="sd">    An abstract class used for our internal representation of a generic Layer of a Neural Network.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos"> 14</span></a><span class="sd">    Its concrete children correspond to real network layers.</span>
@@ -450,7 +450,7 @@
 </span><span id="L-16"><a href="#L-16"><span class="linenos"> 16</span></a><span class="sd">    Attributes</span>
 </span><span id="L-17"><a href="#L-17"><span class="linenos"> 17</span></a><span class="sd">    ----------</span>
 </span><span id="L-18"><a href="#L-18"><span class="linenos"> 18</span></a><span class="sd">    identifier : str</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a><span class="sd">    in_dim : Tuple</span>
 </span><span id="L-21"><a href="#L-21"><span class="linenos"> 21</span></a><span class="sd">        Dimension of the input Tensor as a tuple (ndarray.shape like).</span>
 </span><span id="L-22"><a href="#L-22"><span class="linenos"> 22</span></a><span class="sd">    out_dim : Tuple</span>
@@ -474,7 +474,7 @@
 </span><span id="L-40"><a href="#L-40"><span class="linenos"> 40</span></a>        <span class="k">pass</span>
 </span><span id="L-41"><a href="#L-41"><span class="linenos"> 41</span></a>
 </span><span id="L-42"><a href="#L-42"><span class="linenos"> 42</span></a>
-</span><span id="L-43"><a href="#L-43"><span class="linenos"> 43</span></a><span class="k">class</span> <span class="nc">ReLUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-43"><a href="#L-43"><span class="linenos"> 43</span></a><span class="k">class</span> <span class="nc">ReLUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-44"><a href="#L-44"><span class="linenos"> 44</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-45"><a href="#L-45"><span class="linenos"> 45</span></a><span class="sd">    A class used for our internal representation of a ReLU Layer of a Neural Network.</span>
 </span><span id="L-46"><a href="#L-46"><span class="linenos"> 46</span></a>
@@ -494,7 +494,7 @@
 </span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a>
 </span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a>
-</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a><span class="k">class</span> <span class="nc">ELUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a><span class="k">class</span> <span class="nc">ELUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a><span class="sd">    A class used for our internal representation of a ELU Layer of a Neural Network.</span>
 </span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a>
@@ -520,7 +520,7 @@
 </span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>
 </span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>
-</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a><span class="k">class</span> <span class="nc">CELUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a><span class="k">class</span> <span class="nc">CELUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a><span class="sd">    A class used for our internal representation of a CELU Layer of a Neural Network.</span>
 </span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>
@@ -546,7 +546,7 @@
 </span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>
 </span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a><span class="k">class</span> <span class="nc">LeakyReLUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a><span class="k">class</span> <span class="nc">LeakyReLUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a><span class="sd">    A class used for our internal representation of a Leaky ReLU Layer of a Neural Network.</span>
 </span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>
@@ -572,7 +572,7 @@
 </span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a>
 </span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a>
-</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a><span class="k">class</span> <span class="nc">SigmoidNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a><span class="k">class</span> <span class="nc">SigmoidNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a><span class="sd">    A class used for our internal representation of a Sigmoid Layer of a Neural Network.</span>
 </span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a>
@@ -592,7 +592,7 @@
 </span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>
 </span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a>
-</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a><span class="k">class</span> <span class="nc">TanhNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a><span class="k">class</span> <span class="nc">TanhNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a><span class="sd">    A class used for our internal representation of a Tanh Layer of a Neural Network.</span>
 </span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a>
@@ -611,7 +611,7 @@
 </span><span id="L-177"><a href="#L-177"><span class="linenos">177</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
 </span><span id="L-178"><a href="#L-178"><span class="linenos">178</span></a>
 </span><span id="L-179"><a href="#L-179"><span class="linenos">179</span></a>
-</span><span id="L-180"><a href="#L-180"><span class="linenos">180</span></a><span class="k">class</span> <span class="nc">FullyConnectedNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-180"><a href="#L-180"><span class="linenos">180</span></a><span class="k">class</span> <span class="nc">FullyConnectedNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-181"><a href="#L-181"><span class="linenos">181</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-182"><a href="#L-182"><span class="linenos">182</span></a><span class="sd">    A class used for our internal representation of a Fully Connected layer of a Neural Network</span>
 </span><span id="L-183"><a href="#L-183"><span class="linenos">183</span></a>
@@ -679,7 +679,7 @@
 </span><span id="L-245"><a href="#L-245"><span class="linenos">245</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_features</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_bias</span><span class="p">)</span>
 </span><span id="L-246"><a href="#L-246"><span class="linenos">246</span></a>
 </span><span id="L-247"><a href="#L-247"><span class="linenos">247</span></a>
-</span><span id="L-248"><a href="#L-248"><span class="linenos">248</span></a><span class="k">class</span> <span class="nc">BatchNormNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-248"><a href="#L-248"><span class="linenos">248</span></a><span class="k">class</span> <span class="nc">BatchNormNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-249"><a href="#L-249"><span class="linenos">249</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-250"><a href="#L-250"><span class="linenos">250</span></a><span class="sd">    A class used for our internal representation of a one dimensional Batch Normalization Layer.</span>
 </span><span id="L-251"><a href="#L-251"><span class="linenos">251</span></a><span class="sd">    N.B. There are some problem for compatibility between pytorch and onnx: pytorch provide 3 different kind</span>
@@ -773,7 +773,7 @@
 </span><span id="L-339"><a href="#L-339"><span class="linenos">339</span></a>                      <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">affine</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">track_running_stats</span><span class="p">)</span>
 </span><span id="L-340"><a href="#L-340"><span class="linenos">340</span></a>
 </span><span id="L-341"><a href="#L-341"><span class="linenos">341</span></a>
-</span><span id="L-342"><a href="#L-342"><span class="linenos">342</span></a><span class="k">class</span> <span class="nc">ConvNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-342"><a href="#L-342"><span class="linenos">342</span></a><span class="k">class</span> <span class="nc">ConvNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-343"><a href="#L-343"><span class="linenos">343</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-344"><a href="#L-344"><span class="linenos">344</span></a><span class="sd">    A class used for our internal representation of a Convolutional layer of a Neural Network.</span>
 </span><span id="L-345"><a href="#L-345"><span class="linenos">345</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -893,7 +893,7 @@
 </span><span id="L-459"><a href="#L-459"><span class="linenos">459</span></a>                      <span class="bp">self</span><span class="o">.</span><span class="n">has_bias</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
 </span><span id="L-460"><a href="#L-460"><span class="linenos">460</span></a>
 </span><span id="L-461"><a href="#L-461"><span class="linenos">461</span></a>
-</span><span id="L-462"><a href="#L-462"><span class="linenos">462</span></a><span class="k">class</span> <span class="nc">AveragePoolNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-462"><a href="#L-462"><span class="linenos">462</span></a><span class="k">class</span> <span class="nc">AveragePoolNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-463"><a href="#L-463"><span class="linenos">463</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-464"><a href="#L-464"><span class="linenos">464</span></a><span class="sd">    A class used for our internal representation of a AveragePool layer of a Neural Network.</span>
 </span><span id="L-465"><a href="#L-465"><span class="linenos">465</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -964,7 +964,7 @@
 </span><span id="L-530"><a href="#L-530"><span class="linenos">530</span></a>                      <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ceil_mode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">count_include_pad</span><span class="p">)</span>
 </span><span id="L-531"><a href="#L-531"><span class="linenos">531</span></a>
 </span><span id="L-532"><a href="#L-532"><span class="linenos">532</span></a>
-</span><span id="L-533"><a href="#L-533"><span class="linenos">533</span></a><span class="k">class</span> <span class="nc">MaxPoolNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-533"><a href="#L-533"><span class="linenos">533</span></a><span class="k">class</span> <span class="nc">MaxPoolNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-534"><a href="#L-534"><span class="linenos">534</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-535"><a href="#L-535"><span class="linenos">535</span></a><span class="sd">    A class used for our internal representation of a MaxPool layer of a Neural Network.</span>
 </span><span id="L-536"><a href="#L-536"><span class="linenos">536</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -1043,7 +1043,7 @@
 </span><span id="L-609"><a href="#L-609"><span class="linenos">609</span></a>                      <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dilation</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ceil_mode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">return_indices</span><span class="p">)</span>
 </span><span id="L-610"><a href="#L-610"><span class="linenos">610</span></a>
 </span><span id="L-611"><a href="#L-611"><span class="linenos">611</span></a>
-</span><span id="L-612"><a href="#L-612"><span class="linenos">612</span></a><span class="k">class</span> <span class="nc">LRNNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-612"><a href="#L-612"><span class="linenos">612</span></a><span class="k">class</span> <span class="nc">LRNNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-613"><a href="#L-613"><span class="linenos">613</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-614"><a href="#L-614"><span class="linenos">614</span></a><span class="sd">    A class used for our internal representation of a LocalResponseNormalization Layer of a Neural Network.</span>
 </span><span id="L-615"><a href="#L-615"><span class="linenos">615</span></a>
@@ -1076,7 +1076,7 @@
 </span><span id="L-642"><a href="#L-642"><span class="linenos">642</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">)</span>
 </span><span id="L-643"><a href="#L-643"><span class="linenos">643</span></a>
 </span><span id="L-644"><a href="#L-644"><span class="linenos">644</span></a>
-</span><span id="L-645"><a href="#L-645"><span class="linenos">645</span></a><span class="k">class</span> <span class="nc">SoftMaxNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-645"><a href="#L-645"><span class="linenos">645</span></a><span class="k">class</span> <span class="nc">SoftMaxNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-646"><a href="#L-646"><span class="linenos">646</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-647"><a href="#L-647"><span class="linenos">647</span></a><span class="sd">    A class used for our internal representation of a SoftMax Layer of a Neural Network.</span>
 </span><span id="L-648"><a href="#L-648"><span class="linenos">648</span></a>
@@ -1103,7 +1103,7 @@
 </span><span id="L-669"><a href="#L-669"><span class="linenos">669</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">)</span>
 </span><span id="L-670"><a href="#L-670"><span class="linenos">670</span></a>
 </span><span id="L-671"><a href="#L-671"><span class="linenos">671</span></a>
-</span><span id="L-672"><a href="#L-672"><span class="linenos">672</span></a><span class="k">class</span> <span class="nc">UnsqueezeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-672"><a href="#L-672"><span class="linenos">672</span></a><span class="k">class</span> <span class="nc">UnsqueezeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-673"><a href="#L-673"><span class="linenos">673</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-674"><a href="#L-674"><span class="linenos">674</span></a><span class="sd">    A class used for our internal representation of an Unsqueeze Layer.</span>
 </span><span id="L-675"><a href="#L-675"><span class="linenos">675</span></a><span class="sd">    We follow the ONNX operator convention for attributes and definitions.</span>
@@ -1151,7 +1151,7 @@
 </span><span id="L-717"><a href="#L-717"><span class="linenos">717</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span>
 </span><span id="L-718"><a href="#L-718"><span class="linenos">718</span></a>
 </span><span id="L-719"><a href="#L-719"><span class="linenos">719</span></a>
-</span><span id="L-720"><a href="#L-720"><span class="linenos">720</span></a><span class="k">class</span> <span class="nc">ReshapeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-720"><a href="#L-720"><span class="linenos">720</span></a><span class="k">class</span> <span class="nc">ReshapeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-721"><a href="#L-721"><span class="linenos">721</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-722"><a href="#L-722"><span class="linenos">722</span></a><span class="sd">    A class used for our internal representation of a Reshape layer of a Neural Network.</span>
 </span><span id="L-723"><a href="#L-723"><span class="linenos">723</span></a><span class="sd">    We follow the ONNX operator convention for attributes and definitions.</span>
@@ -1199,7 +1199,7 @@
 </span><span id="L-765"><a href="#L-765"><span class="linenos">765</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_zero</span><span class="p">)</span>
 </span><span id="L-766"><a href="#L-766"><span class="linenos">766</span></a>
 </span><span id="L-767"><a href="#L-767"><span class="linenos">767</span></a>
-</span><span id="L-768"><a href="#L-768"><span class="linenos">768</span></a><span class="k">class</span> <span class="nc">FlattenNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-768"><a href="#L-768"><span class="linenos">768</span></a><span class="k">class</span> <span class="nc">FlattenNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-769"><a href="#L-769"><span class="linenos">769</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-770"><a href="#L-770"><span class="linenos">770</span></a><span class="sd">    A class used for our internal representation of a Flatten layer of a Neural Network. We follow the ONNX operator</span>
 </span><span id="L-771"><a href="#L-771"><span class="linenos">771</span></a><span class="sd">    convention for attributes and definitions.</span>
@@ -1234,7 +1234,7 @@
 </span><span id="L-800"><a href="#L-800"><span class="linenos">800</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis</span><span class="p">)</span>
 </span><span id="L-801"><a href="#L-801"><span class="linenos">801</span></a>
 </span><span id="L-802"><a href="#L-802"><span class="linenos">802</span></a>
-</span><span id="L-803"><a href="#L-803"><span class="linenos">803</span></a><span class="k">class</span> <span class="nc">DropoutNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-803"><a href="#L-803"><span class="linenos">803</span></a><span class="k">class</span> <span class="nc">DropoutNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-804"><a href="#L-804"><span class="linenos">804</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-805"><a href="#L-805"><span class="linenos">805</span></a><span class="sd">    A class used for our internal representation of a Dropout Layer of a Neural Network.</span>
 </span><span id="L-806"><a href="#L-806"><span class="linenos">806</span></a><span class="sd">    The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.</span>
@@ -1256,7 +1256,7 @@
 </span><span id="L-822"><a href="#L-822"><span class="linenos">822</span></a>        <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
 </span><span id="L-823"><a href="#L-823"><span class="linenos">823</span></a>
 </span><span id="L-824"><a href="#L-824"><span class="linenos">824</span></a>
-</span><span id="L-825"><a href="#L-825"><span class="linenos">825</span></a><span class="k">class</span> <span class="nc">TransposeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-825"><a href="#L-825"><span class="linenos">825</span></a><span class="k">class</span> <span class="nc">TransposeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-826"><a href="#L-826"><span class="linenos">826</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-827"><a href="#L-827"><span class="linenos">827</span></a><span class="sd">    A class used for our internal representation of a Dropout Layer of a Neural Network.</span>
 </span><span id="L-828"><a href="#L-828"><span class="linenos">828</span></a><span class="sd">    The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.</span>
@@ -1291,13 +1291,13 @@
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">LayerNode</span><wbr>(<span class="base">abc.ABC</span>):
+    <span class="name">SingleInputLayerNode</span><wbr>(<span class="base">abc.ABC</span>):
 
                 <label class="view-source-button" for="LayerNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#LayerNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="LayerNode-12"><a href="#LayerNode-12"><span class="linenos">12</span></a><span class="k">class</span> <span class="nc">LayerNode</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="LayerNode-12"><a href="#LayerNode-12"><span class="linenos">12</span></a><span class="k">class</span> <span class="nc">SingleInputLayerNode</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
 </span><span id="LayerNode-13"><a href="#LayerNode-13"><span class="linenos">13</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="LayerNode-14"><a href="#LayerNode-14"><span class="linenos">14</span></a><span class="sd">    An abstract class used for our internal representation of a generic Layer of a Neural Network.</span>
 </span><span id="LayerNode-15"><a href="#LayerNode-15"><span class="linenos">15</span></a><span class="sd">    Its concrete children correspond to real network layers.</span>
@@ -1305,7 +1305,7 @@
 </span><span id="LayerNode-17"><a href="#LayerNode-17"><span class="linenos">17</span></a><span class="sd">    Attributes</span>
 </span><span id="LayerNode-18"><a href="#LayerNode-18"><span class="linenos">18</span></a><span class="sd">    ----------</span>
 </span><span id="LayerNode-19"><a href="#LayerNode-19"><span class="linenos">19</span></a><span class="sd">    identifier : str</span>
-</span><span id="LayerNode-20"><a href="#LayerNode-20"><span class="linenos">20</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="LayerNode-20"><a href="#LayerNode-20"><span class="linenos">20</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="LayerNode-21"><a href="#LayerNode-21"><span class="linenos">21</span></a><span class="sd">    in_dim : Tuple</span>
 </span><span id="LayerNode-22"><a href="#LayerNode-22"><span class="linenos">22</span></a><span class="sd">        Dimension of the input Tensor as a tuple (ndarray.shape like).</span>
 </span><span id="LayerNode-23"><a href="#LayerNode-23"><span class="linenos">23</span></a><span class="sd">    out_dim : Tuple</span>
@@ -1336,7 +1336,7 @@ Its concrete children correspond to real network layers.</p>
 <h2 id="attributes">Attributes</h2>
 
 <p>identifier : str
-    Identifier of the LayerNode.
+    Identifier of the SingleInputLayerNode.
 in_dim : Tuple
     Dimension of the input Tensor as a tuple (ndarray.shape like).
 out_dim : Tuple
@@ -1404,13 +1404,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">ReLUNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">ReLUNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="ReLUNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#ReLUNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ReLUNode-44"><a href="#ReLUNode-44"><span class="linenos">44</span></a><span class="k">class</span> <span class="nc">ReLUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ReLUNode-44"><a href="#ReLUNode-44"><span class="linenos">44</span></a><span class="k">class</span> <span class="nc">ReLUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="ReLUNode-45"><a href="#ReLUNode-45"><span class="linenos">45</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="ReLUNode-46"><a href="#ReLUNode-46"><span class="linenos">46</span></a><span class="sd">    A class used for our internal representation of a ReLU Layer of a Neural Network.</span>
 </span><span id="ReLUNode-47"><a href="#ReLUNode-47"><span class="linenos">47</span></a>
@@ -1481,7 +1481,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="ReLUNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="ReLUNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="ReLUNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -1495,13 +1495,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">ELUNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">ELUNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="ELUNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#ELUNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ELUNode-64"><a href="#ELUNode-64"><span class="linenos">64</span></a><span class="k">class</span> <span class="nc">ELUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ELUNode-64"><a href="#ELUNode-64"><span class="linenos">64</span></a><span class="k">class</span> <span class="nc">ELUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="ELUNode-65"><a href="#ELUNode-65"><span class="linenos">65</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="ELUNode-66"><a href="#ELUNode-66"><span class="linenos">66</span></a><span class="sd">    A class used for our internal representation of a ELU Layer of a Neural Network.</span>
 </span><span id="ELUNode-67"><a href="#ELUNode-67"><span class="linenos">67</span></a>
@@ -1596,7 +1596,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="ELUNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="ELUNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="ELUNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -1610,13 +1610,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">CELUNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">CELUNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="CELUNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#CELUNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CELUNode-90"><a href="#CELUNode-90"><span class="linenos"> 90</span></a><span class="k">class</span> <span class="nc">CELUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CELUNode-90"><a href="#CELUNode-90"><span class="linenos"> 90</span></a><span class="k">class</span> <span class="nc">CELUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="CELUNode-91"><a href="#CELUNode-91"><span class="linenos"> 91</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="CELUNode-92"><a href="#CELUNode-92"><span class="linenos"> 92</span></a><span class="sd">    A class used for our internal representation of a CELU Layer of a Neural Network.</span>
 </span><span id="CELUNode-93"><a href="#CELUNode-93"><span class="linenos"> 93</span></a>
@@ -1711,7 +1711,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="CELUNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="CELUNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="CELUNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -1725,13 +1725,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">LeakyReLUNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">LeakyReLUNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="LeakyReLUNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#LeakyReLUNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="LeakyReLUNode-116"><a href="#LeakyReLUNode-116"><span class="linenos">116</span></a><span class="k">class</span> <span class="nc">LeakyReLUNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="LeakyReLUNode-116"><a href="#LeakyReLUNode-116"><span class="linenos">116</span></a><span class="k">class</span> <span class="nc">LeakyReLUNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="LeakyReLUNode-117"><a href="#LeakyReLUNode-117"><span class="linenos">117</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="LeakyReLUNode-118"><a href="#LeakyReLUNode-118"><span class="linenos">118</span></a><span class="sd">    A class used for our internal representation of a Leaky ReLU Layer of a Neural Network.</span>
 </span><span id="LeakyReLUNode-119"><a href="#LeakyReLUNode-119"><span class="linenos">119</span></a>
@@ -1826,7 +1826,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="LeakyReLUNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="LeakyReLUNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="LeakyReLUNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -1840,13 +1840,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">SigmoidNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">SigmoidNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="SigmoidNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#SigmoidNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="SigmoidNode-142"><a href="#SigmoidNode-142"><span class="linenos">142</span></a><span class="k">class</span> <span class="nc">SigmoidNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="SigmoidNode-142"><a href="#SigmoidNode-142"><span class="linenos">142</span></a><span class="k">class</span> <span class="nc">SigmoidNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="SigmoidNode-143"><a href="#SigmoidNode-143"><span class="linenos">143</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="SigmoidNode-144"><a href="#SigmoidNode-144"><span class="linenos">144</span></a><span class="sd">    A class used for our internal representation of a Sigmoid Layer of a Neural Network.</span>
 </span><span id="SigmoidNode-145"><a href="#SigmoidNode-145"><span class="linenos">145</span></a>
@@ -1917,7 +1917,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="SigmoidNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="SigmoidNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="SigmoidNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -1931,13 +1931,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">TanhNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">TanhNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="TanhNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#TanhNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="TanhNode-162"><a href="#TanhNode-162"><span class="linenos">162</span></a><span class="k">class</span> <span class="nc">TanhNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="TanhNode-162"><a href="#TanhNode-162"><span class="linenos">162</span></a><span class="k">class</span> <span class="nc">TanhNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="TanhNode-163"><a href="#TanhNode-163"><span class="linenos">163</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="TanhNode-164"><a href="#TanhNode-164"><span class="linenos">164</span></a><span class="sd">    A class used for our internal representation of a Tanh Layer of a Neural Network.</span>
 </span><span id="TanhNode-165"><a href="#TanhNode-165"><span class="linenos">165</span></a>
@@ -2007,7 +2007,7 @@ out_dim : Tuple
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="TanhNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="TanhNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="TanhNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -2021,13 +2021,13 @@ out_dim : Tuple
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">FullyConnectedNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">FullyConnectedNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="FullyConnectedNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#FullyConnectedNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="FullyConnectedNode-181"><a href="#FullyConnectedNode-181"><span class="linenos">181</span></a><span class="k">class</span> <span class="nc">FullyConnectedNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="FullyConnectedNode-181"><a href="#FullyConnectedNode-181"><span class="linenos">181</span></a><span class="k">class</span> <span class="nc">FullyConnectedNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="FullyConnectedNode-182"><a href="#FullyConnectedNode-182"><span class="linenos">182</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="FullyConnectedNode-183"><a href="#FullyConnectedNode-183"><span class="linenos">183</span></a><span class="sd">    A class used for our internal representation of a Fully Connected layer of a Neural Network</span>
 </span><span id="FullyConnectedNode-184"><a href="#FullyConnectedNode-184"><span class="linenos">184</span></a>
@@ -2250,7 +2250,7 @@ has_bias : bool, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="FullyConnectedNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="FullyConnectedNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="FullyConnectedNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -2264,13 +2264,13 @@ has_bias : bool, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">BatchNormNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">BatchNormNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="BatchNormNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#BatchNormNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="BatchNormNode-249"><a href="#BatchNormNode-249"><span class="linenos">249</span></a><span class="k">class</span> <span class="nc">BatchNormNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="BatchNormNode-249"><a href="#BatchNormNode-249"><span class="linenos">249</span></a><span class="k">class</span> <span class="nc">BatchNormNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="BatchNormNode-250"><a href="#BatchNormNode-250"><span class="linenos">250</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="BatchNormNode-251"><a href="#BatchNormNode-251"><span class="linenos">251</span></a><span class="sd">    A class used for our internal representation of a one dimensional Batch Normalization Layer.</span>
 </span><span id="BatchNormNode-252"><a href="#BatchNormNode-252"><span class="linenos">252</span></a><span class="sd">    N.B. There are some problem for compatibility between pytorch and onnx: pytorch provide 3 different kind</span>
@@ -2588,7 +2588,7 @@ track_running_stats : bool, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="BatchNormNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="BatchNormNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="BatchNormNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -2602,13 +2602,13 @@ track_running_stats : bool, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">ConvNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">ConvNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="ConvNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#ConvNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ConvNode-343"><a href="#ConvNode-343"><span class="linenos">343</span></a><span class="k">class</span> <span class="nc">ConvNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ConvNode-343"><a href="#ConvNode-343"><span class="linenos">343</span></a><span class="k">class</span> <span class="nc">ConvNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="ConvNode-344"><a href="#ConvNode-344"><span class="linenos">344</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="ConvNode-345"><a href="#ConvNode-345"><span class="linenos">345</span></a><span class="sd">    A class used for our internal representation of a Convolutional layer of a Neural Network.</span>
 </span><span id="ConvNode-346"><a href="#ConvNode-346"><span class="linenos">346</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -2990,7 +2990,7 @@ weight : Tensor, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="ConvNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="ConvNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="ConvNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3004,13 +3004,13 @@ weight : Tensor, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">AveragePoolNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">AveragePoolNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="AveragePoolNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#AveragePoolNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="AveragePoolNode-463"><a href="#AveragePoolNode-463"><span class="linenos">463</span></a><span class="k">class</span> <span class="nc">AveragePoolNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="AveragePoolNode-463"><a href="#AveragePoolNode-463"><span class="linenos">463</span></a><span class="k">class</span> <span class="nc">AveragePoolNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="AveragePoolNode-464"><a href="#AveragePoolNode-464"><span class="linenos">464</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="AveragePoolNode-465"><a href="#AveragePoolNode-465"><span class="linenos">465</span></a><span class="sd">    A class used for our internal representation of a AveragePool layer of a Neural Network.</span>
 </span><span id="AveragePoolNode-466"><a href="#AveragePoolNode-466"><span class="linenos">466</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -3239,7 +3239,7 @@ count_include_pad: bool, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="AveragePoolNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="AveragePoolNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="AveragePoolNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3253,13 +3253,13 @@ count_include_pad: bool, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">MaxPoolNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">MaxPoolNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="MaxPoolNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#MaxPoolNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="MaxPoolNode-534"><a href="#MaxPoolNode-534"><span class="linenos">534</span></a><span class="k">class</span> <span class="nc">MaxPoolNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="MaxPoolNode-534"><a href="#MaxPoolNode-534"><span class="linenos">534</span></a><span class="k">class</span> <span class="nc">MaxPoolNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="MaxPoolNode-535"><a href="#MaxPoolNode-535"><span class="linenos">535</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="MaxPoolNode-536"><a href="#MaxPoolNode-536"><span class="linenos">536</span></a><span class="sd">    A class used for our internal representation of a MaxPool layer of a Neural Network.</span>
 </span><span id="MaxPoolNode-537"><a href="#MaxPoolNode-537"><span class="linenos">537</span></a><span class="sd">    Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch</span>
@@ -3515,7 +3515,7 @@ return_indices: bool
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="MaxPoolNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="MaxPoolNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="MaxPoolNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3529,13 +3529,13 @@ return_indices: bool
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">LRNNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">LRNNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="LRNNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#LRNNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="LRNNode-613"><a href="#LRNNode-613"><span class="linenos">613</span></a><span class="k">class</span> <span class="nc">LRNNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="LRNNode-613"><a href="#LRNNode-613"><span class="linenos">613</span></a><span class="k">class</span> <span class="nc">LRNNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="LRNNode-614"><a href="#LRNNode-614"><span class="linenos">614</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="LRNNode-615"><a href="#LRNNode-615"><span class="linenos">615</span></a><span class="sd">    A class used for our internal representation of a LocalResponseNormalization Layer of a Neural Network.</span>
 </span><span id="LRNNode-616"><a href="#LRNNode-616"><span class="linenos">616</span></a>
@@ -3677,7 +3677,7 @@ k : float, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="LRNNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="LRNNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="LRNNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3691,13 +3691,13 @@ k : float, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">SoftMaxNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">SoftMaxNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="SoftMaxNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#SoftMaxNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="SoftMaxNode-646"><a href="#SoftMaxNode-646"><span class="linenos">646</span></a><span class="k">class</span> <span class="nc">SoftMaxNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="SoftMaxNode-646"><a href="#SoftMaxNode-646"><span class="linenos">646</span></a><span class="k">class</span> <span class="nc">SoftMaxNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="SoftMaxNode-647"><a href="#SoftMaxNode-647"><span class="linenos">647</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="SoftMaxNode-648"><a href="#SoftMaxNode-648"><span class="linenos">648</span></a><span class="sd">    A class used for our internal representation of a SoftMax Layer of a Neural Network.</span>
 </span><span id="SoftMaxNode-649"><a href="#SoftMaxNode-649"><span class="linenos">649</span></a>
@@ -3794,7 +3794,7 @@ k : float, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="SoftMaxNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="SoftMaxNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="SoftMaxNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3808,13 +3808,13 @@ k : float, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">UnsqueezeNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">UnsqueezeNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="UnsqueezeNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#UnsqueezeNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="UnsqueezeNode-673"><a href="#UnsqueezeNode-673"><span class="linenos">673</span></a><span class="k">class</span> <span class="nc">UnsqueezeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="UnsqueezeNode-673"><a href="#UnsqueezeNode-673"><span class="linenos">673</span></a><span class="k">class</span> <span class="nc">UnsqueezeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="UnsqueezeNode-674"><a href="#UnsqueezeNode-674"><span class="linenos">674</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="UnsqueezeNode-675"><a href="#UnsqueezeNode-675"><span class="linenos">675</span></a><span class="sd">    A class used for our internal representation of an Unsqueeze Layer.</span>
 </span><span id="UnsqueezeNode-676"><a href="#UnsqueezeNode-676"><span class="linenos">676</span></a><span class="sd">    We follow the ONNX operator convention for attributes and definitions.</span>
@@ -3954,7 +3954,7 @@ We follow the ONNX operator convention for attributes and definitions.</p>
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="UnsqueezeNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="UnsqueezeNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="UnsqueezeNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -3968,13 +3968,13 @@ We follow the ONNX operator convention for attributes and definitions.</p>
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">ReshapeNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">ReshapeNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="ReshapeNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#ReshapeNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ReshapeNode-721"><a href="#ReshapeNode-721"><span class="linenos">721</span></a><span class="k">class</span> <span class="nc">ReshapeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ReshapeNode-721"><a href="#ReshapeNode-721"><span class="linenos">721</span></a><span class="k">class</span> <span class="nc">ReshapeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="ReshapeNode-722"><a href="#ReshapeNode-722"><span class="linenos">722</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="ReshapeNode-723"><a href="#ReshapeNode-723"><span class="linenos">723</span></a><span class="sd">    A class used for our internal representation of a Reshape layer of a Neural Network.</span>
 </span><span id="ReshapeNode-724"><a href="#ReshapeNode-724"><span class="linenos">724</span></a><span class="sd">    We follow the ONNX operator convention for attributes and definitions.</span>
@@ -4124,7 +4124,7 @@ allow_zero : bool, optional
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="ReshapeNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="ReshapeNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="ReshapeNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -4138,13 +4138,13 @@ allow_zero : bool, optional
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">FlattenNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">FlattenNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="FlattenNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#FlattenNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="FlattenNode-769"><a href="#FlattenNode-769"><span class="linenos">769</span></a><span class="k">class</span> <span class="nc">FlattenNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="FlattenNode-769"><a href="#FlattenNode-769"><span class="linenos">769</span></a><span class="k">class</span> <span class="nc">FlattenNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="FlattenNode-770"><a href="#FlattenNode-770"><span class="linenos">770</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="FlattenNode-771"><a href="#FlattenNode-771"><span class="linenos">771</span></a><span class="sd">    A class used for our internal representation of a Flatten layer of a Neural Network. We follow the ONNX operator</span>
 </span><span id="FlattenNode-772"><a href="#FlattenNode-772"><span class="linenos">772</span></a><span class="sd">    convention for attributes and definitions.</span>
@@ -4258,7 +4258,7 @@ convention for attributes and definitions.</p>
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="FlattenNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="FlattenNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="FlattenNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -4272,13 +4272,13 @@ convention for attributes and definitions.</p>
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">DropoutNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">DropoutNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="DropoutNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#DropoutNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="DropoutNode-804"><a href="#DropoutNode-804"><span class="linenos">804</span></a><span class="k">class</span> <span class="nc">DropoutNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="DropoutNode-804"><a href="#DropoutNode-804"><span class="linenos">804</span></a><span class="k">class</span> <span class="nc">DropoutNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="DropoutNode-805"><a href="#DropoutNode-805"><span class="linenos">805</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="DropoutNode-806"><a href="#DropoutNode-806"><span class="linenos">806</span></a><span class="sd">    A class used for our internal representation of a Dropout Layer of a Neural Network.</span>
 </span><span id="DropoutNode-807"><a href="#DropoutNode-807"><span class="linenos">807</span></a><span class="sd">    The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.</span>
@@ -4366,7 +4366,7 @@ The inplace parameter of pytorch and the seed attribute and training_mode of onn
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="DropoutNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="DropoutNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="DropoutNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>
@@ -4380,13 +4380,13 @@ The inplace parameter of pytorch and the seed attribute and training_mode of onn
 <div class="attr class">
             
     <span class="def">class</span>
-    <span class="name">TransposeNode</span><wbr>(<span class="base"><a href="#LayerNode">LayerNode</a></span>):
+    <span class="name">TransposeNode</span><wbr>(<span class="base"><a href="#LayerNode">SingleInputLayerNode</a></span>):
 
                 <label class="view-source-button" for="TransposeNode-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#TransposeNode"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="TransposeNode-826"><a href="#TransposeNode-826"><span class="linenos">826</span></a><span class="k">class</span> <span class="nc">TransposeNode</span><span class="p">(</span><span class="n">LayerNode</span><span class="p">):</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="TransposeNode-826"><a href="#TransposeNode-826"><span class="linenos">826</span></a><span class="k">class</span> <span class="nc">TransposeNode</span><span class="p">(</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="TransposeNode-827"><a href="#TransposeNode-827"><span class="linenos">827</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="TransposeNode-828"><a href="#TransposeNode-828"><span class="linenos">828</span></a><span class="sd">    A class used for our internal representation of a Dropout Layer of a Neural Network.</span>
 </span><span id="TransposeNode-829"><a href="#TransposeNode-829"><span class="linenos">829</span></a><span class="sd">    The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.</span>
@@ -4486,7 +4486,7 @@ The inplace parameter of pytorch and the seed attribute and training_mode of onn
                             <div class="inherited">
                                 <h5>Inherited Members</h5>
                                 <dl>
-                                    <div><dt><a href="#LayerNode">LayerNode</a></dt>
+                                    <div><dt><a href="#LayerNode">SingleInputLayerNode</a></dt>
                                 <dd id="TransposeNode.identifier" class="variable"><a href="#LayerNode.identifier">identifier</a></dd>
                 <dd id="TransposeNode.in_dim" class="variable"><a href="#LayerNode.in_dim">in_dim</a></dd>
                 <dd id="TransposeNode.out_dim" class="variable"><a href="#LayerNode.out_dim">out_dim</a></dd>

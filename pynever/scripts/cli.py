@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 import os
 import re
@@ -8,7 +9,8 @@ import time
 import pynever.networks as nets
 import pynever.strategies.conversion as conv
 import pynever.strategies.verification as ver
-from pynever.tensor import Tensor
+from pynever import utilities
+from pynever.tensors import Tensor
 from pynever.utilities import execute_network
 
 # Log to stdout
@@ -17,10 +19,10 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
-def verify_single_model(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
+def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
     """
     This method starts the verification procedure on the network model
-    provided in the model_file path and prints the result
+    provided in the model_file path and prints the result with the SSLP algorithm
 
     Parameters
     ----------
@@ -138,10 +140,90 @@ def verify_single_model(safety_prop: bool, model_file: str, property_file: str, 
                 return False
 
 
-def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
+def ssbp_verify_single(model_file: str, property_file: str, logfile: str, timeout: int, params_file: str) -> bool:
     """
-    This method starts the verification procedure on the network model
-    provided in the model_file path and prints the result
+    This method starts the verification procedure on the network model provided
+    in the model_file path for the property specified in property_file, using
+    the SSBP algorithm
+
+    Parameters
+    ----------
+    model_file : str
+        Path to the ONNX network file
+    property_file : str
+        Path to the VNNLIB property file
+    logfile : str
+        Path to the CSV output file
+    timeout : int
+        Execution timeout, optional
+    params_file : str, optional
+        Path to the JSON parameters file
+
+    Returns
+    ----------
+    bool
+        True if the network is safe w.r.t. the property, False otherwise
+
+    """
+
+    nn_path = os.path.abspath(model_file)
+    prop_path = os.path.abspath(property_file)
+    params_path = os.path.abspath(params_file)
+    params = None
+
+    if not os.path.isfile(nn_path):
+        print(f'Error: file {nn_path} not found!')
+        return False
+
+    elif not os.path.isfile(prop_path):
+        print(f'Error: file {prop_path} not found!')
+        return False
+
+    elif params_file != '' and not os.path.isfile(params_path):
+        print(f'Error: file {params_path} not found!')
+        return False
+
+    else:
+        # Read the network file
+        alt_repr = conv.load_network_path(nn_path)
+
+        if alt_repr is not None:
+            if isinstance(alt_repr, conv.ONNXNetwork):
+                network = conv.ONNXConverter().to_neural_network(alt_repr)
+
+                if isinstance(network, nets.SequentialNetwork):
+                    # Read the property file
+                    to_verify = ver.NeVerProperty()
+                    to_verify.from_smt_file(prop_path)
+
+                    if os.path.isfile(params_path):
+                        params = json.loads(params_path)
+
+                    ver_strategy = ver.SearchVerification(params)
+                    ver_strategy.search_params['timeout'] = timeout
+
+                    start_time = time.perf_counter()
+                    result = ver_strategy.verify(network, to_verify)
+                    lap = time.perf_counter() - start_time
+
+                    p_name = prop_path.split('/')[-1].split('\\')[-1]
+                    net_name = network.identifier.split('/')[-1].split('\\')[-1]
+                    instance_name = f'{net_name} - {p_name}'
+                    dump_results(instance_name, network, result, lap, logfile)
+
+                    return result[0]
+            else:
+                print('Not an ONNX model.')
+                return False
+        else:
+            print('The model is not readable.')
+            return False
+
+
+def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
+    """
+    This method starts the verification procedure on the instances provided
+    in the csv_file path and prints the result with the SSLP algorithm
 
     Parameters
     ----------
@@ -182,11 +264,95 @@ def verify_CSV_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: s
                     if len(row) >= 2:
                         net_path = f'{folder}/{row[0]}'
                         prop_path = f'{folder}/{row[1]}'
-                        verify_single_model(safety_prop, net_path, prop_path, strategy, logfile)
+                        sslp_verify_single(safety_prop, net_path, prop_path, strategy, logfile)
                     else:
                         print('Invalid row: ', row)
                         exec_ok = False
     return exec_ok
+
+
+def ssbp_verify_batch(csv_file: str, logfile: str, timeout: int, params_file: str) -> bool:
+    """
+    This method starts the verification procedure on the batch of instances
+    provided in the csv_file path, using the SSBP algorithm
+
+    Parameters
+    ----------
+    csv_file : str
+        Path to the instances file
+    logfile : str
+        Path to the CSV output file
+    timeout : int
+        Execution timeout, optional
+    params_file : str, optional
+        Path to the JSON parameters file
+
+    Returns
+    ----------
+    bool
+        True if all the instances executed, False otherwise
+
+    """
+
+    csv_file_path = os.path.abspath(csv_file)
+    folder = os.path.dirname(csv_file_path)
+    exec_ok = True
+
+    if not os.path.isfile(csv_file_path):
+        print('Invalid path for the CSV file.')
+        return False
+
+    else:
+        with open(csv_file_path, newline='') as f:
+            try:
+                reader = csv.reader(f)
+            except OSError:
+                print('Cannot open file ', csv_file)
+                return False
+
+            else:
+                for row in reader:
+                    if len(row) >= 2:
+                        net_path = f'{folder}/{row[0]}'
+                        prop_path = f'{folder}/{row[1]}'
+                        ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+                    else:
+                        print('Invalid row: ', row)
+                        exec_ok = False
+    return exec_ok
+
+
+def dump_results(name, net, ans, t, out):
+    """
+    This method prints the result of the verification procedure to a CSV file and to a single instance file
+    as per VNN-COMP directive
+
+    """
+
+    # CSV structure: name,time,result
+    with open(out, 'a', encoding='utf-8') as csv_out, open(f'{name.replace(".vnnlib", "")}.txt', 'w') as inst_out:
+        csv_out.write(f'{name},')
+
+        # If answer is False with no counterexample -> timeout
+        if len(ans) == 1:
+            if ans[0]:
+                csv_out.write(f'{t},Verified\n')
+                inst_out.write('unsat')
+            else:
+                csv_out.write(f'-,Unknown\n')
+                inst_out.write('unknown')
+        else:
+            unsafe_out = utilities.execute_network(net, ans[1])
+            text = ''
+            for i in range(len(ans[1])):
+                text += f'(X_{i} {ans[1][i]})\n'
+
+            for j in range(len(unsafe_out)):
+                text += f'(Y_{j} {unsafe_out[j]})\n'
+            text = text.replace('[', '').replace(']', '')[:-1]
+
+            csv_out.write(f'{t},Unsafe\n')
+            inst_out.write(f'sat\n({text})')
 
 
 def reformat_counterexample(counterexample: Tensor) -> str:
@@ -195,13 +361,14 @@ def reformat_counterexample(counterexample: Tensor) -> str:
 
     """
 
-    response = '['
+    formatted = '['
     for component in counterexample:
-        response += str(float(component))
-        response += ' '
-    response = response[:-1]
-    response += ']'
-    return response
+        formatted += str(float(component[0]))
+        formatted += ' '
+    formatted = formatted[:-1]
+    formatted += ']'
+
+    return formatted
 
 
 def neg_post_condition(prop_path: str) -> None:

@@ -10,7 +10,7 @@ import pynever.networks as networks
 import pynever.pytorch_layers as ptl
 import pynever.strategies.abstraction as abst
 import pynever.strategies.conversion as cv
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 logger_name = "pynever.utilities"
 

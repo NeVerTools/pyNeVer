@@ -1172,8 +1172,8 @@
 </span><span id="L-894"><a href="#L-894"><span class="linenos"> 894</span></a><span class="sd">    identifier : str</span>
 </span><span id="L-895"><a href="#L-895"><span class="linenos"> 895</span></a><span class="sd">        Identifier of the AbsLayerNode.</span>
 </span><span id="L-896"><a href="#L-896"><span class="linenos"> 896</span></a>
-</span><span id="L-897"><a href="#L-897"><span class="linenos"> 897</span></a><span class="sd">    ref_node : LayerNode</span>
-</span><span id="L-898"><a href="#L-898"><span class="linenos"> 898</span></a><span class="sd">        Reference LayerNode for the abstract transformer.</span>
+</span><span id="L-897"><a href="#L-897"><span class="linenos"> 897</span></a><span class="sd">    ref_node : SingleInputLayerNode</span>
+</span><span id="L-898"><a href="#L-898"><span class="linenos"> 898</span></a><span class="sd">        Reference SingleInputLayerNode for the abstract transformer.</span>
 </span><span id="L-899"><a href="#L-899"><span class="linenos"> 899</span></a>
 </span><span id="L-900"><a href="#L-900"><span class="linenos"> 900</span></a><span class="sd">    Methods</span>
 </span><span id="L-901"><a href="#L-901"><span class="linenos"> 901</span></a><span class="sd">    ----------</span>
@@ -1188,7 +1188,7 @@
 </span><span id="L-910"><a href="#L-910"><span class="linenos"> 910</span></a>
 </span><span id="L-911"><a href="#L-911"><span class="linenos"> 911</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-912"><a href="#L-912"><span class="linenos"> 912</span></a>
-</span><span id="L-913"><a href="#L-913"><span class="linenos"> 913</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ref_node</span><span class="p">:</span> <span class="n">nodes</span><span class="o">.</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="L-913"><a href="#L-913"><span class="linenos"> 913</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ref_node</span><span class="p">:</span> <span class="n">nodes</span><span class="o">.</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="L-914"><a href="#L-914"><span class="linenos"> 914</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span> <span class="o">=</span> <span class="n">identifier</span>
 </span><span id="L-915"><a href="#L-915"><span class="linenos"> 915</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">ref_node</span> <span class="o">=</span> <span class="n">ref_node</span>
 </span><span id="L-916"><a href="#L-916"><span class="linenos"> 916</span></a>
@@ -1232,10 +1232,10 @@
 </span><span id="L-954"><a href="#L-954"><span class="linenos"> 954</span></a><span class="sd">    Attributes</span>
 </span><span id="L-955"><a href="#L-955"><span class="linenos"> 955</span></a><span class="sd">    ----------</span>
 </span><span id="L-956"><a href="#L-956"><span class="linenos"> 956</span></a><span class="sd">    identifier : str</span>
-</span><span id="L-957"><a href="#L-957"><span class="linenos"> 957</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="L-957"><a href="#L-957"><span class="linenos"> 957</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="L-958"><a href="#L-958"><span class="linenos"> 958</span></a>
 </span><span id="L-959"><a href="#L-959"><span class="linenos"> 959</span></a><span class="sd">    ref_node : FullyConnectedNode</span>
-</span><span id="L-960"><a href="#L-960"><span class="linenos"> 960</span></a><span class="sd">        LayerNode di riferimento per l&#39;abstract transformer.</span>
+</span><span id="L-960"><a href="#L-960"><span class="linenos"> 960</span></a><span class="sd">        SingleInputLayerNode di riferimento per l&#39;abstract transformer.</span>
 </span><span id="L-961"><a href="#L-961"><span class="linenos"> 961</span></a>
 </span><span id="L-962"><a href="#L-962"><span class="linenos"> 962</span></a><span class="sd">    Methods</span>
 </span><span id="L-963"><a href="#L-963"><span class="linenos"> 963</span></a><span class="sd">    ----------</span>
@@ -1312,10 +1312,10 @@
 </span><span id="L-1034"><a href="#L-1034"><span class="linenos">1034</span></a><span class="sd">    Attributes</span>
 </span><span id="L-1035"><a href="#L-1035"><span class="linenos">1035</span></a><span class="sd">    ----------</span>
 </span><span id="L-1036"><a href="#L-1036"><span class="linenos">1036</span></a><span class="sd">    identifier : str</span>
-</span><span id="L-1037"><a href="#L-1037"><span class="linenos">1037</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="L-1037"><a href="#L-1037"><span class="linenos">1037</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="L-1038"><a href="#L-1038"><span class="linenos">1038</span></a>
 </span><span id="L-1039"><a href="#L-1039"><span class="linenos">1039</span></a><span class="sd">    ref_node : ReLUNode</span>
-</span><span id="L-1040"><a href="#L-1040"><span class="linenos">1040</span></a><span class="sd">        Reference LayerNode for the abstract transformer.</span>
+</span><span id="L-1040"><a href="#L-1040"><span class="linenos">1040</span></a><span class="sd">        Reference SingleInputLayerNode for the abstract transformer.</span>
 </span><span id="L-1041"><a href="#L-1041"><span class="linenos">1041</span></a>
 </span><span id="L-1042"><a href="#L-1042"><span class="linenos">1042</span></a><span class="sd">    heuristic : str</span>
 </span><span id="L-1043"><a href="#L-1043"><span class="linenos">1043</span></a><span class="sd">        Heuristic used to decide the refinement level of the abstraction.</span>
@@ -1443,10 +1443,10 @@
 </span><span id="L-1165"><a href="#L-1165"><span class="linenos">1165</span></a><span class="sd">    Attributes</span>
 </span><span id="L-1166"><a href="#L-1166"><span class="linenos">1166</span></a><span class="sd">    ----------</span>
 </span><span id="L-1167"><a href="#L-1167"><span class="linenos">1167</span></a><span class="sd">    identifier : str</span>
-</span><span id="L-1168"><a href="#L-1168"><span class="linenos">1168</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="L-1168"><a href="#L-1168"><span class="linenos">1168</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="L-1169"><a href="#L-1169"><span class="linenos">1169</span></a>
 </span><span id="L-1170"><a href="#L-1170"><span class="linenos">1170</span></a><span class="sd">    ref_node : SigmoidNode</span>
-</span><span id="L-1171"><a href="#L-1171"><span class="linenos">1171</span></a><span class="sd">        LayerNode di riferimento per l&#39;abstract transformer.</span>
+</span><span id="L-1171"><a href="#L-1171"><span class="linenos">1171</span></a><span class="sd">        SingleInputLayerNode di riferimento per l&#39;abstract transformer.</span>
 </span><span id="L-1172"><a href="#L-1172"><span class="linenos">1172</span></a>
 </span><span id="L-1173"><a href="#L-1173"><span class="linenos">1173</span></a><span class="sd">    refinement_level : Union[int, List[int]]</span>
 </span><span id="L-1174"><a href="#L-1174"><span class="linenos">1174</span></a><span class="sd">        Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all</span>
@@ -1533,7 +1533,7 @@
 </span><span id="L-1255"><a href="#L-1255"><span class="linenos">1255</span></a>
 </span><span id="L-1256"><a href="#L-1256"><span class="linenos">1256</span></a><span class="sd">    Attributes</span>
 </span><span id="L-1257"><a href="#L-1257"><span class="linenos">1257</span></a><span class="sd">    ----------</span>
-</span><span id="L-1258"><a href="#L-1258"><span class="linenos">1258</span></a><span class="sd">    nodes : dict &lt;str, LayerNode&gt;</span>
+</span><span id="L-1258"><a href="#L-1258"><span class="linenos">1258</span></a><span class="sd">    nodes : dict &lt;str, SingleInputLayerNode&gt;</span>
 </span><span id="L-1259"><a href="#L-1259"><span class="linenos">1259</span></a><span class="sd">        Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,</span>
 </span><span id="L-1260"><a href="#L-1260"><span class="linenos">1260</span></a><span class="sd">        the identifier of the node of interest is used as a key in the nodes dictionary.</span>
 </span><span id="L-1261"><a href="#L-1261"><span class="linenos">1261</span></a>
@@ -1602,13 +1602,13 @@
 </span><span id="L-1324"><a href="#L-1324"><span class="linenos">1324</span></a>
 </span><span id="L-1325"><a href="#L-1325"><span class="linenos">1325</span></a><span class="sd">    Methods</span>
 </span><span id="L-1326"><a href="#L-1326"><span class="linenos">1326</span></a><span class="sd">    -------</span>
-</span><span id="L-1327"><a href="#L-1327"><span class="linenos">1327</span></a><span class="sd">    add_node(LayerNode)</span>
+</span><span id="L-1327"><a href="#L-1327"><span class="linenos">1327</span></a><span class="sd">    add_node(SingleInputLayerNode)</span>
 </span><span id="L-1328"><a href="#L-1328"><span class="linenos">1328</span></a><span class="sd">        Procedure to add a new AbsLayerNode to the sequential AbsNeuralNetwork.</span>
 </span><span id="L-1329"><a href="#L-1329"><span class="linenos">1329</span></a>
 </span><span id="L-1330"><a href="#L-1330"><span class="linenos">1330</span></a><span class="sd">    get_first_node()</span>
 </span><span id="L-1331"><a href="#L-1331"><span class="linenos">1331</span></a><span class="sd">        Procedure to extract the first AbsLayerNode of the sequential AbsNeuralNetwork.</span>
 </span><span id="L-1332"><a href="#L-1332"><span class="linenos">1332</span></a>
-</span><span id="L-1333"><a href="#L-1333"><span class="linenos">1333</span></a><span class="sd">    get_next_node(LayerNode)</span>
+</span><span id="L-1333"><a href="#L-1333"><span class="linenos">1333</span></a><span class="sd">    get_next_node(SingleInputLayerNode)</span>
 </span><span id="L-1334"><a href="#L-1334"><span class="linenos">1334</span></a><span class="sd">        Procedure to get the next AbsLayerNode of the AbsNeuralNetwork given an input AbsLayerNode</span>
 </span><span id="L-1335"><a href="#L-1335"><span class="linenos">1335</span></a>
 </span><span id="L-1336"><a href="#L-1336"><span class="linenos">1336</span></a><span class="sd">    get_last_node()</span>
@@ -1677,7 +1677,7 @@
 </span><span id="L-1399"><a href="#L-1399"><span class="linenos">1399</span></a>
 </span><span id="L-1400"><a href="#L-1400"><span class="linenos">1400</span></a><span class="sd">        Return</span>
 </span><span id="L-1401"><a href="#L-1401"><span class="linenos">1401</span></a><span class="sd">        ---------</span>
-</span><span id="L-1402"><a href="#L-1402"><span class="linenos">1402</span></a><span class="sd">        LayerNode</span>
+</span><span id="L-1402"><a href="#L-1402"><span class="linenos">1402</span></a><span class="sd">        SingleInputLayerNode</span>
 </span><span id="L-1403"><a href="#L-1403"><span class="linenos">1403</span></a><span class="sd">            The next node of the network.</span>
 </span><span id="L-1404"><a href="#L-1404"><span class="linenos">1404</span></a>
 </span><span id="L-1405"><a href="#L-1405"><span class="linenos">1405</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -3193,8 +3193,8 @@ implementations.</p>
 </span><span id="AbsLayerNode-895"><a href="#AbsLayerNode-895"><span class="linenos">895</span></a><span class="sd">    identifier : str</span>
 </span><span id="AbsLayerNode-896"><a href="#AbsLayerNode-896"><span class="linenos">896</span></a><span class="sd">        Identifier of the AbsLayerNode.</span>
 </span><span id="AbsLayerNode-897"><a href="#AbsLayerNode-897"><span class="linenos">897</span></a>
-</span><span id="AbsLayerNode-898"><a href="#AbsLayerNode-898"><span class="linenos">898</span></a><span class="sd">    ref_node : LayerNode</span>
-</span><span id="AbsLayerNode-899"><a href="#AbsLayerNode-899"><span class="linenos">899</span></a><span class="sd">        Reference LayerNode for the abstract transformer.</span>
+</span><span id="AbsLayerNode-898"><a href="#AbsLayerNode-898"><span class="linenos">898</span></a><span class="sd">    ref_node : SingleInputLayerNode</span>
+</span><span id="AbsLayerNode-899"><a href="#AbsLayerNode-899"><span class="linenos">899</span></a><span class="sd">        Reference SingleInputLayerNode for the abstract transformer.</span>
 </span><span id="AbsLayerNode-900"><a href="#AbsLayerNode-900"><span class="linenos">900</span></a>
 </span><span id="AbsLayerNode-901"><a href="#AbsLayerNode-901"><span class="linenos">901</span></a><span class="sd">    Methods</span>
 </span><span id="AbsLayerNode-902"><a href="#AbsLayerNode-902"><span class="linenos">902</span></a><span class="sd">    ----------</span>
@@ -3209,7 +3209,7 @@ implementations.</p>
 </span><span id="AbsLayerNode-911"><a href="#AbsLayerNode-911"><span class="linenos">911</span></a>
 </span><span id="AbsLayerNode-912"><a href="#AbsLayerNode-912"><span class="linenos">912</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="AbsLayerNode-913"><a href="#AbsLayerNode-913"><span class="linenos">913</span></a>
-</span><span id="AbsLayerNode-914"><a href="#AbsLayerNode-914"><span class="linenos">914</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ref_node</span><span class="p">:</span> <span class="n">nodes</span><span class="o">.</span><span class="n">LayerNode</span><span class="p">):</span>
+</span><span id="AbsLayerNode-914"><a href="#AbsLayerNode-914"><span class="linenos">914</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ref_node</span><span class="p">:</span> <span class="n">nodes</span><span class="o">.</span><span class="n">SingleInputLayerNode</span><span class="p">):</span>
 </span><span id="AbsLayerNode-915"><a href="#AbsLayerNode-915"><span class="linenos">915</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span> <span class="o">=</span> <span class="n">identifier</span>
 </span><span id="AbsLayerNode-916"><a href="#AbsLayerNode-916"><span class="linenos">916</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">ref_node</span> <span class="o">=</span> <span class="n">ref_node</span>
 </span><span id="AbsLayerNode-917"><a href="#AbsLayerNode-917"><span class="linenos">917</span></a>
@@ -3255,8 +3255,8 @@ AbsNeural Network. Its concrete children correspond to real abstract interpretat
 <p>identifier : str
     Identifier of the AbsLayerNode.</p>
 
-<p>ref_node : LayerNode
-    Reference LayerNode for the abstract transformer.</p>
+<p>ref_node : SingleInputLayerNode
+    Reference SingleInputLayerNode for the abstract transformer.</p>
 
 <h2 id="methods">Methods</h2>
 
@@ -3398,10 +3398,10 @@ concrete abstract transformer.</p>
 </span><span id="AbsFullyConnectedNode-955"><a href="#AbsFullyConnectedNode-955"><span class="linenos"> 955</span></a><span class="sd">    Attributes</span>
 </span><span id="AbsFullyConnectedNode-956"><a href="#AbsFullyConnectedNode-956"><span class="linenos"> 956</span></a><span class="sd">    ----------</span>
 </span><span id="AbsFullyConnectedNode-957"><a href="#AbsFullyConnectedNode-957"><span class="linenos"> 957</span></a><span class="sd">    identifier : str</span>
-</span><span id="AbsFullyConnectedNode-958"><a href="#AbsFullyConnectedNode-958"><span class="linenos"> 958</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="AbsFullyConnectedNode-958"><a href="#AbsFullyConnectedNode-958"><span class="linenos"> 958</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="AbsFullyConnectedNode-959"><a href="#AbsFullyConnectedNode-959"><span class="linenos"> 959</span></a>
 </span><span id="AbsFullyConnectedNode-960"><a href="#AbsFullyConnectedNode-960"><span class="linenos"> 960</span></a><span class="sd">    ref_node : FullyConnectedNode</span>
-</span><span id="AbsFullyConnectedNode-961"><a href="#AbsFullyConnectedNode-961"><span class="linenos"> 961</span></a><span class="sd">        LayerNode di riferimento per l&#39;abstract transformer.</span>
+</span><span id="AbsFullyConnectedNode-961"><a href="#AbsFullyConnectedNode-961"><span class="linenos"> 961</span></a><span class="sd">        SingleInputLayerNode di riferimento per l&#39;abstract transformer.</span>
 </span><span id="AbsFullyConnectedNode-962"><a href="#AbsFullyConnectedNode-962"><span class="linenos"> 962</span></a>
 </span><span id="AbsFullyConnectedNode-963"><a href="#AbsFullyConnectedNode-963"><span class="linenos"> 963</span></a><span class="sd">    Methods</span>
 </span><span id="AbsFullyConnectedNode-964"><a href="#AbsFullyConnectedNode-964"><span class="linenos"> 964</span></a><span class="sd">    ----------</span>
@@ -3477,10 +3477,10 @@ concrete abstract transformer.</p>
 <h2 id="attributes">Attributes</h2>
 
 <p>identifier : str
-    Identifier of the LayerNode.</p>
+    Identifier of the SingleInputLayerNode.</p>
 
 <p>ref_node : FullyConnectedNode
-    LayerNode di riferimento per l'abstract transformer.</p>
+    SingleInputLayerNode di riferimento per l'abstract transformer.</p>
 
 <h2 id="methods">Methods</h2>
 
@@ -3627,10 +3627,10 @@ concrete abstract transformer.</p>
 </span><span id="AbsReLUNode-1035"><a href="#AbsReLUNode-1035"><span class="linenos">1035</span></a><span class="sd">    Attributes</span>
 </span><span id="AbsReLUNode-1036"><a href="#AbsReLUNode-1036"><span class="linenos">1036</span></a><span class="sd">    ----------</span>
 </span><span id="AbsReLUNode-1037"><a href="#AbsReLUNode-1037"><span class="linenos">1037</span></a><span class="sd">    identifier : str</span>
-</span><span id="AbsReLUNode-1038"><a href="#AbsReLUNode-1038"><span class="linenos">1038</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="AbsReLUNode-1038"><a href="#AbsReLUNode-1038"><span class="linenos">1038</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="AbsReLUNode-1039"><a href="#AbsReLUNode-1039"><span class="linenos">1039</span></a>
 </span><span id="AbsReLUNode-1040"><a href="#AbsReLUNode-1040"><span class="linenos">1040</span></a><span class="sd">    ref_node : ReLUNode</span>
-</span><span id="AbsReLUNode-1041"><a href="#AbsReLUNode-1041"><span class="linenos">1041</span></a><span class="sd">        Reference LayerNode for the abstract transformer.</span>
+</span><span id="AbsReLUNode-1041"><a href="#AbsReLUNode-1041"><span class="linenos">1041</span></a><span class="sd">        Reference SingleInputLayerNode for the abstract transformer.</span>
 </span><span id="AbsReLUNode-1042"><a href="#AbsReLUNode-1042"><span class="linenos">1042</span></a>
 </span><span id="AbsReLUNode-1043"><a href="#AbsReLUNode-1043"><span class="linenos">1043</span></a><span class="sd">    heuristic : str</span>
 </span><span id="AbsReLUNode-1044"><a href="#AbsReLUNode-1044"><span class="linenos">1044</span></a><span class="sd">        Heuristic used to decide the refinement level of the abstraction.</span>
@@ -3757,10 +3757,10 @@ concrete abstract transformer.</p>
 <h2 id="attributes">Attributes</h2>
 
 <p>identifier : str
-    Identifier of the LayerNode.</p>
+    Identifier of the SingleInputLayerNode.</p>
 
 <p>ref_node : ReLUNode
-    Reference LayerNode for the abstract transformer.</p>
+    Reference SingleInputLayerNode for the abstract transformer.</p>
 
 <p>heuristic : str
     Heuristic used to decide the refinement level of the abstraction.
@@ -3982,10 +3982,10 @@ concrete abstract transformer.</p>
 </span><span id="AbsSigmoidNode-1166"><a href="#AbsSigmoidNode-1166"><span class="linenos">1166</span></a><span class="sd">    Attributes</span>
 </span><span id="AbsSigmoidNode-1167"><a href="#AbsSigmoidNode-1167"><span class="linenos">1167</span></a><span class="sd">    ----------</span>
 </span><span id="AbsSigmoidNode-1168"><a href="#AbsSigmoidNode-1168"><span class="linenos">1168</span></a><span class="sd">    identifier : str</span>
-</span><span id="AbsSigmoidNode-1169"><a href="#AbsSigmoidNode-1169"><span class="linenos">1169</span></a><span class="sd">        Identifier of the LayerNode.</span>
+</span><span id="AbsSigmoidNode-1169"><a href="#AbsSigmoidNode-1169"><span class="linenos">1169</span></a><span class="sd">        Identifier of the SingleInputLayerNode.</span>
 </span><span id="AbsSigmoidNode-1170"><a href="#AbsSigmoidNode-1170"><span class="linenos">1170</span></a>
 </span><span id="AbsSigmoidNode-1171"><a href="#AbsSigmoidNode-1171"><span class="linenos">1171</span></a><span class="sd">    ref_node : SigmoidNode</span>
-</span><span id="AbsSigmoidNode-1172"><a href="#AbsSigmoidNode-1172"><span class="linenos">1172</span></a><span class="sd">        LayerNode di riferimento per l&#39;abstract transformer.</span>
+</span><span id="AbsSigmoidNode-1172"><a href="#AbsSigmoidNode-1172"><span class="linenos">1172</span></a><span class="sd">        SingleInputLayerNode di riferimento per l&#39;abstract transformer.</span>
 </span><span id="AbsSigmoidNode-1173"><a href="#AbsSigmoidNode-1173"><span class="linenos">1173</span></a>
 </span><span id="AbsSigmoidNode-1174"><a href="#AbsSigmoidNode-1174"><span class="linenos">1174</span></a><span class="sd">    refinement_level : Union[int, List[int]]</span>
 </span><span id="AbsSigmoidNode-1175"><a href="#AbsSigmoidNode-1175"><span class="linenos">1175</span></a><span class="sd">        Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all</span>
@@ -4069,10 +4069,10 @@ concrete abstract transformer.</p>
 <h2 id="attributes">Attributes</h2>
 
 <p>identifier : str
-    Identifier of the LayerNode.</p>
+    Identifier of the SingleInputLayerNode.</p>
 
 <p>ref_node : SigmoidNode
-    LayerNode di riferimento per l'abstract transformer.</p>
+    SingleInputLayerNode di riferimento per l'abstract transformer.</p>
 
 <p>refinement_level : Union[int, List[int]]
     Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
@@ -4241,7 +4241,7 @@ concrete abstract transformer.</p>
 </span><span id="AbsNeuralNetwork-1256"><a href="#AbsNeuralNetwork-1256"><span class="linenos">1256</span></a>
 </span><span id="AbsNeuralNetwork-1257"><a href="#AbsNeuralNetwork-1257"><span class="linenos">1257</span></a><span class="sd">    Attributes</span>
 </span><span id="AbsNeuralNetwork-1258"><a href="#AbsNeuralNetwork-1258"><span class="linenos">1258</span></a><span class="sd">    ----------</span>
-</span><span id="AbsNeuralNetwork-1259"><a href="#AbsNeuralNetwork-1259"><span class="linenos">1259</span></a><span class="sd">    nodes : dict &lt;str, LayerNode&gt;</span>
+</span><span id="AbsNeuralNetwork-1259"><a href="#AbsNeuralNetwork-1259"><span class="linenos">1259</span></a><span class="sd">    nodes : dict &lt;str, SingleInputLayerNode&gt;</span>
 </span><span id="AbsNeuralNetwork-1260"><a href="#AbsNeuralNetwork-1260"><span class="linenos">1260</span></a><span class="sd">        Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,</span>
 </span><span id="AbsNeuralNetwork-1261"><a href="#AbsNeuralNetwork-1261"><span class="linenos">1261</span></a><span class="sd">        the identifier of the node of interest is used as a key in the nodes dictionary.</span>
 </span><span id="AbsNeuralNetwork-1262"><a href="#AbsNeuralNetwork-1262"><span class="linenos">1262</span></a>
@@ -4304,7 +4304,7 @@ correct order to compute the output AbsElement.</p>
 
 <h2 id="attributes">Attributes</h2>
 
-<p>nodes : dict <str, LayerNode>
+<p>nodes : dict <str, SingleInputLayerNode>
     Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,
     the identifier of the node of interest is used as a key in the nodes dictionary.</p>
 
@@ -4455,13 +4455,13 @@ concrete abstract transformers.</p>
 </span><span id="AbsSeqNetwork-1325"><a href="#AbsSeqNetwork-1325"><span class="linenos">1325</span></a>
 </span><span id="AbsSeqNetwork-1326"><a href="#AbsSeqNetwork-1326"><span class="linenos">1326</span></a><span class="sd">    Methods</span>
 </span><span id="AbsSeqNetwork-1327"><a href="#AbsSeqNetwork-1327"><span class="linenos">1327</span></a><span class="sd">    -------</span>
-</span><span id="AbsSeqNetwork-1328"><a href="#AbsSeqNetwork-1328"><span class="linenos">1328</span></a><span class="sd">    add_node(LayerNode)</span>
+</span><span id="AbsSeqNetwork-1328"><a href="#AbsSeqNetwork-1328"><span class="linenos">1328</span></a><span class="sd">    add_node(SingleInputLayerNode)</span>
 </span><span id="AbsSeqNetwork-1329"><a href="#AbsSeqNetwork-1329"><span class="linenos">1329</span></a><span class="sd">        Procedure to add a new AbsLayerNode to the sequential AbsNeuralNetwork.</span>
 </span><span id="AbsSeqNetwork-1330"><a href="#AbsSeqNetwork-1330"><span class="linenos">1330</span></a>
 </span><span id="AbsSeqNetwork-1331"><a href="#AbsSeqNetwork-1331"><span class="linenos">1331</span></a><span class="sd">    get_first_node()</span>
 </span><span id="AbsSeqNetwork-1332"><a href="#AbsSeqNetwork-1332"><span class="linenos">1332</span></a><span class="sd">        Procedure to extract the first AbsLayerNode of the sequential AbsNeuralNetwork.</span>
 </span><span id="AbsSeqNetwork-1333"><a href="#AbsSeqNetwork-1333"><span class="linenos">1333</span></a>
-</span><span id="AbsSeqNetwork-1334"><a href="#AbsSeqNetwork-1334"><span class="linenos">1334</span></a><span class="sd">    get_next_node(LayerNode)</span>
+</span><span id="AbsSeqNetwork-1334"><a href="#AbsSeqNetwork-1334"><span class="linenos">1334</span></a><span class="sd">    get_next_node(SingleInputLayerNode)</span>
 </span><span id="AbsSeqNetwork-1335"><a href="#AbsSeqNetwork-1335"><span class="linenos">1335</span></a><span class="sd">        Procedure to get the next AbsLayerNode of the AbsNeuralNetwork given an input AbsLayerNode</span>
 </span><span id="AbsSeqNetwork-1336"><a href="#AbsSeqNetwork-1336"><span class="linenos">1336</span></a>
 </span><span id="AbsSeqNetwork-1337"><a href="#AbsSeqNetwork-1337"><span class="linenos">1337</span></a><span class="sd">    get_last_node()</span>
@@ -4530,7 +4530,7 @@ concrete abstract transformers.</p>
 </span><span id="AbsSeqNetwork-1400"><a href="#AbsSeqNetwork-1400"><span class="linenos">1400</span></a>
 </span><span id="AbsSeqNetwork-1401"><a href="#AbsSeqNetwork-1401"><span class="linenos">1401</span></a><span class="sd">        Return</span>
 </span><span id="AbsSeqNetwork-1402"><a href="#AbsSeqNetwork-1402"><span class="linenos">1402</span></a><span class="sd">        ---------</span>
-</span><span id="AbsSeqNetwork-1403"><a href="#AbsSeqNetwork-1403"><span class="linenos">1403</span></a><span class="sd">        LayerNode</span>
+</span><span id="AbsSeqNetwork-1403"><a href="#AbsSeqNetwork-1403"><span class="linenos">1403</span></a><span class="sd">        SingleInputLayerNode</span>
 </span><span id="AbsSeqNetwork-1404"><a href="#AbsSeqNetwork-1404"><span class="linenos">1404</span></a><span class="sd">            The next node of the network.</span>
 </span><span id="AbsSeqNetwork-1405"><a href="#AbsSeqNetwork-1405"><span class="linenos">1405</span></a>
 </span><span id="AbsSeqNetwork-1406"><a href="#AbsSeqNetwork-1406"><span class="linenos">1406</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -4615,13 +4615,13 @@ in the AbsLayerNodes following the correct order to compute the output AbsElemen
 
 <h2 id="methods">Methods</h2>
 
-<p>add_node(LayerNode)
+<p>add_node(SingleInputLayerNode)
     Procedure to add a new AbsLayerNode to the sequential AbsNeuralNetwork.</p>
 
 <p>get_first_node()
     Procedure to extract the first AbsLayerNode of the sequential AbsNeuralNetwork.</p>
 
-<p>get_next_node(LayerNode)
+<p>get_next_node(SingleInputLayerNode)
     Procedure to get the next AbsLayerNode of the AbsNeuralNetwork given an input AbsLayerNode</p>
 
 <p>get_last_node()
@@ -4774,7 +4774,7 @@ previous node forming a list.</p>
 </span><span id="AbsSeqNetwork.get_next_node-1400"><a href="#AbsSeqNetwork.get_next_node-1400"><span class="linenos">1400</span></a>
 </span><span id="AbsSeqNetwork.get_next_node-1401"><a href="#AbsSeqNetwork.get_next_node-1401"><span class="linenos">1401</span></a><span class="sd">        Return</span>
 </span><span id="AbsSeqNetwork.get_next_node-1402"><a href="#AbsSeqNetwork.get_next_node-1402"><span class="linenos">1402</span></a><span class="sd">        ---------</span>
-</span><span id="AbsSeqNetwork.get_next_node-1403"><a href="#AbsSeqNetwork.get_next_node-1403"><span class="linenos">1403</span></a><span class="sd">        LayerNode</span>
+</span><span id="AbsSeqNetwork.get_next_node-1403"><a href="#AbsSeqNetwork.get_next_node-1403"><span class="linenos">1403</span></a><span class="sd">        SingleInputLayerNode</span>
 </span><span id="AbsSeqNetwork.get_next_node-1404"><a href="#AbsSeqNetwork.get_next_node-1404"><span class="linenos">1404</span></a><span class="sd">            The next node of the network.</span>
 </span><span id="AbsSeqNetwork.get_next_node-1405"><a href="#AbsSeqNetwork.get_next_node-1405"><span class="linenos">1405</span></a>
 </span><span id="AbsSeqNetwork.get_next_node-1406"><a href="#AbsSeqNetwork.get_next_node-1406"><span class="linenos">1406</span></a><span class="sd">        &quot;&quot;&quot;</span>
@@ -4798,7 +4798,7 @@ previous node forming a list.</p>
 
 <h2 id="return">Return</h2>
 
-<p>LayerNode
+<p>SingleInputLayerNode
     The next node of the network.</p>
 </div>
 

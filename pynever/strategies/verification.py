@@ -19,7 +19,7 @@ import pynever.strategies.search as sf
 import pynever.strategies.smt_reading as reading
 import pynever.utilities as utils
 from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.tensor import Tensor
+from pynever.tensors import Tensor
 
 logger_name = "pynever.strategies.verification"
 
@@ -249,7 +249,7 @@ class VerificationStrategy(abc.ABC):
 
         """
 
-        pass
+        raise NotImplementedError('Call to abstract base class')
 
 
 class SearchVerification(VerificationStrategy):
@@ -261,7 +261,11 @@ class SearchVerification(VerificationStrategy):
     Attributes
     ----------
     search_params : dict
-        The parameters to guide the search algorithm
+        The parameters to guide the search algorithm:
+            - heuristic: the branching heuristic (sequential)
+            - bounds: the bounds propagation to use (symbolic, LiRPA)
+            - intersection: the output intersection strategy (bounds_lp, star_lp)
+            - timeout: the stopping criteria for the search algorithm in seconds
 
     Methods
     ----------
@@ -277,7 +281,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = {
                 'heuristic': 'sequential',
                 'bounds': 'symbolic',
-                'intersection': 'symbolic',
+                'intersection': 'bounds_lp',
                 'timeout': 300
             }
 
@@ -318,7 +322,6 @@ class SearchVerification(VerificationStrategy):
 
         if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
             in_star, nn_bounds, net_list = self.init_search(network, prop)
-            nn_bounds = nn_bounds[0]
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
@@ -333,12 +336,12 @@ class SearchVerification(VerificationStrategy):
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
-            if self.search_params['intersection'] == 'symbolic':
-                intersects, unsafe_stars = sf.intersect_symb_lp(net_list, nn_bounds, prop)
-            elif self.search_params['intersection'] == 'star':
+            if self.search_params['intersection'] == 'star_lp':
                 intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            elif self.search_params['intersection'] == 'bounds_lp':
+                intersects, unsafe_stars = sf.intersect_symb_lp(nn_bounds, prop)
             else:
-                raise NotImplementedError(f'Parameter intersection {self.search_params["intersection"]} not supported')
+                raise NotImplementedError('Intersection strategy not supported')
 
             if intersects:
                 # If new target is None there is no more refinement to do
@@ -441,7 +444,7 @@ class NeverVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         try:
             bound_manager = bm.BoundsManager(network, prop)
-            _, _, self.layers_bounds = bound_manager.compute_bounds()
+            self.layers_bounds = bound_manager.compute_bounds()['numeric_post']
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}

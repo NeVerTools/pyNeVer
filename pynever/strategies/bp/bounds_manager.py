@@ -7,15 +7,6 @@ from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from collections import OrderedDict
-
-from pynever import nodes
-from pynever.networks import SequentialNetwork
-from pynever.strategies.bp.bounds import SymbolicLinearBounds
-from pynever.strategies.bp.linearfunctions import LinearFunctions
-from pynever.strategies.bp.utils.property_converter import *
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
-    compute_lin_lower_and_upper
 
 
 class BoundsManager:
@@ -27,7 +18,7 @@ class BoundsManager:
     def __repr__(self):
         return str(self.numeric_bounds)
 
-    def compute_bounds(self):
+    def compute_bounds(self) -> dict:
         """
         precomputes bounds for all nodes using symbolic linear propagation
         """
@@ -78,7 +69,11 @@ class BoundsManager:
             current_input_bounds = symbolic_activation_output_bounds
             self.numeric_bounds = numeric_postactivation_bounds
 
-        return symbolic_bounds, numeric_preactivation_bounds, numeric_postactivation_bounds
+        return {
+            'symbolic': symbolic_bounds,
+            'numeric_pre': numeric_preactivation_bounds,
+            'numeric_post': numeric_postactivation_bounds
+        }
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)
