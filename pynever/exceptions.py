@@ -21,7 +21,7 @@ class OutOfRangeError(Exception):
 
 
 class EmptyNetworkError(Exception):
-    def __init__(self, message="The network is empty"):
+    def __init__(self, message='The network is empty'):
         super(EmptyNetworkError, self).__init__(message)
 
 
@@ -39,3 +39,8 @@ class NotInNetworkError(Exception):
     @dispatch(nodes.LayerNode)
     def __init__(self, node):
         super().__init__(f'{node.identifier} is not a node of the Network')
+
+
+class NonOptimalLPError(Exception):
+    def __init__(self, message='The LP problem was not Optimal'):
+        super().__init__(message)
