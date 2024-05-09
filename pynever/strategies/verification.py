@@ -298,6 +298,7 @@ class SearchVerification(VerificationStrategy):
         in_star.ref_layer = 0
 
         return (in_star,
+                sf.get_input_bounds(prop),
                 sf.get_bounds(network, prop, self.search_params['bounds']),
                 bm.net2list(network))
 
@@ -321,7 +322,7 @@ class SearchVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
-            in_star, nn_bounds, net_list = self.init_search(network, prop)
+            in_star, input_bounds, nn_bounds, net_list = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
@@ -339,7 +340,7 @@ class SearchVerification(VerificationStrategy):
             if self.search_params['intersection'] == 'star_lp':
                 intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
             elif self.search_params['intersection'] == 'bounds_lp':
-                intersects, unsafe_stars = sf.intersect_symb_lp(nn_bounds, prop)
+                intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
             else:
                 raise NotImplementedError('Intersection strategy not supported')
 

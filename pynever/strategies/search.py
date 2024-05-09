@@ -6,7 +6,10 @@ import pynever.strategies.abstraction as abst
 from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
+from pynever.strategies.bp.bounds import HyperRectangleBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
+from pynever.strategies.bp.utils.property_converter import PropertyFormatConverter
+from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
 from pynever.tensors import Tensor
 
 
@@ -19,6 +22,26 @@ class RefinementTarget:
     def __init__(self, layer: int, neuron: int):
         self.layer_idx = layer
         self.neuron_idx = neuron
+
+
+def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
+    """
+    This method computes the numeric bounds of the input layer
+
+    Parameters
+    ----------
+    prop : NeverProperty
+        The property to verify
+
+    Returns
+    ----------
+    HyperRectangleBounds
+        The numeric bounds of the input layer
+
+    """
+
+    # HyperRectBounds input bounds
+    return PropertyFormatConverter(prop).get_vectors()
 
 
 def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> dict:
@@ -115,6 +138,8 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
         The star to process
     nn_list : list
         The neural network represented as a list
+    skip : bool
+        Flag to signal end of propagation
 
     Returns
     ----------
@@ -206,23 +231,50 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def intersect_symb_lp(nn_bounds, prop):
-    out_neurons = nn_bounds[list(nn_bounds.keys())[-1]].lower.matrix.shape[0]
+def intersect_symb_lp(input_bounds, nn_bounds, prop):
+    out_id = list(nn_bounds.keys())[-1]
+
+    out_neurons = nn_bounds[out_id].lower.matrix.shape[0]
 
     basis = np.eye(out_neurons, out_neurons)
     center = np.zeros((out_neurons, 1))
 
-    # TODO fill the predicate
-    predicate_matrix = np.ones((2 * out_neurons, out_neurons))
-    predicate_bias = np.ones((2 * out_neurons, 1))
+    predicate_matrix = np.zeros((2 * out_neurons, out_neurons))
+    predicate_bias = np.zeros((2 * out_neurons, 1))
 
-    # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
-    # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
-    # y0 >= 0.25 x0
-    # y0 <= 0.25 x0 + 0.25
-    # I can build a star from this!
+    # Compute positive and negative weights for the lower bounds
+    lower_weights_plus = get_positive_part(nn_bounds[out_id].lower.matrix)
+    lower_weights_minus = get_negative_part(nn_bounds[out_id].lower.matrix)
+
+    # Compute positive and negative weights for the upper bounds
+    upper_weights_plus = get_positive_part(nn_bounds[out_id].upper.matrix)
+    upper_weights_minus = get_negative_part(nn_bounds[out_id].upper.matrix)
+
+    # Get input lower and upper bounds
+    input_lbs = input_bounds.lower
+    input_ubs = input_bounds.upper
+
+    for i in range(center.shape[0]):
+        # For each i add two rows
+        lb_row_idx = 2 * i
+        ub_row_idx = 2 * i + 1
+
+        # Structure Cx <= d
+        predicate_matrix[lb_row_idx, i] = -1
+        predicate_matrix[ub_row_idx, i] = 1
+
+        predicate_bias[lb_row_idx] = (
+                -lower_weights_plus[i].dot(input_lbs) -
+                lower_weights_minus[i].dot(input_ubs) -
+                nn_bounds[out_id].lower.offset[i]
+        )
+        predicate_bias[ub_row_idx] = (
+                upper_weights_plus[i].dot(input_ubs) +
+                upper_weights_minus[i].dot(input_lbs) +
+                nn_bounds[out_id].upper.offset[i]
+        )
+
     output = Star(predicate_matrix, predicate_bias, center, basis)
-
     intersects, unsafe_stars = check_intersection(output, prop)
 
     return intersects, unsafe_stars
