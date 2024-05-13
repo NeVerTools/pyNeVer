@@ -281,6 +281,8 @@ class FullyConnectedNode(ConcreteLayerNode):
             else:
                 if bias.shape != (out_features,):
                     raise InvalidDimensionError(f"Bias shape is wrong: it should be equal to ({out_features},)")
+            if bias.shape != (weight.shape[0], 1):
+                bias = np.expand_dims(bias, 1)
         else:
             bias = None
 

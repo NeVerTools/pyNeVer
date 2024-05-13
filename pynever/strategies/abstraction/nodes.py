@@ -1,18 +1,16 @@
 import abc
-import itertools
 import math
 import multiprocessing
 
 import numpy as np
 
 import pynever.nodes as nodes
-from pynever.strategies.abstraction import PARALLEL
+from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.tensors import Tensor
 
 
-# TODO change assert to exceptions
+# TODO update method documentation
 
 
 class RefinementState(abc.ABC):
@@ -115,8 +113,8 @@ class AbsFullyConnectedNode(AbsLayerNode):
 
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
         super().__init__(identifier, ref_node)
+        self.ref_node = ref_node
 
-    # TODO move __starset_forward here?
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
@@ -141,25 +139,34 @@ class AbsFullyConnectedNode(AbsLayerNode):
 
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+            parallel_results = my_pool.starmap(self._single_fc_forward, abs_input.stars)
 
-        # TODO move expansion
-        # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
-        if self.ref_node.bias.shape != (self.ref_node.weight.shape[0], 1):
-            bias = np.expand_dims(self.ref_node.bias, 1)
-        else:
-            bias = self.ref_node.bias
-        # TODO use with and remove repeat parameters
-        parallel_results = my_pool.starmap(AbsFullyConnectedNode.single_fc_forward, zip(abs_input.stars,
-                                                                                        itertools.repeat(
-                                                                                            self.ref_node.weight),
-                                                                                        itertools.repeat(bias)))
-        my_pool.close()
         abs_output = StarSet()
         for star_set in parallel_results:
             abs_output.stars = abs_output.stars.union(star_set)
 
         return abs_output
+
+    def _single_fc_forward(self, star: Star) -> set[Star]:
+        """
+        Utility function for the management of the forward for AbsFullyConnectedNode. It is outside
+        the class scope since multiprocessing does not support parallelization with
+        function internal to classes.
+
+        """
+        if self.ref_node.weight.shape[1] != star.basis_matrix.shape[0]:
+            raise InvalidDimensionError("The shape of the weight matrix of the concrete node is different from the "
+                                        "shape of the basis matrix")
+
+        new_basis_matrix = np.matmul(self.ref_node.weight, star.basis_matrix)
+        new_center = np.matmul(self.ref_node.weight, star.center) + self.ref_node.bias
+        new_predicate_matrix = star.predicate_matrix
+        new_predicate_bias = star.predicate_bias
+
+        new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
+
+        return {new_star}
 
     def backward(self, ref_state: RefinementState):
         """
@@ -171,26 +178,6 @@ class AbsFullyConnectedNode(AbsLayerNode):
             The RefinementState to update.
         """
         raise NotImplementedError
-
-    @staticmethod
-    def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> set[Star]:
-        """
-        Utility function for the management of the forward for AbsFullyConnectedNode. It is outside
-        the class scope since multiprocessing does not support parallelization with
-        function internal to classes.
-
-        """
-
-        assert (weight.shape[1] == star.basis_matrix.shape[0])
-
-        new_basis_matrix = np.matmul(weight, star.basis_matrix)
-        new_center = np.matmul(weight, star.center) + bias
-        new_predicate_matrix = star.predicate_matrix
-        new_predicate_bias = star.predicate_bias
-
-        new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
-
-        return {new_star}
 
 
 class AbsReLUNode(AbsLayerNode):
@@ -262,35 +249,14 @@ class AbsReLUNode(AbsLayerNode):
             self.layer_bounds = bounds
 
         if isinstance(abs_input, StarSet):
-            if PARALLEL:
-                return self.__parallel_starset_forward(abs_input)
-            else:
-                return self.__starset_forward(abs_input)
+            return self.__starset_forward(abs_input)
         else:
             raise NotImplementedError
 
-    def backward(self, ref_state: RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
+    def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-
-        """
-
-        raise NotImplementedError
-
-    def __parallel_starset_forward(self, abs_input: StarSet) -> StarSet:
-
-        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        parallel_results = my_pool.starmap(AbsReLUNode.mixed_single_relu_forward, zip(abs_input.stars,
-                                                                                      itertools.repeat(self.heuristic),
-                                                                                      itertools.repeat(self.params),
-                                                                                      itertools.repeat(
-                                                                                          self.layer_bounds)))
-        my_pool.close()
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+            parallel_results = my_pool.starmap(self._mixed_single_relu_forward, abs_input.stars)
 
         abs_output = StarSet()
 
@@ -306,9 +272,7 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    @staticmethod
-    def mixed_single_relu_forward(star: Star, heuristic: str, params: list, layer_bounds: AbstractBounds) \
-            -> tuple[set[Star], np.ndarray | None]:
+    def _mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], np.ndarray | None]:
         """
         Utility function for the management of the forward for AbsReLUNode. It is outside
         the class scope since multiprocessing does not support parallelization with
@@ -316,8 +280,8 @@ class AbsReLUNode(AbsLayerNode):
 
         """
 
-        assert heuristic == "given_flags" or heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel", \
-            "Heuristic Selected is not valid"
+        if self.heuristic != 'complete' and self.heuristic != 'overapprox' and self.heuristic != 'mixed':
+            raise Exception('Selected heuristic is not valid')
 
         temp_abs_input = {star}
         if star.check_if_empty():
@@ -326,7 +290,8 @@ class AbsReLUNode(AbsLayerNode):
         else:
             n_areas = []
             for i in range(star.center.shape[0]):
-                if layer_bounds is not None and (layer_bounds.get_lower()[i] >= 0 or layer_bounds.get_upper()[i] < 0):
+                if (self.layer_bounds is not None
+                        and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
                     n_areas.append(0)
                 else:
                     lb, ub = star.get_bounds(i)
@@ -334,19 +299,11 @@ class AbsReLUNode(AbsLayerNode):
 
             n_areas = np.array(n_areas)
 
-            if heuristic == "best_n_neurons" or heuristic == "best_n_neurons_rel":
+            if self.heuristic == 'mixed':
 
-                n_neurons = params[0]
+                n_neurons = self.params[0]
 
                 if n_neurons > 0:
-
-                    # We compute the ordered indexes of the neurons with decreasing values of the areas.
-                    # Our idea is that a greater value for the area correspond to greater loss of precision if the
-                    # star is not refined for the corresponding neuron.
-                    if heuristic == "best_n_neurons_rel":
-                        relevances = params[1]
-                        n_areas = n_areas * relevances
-
                     sorted_indexes = np.flip(np.argsort(n_areas))
                     index_to_refine = sorted_indexes[:n_neurons]
                 else:
@@ -358,27 +315,21 @@ class AbsReLUNode(AbsLayerNode):
                         refinement_flags.append(True)
                     else:
                         refinement_flags.append(False)
-
-            elif heuristic == "given_flags":
-                refinement_flags = params
-
             else:
                 raise NotImplementedError
 
-            if layer_bounds is None:
-                for i in range(star.center.shape[0]):
-                    temp_abs_input = AbsReLUNode.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
-            else:
-                for i in range(star.center.shape[0]):
-                    temp_abs_input = AbsReLUNode.__mixed_step_relu(temp_abs_input, i, refinement_flags[i],
-                                                                   layer_bounds.get_lower()[i],
-                                                                   layer_bounds.get_upper()[i])
+            for i in range(star.center.shape[0]):
+                temp_abs_input = self.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
 
             return temp_abs_input, n_areas
 
-    @staticmethod
-    def __mixed_step_relu(abs_input: set[Star], var_index: int, refinement_flag: bool,
-                          symb_lb: float = None, symb_ub: float = None) -> set[Star]:
+    def __mixed_step_relu(self, abs_input: set[Star], var_index: int, refinement_flag: bool) -> set[Star]:
+        symb_lb = None
+        symb_ub = None
+        if self.layer_bounds is not None:
+            symb_lb = self.layer_bounds.get_lower()[var_index]
+            symb_ub = self.layer_bounds.get_upper()[var_index]
+
         abs_input = list(abs_input)
         abs_output = set()
 
@@ -479,23 +430,18 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    def __starset_forward(self, abs_input: StarSet) -> StarSet:
+    def backward(self, ref_state: RefinementState):
         """
-        Forward function specialized for the concrete AbsElement StarSet.
+        Update the RefinementState. At present the function is just a placeholder for future implementations.
+
+        Parameters
+        ----------
+        ref_state: RefinementState
+            The RefinementState to update.
+
         """
 
-        abs_output = StarSet()
-        tot_areas = np.zeros(self.ref_node.get_input_dim())
-        num_areas = 0
-        for star in abs_input.stars:
-            result, areas = AbsReLUNode.mixed_single_relu_forward(star, self.heuristic, self.params, self.layer_bounds)
-            abs_output.stars = abs_output.stars.union(result)
-            tot_areas = tot_areas + areas
-            num_areas = num_areas + 1
-
-        self.n_areas = tot_areas / num_areas
-
-        return abs_output
+        raise NotImplementedError
 
 
 class AbsSigmoidNode(AbsLayerNode):
@@ -558,26 +504,17 @@ class AbsSigmoidNode(AbsLayerNode):
 
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
-        if PARALLEL:
-            abs_output = StarSet()
-            # TODO ???
-            my_pool = multiprocessing.Pool(1)
-            parallel_results = my_pool.starmap(AbsSigmoidNode.single_sigmoid_forward, zip(abs_input.stars,
-                                                                                          itertools.repeat(
-                                                                                              self.approx_levels)))
-            my_pool.close()
-            for star_set in parallel_results:
-                abs_output.stars = abs_output.stars.union(star_set)
-        else:
-            abs_output = StarSet()
-            for star in abs_input.stars:
-                abs_output.stars = abs_output.stars.union(AbsSigmoidNode.single_sigmoid_forward(star,
-                                                                                                self.approx_levels))
+        abs_output = StarSet()
+
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+            parallel_results = my_pool.starmap(self._single_sigmoid_forward, abs_input.stars)
+
+        for star_set in parallel_results:
+            abs_output.stars = abs_output.stars.union(star_set)
 
         return abs_output
 
-    @staticmethod
-    def single_sigmoid_forward(star: Star, approx_levels: list[int]) -> set[Star]:
+    def _single_sigmoid_forward(self, star: Star) -> set[Star]:
         """
         Utility function for the management of the forward for AbsSigmoidNode. It is outside
         the class scope since multiprocessing does not support parallelization with
@@ -588,7 +525,7 @@ class AbsSigmoidNode(AbsLayerNode):
         tolerance = 0.01
         temp_abs_input = {star}
         for i in range(star.center.shape[0]):
-            temp_abs_input = AbsSigmoidNode.__approx_step_sigmoid(temp_abs_input, i, approx_levels[i], tolerance)
+            temp_abs_input = AbsSigmoidNode.__approx_step_sigmoid(temp_abs_input, i, self.approx_levels[i], tolerance)
             print(f"Index {i}, NumStar: {len(temp_abs_input)}")
         return temp_abs_input
 
@@ -601,23 +538,24 @@ class AbsSigmoidNode(AbsLayerNode):
                 lb, ub = star.get_bounds(var_index)
 
                 if (lb < 0) and (ub > 0):
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level, lb, 0,
-                                                                           tolerance))
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level, 0, ub,
-                                                                           tolerance))
+                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
+                                                                                          lb, 0, tolerance))
+                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
+                                                                                          0, ub, tolerance))
                 else:
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level, lb,
-                                                                           ub, tolerance))
+                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
+                                                                                          lb, ub, tolerance))
 
         return abs_output
 
     @staticmethod
     def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float,
                                  tolerance: float) -> set[Star]:
-        # TODO y/n?
         sig_fod = AbsSigmoidNode.sig_fod
         sig = AbsSigmoidNode.sig
-        assert approx_level >= 0
+
+        if approx_level < 0:
+            raise Exception("approx_level must be greater than or equal to 0")
 
         if abs(ub - lb) < tolerance:
 
@@ -634,7 +572,8 @@ class AbsSigmoidNode(AbsLayerNode):
                     lb = lb - tolerance
                 ub = ub + tolerance
 
-        assert (lb <= 0 and ub <= 0) or (lb >= 0 and ub >= 0)
+        if not ((lb <= 0 and ub <= 0) or (lb >= 0 and ub >= 0)):
+            raise Exception
 
         mask = np.identity(star.center.shape[0])
         mask[var_index, var_index] = 0
@@ -697,6 +636,8 @@ class AbsSigmoidNode(AbsLayerNode):
             # area of the two resulting triangle. Since computing the optimal is too slow we do an approximate search
             # between lb and ub considering s search points.
 
+            # TODO magic numbers?
+
             num_search_points = 10
             boundaries = np.linspace(lb, ub, num_search_points, endpoint=False)
             boundaries = boundaries[1:]
@@ -712,20 +653,13 @@ class AbsSigmoidNode(AbsLayerNode):
 
             star_set = set()
             star_set = star_set.union(
-                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary, tolerance))
+                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary,
+                                                        tolerance))
             star_set = star_set.union(
-                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub, tolerance))
+                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub,
+                                                        tolerance))
 
             return star_set
-
-    @staticmethod
-    def sig_fod(x: float) -> float:
-        """
-        Utility function computing the first order derivative of the logistic function of the input.
-
-        """
-
-        return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
 
     @staticmethod
     def sig(x: float) -> float:
@@ -737,13 +671,22 @@ class AbsSigmoidNode(AbsLayerNode):
         return 1.0 / (1.0 + math.exp(-x))
 
     @staticmethod
+    def sig_fod(x: float) -> float:
+        """
+        Utility function computing the first order derivative of the logistic function of the input.
+
+        """
+
+        return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
+
+    @staticmethod
     def area_sig_triangle(lb: float, ub: float) -> float:
         """
         Utility function computing the area of the triangle defined by an upper bound and a lower bound on the
-        logistic function. In particular is the triangle composed by the two tangents and line passing by the two bounds.
+        logistic function. In particular is the triangle composed by the two tangents and line passing by the two
+        bounds.
 
         """
-        # TODO y/n?
         sig_fod = AbsSigmoidNode.sig_fod
         sig = AbsSigmoidNode.sig
 
@@ -752,7 +695,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
         y_p = sig_fod(ub) * (x_p - ub) + sig(ub)
 
-        height = (abs(y_p - (sig(ub) - sig(lb)) / (ub - lb) * x_p + sig(lb) - lb * (sig(ub) - sig(lb)) / (ub - lb)) / \
+        height = (abs(y_p - (sig(ub) - sig(lb)) / (ub - lb) * x_p + sig(lb) - lb * (sig(ub) - sig(lb)) / (ub - lb)) /
                   math.sqrt(1 + math.pow((sig(ub) - sig(lb)) / (ub - lb), 2)))
 
         base = math.sqrt(math.pow(ub - lb, 2) + math.pow(sig(ub) - sig(lb), 2))
@@ -832,29 +775,24 @@ class AbsConcatNode(AbsLayerNode):
 
         abs_output = StarSet()
         for i in range(len(abs_inputs) - 1):
-            if PARALLEL:
-                temp_starset = self.__parallel_concat_starset(abs_inputs[i], abs_inputs[i + 1])
-            else:
-                temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
+            temp_starset = self.__concat_starset(abs_inputs[i], abs_inputs[i + 1])
 
             abs_output.stars = abs_output.stars.union(temp_starset.stars)
 
         return abs_output
 
     @staticmethod
-    def __parallel_concat_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
+    def __concat_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
-        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+            # We build the list of combination of stars between the two starset.
+            unique_combination = []
+            for first_star in first_starset.stars:
+                for second_star in second_starset.stars:
+                    unique_combination.append((first_star, second_star))
 
-        # We build the list of combination of stars between the two starset.
-        unique_combination = []
-        for first_star in first_starset.stars:
-            for second_star in second_starset.stars:
-                unique_combination.append((first_star, second_star))
+            parallel_results = my_pool.starmap(AbsConcatNode._single_concat_forward, unique_combination)
 
-        parallel_results = my_pool.starmap(AbsConcatNode.single_concat_forward, unique_combination)
-
-        my_pool.close()
         abs_output = StarSet()
         for star_set in parallel_results:
             abs_output.stars = abs_output.stars.union(star_set)
@@ -862,7 +800,7 @@ class AbsConcatNode(AbsLayerNode):
         return abs_output
 
     @staticmethod
-    def single_concat_forward(first_star: Star, second_star: Star) -> set[Star]:
+    def _single_concat_forward(first_star: Star, second_star: Star) -> set[Star]:
         """
         Utility function for the management of the forward for AbsConcatNode. It is outside
         the class scope since multiprocessing does not support parallelization with
@@ -872,10 +810,10 @@ class AbsConcatNode(AbsLayerNode):
 
         new_basis_matrix = np.zeros((first_star.basis_matrix.shape[0] + second_star.basis_matrix.shape[0],
                                      first_star.basis_matrix.shape[1] + second_star.basis_matrix.shape[1]))
-        new_basis_matrix[0:first_star.basis_matrix.shape[0],
-        0:first_star.basis_matrix.shape[1]] = first_star.basis_matrix
-        new_basis_matrix[first_star.basis_matrix.shape[0]:,
-        first_star.basis_matrix.shape[1]:] = second_star.basis_matrix
+        new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] =\
+            first_star.basis_matrix
+        new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] =\
+            second_star.basis_matrix
 
         new_center = np.vstack((first_star.center, second_star.center))
 
@@ -891,16 +829,6 @@ class AbsConcatNode(AbsLayerNode):
         new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
 
         return {new_star}
-
-    @staticmethod
-    def __concat_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
-
-        abs_output = StarSet()
-        for first_star in first_starset.stars:
-            for second_star in second_starset.stars:
-                abs_output.stars = abs_output.stars.union(AbsConcatNode.single_concat_forward(first_star, second_star))
-
-        return abs_output
 
     def backward(self, ref_state: RefinementState):
         """
@@ -975,42 +903,27 @@ class AbsSumNode(AbsLayerNode):
 
         abs_output = StarSet()
         for i in range(len(abs_inputs) - 1):
-            if PARALLEL:
-                temp_starset = self.__parallel_sum_starset(abs_inputs[i], abs_inputs[i + 1])
-            else:
-                temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
+            temp_starset = self.__sum_starset(abs_inputs[i], abs_inputs[i + 1])
 
             abs_output.stars = abs_output.stars.union(temp_starset.stars)
 
         return abs_output
 
     @staticmethod
-    def __parallel_sum_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
+    def __sum_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
 
-        my_pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+            # We build the list of combination of stars between the two starset.
+            unique_combination = []
+            for first_star in first_starset.stars:
+                for second_star in second_starset.stars:
+                    unique_combination.append((first_star, second_star))
 
-        # We build the list of combination of stars between the two starset.
-        unique_combination = []
-        for first_star in first_starset.stars:
-            for second_star in second_starset.stars:
-                unique_combination.append((first_star, second_star))
+            parallel_results = my_pool.starmap(AbsSumNode.single_sum_forward, unique_combination)
 
-        parallel_results = my_pool.starmap(AbsSumNode.single_sum_forward, unique_combination)
-
-        my_pool.close()
         abs_output = StarSet()
         for star_set in parallel_results:
             abs_output.stars = abs_output.stars.union(star_set)
-
-        return abs_output
-
-    @staticmethod
-    def __sum_starset(first_starset: StarSet, second_starset: StarSet) -> StarSet:
-
-        abs_output = StarSet()
-        for first_star in first_starset.stars:
-            for second_star in second_starset.stars:
-                abs_output.stars = abs_output.stars.union(AbsSumNode.single_sum_forward(first_star, second_star))
 
         return abs_output
 
