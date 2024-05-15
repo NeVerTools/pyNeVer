@@ -30,8 +30,8 @@ class NeuralNetwork(abc.ABC):
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
-        self.nodes = {}
-        self.edges = {}
+        self.nodes: dict[str, nodes.LayerNode] = {}
+        self.edges: dict[str, list[str]] = {}
         self.identifier = identifier
         self.input_ids: dict[str, str | None] = {i: None for i in input_ids}
 
