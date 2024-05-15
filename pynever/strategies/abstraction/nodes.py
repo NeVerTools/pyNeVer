@@ -9,6 +9,8 @@ from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.bp.bounds import AbstractBounds
 
+from pynever.strategies.verification.parameters import VerificationParameters
+
 
 # TODO update method documentation
 
@@ -50,7 +52,8 @@ class AbsLayerNode(nodes.LayerNode):
 
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ConcreteLayerNode):
+    def __init__(self, identifier: str, ref_node: nodes.ConcreteLayerNode,
+                 parameters: VerificationParameters | None = None):
         super().__init__(identifier)
         self.ref_node = ref_node
 
@@ -111,7 +114,8 @@ class AbsFullyConnectedNode(AbsLayerNode):
         placeholder for future implementations.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode):
+    def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode,
+                 parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
         self.ref_node = ref_node
 
@@ -216,12 +220,12 @@ class AbsReLUNode(AbsLayerNode):
 
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ReLUNode, heuristic: str, params: list):
+    def __init__(self, identifier: str, ref_node: nodes.ReLUNode, parameters: VerificationParameters):
 
         super().__init__(identifier, ref_node)
 
-        self.heuristic = heuristic
-        self.params = params
+        self.heuristic = parameters.relu_params.heuristic
+        self.params = parameters.relu_params.params
         self.layer_bounds = None
         self.n_areas = None
 
@@ -472,8 +476,10 @@ class AbsSigmoidNode(AbsLayerNode):
         placeholder for future implementations.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, approx_levels: int | list[int] | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
+
+        approx_levels = parameters.sigmoid_params.approx_levels
 
         if approx_levels is None:
             approx_levels = [0 for _ in range(ref_node.get_input_dim()[-1])]
@@ -738,7 +744,7 @@ class AbsConcatNode(AbsLayerNode):
         placeholder for future implementations.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ConcatNode):
+    def __init__(self, identifier: str, ref_node: nodes.ConcatNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
 
     def forward(self, abs_inputs: list[AbsElement]) -> AbsElement:
@@ -866,7 +872,7 @@ class AbsSumNode(AbsLayerNode):
         placeholder for future implementations.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.SumNode):
+    def __init__(self, identifier: str, ref_node: nodes.SumNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
 
     def forward(self, abs_inputs: list[AbsElement]) -> AbsElement:
