@@ -281,7 +281,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = {
                 'heuristic': 'sequential',
                 'bounds': 'symbolic',
-                'intersection': 'bounds_lp',
+                'intersection': 'star_lp',
                 'timeout': 300
             }
 
@@ -444,8 +444,8 @@ class NeverVerification(VerificationStrategy):
         # Compute symbolic bounds first. If the network architecture or the property
         # does not have a corresponding bound propagation method we skip the computation
         try:
-            bound_manager = bm.BoundsManager(network, prop)
-            self.layers_bounds = bound_manager.compute_bounds()['numeric_post']
+            bound_manager = bm.BoundsManager()
+            self.layers_bounds = bound_manager.compute_bounds_from_property(network, prop)['numeric_pre']
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}

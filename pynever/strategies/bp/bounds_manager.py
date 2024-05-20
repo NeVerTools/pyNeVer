@@ -1,7 +1,8 @@
+import copy
 from collections import OrderedDict
 
 from pynever import nodes
-from pynever.networks import SequentialNetwork
+from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
@@ -10,37 +11,43 @@ from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_pa
 
 
 class BoundsManager:
-    def __init__(self, net, prop):
+    def __init__(self):
         self.numeric_bounds = None
-        self.net = net
-        self.prop = prop
 
     def __repr__(self):
         return str(self.numeric_bounds)
 
-    def compute_bounds(self) -> dict:
+    def compute_bounds_from_property(self, net: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
         precomputes bounds for all nodes using symbolic linear propagation
         """
 
         # Create HyperRectBounds from property
-        property_converter = PropertyFormatConverter(self.prop)
+        property_converter = PropertyFormatConverter(prop)
 
         # HyperRectBounds input bounds
         input_hyper_rect = property_converter.get_vectors()
 
         # Get layers
-        layers = net2list(self.net)
+        if isinstance(net, SequentialNetwork):
+            layers = net2list(net)
+        else:
+            raise NotImplementedError
+
+        return self.compute_bounds(input_hyper_rect, layers)
+
+    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, layers: list) -> dict:
 
         input_size = input_hyper_rect.get_size()
+
         lower = LinearFunctions(np.identity(input_size), np.zeros(input_size))
         upper = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+
         input_bounds = SymbolicLinearBounds(lower, upper)
 
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         symbolic_bounds = dict()
-        # TODO change the structure of symbolic_bounds
 
         current_input_bounds = input_bounds
         for i in range(0, len(layers)):
@@ -74,6 +81,36 @@ class BoundsManager:
             'numeric_pre': numeric_preactivation_bounds,
             'numeric_post': numeric_postactivation_bounds
         }
+
+    def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
+        """
+        Create input bounds from the layer target.layer and use the bounds [lb, 0] and [0, ub]
+        for neuron target.neuron to init a new shot of bounds propagation as if the input layer
+        was target.layer
+
+        """
+
+        try:
+            split_bounds = pre_branch_bounds['numeric_pre'][nn[target.layer_idx].identifier]
+
+        except KeyError:
+            print('KeyError in branching, no update was performed.')
+            return pre_branch_bounds, pre_branch_bounds
+
+        # Lower branch
+        lower_branch = copy.deepcopy(split_bounds)
+        lower_branch.upper[target.neuron_idx] = 0
+        lower_input_bounds = HyperRectangleBounds(lower_branch.lower,
+                                                  lower_branch.upper)
+
+        # Upper branch
+        upper_branch = copy.deepcopy(split_bounds)
+        upper_branch.lower[target.neuron_idx] = 0
+        upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
+                                                  upper_branch.upper)
+
+        return (self.compute_bounds(lower_input_bounds, nn),
+                self.compute_bounds(upper_input_bounds, nn))
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)

@@ -62,13 +62,13 @@ def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> d
     Returns
     ----------
     dict
-        The dictionary of the bounds wrapped in an AbstractBounds object for each layer
+        The dictionary of the bounds computed by the Bounds Manager
 
     """
 
     if strategy == 'symbolic':
-        # Return the symbolic bounds for ReLU layers
-        return BoundsManager(nn, prop).compute_bounds()['symbolic']
+        return BoundsManager().compute_bounds_from_property(nn, prop)
+
     elif strategy == 'LiRPA':
         # return something...
         pass
@@ -114,7 +114,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
 
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
-            l_bounds = bounds[layer.identifier]
+            l_bounds = bounds['numeric_pre'][layer.identifier]
             if i == start_layer:
                 star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=neuron_idx)
             else:
@@ -232,8 +232,9 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
 
 
 def intersect_symb_lp(input_bounds, nn_bounds, prop):
-    out_id = list(nn_bounds.keys())[-1]
+    nn_bounds = nn_bounds['symbolic']
 
+    out_id = list(nn_bounds.keys())[-1]
     out_neurons = nn_bounds[out_id].lower.matrix.shape[0]
 
     basis = np.eye(out_neurons, out_neurons)
@@ -260,8 +261,8 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
         ub_row_idx = 2 * i + 1
 
         # Structure Cx <= d
-        predicate_matrix[lb_row_idx, i] = -1
-        predicate_matrix[ub_row_idx, i] = 1
+        predicate_matrix[lb_row_idx] = nn_bounds[out_id].lower.matrix[i]
+        predicate_matrix[ub_row_idx] = nn_bounds[out_id].upper.matrix[i]
 
         predicate_bias[lb_row_idx] = (
                 -lower_weights_plus[i].dot(input_lbs) -
@@ -369,7 +370,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
     """
 
     index = target.neuron_idx
-    cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
+    cur_bounds = bounds_dict['numeric_pre'][nn_list[star.ref_layer].identifier]
 
     # Loop to filter positive stable neurons
     while index < star.center.shape[0]:
@@ -420,10 +421,12 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
             upper_star.ref_layer = target.layer_idx
             upper_star.ref_neuron = star.ref_neuron + 1
 
-            # TODO update bounds
+            # Update the bounds after the split
+            lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
+
             return [
-                (lower_star, bounds_dict),
-                (upper_star, bounds_dict)
+                (lower_star, lower_bounds),
+                (upper_star, upper_bounds)
             ]
 
     # I get here only if I complete the while loop
