@@ -5,28 +5,13 @@ import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.verification.parameters import VerificationParameters
+from pynever.strategies.verification.parameters import NeverVerificationParameters
 
 
 # TODO update documentation
 
-corresponding_classes = {
-    'FullyConnectedNode': absnodes.AbsFullyConnectedNode,
-    'ReLUNode': absnodes.AbsReLUNode,
-    'SigmoidNode': absnodes.AbsSigmoidNode,
-    'ConcatNode': absnodes.AbsConcatNode,
-    'SumNode': absnodes.AbsSumNode,
-}
 
-
-def get_abstract_node_class(node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode.__class__:
-    try:
-        return corresponding_classes[type(node).__name__]
-    except KeyError:
-        raise Exception(f'Node {type(node).__name__} is not supported')
-
-
-class AbsNeuralNetwork(networks.NeuralNetwork):
+class AbsNeuralNetwork(abc.ABC):
     """
     An abstract class used for our internal representation of a generic NeuralNetwork for Abstract Interpretation.
     It consists of a graph of AbsLayerNodes. The properties of the computational graph are specialized in the
@@ -55,18 +40,38 @@ class AbsNeuralNetwork(networks.NeuralNetwork):
         for future implementations.
 
     """
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: VerificationParameters):
-        super().__init__(f'ABS_{ref_network.identifier}', [])
-        self.input_ids = ref_network.input_ids
+
+    corresponding_classes = {
+        'FullyConnectedNode': absnodes.AbsFullyConnectedNode,
+        'ReLUNode': absnodes.AbsReLUNode,
+        'SigmoidNode': absnodes.AbsSigmoidNode,
+        'ConcatNode': absnodes.AbsConcatNode,
+        'SumNode': absnodes.AbsSumNode,
+    }
+
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: NeverVerificationParameters):
+        self.nodes: dict[str, absnodes.AbsLayerNode] = {}
+        self.ref_network = ref_network
 
         for node_id, node in ref_network.nodes.items():
-            self.nodes[f'ABS_{node_id}'] = get_abstract_node_class(node)(f'ABS_{node_id}', node, parameters)
+            self.nodes[f'ABS_{node_id}'] = AbsNeuralNetwork.__get_abstract_node_class(node)(f'ABS_{node_id}',
+                                                                                            node, parameters)
 
-        for node_id, children in ref_network.edges.items():
-            self.edges[f'ABS_{node_id}'] = [f'ABS_{child_id}' for child_id in children]
+    @staticmethod
+    def __get_abstract_node_class(node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode.__class__:
+        try:
+            return AbsNeuralNetwork.corresponding_classes[type(node).__name__]
+        except KeyError:
+            raise Exception(f'Node {type(node).__name__} is not supported')
+
+    def get_abstract(self, node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode:
+        return self.nodes[f'ABS_{node.identifier}']
+
+    def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
+        return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]
 
     @abc.abstractmethod
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement | list[AbsElement]:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformers.
@@ -96,7 +101,7 @@ class AbsNeuralNetwork(networks.NeuralNetwork):
         raise NotImplementedError
 
 
-class AbsSeqNetwork(AbsNeuralNetwork, networks.SequentialNetwork):
+class AbsSeqNetwork(AbsNeuralNetwork):
     """
     Concrete children of AbsNeuralNetwork representing a sequential AbsNeuralNetwork.
     It consists of a graph of LayerNodes. The computational graph of a SequentialNetwork must
@@ -133,8 +138,9 @@ class AbsSeqNetwork(AbsNeuralNetwork, networks.SequentialNetwork):
 
     """
 
-    def __init__(self, ref_network: networks.SequentialNetwork, parameters: VerificationParameters):
+    def __init__(self, ref_network: networks.SequentialNetwork, parameters: NeverVerificationParameters):
         super().__init__(ref_network, parameters)
+        self.ref_network = ref_network
 
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
@@ -152,10 +158,10 @@ class AbsSeqNetwork(AbsNeuralNetwork, networks.SequentialNetwork):
             The AbsElement resulting from the computation corresponding to the abstract transformer.
         """
 
-        current_node = self.get_first_node()
+        current_node = self.get_abstract(self.ref_network.get_first_node())
         while current_node is not None:
             abs_input = current_node.forward(abs_input)
-            current_node = self.get_next_node(current_node)
+            current_node = self.get_abstract(self.ref_network.get_next_node(self.get_concrete(current_node)))
 
         return abs_input
 
@@ -171,20 +177,21 @@ class AbsSeqNetwork(AbsNeuralNetwork, networks.SequentialNetwork):
         raise NotImplementedError
 
 
-class AbsAcyclicNetwork(AbsNeuralNetwork, networks.AcyclicNetwork):
+class AbsAcyclicNetwork(AbsNeuralNetwork):
 
-    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: VerificationParameters):
+    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: NeverVerificationParameters):
         super().__init__(ref_network, parameters)
-        self.input_edges = ref_network.input_edges
+        self.ref_network = ref_network
+        self.input_ids: dict[str, str | None] = {k: self.get_abstract(v).identifier
+                                                 for k, v in self.ref_network.input_ids}
 
-    def get_node_inputs(self, node: absnodes.AbsLayerNode):
+    def get_node_inputs(self, node: absnodes.AbsLayerNode) -> list[str]:
+        c_node = self.get_concrete(node)
 
-        if not self.has_parents(node):
-            input_ids = [key for key, value in self.input_edges.items() if node.identifier in value]
-        else:
-            input_ids = [parent.identifier for parent in self.get_parents(node)]
+        if not self.ref_network.has_parents(c_node):
+            return [k for k, v in self.input_ids.items() if node.identifier in v]
 
-        return input_ids
+        return [self.get_abstract(parent).identifier for parent in self.ref_network.get_parents(c_node)]
 
     def forward(self, abs_inputs: list[AbsElement]) -> list[AbsElement]:
         """
@@ -203,49 +210,36 @@ class AbsAcyclicNetwork(AbsNeuralNetwork, networks.AcyclicNetwork):
         """
 
         abs_input_ids = [abs_elem.identifier for abs_elem in abs_inputs]
-        if set(abs_input_ids) != set(self.input_ids):
-            raise Exception("The IDs of the Abstract Elements do not corresponds to the expected Input IDs!")
 
-        if set(abs_input_ids) != set(self.input_edges.keys()):
+        if set(abs_input_ids) != set(self.input_ids.keys()):
             raise Exception("The IDs of the Abstract Elements do not corresponds to the Keys of the Input Edges Dict!")
 
-        if [] in self.input_edges.values():
-            raise Exception("Every Input in the Input Edges Dictionary should have at least an Edge!")
+        if None in self.input_ids.values():
+            raise Exception("Every Input in the should be associated to a Node")
 
-        node_queue = self.get_roots()
+        node_queue: list[absnodes.AbsLayerNode] = [self.get_abstract(n) for n in self.ref_network.get_roots()]
         temp_abs_inputs = copy.deepcopy(abs_inputs)
 
-        while node_queue.__len__() != 0:
+        while len(node_queue) != 0:
 
             current_node = node_queue.pop(0)
             input_ids = self.get_node_inputs(current_node)
 
-            current_node_inputs = [a_input for a_input in temp_abs_inputs if a_input.identifier in input_ids]
-            # TODO simplify
-            # TODO: At this time we need to check the difference between the inputs for multinputlayernodes and single
-            # input layer nodes. Once nodes refactor is done it can be simplified.
-            if isinstance(current_node, AbsSingleInputLayerNode):
+            current_node_inputs = filter(lambda i: i.identifier in input_ids, temp_abs_inputs)
 
-                if len(current_node_inputs) > 1:
-                    raise Exception(f"{current_node.__class__} should have a single input!")
-                else:
-                    current_abs_output = current_node.forward(current_node_inputs[0])
-
-            elif isinstance(current_node, AbsMultiInputLayerNode):
-                current_abs_output = current_node.forward(current_node_inputs)
-            else:
-                raise NotImplementedError
+            current_abs_output = current_node.forward(current_node_inputs)
 
             current_abs_output.identifier = current_node.identifier
             temp_abs_inputs.append(current_abs_output)
 
-            current_children = self.get_children(current_node)
+            current_children = [self.get_abstract(n) for n in
+                                self.ref_network.get_children(self.get_concrete(current_node))]
             for child in current_children:
                 if child not in node_queue:
                     node_queue.append(child)
 
-        leaves_ids = [leaf.identifier for leaf in self.get_leaves()]
-        final_outputs = [final_output for final_output in temp_abs_inputs if final_output.identifier in leaves_ids]
+        leaves_ids = [self.get_abstract(leaf).identifier for leaf in self.ref_network.get_leaves()]
+        final_outputs = filter(lambda fo: fo.identifier in leaves_ids, temp_abs_inputs)
 
         return final_outputs
 

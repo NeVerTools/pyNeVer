@@ -30,41 +30,41 @@ class NeuralNetwork(abc.ABC):
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
-        self.nodes: dict[str, nodes.LayerNode] = {}
+        self.nodes: dict[str, nodes.ConcreteLayerNode] = {}
         self.edges: dict[str, list[str]] = {}
         self.identifier = identifier
         self.input_ids: dict[str, str | None] = {i: None for i in input_ids}
 
-    def get_children(self, node: nodes.LayerNode) -> list[nodes.LayerNode]:
+    def get_children(self, node: nodes.ConcreteLayerNode) -> list[nodes.ConcreteLayerNode]:
         """
-        Procedure to return the children of a node as a list of LayerNodes.
+        Procedure to return the children of a node as a list of ConcreteLayerNodes.
 
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node whose children should be returned.
 
         Returns
         -------
-        list[LayerNodes]
+        list[ConcreteLayerNodes]
             The children of the node passed as argument.
 
         """
         child_nodes = [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
         return child_nodes
 
-    def get_parents(self, node: nodes.LayerNode) -> list[nodes.LayerNode]:
+    def get_parents(self, node: nodes.ConcreteLayerNode) -> list[nodes.ConcreteLayerNode]:
         """
-        Procedure to return the parents of a node as a list of LayerNodes.
+        Procedure to return the parents of a node as a list of ConcreteLayerNodes.
 
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node whose parents should be returned.
 
         Returns
         -------
-        list[LayerNodes]
+        list[ConcreteLayerNodes]
             The parents of the node passed as argument.
 
         """
@@ -73,12 +73,12 @@ class NeuralNetwork(abc.ABC):
 
         return parent_nodes
 
-    def has_parents(self, node: nodes.LayerNode) -> bool:
+    def has_parents(self, node: nodes.ConcreteLayerNode) -> bool:
         """
         Procedure to check if a node has parents.
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node of which the existence of its parents should be checked.
         Returns
         -------
@@ -87,12 +87,12 @@ class NeuralNetwork(abc.ABC):
         """
         return len(self.get_parents(node)) != 0
 
-    def has_children(self, node: nodes.LayerNode) -> bool:
+    def has_children(self, node: nodes.ConcreteLayerNode) -> bool:
         """
         Procedure to check if a node has children.
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node of which the existence of its children should be checked.
         Returns
         -------
@@ -101,34 +101,34 @@ class NeuralNetwork(abc.ABC):
         """
         return len(self.get_children(node)) != 0
 
-    def get_roots(self) -> list[nodes.LayerNode]:
+    def get_roots(self) -> list[nodes.ConcreteLayerNode]:
         """
-        Procedure to return the roots of the network as a list of LayerNodes.
+        Procedure to return the roots of the network as a list of ConcreteLayerNodes.
         Returns
         -------
-        list[LayerNodes]
-            The roots of the network as a list of LayerNodes.
+        list[ConcreteLayerNodes]
+            The roots of the network as a list of ConcreteLayerNodes.
         """
         root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if not self.has_parents(root_node)]
         return root_nodes
 
-    def get_leaves(self) -> list[nodes.LayerNode]:
+    def get_leaves(self) -> list[nodes.ConcreteLayerNode]:
         """
-        Procedure to return the leaves of the network as a list of LayerNodes.
+        Procedure to return the leaves of the network as a list of ConcreteLayerNodes.
         Returns
         -------
-        list[LayerNodes]
-            The leaves of the network as a list of LayerNodes.
+        list[ConcreteLayerNodes]
+            The leaves of the network as a list of ConcreteLayerNodes.
         """
         leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if not self.has_children(leaf_node)]
         return leaf_nodes
 
-    def remove_node(self, node: nodes.LayerNode):
+    def remove_node(self, node: nodes.ConcreteLayerNode):
         """
         Procedure to remove a node from the network.
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node to be removed.
 
         """
@@ -142,20 +142,20 @@ class NeuralNetwork(abc.ABC):
             if n == node.identifier:
                 self.input_ids[i] = None
 
-    def generic_add_node(self, node: nodes.LayerNode, parents: list[nodes.LayerNode] | None = None,
-                         children: list[nodes.LayerNode] | None = None,
+    def generic_add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
+                         children: list[nodes.ConcreteLayerNode] | None = None,
                          input_ids: list[str] | None = None):
         """
         Procedure to add a node to the network. A node cannot have both parents and inputs.
         Parameters
         ----------
-        node: LayerNode
+        node: ConcreteLayerNode
             The node to be added to the network.
-        parents: list[LayerNode] | None
+        parents: list[ConcreteLayerNode] | None
             The parents of the node. (Optional)
-        children: list[LayerNode] | None
+        children: list[ConcreteLayerNode] | None
             The children of the node. (Optional)
-        input_ids: list[LayerNode] | None
+        input_ids: list[ConcreteLayerNode] | None
             The inputs of the node. (Optional)
 
         """
