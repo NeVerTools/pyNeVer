@@ -9,7 +9,7 @@ from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.bp.bounds import AbstractBounds
 
-from pynever.strategies.verification.parameters import VerificationParameters
+from pynever.strategies.verification.parameters import VerificationParameters, NeverVerificationParameters
 
 
 # TODO update method documentation
@@ -119,7 +119,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
         super().__init__(identifier, ref_node)
         self.ref_node = ref_node
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -135,6 +135,11 @@ class AbsFullyConnectedNode(AbsLayerNode):
             The AbsElement resulting from the computation corresponding to the abstract transformer.
 
         """
+
+        if isinstance(abs_input, list):
+            if len(abs_input) != 1:
+                raise Exception('There should only be one input element for this abstract node.')
+            abs_input = abs_input[0]
 
         if isinstance(abs_input, StarSet):
             return self.__starset_forward(abs_input)
@@ -224,12 +229,15 @@ class AbsReLUNode(AbsLayerNode):
 
         super().__init__(identifier, ref_node)
 
-        self.heuristic = parameters.relu_params.heuristic
-        self.params = parameters.relu_params.params
+        if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'params'):
+            raise Exception('Verification parameters must include attributes "heuristic" and "params"')
+
+        self.heuristic = parameters.heuristic
+        self.params = parameters.params
         self.layer_bounds = None
         self.n_areas = None
 
-    def forward(self, abs_input: AbsElement, bounds: AbstractBounds = None) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -248,6 +256,11 @@ class AbsReLUNode(AbsLayerNode):
             The AbsElement resulting from the computation corresponding to the abstract transformer.
 
         """
+
+        if isinstance(abs_input, list):
+            if len(abs_input) != 1:
+                raise Exception('There should only be one input element for this abstract node.')
+            abs_input = abs_input[0]
 
         if bounds is not None:
             self.layer_bounds = bounds
@@ -291,41 +304,40 @@ class AbsReLUNode(AbsLayerNode):
         if star.check_if_empty():
             return set(), None
 
-        else:
-            n_areas = []
-            for i in range(star.center.shape[0]):
-                if (self.layer_bounds is not None
-                        and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
-                    n_areas.append(0)
-                else:
-                    lb, ub = star.get_bounds(i)
-                    n_areas.append(-lb * ub / 2.0)
-
-            n_areas = np.array(n_areas)
-
-            if self.heuristic == 'mixed':
-
-                n_neurons = self.params[0]
-
-                if n_neurons > 0:
-                    sorted_indexes = np.flip(np.argsort(n_areas))
-                    index_to_refine = sorted_indexes[:n_neurons]
-                else:
-                    index_to_refine = []
-
-                refinement_flags = []
-                for i in range(star.center.shape[0]):
-                    if i in index_to_refine:
-                        refinement_flags.append(True)
-                    else:
-                        refinement_flags.append(False)
+        n_areas = []
+        for i in range(star.center.shape[0]):
+            if (self.layer_bounds is not None
+                    and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
+                n_areas.append(0)
             else:
-                raise NotImplementedError
+                lb, ub = star.get_bounds(i)
+                n_areas.append(-lb * ub / 2.0)
 
+        n_areas = np.array(n_areas)
+
+        if self.heuristic == 'mixed':
+
+            n_neurons = self.params[0]
+
+            if n_neurons > 0:
+                sorted_indexes = np.flip(np.argsort(n_areas))
+                index_to_refine = sorted_indexes[:n_neurons]
+            else:
+                index_to_refine = []
+
+            refinement_flags = []
             for i in range(star.center.shape[0]):
-                temp_abs_input = self.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
+                if i in index_to_refine:
+                    refinement_flags.append(True)
+                else:
+                    refinement_flags.append(False)
+        else:
+            raise NotImplementedError
 
-            return temp_abs_input, n_areas
+        for i in range(star.center.shape[0]):
+            temp_abs_input = self.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
+
+        return temp_abs_input, n_areas
 
     def __mixed_step_relu(self, abs_input: set[Star], var_index: int, refinement_flag: bool) -> set[Star]:
         symb_lb = None
@@ -503,6 +515,12 @@ class AbsSigmoidNode(AbsLayerNode):
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
         """
+
+        if isinstance(abs_input, list):
+            if len(abs_input) != 1:
+                raise Exception('There should only be one input element for this abstract node.')
+            abs_input = abs_input[0]
+
         if isinstance(abs_input, StarSet):
             return self.__starset_forward(abs_input)
         else:
@@ -764,12 +782,10 @@ class AbsConcatNode(AbsLayerNode):
 
         """
 
-        all_starset = True
-        for abs_input in abs_inputs:
-            if not isinstance(abs_input, StarSet):
-                all_starset = False
+        if not isinstance(abs_inputs, list) or len(abs_inputs) < 2:
+            raise Exception('There should be at least two input elements for this abstract node.')
 
-        if all_starset:
+        if all([isinstance(abs_input, StarSet) for abs_input in abs_inputs]):
             return self.__starset_list_forward(abs_inputs)
         else:
             raise NotImplementedError
@@ -892,12 +908,10 @@ class AbsSumNode(AbsLayerNode):
 
         """
 
-        all_starset = True
-        for abs_input in abs_inputs:
-            if not isinstance(abs_input, StarSet):
-                all_starset = False
+        if not isinstance(abs_inputs, list) or len(abs_inputs) < 2:
+            raise Exception('There should be at least two input elements for this abstract node.')
 
-        if all_starset:
+        if all([isinstance(abs_input, StarSet) for abs_input in abs_inputs]):
             return self.__starset_list_forward(abs_inputs)
         else:
             raise NotImplementedError
