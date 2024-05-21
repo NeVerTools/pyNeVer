@@ -8,8 +8,7 @@ import pynever.nodes as nodes
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.bp.bounds import AbstractBounds
-
-from pynever.strategies.verification.parameters import VerificationParameters, NeverVerificationParameters
+from pynever.strategies.verification.parameters import VerificationParameters
 
 
 # TODO update method documentation
@@ -232,8 +231,7 @@ class AbsReLUNode(AbsLayerNode):
         if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'params'):
             raise Exception('Verification parameters must include attributes "heuristic" and "params"')
 
-        self.heuristic = parameters.heuristic
-        self.params = parameters.params
+        self.parameters = parameters
         self.layer_bounds = None
         self.n_areas = None
 
@@ -275,17 +273,23 @@ class AbsReLUNode(AbsLayerNode):
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
             parallel_results = my_pool.starmap(self._mixed_single_relu_forward, abs_input.stars)
 
+        # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
+        self.parameters.neurons_to_refine.pop(0)
+
         abs_output = StarSet()
 
-        tot_areas = np.zeros(self.ref_node.get_input_dim())
-        num_areas = 0
-        for star_set, areas in parallel_results:
-            if star_set != set():
-                num_areas = num_areas + 1
-                tot_areas = tot_areas + areas
-            abs_output.stars = abs_output.stars.union(star_set)
+        # Perform this code only if necessary
+        if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
 
-        self.n_areas = tot_areas / num_areas
+            tot_areas = np.zeros(self.ref_node.get_input_dim())
+            num_areas = 0
+            for star_set, areas in parallel_results:
+                if star_set != set():
+                    num_areas = num_areas + 1
+                    tot_areas = tot_areas + areas
+                abs_output.stars = abs_output.stars.union(star_set)
+
+            self.n_areas = tot_areas / num_areas
 
         return abs_output
 
@@ -297,42 +301,50 @@ class AbsReLUNode(AbsLayerNode):
 
         """
 
-        if self.heuristic != 'complete' and self.heuristic != 'overapprox' and self.heuristic != 'mixed':
-            raise Exception('Selected heuristic is not valid')
-
         temp_abs_input = {star}
         if star.check_if_empty():
             return set(), None
 
         n_areas = []
-        for i in range(star.center.shape[0]):
-            if (self.layer_bounds is not None
-                    and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
-                n_areas.append(0)
-            else:
-                lb, ub = star.get_bounds(i)
-                n_areas.append(-lb * ub / 2.0)
 
-        n_areas = np.array(n_areas)
+        # Perform this code only if necessary
+        if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
 
-        if self.heuristic == 'mixed':
-
-            n_neurons = self.params[0]
-
-            if n_neurons > 0:
-                sorted_indexes = np.flip(np.argsort(n_areas))
-                index_to_refine = sorted_indexes[:n_neurons]
-            else:
-                index_to_refine = []
-
-            refinement_flags = []
             for i in range(star.center.shape[0]):
-                if i in index_to_refine:
-                    refinement_flags.append(True)
+                if (self.layer_bounds is not None
+                        and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
+                    n_areas.append(0)
                 else:
-                    refinement_flags.append(False)
-        else:
-            raise NotImplementedError
+                    lb, ub = star.get_bounds(i)
+                    n_areas.append(-lb * ub / 2.0)
+
+            n_areas = np.array(n_areas)
+
+        refinement_flags = []
+
+        match self.parameters.heuristic:
+            case 'complete':
+                refinement_flags = [True for _ in range(star.center.shape[0])]
+
+            case 'overapprox':
+                refinement_flags = [False for _ in range(star.center.shape[0])]
+
+            case 'mixed':
+                # The first element corresponds to the current layer
+                n_neurons = self.parameters.neurons_to_refine[0]
+
+                if n_neurons > 0:
+                    sorted_indexes = np.flip(np.argsort(n_areas))
+                    index_to_refine = sorted_indexes[:n_neurons]
+                else:
+                    index_to_refine = []
+
+                refinement_flags = []
+                for i in range(star.center.shape[0]):
+                    if i in index_to_refine:
+                        refinement_flags.append(True)
+                    else:
+                        refinement_flags.append(False)
 
         for i in range(star.center.shape[0]):
             temp_abs_input = self.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
@@ -832,9 +844,9 @@ class AbsConcatNode(AbsLayerNode):
 
         new_basis_matrix = np.zeros((first_star.basis_matrix.shape[0] + second_star.basis_matrix.shape[0],
                                      first_star.basis_matrix.shape[1] + second_star.basis_matrix.shape[1]))
-        new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] =\
+        new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] = \
             first_star.basis_matrix
-        new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] =\
+        new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] = \
             second_star.basis_matrix
 
         new_center = np.vstack((first_star.center, second_star.center))

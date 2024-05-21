@@ -8,9 +8,12 @@ class VerificationParameters(abc.ABC):
 
 
 class NeverVerificationParameters(VerificationParameters):
-    def __init__(self, heuristic: str, params: list | None, approx_levels: int | list[int] | None):
+    def __init__(self, heuristic: str, neurons_to_refine: list | None, approx_levels: int | list[int] | None):
+        if heuristic not in ['overapprox', 'complete', 'mixed']:
+            raise Exception(f'Selected heuristic {heuristic} is not valid')
+
         self.heuristic = heuristic
-        self.params = params
+        self.neurons_to_refine = neurons_to_refine
         self.approx_levels = approx_levels
 
 
