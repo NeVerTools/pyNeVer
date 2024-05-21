@@ -84,7 +84,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     for i in range(start_idx, dim):
         # i is the number of neurons to process
         stable = check_stable(i, bounds)
-        mask = np.identity(out_star.center.shape[0])
+        mask = np.identity(out_star.n_neurons)
         mask[i, i] = 0
         lb = bounds.get_lower()[i]
         ub = bounds.get_upper()[i]

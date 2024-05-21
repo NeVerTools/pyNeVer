@@ -310,7 +310,7 @@ class AbsReLUNode(AbsLayerNode):
         # Perform this code only if necessary
         if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
 
-            for i in range(star.center.shape[0]):
+            for i in range(star.n_neurons):
                 if (self.layer_bounds is not None
                         and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
                     n_areas.append(0)
@@ -324,10 +324,10 @@ class AbsReLUNode(AbsLayerNode):
 
         match self.parameters.heuristic:
             case 'complete':
-                refinement_flags = [True for _ in range(star.center.shape[0])]
+                refinement_flags = [True for _ in range(star.n_neurons)]
 
             case 'overapprox':
-                refinement_flags = [False for _ in range(star.center.shape[0])]
+                refinement_flags = [False for _ in range(star.n_neurons)]
 
             case 'mixed':
                 # The first element corresponds to the current layer
@@ -340,13 +340,13 @@ class AbsReLUNode(AbsLayerNode):
                     index_to_refine = []
 
                 refinement_flags = []
-                for i in range(star.center.shape[0]):
+                for i in range(star.n_neurons):
                     if i in index_to_refine:
                         refinement_flags.append(True)
                     else:
                         refinement_flags.append(False)
 
-        for i in range(star.center.shape[0]):
+        for i in range(star.n_neurons):
             temp_abs_input = self.__mixed_step_relu(temp_abs_input, i, refinement_flags[i])
 
         return temp_abs_input, n_areas
@@ -387,7 +387,7 @@ class AbsReLUNode(AbsLayerNode):
 
             if not star.check_if_empty():
 
-                mask = np.identity(star.center.shape[0])
+                mask = np.identity(star.n_neurons)
                 mask[var_index, var_index] = 0
 
                 if is_pos_stable or (lb is not None and lb >= 0):
@@ -560,7 +560,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
         tolerance = 0.01
         temp_abs_input = {star}
-        for i in range(star.center.shape[0]):
+        for i in range(star.n_neurons):
             temp_abs_input = AbsSigmoidNode.__approx_step_sigmoid(temp_abs_input, i, self.approx_levels[i], tolerance)
             print(f"Index {i}, NumStar: {len(temp_abs_input)}")
         return temp_abs_input
@@ -611,7 +611,7 @@ class AbsSigmoidNode(AbsLayerNode):
         if not ((lb <= 0 and ub <= 0) or (lb >= 0 and ub >= 0)):
             raise Exception
 
-        mask = np.identity(star.center.shape[0])
+        mask = np.identity(star.n_neurons)
         mask[var_index, var_index] = 0
 
         if approx_level == 0:

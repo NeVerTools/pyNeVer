@@ -91,6 +91,8 @@ class Star:
             self.center: Tensor = center
             self.basis_matrix: Tensor = basis_matrix
 
+        self.n_neurons: int = self.center.shape[0]
+
         # Reference layer of the star (where it comes from)
         self.ref_layer: int = 0
 
