@@ -50,6 +50,9 @@ class BoundsManager:
         symbolic_bounds = dict()
 
         current_input_bounds = input_bounds
+        symbolic_dense_output_bounds = current_input_bounds
+        preactivation_bounds = symbolic_dense_output_bounds.to_hyper_rectangle_bounds(input_hyper_rect)
+
         for i in range(0, len(layers)):
 
             if isinstance(layers[i], nodes.ReLUNode):
@@ -109,8 +112,8 @@ class BoundsManager:
         upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
                                                   upper_branch.upper)
 
-        return (self.compute_bounds(lower_input_bounds, nn),
-                self.compute_bounds(upper_input_bounds, nn))
+        return (self.compute_bounds(lower_input_bounds, nn[target.layer_idx:]),
+                self.compute_bounds(upper_input_bounds, nn[target.layer_idx:]))
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)
