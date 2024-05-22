@@ -1,14 +1,16 @@
-import abc
 from fractions import Fraction
 
-from pynever.strategies.abstraction.star import Star
 import pynever.strategies.smt_reading as reading
+from pynever import tensors
+from pynever.exceptions import InvalidDimensionError
+from pynever.strategies.abstraction.star import Star
 from pynever.tensors import Tensor
 
 
-class NeverProperty(abc.ABC):
+class NeverProperty:
     """
     An abstract class used to represent a generic property for a NeuralNetwork.
+
     """
 
     def __init__(self, in_coef_mat: Tensor = None, in_bias_mat: Tensor = None,
@@ -18,33 +20,20 @@ class NeverProperty(abc.ABC):
         self.out_coef_mat = out_coef_mat
         self.out_bias_mat = out_bias_mat
 
+    def to_input_star(self) -> Star:
+        """
+        This method creates the input star based on the property specification
 
-class VnnLibProperty(NeverProperty):
-    """
-    A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
-    out_coef_mat * y <= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
-    At present the input set must be defined as in_coef_mat * x <= in_bias_mat
+        Returns
+        ----------
+        Star
+            The input star
 
-    Attributes
-    ----------
-    in_coef_mat: Tensor
-        Matrix of the coefficients for the input constraints.
-    in_bias_mat: Tensor
-        Matrix of the biases for the input constraints.
-    out_coef_mat: List[Tensor]
-        Matrixes of the coefficients for the output constraints.
-    out_bias_mat: List[Tensor]
-        Matrixes of the biases for the output constraints.
+        """
 
-    """
+        return Star(self.in_coef_mat, self.in_bias_mat)
 
-    def __init__(self, filepath: str = '', input_name: str = 'X', output_name: str = 'Y'):
-        smt_parser = reading.SmtPropertyParser(filepath, input_name, output_name)
-        in_coef_mat, in_bias_mat, out_coef_mat, out_bias_mat = smt_parser.parse_property()
-
-        super().__init__(in_coef_mat, in_bias_mat, out_coef_mat, out_bias_mat)
-
-    def to_smt_file(self, input_id: str = 'X', output_id: str = 'Y', filepath: str = ''):
+    def to_smt_file(self, filepath: str, input_id: str = 'X', output_id: str = 'Y'):
         """
         This method builds the SMT-LIB representation of the NeVerProperty, expressing
         the variables and the matrices as constraints in the corresponding logic
@@ -54,7 +43,7 @@ class VnnLibProperty(NeverProperty):
         input_id : str, Optional
             Identifier of the input node (default: 'X')
         output_id : str, Optional
-            Identifier of the output node (default: 'X')
+            Identifier of the output node (default: 'Y')
         filepath : str
             Path to the SMT-LIB file to create
 
@@ -111,19 +100,6 @@ class VnnLibProperty(NeverProperty):
                 s = s + '))'
                 f.write(s)
 
-    def to_input_star(self) -> Star:
-        """
-        This method creates the input star based on the property specification
-
-        Returns
-        ----------
-        Star
-            The input star
-
-        """
-
-        return Star(self.in_coef_mat, self.in_bias_mat)
-
     @staticmethod
     def __create_infix_constraints(variables: list, coef_mat: Tensor, bias_mat: Tensor) -> list:
         c_list = []
@@ -143,9 +119,83 @@ class VnnLibProperty(NeverProperty):
 
             # Add bias preventing exponential representation
             bias_repr = float(bias)
+
             if 'e' in str(bias_repr):
-                bias_repr = Fraction(bias)
+                bias_repr = Fraction(bias_repr)
+
             s = s + f") <= ({bias_repr})"
             c_list.append(s)
 
         return c_list
+
+
+class VnnLibProperty(NeverProperty):
+    """
+    A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
+    out_coef_mat * y <= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
+    At present the input set must be defined as in_coef_mat * x <= in_bias_mat
+
+    Attributes
+    ----------
+    in_coef_mat: Tensor
+        Matrix of the coefficients for the input constraints.
+    in_bias_mat: Tensor
+        Matrix of the biases for the input constraints.
+    out_coef_mat: List[Tensor]
+        Matrices of the coefficients for the output constraints.
+    out_bias_mat: List[Tensor]
+        Matrices of the biases for the output constraints.
+
+    """
+
+    def __init__(self, filepath: str, input_name: str = 'X', output_name: str = 'Y'):
+        smt_parser = reading.SmtPropertyParser(filepath, input_name, output_name)
+
+        super().__init__(*smt_parser.parse_property())
+
+
+class LocalRobustnessProperty(NeverProperty):
+    """
+    TODO
+
+    sample : Tensor
+    epsilon : float
+    label : str
+    max_output : bool
+
+    """
+
+    def __init__(self, sample: Tensor, epsilon: float, label: str, max_output: bool):
+        super().__init__(*LocalRobustnessProperty.build_matrices(sample, epsilon, label, max_output))
+
+    @staticmethod
+    def build_matrices(sample: Tensor, epsilon: float, target: Tensor, label: int, max_output: bool) -> tuple[
+        Tensor, Tensor, list[Tensor], list[Tensor]]:
+
+        if sample.shape[1] != 1:
+            raise InvalidDimensionError('Wrong shape for the sample, should be mono-dimensional')
+
+        # Input property
+        n_dims = sample.shape[0]
+        in_coef_mat = tensors.zeros((2 * n_dims, n_dims))
+        in_bias_mat = tensors.zeros((2 * n_dims, 1))
+
+        for i, x_i in enumerate(sample):
+
+            if not isinstance(x_i, float):
+                raise Exception
+
+            in_coef_mat[2 * i, i] = 1
+            in_coef_mat[2 * i + 1, i] = -1
+
+            in_bias_mat[2 * i] = x_i + epsilon
+            in_bias_mat[2 * i + 1] = -x_i + epsilon
+
+        # Output property
+        n_dims = target.shape[0]
+        out_coef_mat = tensors.zeros((n_dims, n_dims))
+        out_bias_mat = tensors.zeros((n_dims, 1))
+
+
+
+        return in_coef_mat, in_bias_mat, [out_coef_mat], [out_bias_mat]

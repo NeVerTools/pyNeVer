@@ -37,7 +37,7 @@ def ones(shape: Union[int, tuple[int]], dtype=float):
         raise NotImplementedError
 
 
-def zeros(shape: Union[int, tuple[int]], dtype=float):
+def zeros(shape: tuple, dtype=float):
     if BACKEND == BackEnd.NUMPY:
         return numpy.zeros(shape=shape, dtype=dtype)
     elif BACKEND == BackEnd.TENSORFLOW:
