@@ -165,12 +165,12 @@ class LocalRobustnessProperty(NeverProperty):
 
     """
 
-    def __init__(self, sample: Tensor, epsilon: float, label: str, max_output: bool):
-        super().__init__(*LocalRobustnessProperty.build_matrices(sample, epsilon, label, max_output))
+    def __init__(self, sample: Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool):
+        super().__init__(*LocalRobustnessProperty.build_matrices(sample, epsilon, n_outputs, label, max_output))
 
     @staticmethod
-    def build_matrices(sample: Tensor, epsilon: float, target: Tensor, label: int, max_output: bool) -> tuple[
-        Tensor, Tensor, list[Tensor], list[Tensor]]:
+    def build_matrices(sample: Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool) -> tuple[
+            Tensor, Tensor, list[Tensor], list[Tensor]]:
 
         if sample.shape[1] != 1:
             raise InvalidDimensionError('Wrong shape for the sample, should be mono-dimensional')
@@ -192,10 +192,19 @@ class LocalRobustnessProperty(NeverProperty):
             in_bias_mat[2 * i + 1] = -x_i + epsilon
 
         # Output property
-        n_dims = target.shape[0]
-        out_coef_mat = tensors.zeros((n_dims, n_dims))
-        out_bias_mat = tensors.zeros((n_dims, 1))
+        if label >= n_outputs:
+            raise Exception
 
+        out_coef_mat = tensors.zeros((n_outputs - 1, n_outputs))
+        out_bias_mat = tensors.zeros((n_outputs - 1, 1))
 
+        outputs = set(range(n_outputs))
+        outputs.remove(label)
+        for i in outputs:
+            out_coef_mat[i, label] = 1
+            out_coef_mat[i, i] = -1
+
+        if not max_output:
+            out_coef_mat = -out_coef_mat
 
         return in_coef_mat, in_bias_mat, [out_coef_mat], [out_bias_mat]
