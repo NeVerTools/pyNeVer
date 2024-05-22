@@ -334,6 +334,9 @@ class SearchVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
+        # Flag to update bounds
+        update = False
+
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
 
@@ -346,7 +349,13 @@ class SearchVerification(VerificationStrategy):
 
             if intersects:
                 # If new target is None there is no more refinement to do
+                prev_layer = current_star.ref_layer
                 target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list)
+                
+                if current_star.ref_layer > prev_layer:
+                    update = True
+                else:
+                    update = False
 
                 if target is None:
                     # Nothing else to split, or
@@ -358,7 +367,7 @@ class SearchVerification(VerificationStrategy):
                     # We cannot conclude anything at this point.
                     # Split the current branch according to the target
                     frontier.extend(
-                        sf.split_star(current_star, target, net_list, nn_bounds)
+                        sf.split_star(current_star, target, net_list, nn_bounds, update)
                     )
 
             else:

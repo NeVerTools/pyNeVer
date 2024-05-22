@@ -342,7 +342,7 @@ def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star)
     return new_target, star
 
 
-def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict) -> list:
+def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict, update_bounds: bool) -> list:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -360,6 +360,8 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         The neural network as a list of layers
     bounds_dict : dict
         The bounds of the network layers
+    update_bounds : bool
+        Flag to update the bounds after the split
 
     Returns
     ----------
@@ -422,7 +424,11 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
             upper_star.ref_neuron = star.ref_neuron + 1
 
             # Update the bounds after the split
-            lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
+            if update_bounds:
+                print('Updating bounds for layer {0}'.format(target.layer_idx))
+                lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
+            else:
+                lower_bounds, upper_bounds = bounds_dict, bounds_dict
 
             return [
                 (lower_star, lower_bounds),
