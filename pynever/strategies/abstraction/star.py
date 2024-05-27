@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import time
 import uuid
@@ -9,6 +11,7 @@ from ortools.linear_solver import pywraplp
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.tensors import Tensor
+import pynever.tensors as tensors
 
 
 class AbsElement(abc.ABC):
@@ -436,6 +439,24 @@ class Star:
             constraints.append(new_constraint)
 
         return solver, alphas, constraints
+
+    def intersect_with_halfspace(self, coef_mat: Tensor, bias_mat: Tensor) -> Star:
+        """
+        Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector
+        and returns the Star resulting from the intersection of the input Star with the halfspace.
+
+        """
+
+        new_center = self.center
+        new_basis_matrix = self.basis_matrix
+        hs_pred_matrix = tensors.matmul(coef_mat, self.basis_matrix)
+        hs_pred_bias = bias_mat - tensors.matmul(coef_mat, self.center)
+        new_pred_matrix = tensors.vstack((self.predicate_matrix, hs_pred_matrix))
+        new_pred_bias = tensors.vstack((self.predicate_bias, hs_pred_bias))
+
+        new_star: Star = Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
+
+        return new_star
 
 
 class StarSet(AbsElement):

@@ -28,7 +28,7 @@ def random_uniform(low: Union[float, int], high: Union[float, int], size: Union[
         raise NotImplementedError
 
 
-def ones(shape: Union[int, tuple[int]], dtype=float):
+def ones(shape: tuple, dtype=float):
     if BACKEND == BackEnd.NUMPY:
         return numpy.ones(shape=shape, dtype=dtype)
     elif BACKEND == BackEnd.TENSORFLOW:

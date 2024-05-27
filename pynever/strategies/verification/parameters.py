@@ -4,7 +4,7 @@ import abc
 # TODO add documentation
 
 class VerificationParameters(abc.ABC):
-    pass
+    raise NotImplementedError
 
 
 class NeverVerificationParameters(VerificationParameters):
