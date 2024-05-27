@@ -29,7 +29,7 @@ def verify_cpp(network_path, property_path, get_output_bounds=False):
             raise Exception
 
     in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading. \
-        SmtPropertyParser(property_path, "X", "Y").parse_property()
+        SmtPropertyParser(property_path).parse_property()
 
     bounds = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 

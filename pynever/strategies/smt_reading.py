@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 from pysmt.smtlib.parser import SmtLibParser
 
@@ -251,14 +253,15 @@ class SmtPropertyParser:
 
     """
 
-    def __init__(self, smtlib_path: str, x_name: str, y_name: str):
+    def __init__(self, smtlib_path: str):
         self.smtlib_path = smtlib_path
-        self.x_name = x_name
-        self.y_name = y_name
+
+        self.x_name, self.y_name = self.__get_variable_names()
         self.x = self.get_components_of(self.x_name)
         self.y = self.get_components_of(self.y_name)
-        self.in_coef_mat = []
-        self.in_bias_mat = []
+
+        self.in_coef_mat = None
+        self.in_bias_mat = None
         self.out_coef_mat = []
         self.out_bias_mat = []
 
@@ -303,6 +306,31 @@ class SmtPropertyParser:
                 assert_var.append(line)
 
         return assert_var
+
+    def __get_variable_names(self) -> tuple[str, str]:
+        """
+        This method extracts the name of the declared variables in the file
+        and returns them in the form of a tuple (input, output)
+
+        """
+
+        script = self.__as_script()
+        declarations = script.filter_by_command_name(['declare-fun', 'declare-const'])
+
+        input_name = ''
+        output_name = ''
+        pattern = '^(.*?)(?=_)'  # Regex to find '_i' after variable name
+
+        for d in declarations:
+            suffix = re.sub(pattern, '', str(d.args[0]))
+
+            if input_name != '':
+                output_name = str(d.args[0]).replace(suffix, '')
+                break
+            else:
+                input_name = str(d.args[0]).replace(suffix, '')
+
+        return input_name, output_name
 
     def __get_coef_mat(self, vector: list, vec_name: str, asserts: list) -> Tensor:
         """

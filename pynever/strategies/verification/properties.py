@@ -148,8 +148,8 @@ class VnnLibProperty(NeverProperty):
 
     """
 
-    def __init__(self, filepath: str, input_name: str = 'X', output_name: str = 'Y'):
-        smt_parser = reading.SmtPropertyParser(filepath, input_name, output_name)
+    def __init__(self, filepath: str):
+        smt_parser = reading.SmtPropertyParser(filepath)
 
         super().__init__(*smt_parser.parse_property())
 

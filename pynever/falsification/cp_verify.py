@@ -46,8 +46,7 @@ def verify_cp(network_path, property_path, get_output_bounds=False):
     # considered points are all those that if multiplied by X_C are less or equal to X_d, i.e. all x such that
     # X_C @ x <= X_d
     # FIXME X and Y should be changed when they will be the same as the input and output of the network
-    in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading.\
-        SmtPropertyParser(property_path, "X", "Y").parse_property()
+    in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading.SmtPropertyParser(property_path).parse_property()
 
     bounds = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 

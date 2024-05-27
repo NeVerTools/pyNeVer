@@ -31,7 +31,7 @@ def load_network(network_path: str) -> SequentialNetwork:
 
 def sampling(network: SequentialNetwork, property_path: str, n_points: int = 1000, subset_percentage: float = 0.1):
     in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias = smt_reading. \
-        SmtPropertyParser(property_path, "X", "Y").parse_property()
+        SmtPropertyParser(property_path).parse_property()
 
     prop = verification.NeVerProperty(in_pred_mat, in_pred_bias, out_pred_mat, out_pred_bias)
 
