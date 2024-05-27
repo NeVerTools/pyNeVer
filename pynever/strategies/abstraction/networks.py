@@ -1,11 +1,15 @@
 import abc
 import copy
+import time
 
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction.star import AbsElement
+from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.verification.parameters import NeverVerificationParameters
+
+from pynever.strategies.abstraction import LOGGER_LAYER
 
 
 # TODO update documentation
@@ -49,9 +53,11 @@ class AbsNeuralNetwork(abc.ABC):
         'SumNode': absnodes.AbsSumNode,
     }
 
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: NeverVerificationParameters):
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: NeverVerificationParameters,
+                 bounds: dict[str, AbstractBounds] | None = None):
         self.nodes: dict[str, absnodes.AbsLayerNode] = {}
         self.ref_network = ref_network
+        self.bounds = bounds
 
         for node_id, node in ref_network.nodes.items():
             self.nodes[f'ABS_{node_id}'] = AbsNeuralNetwork.__get_abstract_node_class(node)(f'ABS_{node_id}',
@@ -159,8 +165,18 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         """
 
         current_node = self.get_abstract(self.ref_network.get_first_node())
+
         while current_node is not None:
-            abs_input = current_node.forward(abs_input)
+
+            time_start = time.perf_counter()
+
+            abs_input = current_node.forward(abs_input, self.bounds[current_node.identifier])
+
+            time_end = time.perf_counter()
+
+            LOGGER_LAYER.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
+                              f"{len(abs_input.stars)}. Time to compute: {time_end - time_start}s.")
+
             current_node = self.get_abstract(self.ref_network.get_next_node(self.get_concrete(current_node)))
 
         return abs_input

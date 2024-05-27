@@ -57,7 +57,7 @@ class AbsLayerNode(nodes.LayerNode):
         self.ref_node = ref_node
 
     @abc.abstractmethod
-    def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -66,6 +66,8 @@ class AbsLayerNode(nodes.LayerNode):
         ----------
         abs_input : AbsElement | list[AbsElement]
             The input abstract element or a list of inputs.
+        bounds: AbstractBounds | None
+            The optional abstract bounds obtained by bound propagation
 
         Returns
         ----------
@@ -118,7 +120,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
         super().__init__(identifier, ref_node)
         self.ref_node = ref_node
 
-    def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -127,6 +129,8 @@ class AbsFullyConnectedNode(AbsLayerNode):
         ----------
         abs_input : AbsElement
             The input abstract element.
+        bounds: AbstractBounds | None
+            The optional abstract bounds obtained by bound propagation
 
         Returns
         ----------
@@ -228,14 +232,14 @@ class AbsReLUNode(AbsLayerNode):
 
         super().__init__(identifier, ref_node)
 
-        if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'params'):
-            raise Exception('Verification parameters must include attributes "heuristic" and "params"')
+        if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'neurons_to_refine'):
+            raise Exception('Verification parameters must include attributes "heuristic" and "neurons_to_refine"')
 
         self.parameters = parameters
         self.layer_bounds = None
         self.n_areas = None
 
-    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds = None) -> AbsElement:
+    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -512,7 +516,7 @@ class AbsSigmoidNode(AbsLayerNode):
 
         self.approx_levels = approx_levels
 
-    def forward(self, abs_input: AbsElement) -> AbsElement:
+    def forward(self, abs_input: AbsElement, bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -521,6 +525,8 @@ class AbsSigmoidNode(AbsLayerNode):
         ----------
         abs_input : AbsElement
             The input abstract element.
+        bounds: AbstractBounds | None
+            The optional abstract bounds obtained by bound propagation
 
         Returns
         ----------
@@ -777,7 +783,7 @@ class AbsConcatNode(AbsLayerNode):
     def __init__(self, identifier: str, ref_node: nodes.ConcatNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
 
-    def forward(self, abs_inputs: list[AbsElement]) -> AbsElement:
+    def forward(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -786,6 +792,8 @@ class AbsConcatNode(AbsLayerNode):
         ----------
         abs_inputs : list[AbsElement]
             The input abstract elements.
+        bounds: AbstractBounds | None
+            The optional abstract bounds obtained by bound propagation
 
         Returns
         ----------
@@ -903,7 +911,7 @@ class AbsSumNode(AbsLayerNode):
     def __init__(self, identifier: str, ref_node: nodes.SumNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
 
-    def forward(self, abs_inputs: list[AbsElement]) -> AbsElement:
+    def forward(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -912,6 +920,8 @@ class AbsSumNode(AbsLayerNode):
         ----------
         abs_inputs : list[AbsElement]
             The input abstract elements.
+        bounds: AbstractBounds | None
+            The optional abstract bounds obtained by bound propagation
 
         Returns
         ----------
