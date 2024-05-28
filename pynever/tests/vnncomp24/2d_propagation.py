@@ -5,8 +5,9 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies import verification
 
 # NETWORK DEFINITION
-W = np.ones((2, 2))
-W[1, 1] = -1
+# W = np.ones((2, 2))
+# W[1, 1] = -1
+W = np.array([[0.6, -0.4], [0.25, 0.75]])
 
 fc_1 = nodes.FullyConnectedNode('FC_1', (2,), 2, W, np.zeros(2))
 rl_1 = nodes.ReLUNode('ReLU_1', (2,))
