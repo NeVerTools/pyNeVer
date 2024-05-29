@@ -281,7 +281,7 @@ class SequentialNetwork(NeuralNetwork):
                 isinstance(node, nodes.ConcreteLayerNode) and
                 isinstance(node.get_input_dim(), tuple))
 
-    def __get_input_id(self) -> str:
+    def get_input_id(self) -> str:
         """
         Procedure to return the input_id of the network.
         Returns
@@ -319,7 +319,7 @@ class SequentialNetwork(NeuralNetwork):
             raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
 
         if self.is_empty():
-            self.generic_add_node(node, input_ids=[self.__get_input_id()])
+            self.generic_add_node(node, input_ids=[self.get_input_id()])
         else:
             parents = [self.get_last_node()]
             self.generic_add_node(node, parents=parents)
@@ -483,7 +483,7 @@ class AcyclicNetwork(NeuralNetwork):
         super().__init__(identifier, input_ids)
         self.input_edges = input_edges
 
-    def add_node(self, node: nodes.LayerNode, parents: list[nodes.LayerNode] | None = None,
+    def add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
                  children: list[nodes.LayerNode] | None = None):
 
         self.generic_add_node(node, parents, children)
