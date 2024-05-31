@@ -158,15 +158,17 @@ class NeverVerification(VerificationStrategy):
 
         is_satisfied = not all(all_empty)
 
+        counterexample: Tensor | None = None
         if len(unsafe_stars) > 0:
             self.counterexample_stars = NeverVerification.get_counterexample_stars(prop, unsafe_stars)
+            counterexample = self.counterexample_stars[0].get_samples(num_samples=1)[0]
 
         ver_end_time = time.perf_counter()
 
         self.logger.info(f"The property is satisfiable: {is_satisfied}.")
         self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
 
-        return not is_satisfied
+        return not is_satisfied, counterexample
 
     @staticmethod
     def get_counterexample_stars(prop: NeverProperty, unsafe_stars: list[Star]):

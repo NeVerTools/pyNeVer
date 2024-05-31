@@ -278,7 +278,8 @@ class AbsReLUNode(AbsLayerNode):
             parallel_results = my_pool.starmap(self._mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
-        self.parameters.neurons_to_refine.pop(0)
+        if self.parameters.neurons_to_refine is not None:
+            self.parameters.neurons_to_refine.pop(0)
 
         abs_output = StarSet()
 
