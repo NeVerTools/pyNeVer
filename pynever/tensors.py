@@ -1,5 +1,5 @@
 import enum
-from typing import Union, Iterable, Optional
+from collections.abc import Iterable
 
 import numpy
 import tensorflow
@@ -16,240 +16,266 @@ class Tensor(numpy.ndarray, tensorflow.Tensor):
     """
 
 
+# TODO move to configuration file
 BACKEND = BackEnd.TENSORFLOW
 
 
-def random_uniform(low: Union[float, int], high: Union[float, int], size: Union[int, Iterable, tuple[int]]):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.random.default_rng().uniform(low=low, high=high, size=size)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.random.uniform(shape=size, minval=low, maxval=high, dtype=tensorflow.float32)
-    else:
-        raise NotImplementedError
+def random_uniform(low: float | int, high: float | int, size: int | Iterable | tuple[int]) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.random.uniform(shape=size, minval=low, maxval=high, dtype=tensorflow.float32))
+        case _:
+            raise NotImplementedError
 
 
-def ones(shape: tuple, dtype=float):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.ones(shape=shape, dtype=dtype)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.ones(shape=shape, dtype=dtype)
-    else:
-        raise NotImplementedError
+def ones(shape: tuple, dtype=float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.ones(shape=shape, dtype=dtype))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.ones(shape=shape, dtype=dtype))
+        case _:
+            raise NotImplementedError
 
 
-def zeros(shape: tuple, dtype=float):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.zeros(shape=shape, dtype=dtype)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.zeros(shape=shape, dtype=dtype)
-    else:
-        raise NotImplementedError
+def zeros(shape: tuple, dtype=float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.zeros(shape=shape, dtype=dtype))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.zeros(shape=shape, dtype=dtype))
+        case _:
+            raise NotImplementedError
 
 
-def prod(in_tensor: Tensor, axis: Union[int, tuple[int], None], dtype=float):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.prod(a=in_tensor, axis=axis, dtype=dtype)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        temp_tensor = in_tensor.numpy()
-        return tensorflow.convert_to_tensor(numpy.prod(a=temp_tensor, axis=axis, dtype=dtype))
-    else:
-        raise NotImplementedError
+def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
+        case BackEnd.TENSORFLOW:
+            temp_tensor = in_tensor.numpy()
+            return Tensor(tensorflow.convert_to_tensor(numpy.prod(a=temp_tensor, axis=axis, dtype=dtype)))
+        case _:
+            raise NotImplementedError
 
 
-def sqrt(in_tensor: Tensor):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.sqrt(in_tensor)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.math.sqrt(in_tensor)
-    else:
-        raise NotImplementedError
+def sqrt(in_tensor: Tensor) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.sqrt(in_tensor))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.math.sqrt(in_tensor))
+        case _:
+            raise NotImplementedError
 
 
-def reshape(in_tensor: Tensor, new_shape: Union[int, Iterable, tuple[int]]):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.reshape(a=in_tensor, newshape=new_shape)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.reshape(tensor=in_tensor, shape=new_shape)
-    else:
-        raise NotImplementedError
+def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.reshape(a=in_tensor, newshape=new_shape))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.reshape(tensor=in_tensor, shape=new_shape))
+        case _:
+            raise NotImplementedError
 
 
-def array(array_like):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.array(array_like)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.convert_to_tensor(array_like)
-    else:
-        raise NotImplementedError
+def array(array_like) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.array(array_like))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.convert_to_tensor(array_like))
+        case _:
+            raise NotImplementedError
 
 
-def loadtxt(fname: str, dtype=float, delimiter: str = ' '):
+def loadtxt(fname: str, dtype=float, delimiter: str = ' ') -> Tensor:
     np_a = numpy.loadtxt(fname=fname, dtype=dtype, delimiter=delimiter)
-    if BACKEND == BackEnd.NUMPY:
-        return np_a
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.convert_to_tensor(np_a)
-    else:
-        raise NotImplementedError
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(np_a)
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.convert_to_tensor(np_a))
+        case _:
+            raise NotImplementedError
 
 
-def random_normal(mean: Union[float, Iterable[float]], std: Union[float, Iterable[float]],
-                  size: Union[int, tuple[int]]):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.random.default_rng().normal(loc=mean, scale=std, size=size)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.random.uniform(shape=size, mean=mean, stddev=std)
-    else:
-        raise NotImplementedError
+def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
+                  size: int | tuple[int]) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.random.default_rng().normal(loc=mean, scale=std, size=size))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.random.uniform(shape=size, mean=mean, stddev=std))
+        case _:
+            raise NotImplementedError
 
 
-def identity(n: int, dtype=float):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.identity(n=n, dtype=dtype)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.eye(num_rows=n, dtype=dtype)
-    else:
-        raise NotImplementedError
+def identity(n: int, dtype=float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.identity(n=n, dtype=dtype))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.eye(num_rows=n, dtype=dtype))
+        case _:
+            raise NotImplementedError
 
 
-def matmul(x1: Tensor, x2: Tensor):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.matmul(x1, x2)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.linalg.matmul(x1, x2)
-    else:
-        raise NotImplementedError
+def matmul(x1: Tensor, x2: Tensor) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.matmul(x1, x2))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.linalg.matmul(x1, x2))
+        case _:
+            raise NotImplementedError
 
 
-def reduce_all(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.all(a=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.math.reduce_all(input_tensor=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.all(a=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.math.reduce_all(input_tensor=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def random_standard_normal(size: Union[int, Iterable, tuple[int], None] = None, dtype=float):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.random.default_rng().standard_normal(size=size, dtype=dtype)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.random.normal(shape=size, dtype=dtype)
-    else:
-        raise NotImplementedError
+def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.random.default_rng().standard_normal(size=size, dtype=dtype))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.random.normal(shape=size, dtype=dtype))
+        case _:
+            raise NotImplementedError
 
 
-def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False):
-    return numpy.isclose(x1, x2, rtol, atol, equal_nan)
+def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> bool:
+    return bool(numpy.isclose(x1, x2, rtol, atol, equal_nan).any())
 
 
-def reduce_min(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None, keepdims: bool = False):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.min(a=in_tensor, axis=axis, keepdims=keepdims)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.reduce_min(input_tensor=in_tensor, axis=axis, keepdims=keepdims)
-    else:
-        raise NotImplementedError
+def reduce_min(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdims: bool = False) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.min(a=in_tensor, axis=axis, keepdims=keepdims))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.reduce_min(input_tensor=in_tensor, axis=axis, keepdims=keepdims))
+        case _:
+            raise NotImplementedError
 
 
-def reduce_max(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None, keepdims: bool = False):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.max(a=in_tensor, axis=axis, keepdims=keepdims)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.reduce_max(input_tensor=in_tensor, axis=axis, keepdims=keepdims)
-    else:
-        raise NotImplementedError
+def reduce_max(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdims: bool = False) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.max(a=in_tensor, axis=axis, keepdims=keepdims))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.reduce_max(input_tensor=in_tensor, axis=axis, keepdims=keepdims))
+        case _:
+            raise NotImplementedError
 
 
-def argmax(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.argmax(a=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.math.argmax(input_tensor=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def argmax(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.argmax(a=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.math.argmax(input=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def argmin(in_tensor: Tensor, axis: Union[int, Iterable, tuple[int], None] = None):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.argmin(a=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.math.argmin(input_tensor=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def argmin(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.argmin(a=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.math.argmin(input=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def where(condition: Union[Tensor, Iterable, float, int, bool],
-          x: Union[Tensor, Iterable, int, float],
-          y: Union[Tensor, Iterable, int, float]):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.where(condition=condition, x=x, y=y)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.where(condition=condition, x=x, y=y)
-    else:
-        raise NotImplementedError
+def where(condition: Tensor | Iterable | float | int | bool,
+          x: Tensor | Iterable | int | float,
+          y: Tensor | Iterable | int | float) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.where(condition, x, y))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.where(condition=condition, x=x, y=y))
+        case _:
+            raise NotImplementedError
 
 
-def vstack(tup: tuple):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.vstack(tup)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.convert_to_tensor(numpy.vstack(tup))
-    else:
-        raise NotImplementedError
+def vstack(tup: tuple) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.vstack(tup))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.convert_to_tensor(numpy.vstack(tup)))
+        case _:
+            raise NotImplementedError
 
 
-def hstack(tup: tuple):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.hstack(tup)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.convert_to_tensor(numpy.hstack(tup))
-    else:
-        raise NotImplementedError
+def hstack(tup: tuple) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.hstack(tup))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.convert_to_tensor(numpy.hstack(tup)))
+        case _:
+            raise NotImplementedError
 
 
-def stack(arrays: Union[Iterable[Tensor], Iterable, int, float], axis: Optional[int] = 0):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.stack(arrays=arrays, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.stack(values=arrays, axis=axis)
-    else:
-        raise NotImplementedError
+def stack(arrays: Iterable[Tensor], axis: int = 0) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.stack(arrays, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.stack(values=arrays, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def flip(in_tensor: Tensor, axis: Union[None, int, Iterable, tuple[int]] = None):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.flip(m=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.reverse(tensor=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def flip(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.flip(m=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.reverse(tensor=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def argsort(in_tensor: Tensor, axis: Optional[int] = -1):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.argsort(a=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.argsort(values=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def argsort(in_tensor: Tensor, axis: int = -1) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.argsort(a=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.argsort(values=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
 
 
-def linspace(start: Union[Tensor, Iterable, int, float], stop: Union[Tensor, Iterable, int, float],
-             num: Optional[int] = 50, endpoint: Optional[bool] = True, axis: Optional[int] = 0):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.convert_to_tensor(numpy.linspace(start=start, stop=stop, num=num,
-                                                           endpoint=endpoint, axis=axis))
-    else:
-        raise NotImplementedError
+def linspace(start: Tensor | Iterable | int | float, stop: Tensor | Iterable | int | float,
+             num: int = 50, endpoint: bool = True, axis: int = 0) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.convert_to_tensor(numpy.linspace(start=start, stop=stop, num=num,
+                                                                      endpoint=endpoint, axis=axis)))
+        case _:
+            raise NotImplementedError
 
 
-def expand_dims(in_tensor: Union[Tensor, Iterable, int, float], axis: Union[int, Iterable, tuple[int]]):
-    if BACKEND == BackEnd.NUMPY:
-        return numpy.expand_dims(a=in_tensor, axis=axis)
-    elif BACKEND == BackEnd.TENSORFLOW:
-        return tensorflow.expand_dims(input=in_tensor, axis=axis)
-    else:
-        raise NotImplementedError
+def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable | tuple[int]) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.expand_dims(a=in_tensor, axis=axis))
+        case BackEnd.TENSORFLOW:
+            return Tensor(tensorflow.expand_dims(input=in_tensor, axis=axis))
+        case _:
+            raise NotImplementedError
