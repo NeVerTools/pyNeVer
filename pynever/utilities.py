@@ -1,3 +1,9 @@
+"""Utility functions collection
+
+This module contains utility functions which may be used throughout the code.
+
+"""
+
 import torch
 
 import pynever.networks as networks
@@ -6,19 +12,17 @@ from pynever.tensors import Tensor
 
 
 def execute_network(network: networks.NeuralNetwork, net_input: Tensor) -> Tensor:
-    """
-    Apply the neural network function to an input Tensor
-    using pyTorch backend
+    """Applies the neural network function to an input Tensor using pyTorch backend.
 
     Parameters
     ----------
     network : NeuralNetwork
-        The network to evaluate
+        The network to execute
     net_input : Tensor
         The input value to feed
 
     Returns
-    ----------
+    -------
     Tensor
         The computed output
 
