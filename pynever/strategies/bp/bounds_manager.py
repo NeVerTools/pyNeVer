@@ -37,48 +37,51 @@ class BoundsManager:
         return self.compute_bounds(input_hyper_rect, layers)
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, layers: list) -> dict:
+        """
+        Given input hyper rectangle bounds, propagates them through the NN given as layers
+        using forward symbolic bound propagation and
+        returns a dictionary with the symbolic and numeric bounds
+        """
 
-        input_size = input_hyper_rect.get_size()
-
-        lower = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        upper = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-
-        input_bounds = SymbolicLinearBounds(lower, upper)
-
+        ## We are collecting the bounds, symbolic and numeric, in these dictionaries
+        symbolic_bounds = dict()
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
-        symbolic_bounds = dict()
 
-        current_input_bounds = input_bounds
-        symbolic_dense_output_bounds = current_input_bounds
-        preactivation_bounds = symbolic_dense_output_bounds.to_hyper_rectangle_bounds(input_hyper_rect)
+        ## Initialising the current equations
+        input_size = input_hyper_rect.get_size()
+        lower_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+        upper_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+        current_layer_input_equation = SymbolicLinearBounds(lower_equation, upper_equation)
+        current_layer_input_numeric_bounds = input_hyper_rect
 
+        ## Iterate through the layers
         for i in range(0, len(layers)):
 
-            if isinstance(layers[i], nodes.ReLUNode):
-                symbolic_activation_output_bounds = self.compute_relu_output_bounds(symbolic_dense_output_bounds,
-                                                                                    input_hyper_rect)
-                postactivation_bounds = HyperRectangleBounds(np.maximum(preactivation_bounds.get_lower(), 0),
-                                                             np.maximum(preactivation_bounds.get_upper(), 0))
+            if isinstance(layers[i], nodes.FullyConnectedNode):
+                current_layer_output_equation = self.compute_dense_output_bounds(layers[i], current_layer_input_equation)
+                current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(input_hyper_rect)
 
-            elif isinstance(layers[i], nodes.FullyConnectedNode):
-                symbolic_dense_output_bounds = self.compute_dense_output_bounds(layers[i], current_input_bounds)
-                preactivation_bounds = symbolic_dense_output_bounds.to_hyper_rectangle_bounds(input_hyper_rect)
-
-                symbolic_activation_output_bounds = symbolic_dense_output_bounds
-                postactivation_bounds = HyperRectangleBounds(preactivation_bounds.get_lower(),
-                                                             preactivation_bounds.get_upper())
+            elif isinstance(layers[i], nodes.ReLUNode):
+                current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
+                                                                                input_hyper_rect)
+                current_layer_output_numeric_bounds = HyperRectangleBounds(
+                    np.maximum(current_layer_input_numeric_bounds.get_lower(), 0),
+                    np.maximum(current_layer_input_numeric_bounds.get_upper(), 0))
 
             else:
                 raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
 
-            symbolic_bounds[layers[i].identifier] = symbolic_activation_output_bounds
-            numeric_preactivation_bounds[layers[i].identifier] = preactivation_bounds
-            numeric_postactivation_bounds[layers[i].identifier] = postactivation_bounds
+            # Store the current equations and numeric bounds
+            symbolic_bounds[layers[i].identifier] = current_layer_output_equation
+            numeric_preactivation_bounds[layers[i].identifier] = current_layer_input_numeric_bounds
+            numeric_postactivation_bounds[layers[i].identifier] = current_layer_output_numeric_bounds
 
-            current_input_bounds = symbolic_activation_output_bounds
-            self.numeric_bounds = numeric_postactivation_bounds
+            # Update the current input equation and numeric bounds
+            current_layer_input_equation = current_layer_output_equation
+            current_layer_input_numeric_bounds = current_layer_output_numeric_bounds
 
+        # Put all the collected bounds in a dictionary and return it
         return {
             'symbolic': symbolic_bounds,
             'numeric_pre': numeric_preactivation_bounds,
@@ -100,8 +103,9 @@ class BoundsManager:
             print('KeyError in branching, no update was performed.')
             return pre_branch_bounds, pre_branch_bounds
 
-        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
+        print(f"======================================================================\nTarget {target}")
         negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
+        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
         print()
         # Lower branch
         # lower_branch = copy.deepcopy(split_bounds)
@@ -115,6 +119,12 @@ class BoundsManager:
         # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
         #                                           upper_branch.upper)
 
+        negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
+        positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
+        print("Pre branch output bounds", pre_branch_bounds['numeric_post'][nn[-1].identifier])
+        print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
+        print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
+        print()
         return (self.compute_bounds(negative_branch_input, nn),
                 self.compute_bounds(positive_branch_input, nn))
 
@@ -172,7 +182,7 @@ class BoundsManager:
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        print("Positive branch")
+        print(f"Positive branch")
         print("lower", input_lower_bounds)
         print("upper", input_upper_bounds)
 
@@ -207,7 +217,7 @@ class BoundsManager:
                         input_upper_bounds[i] = new_upper_i
                         changes = True
 
-        print(f'Updated positive bounds for branch {target}: \n{input_lower_bounds}\n{input_upper_bounds}')
+        print(f'Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -299,7 +309,7 @@ class BoundsManager:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
 
-        print(f'Updated negative bounds for branch {target}: \n{input_lower_bounds}\n{input_upper_bounds}')
+        print(f'Updated negative bounds for branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def compute_dense_output_bounds(self, layer, inputs):
