@@ -101,6 +101,7 @@ class BoundsManager:
             return pre_branch_bounds, pre_branch_bounds
 
         self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
+        self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
 
         # Lower branch
         lower_branch = copy.deepcopy(split_bounds)
@@ -119,6 +120,30 @@ class BoundsManager:
 
     def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
         """
+        Given an unstable neuron y that we are going to constrain to be positive,
+        we recompute tighter input bounds of x=(x1,...,xn)
+        for the solution space induced by this positive branch.
+
+        We have a lower bound equation for y from the input variables. Namely,
+            y >= c * x + b
+
+        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+
+        Since we are constraining y to be positive, it means that c * x + b should be positive as well.
+        We therefore need to recompute the bounds for x. We do it as follows.
+
+        We have the following constraint c1 * x1 + ... + cn * xn + b >= 0
+
+        Then
+            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
+            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new lower bound of x1,
+        and when c1 < 0, we can compute a new upper bound of x1.
+        We do it using the standard interval arithmetics.
+        We only update the bound if it improves the previous one.
+
+
         Parameters
         ----------
         pre_branch_bounds: the bounds before the split
@@ -144,11 +169,10 @@ class BoundsManager:
         coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
-        # TODO: see how to use the upper bound
+        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
+        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        input_lower_bounds = input_bounds.get_lower()
-        input_upper_bounds = input_bounds.get_upper()
-
+        print("Positive branch")
         print("lower", input_lower_bounds)
         print("upper", input_upper_bounds)
 
@@ -161,8 +185,8 @@ class BoundsManager:
             for i in range(n_input_dimensions):
                 c = coef[i]
 
-                ## the rest is moved to the other side, so we have the minus
-                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i+1:]))
+                ## the rest is moved to the other side, so we have the minus and divided by c
+                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i+1:])) / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
@@ -170,16 +194,13 @@ class BoundsManager:
 
                 if c > 0:
                     # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
-                    new_lower_i = (pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(rem_upper_input_bounds) - shift) / c
+                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(rem_upper_input_bounds) - shift
                     if new_lower_i > input_lower_bounds[i]:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
                 elif c < 0:
                     # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
-                    # because c is negative, we "change the way" we compute the upper bound
-                    # we do it as if we were computing the lower bound, because we would need to push the minus from c
-                    # to the coefficients
-                    new_upper_i = (pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(rem_upper_input_bounds) - shift) / c
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(rem_lower_input_bounds) - shift
                     if new_upper_i < input_upper_bounds[i]:
                         input_upper_bounds[i] = new_upper_i
                         changes = True
@@ -187,6 +208,95 @@ class BoundsManager:
         print("updated lower", input_lower_bounds)
         print("updated upper", input_upper_bounds)
 
+    def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
+        """
+        Given an unstable neuron y that we are going to constrain to be negative,
+        we recompute tighter input bounds of x=(x1,...,xn)
+        for the solution space induced by this negative branch.
+
+        We have an upper bound equation for y from the input variables. Namely,
+            y <= c * x + b
+
+        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+
+        Since we are constraining y to be negative, it means that c * x + b should be negative as well.
+        We therefore need to recompute the bounds for x. We do it as follows.
+
+        We have the following constraint c1 * x1 + ... + cn * xn + b <= 0
+
+        Then
+            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
+            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new upper bound of x1,
+        and when c1 < 0, we can compute a new lower bound of x1.
+        We do it using the standard interval arithmetics.
+        We only update the bound if it improves the previous one.
+
+
+        Parameters
+        ----------
+        pre_branch_bounds: the bounds before the split
+        nn: the neural network
+        target: the neuron to be split
+
+        Returns
+        -------
+        tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+        """
+
+        # the bounds for the input layer that we try to refine
+        input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
+
+        try:
+            # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
+            symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
+        except KeyError:
+            print('KeyError in branching, no update was performed.')
+            return input_bounds
+
+        # The linear equation for the upper bound of the target neuron
+        coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
+        shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+
+        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
+        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
+
+        print("Negative branch")
+        print("lower", input_lower_bounds)
+        print("upper", input_upper_bounds)
+
+        n_input_dimensions = len(coef)
+        changes = True
+
+        # Continue updating the bounds until they stop improving
+        while changes:
+            changes = False
+            for i in range(n_input_dimensions):
+                c = coef[i]
+
+                ## the rest is moved to the other side, so we have the minus
+                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i+1:])) / c
+                pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
+                rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
+
+                if c > 0:
+                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(rem_lower_input_bounds) - shift
+                    if new_upper_i < input_upper_bounds[i]:
+                        input_upper_bounds[i] = new_upper_i
+                        changes = True
+                elif c < 0:
+                    # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
+                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(rem_upper_input_bounds) - shift
+                    if new_lower_i > input_lower_bounds[i]:
+                        input_lower_bounds[i] = new_lower_i
+                        changes = True
+
+        print("updated lower", input_lower_bounds)
+        print("updated upper", input_upper_bounds)
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)
