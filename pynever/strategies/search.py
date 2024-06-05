@@ -23,6 +23,9 @@ class RefinementTarget:
         self.layer_idx = layer
         self.neuron_idx = neuron
 
+    def __repr__(self):
+        return f'({self.layer_idx}, {self.neuron_idx})'
+
 
 def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
     """
@@ -283,14 +286,14 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
 
 def get_next_target(ref_heur: str,
                     star: Star,
-                    nn_list: list) -> (RefinementTarget, Star):
+                    nn_list: list) -> tuple[RefinementTarget, Star]:
     if ref_heur == 'sequential':
         return get_target_sequential(star, nn_list)
     else:
         raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star):
+def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -425,7 +428,6 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
 
             # Update the bounds after the split
             if update_bounds:
-                print('Updating bounds for layer {0}'.format(target.layer_idx))
                 lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
             else:
                 lower_bounds, upper_bounds = bounds_dict, bounds_dict

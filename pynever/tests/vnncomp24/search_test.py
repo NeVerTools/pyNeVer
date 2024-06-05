@@ -7,7 +7,7 @@ from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies import verification, conversion
 from pynever.tensors import Tensor
 
-BENCHMARKS_PATH = '../../examples/benchmarks'
+BENCHMARKS_PATH = '../../../examples/benchmarks'
 
 logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
@@ -101,4 +101,4 @@ def launch_instances(instances_file: str):
 
 
 if __name__ == '__main__':
-    launch_instances(f'{BENCHMARKS_PATH}/Test/instances.csv')
+    launch_instances(f'{BENCHMARKS_PATH}/RL/instances.csv')
