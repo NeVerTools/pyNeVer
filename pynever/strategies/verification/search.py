@@ -7,6 +7,7 @@ from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
 from pynever.strategies.verification import NeuronState
+from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
 
 
@@ -24,7 +25,7 @@ class RefinementTarget:
         return f'({self.layer_idx}, {self.neuron_idx})'
 
 
-def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> dict:
+def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dict:
     """
     This function gets the bounds of the neural network for the given property
     of interest. The bounds are computed based on a strategy that allows to
@@ -84,8 +85,6 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
         # Loop all the neurons to process
         status = check_stable(i, bounds)
-        mask = tensors.identity(out_star.n_neurons)
-        mask[i, i] = 0
 
         match status:
             case NeuronState.POSITIVE_STABLE:
@@ -210,7 +209,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     return star
 
 
-def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
+def check_intersection(star: Star, prop: NeverProperty) -> tuple[bool, list[Star]]:
     """
     This function checks whether a star intersects with the output property
     using a linear program. Since the output property may contain disjunction
@@ -368,20 +367,7 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, 
     return new_target, star
 
 
-def check_stable(var_index: int, bounds: AbstractBounds) -> int:
-    """
-
-    Parameters
-    ----------
-    var_index
-    bounds
-
-    Returns
-    -------
-    0 if unstable, 1 if positive stable, -1 if negative stable
-
-    """
-
+def check_stable(var_index: int, bounds: AbstractBounds) -> NeuronState:
     precision_guard = 10e-15
 
     lb = bounds.get_lower()[var_index]
@@ -389,15 +375,15 @@ def check_stable(var_index: int, bounds: AbstractBounds) -> int:
 
     # Positive stable
     if lb >= precision_guard:
-        return 1
+        return NeuronState.POSITIVE_STABLE
 
     # Negative stable
     elif ub <= -precision_guard:
-        return -1
+        return NeuronState.NEGATIVE_STABLE
 
     # Unstable
     else:
-        return 0
+        return NeuronState.UNSTABLE
 
 
 def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict, update_bounds: bool) \

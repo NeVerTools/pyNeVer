@@ -3,11 +3,10 @@ import copy
 import logging
 import time
 
-import pynever.strategies.verification.search as sf
-
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.bp.bounds_manager as bm
+import pynever.strategies.verification.search as sf
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star
 from pynever.strategies.bp.bounds import AbstractBounds
@@ -30,7 +29,7 @@ class VerificationStrategy(abc.ABC):
     """
 
     @abc.abstractmethod
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> (bool, Tensor | None):
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
         Verify that the neural network of interest satisfy the property given as argument
         using a verification strategy determined in the concrete children.
@@ -92,7 +91,7 @@ class NeverVerification(VerificationStrategy):
         self.counterexample_stars = None
         self.layers_bounds = {}
 
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> (bool, Tensor | None):
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
         Entry point for the verification algorithm for a network and a property
 
@@ -123,8 +122,8 @@ class NeverVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         # TODO remove assert in bound propagation
         try:
-            bound_manager = bm.BoundsManager(network, prop)
-            _, _, self.layers_bounds = bound_manager.compute_bounds()
+            bound_manager = bm.BoundsManager()
+            _, _, self.layers_bounds = bound_manager.compute_bounds_from_property(network, prop)
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}
@@ -191,7 +190,7 @@ class SearchVerification(VerificationStrategy):
 
     Attributes
     ----------
-    search_params : dict
+    parameters : dict
         The parameters to guide the search algorithm
 
     Methods
@@ -206,7 +205,7 @@ class SearchVerification(VerificationStrategy):
         self.logger = logging.getLogger(LOGGER)
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
-            -> (Star, dict[str, AbstractBounds], list[nodes.LayerNode]):
+            -> tuple[Star, dict[str, AbstractBounds], list[nodes.LayerNode]]:
         """
         Initialize the search algorithm and compute the starting values for
         the bounds, the star and the target
@@ -228,7 +227,7 @@ class SearchVerification(VerificationStrategy):
                 sf.get_bounds(network, prop, self.parameters.bounds),
                 bm.net2list(network))
 
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> (bool, Tensor | None):
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
         Entry point for the abstraction-refinement search algorithm
 
