@@ -56,6 +56,23 @@ def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dic
     # TODO add more strategies
 
 
+def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Star:
+    """
+    Static copy of the fc forward for usage in this module
+
+    """
+
+    if weight.shape[1] != star.basis_matrix.shape[0]:
+        raise Exception
+
+    new_basis_matrix = tensors.matmul(weight, star.basis_matrix)
+    new_center = tensors.matmul(weight, star.center) + bias
+    new_predicate_matrix = star.predicate_matrix
+    new_predicate_bias = star.predicate_bias
+
+    return Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
+
+
 def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx: int = 0) -> Star:
     """
     Approximate abstract propagation for a ReLU layer starting from a
@@ -137,7 +154,8 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
                 bias = tensors.expand_dims(layer.bias, 1)
             else:
                 bias = layer.bias
-            star = abst.single_fc_forward(star, layer.weight, bias).pop()
+
+            star = single_fc_forward(star, layer.weight, bias)
 
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
@@ -187,7 +205,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
                 bias = tensors.expand_dims(layer.bias, 1)
             else:
                 bias = layer.bias
-            star = abst.single_fc_forward(star, layer.weight, bias).pop()
+            star = single_fc_forward(star, layer.weight, bias)
             i += 1
 
         elif isinstance(layer, nodes.ReLUNode):
