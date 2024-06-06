@@ -8,10 +8,11 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
+import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
+from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.tensors import Tensor
-import pynever.tensors as tensors
 
 
 class AbsElement(abc.ABC):
@@ -300,6 +301,85 @@ class Star:
                 self.__current_point = current_point
 
         return samples
+
+    def create_negative_stable(self, index: int) -> Star:
+        """
+        Function to build the negative stable processing of this star throughout
+        a single ReLU neuron
+
+        """
+
+        mask = tensors.identity(self.center.shape[0])
+        mask[index, index] = 0
+
+        new_c = tensors.matmul(mask, self.center)
+        new_b = tensors.matmul(mask, self.basis_matrix)
+        new_pred = self.predicate_matrix
+        new_bias = self.predicate_bias
+
+        return Star(new_pred, new_bias, new_c, new_b)
+
+    def create_approx(self, index: int, lb: float, ub: float) -> Star:
+        """
+        Function to build the approximate star for the given ReLU neuron
+
+        """
+
+        mask = tensors.identity(self.center.shape[0])
+        mask[index, index] = 0
+
+        # Build all components of the approximate star
+        col_c_mat = self.predicate_matrix.shape[1]
+        row_c_mat = self.predicate_matrix.shape[0]
+
+        c_mat_1 = tensors.zeros((1, col_c_mat + 1))
+        c_mat_1[0, col_c_mat] = -1
+        c_mat_2 = tensors.hstack((tensors.array([self.basis_matrix[index, :]]), -tensors.ones((1, 1))))
+        coef_3 = - ub / (ub - lb)
+        c_mat_3 = tensors.hstack((tensors.array([coef_3 * self.basis_matrix[index, :]]), tensors.ones((1, 1))))
+        c_mat_0 = tensors.hstack((self.predicate_matrix, tensors.zeros((row_c_mat, 1))))
+
+        d_0 = self.predicate_bias
+        d_1 = tensors.zeros((1, 1))
+        d_2 = -self.center[index] * tensors.ones((1, 1))
+        d_3 = tensors.array([(ub / (ub - lb)) * (self.center[index] - lb)])
+
+        new_pred_mat = tensors.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
+        new_pred_bias = tensors.vstack((d_0, d_1, d_2, d_3))
+
+        new_center = tensors.matmul(mask, self.center)
+        temp_basis_mat = tensors.matmul(mask, self.basis_matrix)
+        temp_vec = tensors.zeros((self.basis_matrix.shape[0], 1))
+        temp_vec[index, 0] = 1
+        new_basis_mat = tensors.hstack((temp_basis_mat, temp_vec))
+
+        return Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
+
+    def split(self, index: int) -> tuple[Star, Star]:
+        """
+        Function to build the two stars obtained by splitting the current star
+        throughout a ReLU neuron
+
+        """
+
+        mask = tensors.identity(self.center.shape[0])
+        mask[index, index] = 0
+
+        # Lower star
+        lower_c = tensors.matmul(mask, self.center)
+        lower_b = tensors.matmul(mask, self.basis_matrix)
+        lower_pred = tensors.vstack((self.predicate_matrix, self.basis_matrix[index, :]))
+        lower_bias = tensors.vstack((self.predicate_bias, -self.center[index]))
+        lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
+
+        # Upper star
+        upper_c = self.center
+        upper_b = self.basis_matrix
+        upper_pred = tensors.vstack((self.predicate_matrix, -self.basis_matrix[index, :]))
+        upper_bias = tensors.vstack((self.predicate_bias, self.center[index]))
+        upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
+
+        return lower_star, upper_star
 
     def __get_auxiliary_points(self) -> list[Tensor]:
         """

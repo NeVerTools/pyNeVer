@@ -4,12 +4,10 @@ from abc import abstractmethod
 from copy import deepcopy
 
 import onnx
-import onnx.numpy_helper
 import torch
+from multipledispatch import dispatch
 
 import pynever.networks as networks
-
-from multipledispatch import dispatch
 
 
 class AlternativeRepresentation(abc.ABC):

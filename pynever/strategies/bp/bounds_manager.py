@@ -1,18 +1,8 @@
-from collections import OrderedDict
-
-import numpy as np
-
-from pynever import nodes
-from pynever.networks import SequentialNetwork
-from pynever.strategies.bp.bounds import SymbolicLinearBounds
-from pynever.strategies.bp.linearfunctions import LinearFunctions
-from pynever.strategies.bp.utils.property_converter import *
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
-    compute_lin_lower_and_upper
+import copy
 from collections import OrderedDict
 
 from pynever import nodes
-from pynever.networks import SequentialNetwork
+from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
@@ -21,66 +11,327 @@ from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_pa
 
 
 class BoundsManager:
-    def __init__(self, net, prop):
+    def __init__(self):
         self.numeric_bounds = None
-        self.net = net
-        self.prop = prop
 
     def __repr__(self):
         return str(self.numeric_bounds)
 
-    def compute_bounds(self):
+    @staticmethod
+    def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
         """
-        precomputes bounds for all nodes using symbolic linear propagation
-        """
+        This method computes the numeric bounds of the input layer
 
-        # Create HyperRectBounds from property
-        property_converter = PropertyFormatConverter(self.prop)
+        Parameters
+        ----------
+        prop : NeverProperty
+            The property to verify
+
+        Returns
+        ----------
+        HyperRectangleBounds
+            The numeric bounds of the input layer
+
+        """
 
         # HyperRectBounds input bounds
-        input_hyper_rect = property_converter.get_vectors()
+        return PropertyFormatConverter(prop).get_vectors()
+
+    def compute_bounds_from_property(self, net: NeuralNetwork, prop: 'NeverProperty') -> dict:
+        """
+        precomputes bounds for all nodes using symbolic linear propagation
+
+        """
+
+        # HyperRectBounds input bounds
+        input_hyper_rect = BoundsManager.get_input_bounds(prop)
 
         # Get layers
-        layers = net2list(self.net)
+        if isinstance(net, SequentialNetwork):
+            layers = net2list(net)
+        else:
+            raise NotImplementedError
 
-        input_size = input_hyper_rect.get_size()
-        lower = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        upper = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        input_bounds = SymbolicLinearBounds(lower, upper)
+        return self.compute_bounds(input_hyper_rect, layers)
 
+    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, layers: list) -> dict:
+        """
+        Given input hyper rectangle bounds, propagates them through the NN given as layers
+        using forward symbolic bound propagation and
+        returns a dictionary with the symbolic and numeric bounds
+
+        """
+
+        # We are collecting the bounds, symbolic and numeric, in these dictionaries
+        symbolic_bounds = dict()
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
-        symbolic_bounds = dict()
-        # TODO change the structure of symbolic?bounds
 
-        current_input_bounds = input_bounds
+        # Initialising the current equations
+        input_size = input_hyper_rect.get_size()
+        lower_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+        upper_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+        current_layer_input_equation = SymbolicLinearBounds(lower_equation, upper_equation)
+        current_layer_input_numeric_bounds = input_hyper_rect
+
+        # Iterate through the layers
         for i in range(0, len(layers)):
 
-            if isinstance(layers[i], nodes.ReLUNode):
-                symbolic_activation_output_bounds = self.compute_relu_output_bounds(symbolic_dense_output_bounds,
-                                                                                    input_hyper_rect)
-                postactivation_bounds = HyperRectangleBounds(np.maximum(preactivation_bounds.get_lower(), 0),
-                                                             np.maximum(preactivation_bounds.get_upper(), 0))
+            if isinstance(layers[i], nodes.FullyConnectedNode):
+                current_layer_output_equation = self.compute_dense_output_bounds(layers[i],
+                                                                                 current_layer_input_equation)
+                current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(
+                    input_hyper_rect)
 
-            elif isinstance(layers[i], nodes.FullyConnectedNode):
-                symbolic_dense_output_bounds = self.compute_dense_output_bounds(layers[i], current_input_bounds)
-                preactivation_bounds = symbolic_dense_output_bounds.to_hyper_rectangle_bounds(input_hyper_rect)
-
-                symbolic_activation_output_bounds = symbolic_dense_output_bounds
-                postactivation_bounds = HyperRectangleBounds(preactivation_bounds.get_lower(),
-                                                             preactivation_bounds.get_upper())
+            elif isinstance(layers[i], nodes.ReLUNode):
+                current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
+                                                                                input_hyper_rect)
+                current_layer_output_numeric_bounds = HyperRectangleBounds(
+                    np.maximum(current_layer_input_numeric_bounds.get_lower(), 0),
+                    np.maximum(current_layer_input_numeric_bounds.get_upper(), 0))
 
             else:
                 raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
 
-            symbolic_bounds[layers[i].identifier] = (symbolic_dense_output_bounds, symbolic_activation_output_bounds)
-            numeric_preactivation_bounds[layers[i].identifier] = preactivation_bounds
-            numeric_postactivation_bounds[layers[i].identifier] = postactivation_bounds
+            # Store the current equations and numeric bounds
+            symbolic_bounds[layers[i].identifier] = current_layer_output_equation
+            numeric_preactivation_bounds[layers[i].identifier] = current_layer_input_numeric_bounds
+            numeric_postactivation_bounds[layers[i].identifier] = current_layer_output_numeric_bounds
 
-            current_input_bounds = symbolic_activation_output_bounds
-            self.numeric_bounds = numeric_postactivation_bounds
+            # Update the current input equation and numeric bounds
+            current_layer_input_equation = current_layer_output_equation
+            current_layer_input_numeric_bounds = current_layer_output_numeric_bounds
 
-        return symbolic_bounds, numeric_preactivation_bounds, numeric_postactivation_bounds
+        # Put all the collected bounds in a dictionary and return it
+        return {
+            'symbolic': symbolic_bounds,
+            'numeric_pre': numeric_preactivation_bounds,
+            'numeric_post': numeric_postactivation_bounds
+        }
+
+    def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
+        """
+        Create input bounds from the layer target.layer and use the bounds [lb, 0] and [0, ub]
+        for neuron target.neuron to init a new shot of bounds propagation as if the input layer
+        was target.layer
+
+        """
+
+        try:
+            split_bounds = pre_branch_bounds['numeric_pre'][nn[target.layer_idx].identifier]
+
+        except KeyError:
+            print('KeyError in branching, no update was performed.')
+            return pre_branch_bounds, pre_branch_bounds
+
+        print(f"======================================================================\nTarget {target}")
+        negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
+        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
+        print()
+        # Lower branch
+        # lower_branch = copy.deepcopy(split_bounds)
+        # lower_branch.upper[target.neuron_idx] = 0
+        # lower_input_bounds = HyperRectangleBounds(lower_branch.lower,
+        #                                           lower_branch.upper)
+        #
+        # # Upper branch
+        # upper_branch = copy.deepcopy(split_bounds)
+        # upper_branch.lower[target.neuron_idx] = 0
+        # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
+        #                                           upper_branch.upper)
+
+        negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
+        positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
+        print("Pre branch output bounds", pre_branch_bounds['numeric_post'][nn[-1].identifier])
+        print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
+        print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
+        print()
+        return (self.compute_bounds(negative_branch_input, nn),
+                self.compute_bounds(positive_branch_input, nn))
+
+    def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
+        """
+        Given an unstable neuron y that we are going to constrain to be positive,
+        we recompute tighter input bounds of x=(x1,...,xn)
+        for the solution space induced by this positive branch.
+
+        We have a lower bound equation for y from the input variables. Namely,
+            y >= c * x + b
+
+        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+
+        Since we are constraining y to be positive, it means that c * x + b should be positive as well.
+        We therefore need to recompute the bounds for x. We do it as follows.
+
+        We have the following constraint c1 * x1 + ... + cn * xn + b >= 0
+
+        Then
+            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
+            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new lower bound of x1,
+        and when c1 < 0, we can compute a new upper bound of x1.
+        We do it using the standard interval arithmetics.
+        We only update the bound if it improves the previous one.
+
+
+        Parameters
+        ----------
+        pre_branch_bounds: the bounds before the split
+        nn: the neural network
+        target: the neuron to be split
+
+        Returns
+        -------
+        tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+        """
+
+        # the bounds for the input layer that we try to refine
+        input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
+
+        try:
+            # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
+            symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
+        except KeyError:
+            print('KeyError in branching, no update was performed.')
+            return input_bounds
+
+        # The linear equation for the lower bound of the target neuron
+        coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
+        shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
+
+        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
+        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
+
+        print(f"Positive branch")
+        print("lower", input_lower_bounds)
+        print("upper", input_upper_bounds)
+
+        n_input_dimensions = len(coef)
+        changes = True
+
+        # continue updating the bounds until they stop improving
+        while changes:
+            changes = False
+            for i in range(n_input_dimensions):
+                c = coef[i]
+
+                ## the rest is moved to the other side, so we have the minus and divided by c
+                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
+                pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
+                rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
+
+                if c > 0:
+                    # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
+                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
+                        rem_upper_input_bounds) - shift
+                    if new_lower_i > input_lower_bounds[i]:
+                        input_lower_bounds[i] = new_lower_i
+                        changes = True
+                elif c < 0:
+                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
+                        rem_lower_input_bounds) - shift
+                    if new_upper_i < input_upper_bounds[i]:
+                        input_upper_bounds[i] = new_upper_i
+                        changes = True
+
+        print(f'Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
+
+    def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
+        """
+        Given an unstable neuron y that we are going to constrain to be negative,
+        we recompute tighter input bounds of x=(x1,...,xn)
+        for the solution space induced by this negative branch.
+
+        We have an upper bound equation for y from the input variables. Namely,
+            y <= c * x + b
+
+        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+
+        Since we are constraining y to be negative, it means that c * x + b should be negative as well.
+        We therefore need to recompute the bounds for x. We do it as follows.
+
+        We have the following constraint c1 * x1 + ... + cn * xn + b <= 0
+
+        Then
+            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
+            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new upper bound of x1,
+        and when c1 < 0, we can compute a new lower bound of x1.
+        We do it using the standard interval arithmetics.
+        We only update the bound if it improves the previous one.
+
+
+        Parameters
+        ----------
+        pre_branch_bounds: the bounds before the split
+        nn: the neural network
+        target: the neuron to be split
+
+        Returns
+        -------
+        tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+        """
+
+        # the bounds for the input layer that we try to refine
+        input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
+
+        try:
+            # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
+            symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
+        except KeyError:
+            print('KeyError in branching, no update was performed.')
+            return input_bounds
+
+        # The linear equation for the upper bound of the target neuron
+        coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
+        shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+
+        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
+        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
+
+        print("Negative branch")
+        print("lower", input_lower_bounds)
+        print("upper", input_upper_bounds)
+
+        n_input_dimensions = len(coef)
+        changes = True
+
+        # Continue updating the bounds until they stop improving
+        while changes:
+            changes = False
+            for i in range(n_input_dimensions):
+                c = coef[i]
+
+                ## the rest is moved to the other side, so we have the minus
+                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
+                pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
+                rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
+                rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
+
+                if c > 0:
+                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
+                        rem_lower_input_bounds) - shift
+                    if new_upper_i < input_upper_bounds[i]:
+                        input_upper_bounds[i] = new_upper_i
+                        changes = True
+                elif c < 0:
+                    # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
+                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
+                        rem_upper_input_bounds) - shift
+                    if new_lower_i > input_lower_bounds[i]:
+                        input_lower_bounds[i] = new_lower_i
+                        changes = True
+
+        print(f'Updated negative bounds for branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)

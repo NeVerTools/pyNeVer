@@ -392,74 +392,22 @@ class AbsReLUNode(AbsLayerNode):
 
             if not star.check_if_empty():
 
-                mask = np.identity(star.n_neurons)
-                mask[var_index, var_index] = 0
-
                 if is_pos_stable or (lb is not None and lb >= 0):
                     abs_output = abs_output.union({star})
 
                 elif is_neg_stable or (ub is not None and ub <= 0):
-                    new_center = np.matmul(mask, star.center)
-                    new_basis_mat = np.matmul(mask, star.basis_matrix)
-                    new_pred_mat = star.predicate_matrix
-                    new_pred_bias = star.predicate_bias
-                    new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
-                    abs_output = abs_output.union({new_star})
+                    abs_output = abs_output.union({star.create_negative_stable(var_index)})
 
                 else:
 
                     if refinement_flag:
 
-                        # Creating lower bound star.
-                        lower_star_center = np.matmul(mask, star.center)
-                        lower_star_basis_mat = np.matmul(mask, star.basis_matrix)
-                        # Adding x <= 0 constraints to the predicate.
-                        lower_predicate_matrix = np.vstack((star.predicate_matrix, star.basis_matrix[var_index, :]))
-
-                        lower_predicate_bias = np.vstack((star.predicate_bias, -star.center[var_index]))
-                        lower_star = Star(lower_predicate_matrix, lower_predicate_bias, lower_star_center,
-                                          lower_star_basis_mat)
-
-                        # Creating upper bound star.
-                        upper_star_center = star.center
-                        upper_star_basis_mat = star.basis_matrix
-                        # Adding x >= 0 constraints to the predicate.
-                        upper_predicate_matrix = np.vstack((star.predicate_matrix, -star.basis_matrix[var_index, :]))
-
-                        upper_predicate_bias = np.vstack((star.predicate_bias, star.center[var_index]))
-                        upper_star = Star(upper_predicate_matrix, upper_predicate_bias, upper_star_center,
-                                          upper_star_basis_mat)
-
+                        lower_star, upper_star = star.split(var_index)
                         abs_output = abs_output.union({lower_star, upper_star})
 
                     else:
 
-                        col_c_mat = star.predicate_matrix.shape[1]
-                        row_c_mat = star.predicate_matrix.shape[0]
-
-                        c_mat_1 = np.zeros((1, col_c_mat + 1))
-                        c_mat_1[0, col_c_mat] = -1
-                        c_mat_2 = np.hstack((np.array([star.basis_matrix[var_index, :]]), -np.ones((1, 1))))
-                        coef_3 = - ub / (ub - lb)
-                        c_mat_3 = np.hstack((np.array([coef_3 * star.basis_matrix[var_index, :]]), np.ones((1, 1))))
-                        c_mat_0 = np.hstack((star.predicate_matrix, np.zeros((row_c_mat, 1))))
-
-                        d_0 = star.predicate_bias
-                        d_1 = np.zeros((1, 1))
-                        d_2 = -star.center[var_index] * np.ones((1, 1))
-                        d_3 = np.array([(ub / (ub - lb)) * (star.center[var_index] - lb)])
-
-                        new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-                        new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
-
-                        new_center = np.matmul(mask, star.center)
-                        temp_basis_mat = np.matmul(mask, star.basis_matrix)
-                        temp_vec = np.zeros((star.basis_matrix.shape[0], 1))
-                        temp_vec[var_index, 0] = 1
-                        new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-                        new_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
-
-                        abs_output = abs_output.union({new_star})
+                        abs_output = abs_output.union({star.create_approx(var_index, lb, ub)})
 
         return abs_output
 

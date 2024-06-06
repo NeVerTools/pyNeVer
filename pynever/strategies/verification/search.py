@@ -1,16 +1,13 @@
 import copy
 
-import numpy as np
-
-import pynever.strategies.abstraction as abst
-from pynever import nodes
+from pynever import nodes, tensors
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import Star
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
-from pynever.strategies.verification.properties import NeverProperty
+from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
+from pynever.strategies.verification import NeuronState
 from pynever.tensors import Tensor
-import pynever.tensors as tensors
 
 
 class RefinementTarget:
@@ -23,8 +20,11 @@ class RefinementTarget:
         self.layer_idx = layer
         self.neuron_idx = neuron
 
+    def __repr__(self):
+        return f'({self.layer_idx}, {self.neuron_idx})'
 
-def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dict:
+
+def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> dict:
     """
     This function gets the bounds of the neural network for the given property
     of interest. The bounds are computed based on a strategy that allows to
@@ -42,52 +42,17 @@ def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dic
     Returns
     ----------
     dict
-        The dictionary of the bounds wrapped in an AbstractBounds object for each layer
+        The dictionary of the bounds computed by the Bounds Manager
 
     """
 
-    match strategy:
-        case 'symbolic':
-            # Return the pre-activation bounds for ReLU layers
-            return BoundsManager(nn, prop).compute_bounds()  # [1]
-        case 'lirpa':
-            # return something...
-            raise NotImplementedError
-        # TODO add more strategies
-        case _:
-            raise NotImplementedError
+    if strategy == 'symbolic':
+        return BoundsManager().compute_bounds_from_property(nn, prop)
 
-
-def check_stable(var_index: int, bounds: AbstractBounds) -> int:
-    """
-
-    Parameters
-    ----------
-    var_index
-    bounds
-
-    Returns
-    -------
-    0 if unstable, 1 if positive stable, -1 if negative stable
-
-    """
-
-    precision_guard = 10e-15
-
-    lb = bounds.get_lower()[var_index]
-    ub = bounds.get_upper()[var_index]
-
-    # Positive stable
-    if lb >= precision_guard:
-        return 1
-
-    # Negative stable
-    elif ub <= -precision_guard:
-        return -1
-
-    # Unstable
-    else:
-        return 0
+    elif strategy == 'LiRPA':
+        # return something...
+        pass
+    # TODO add more strategies
 
 
 def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx: int = 0) -> Star:
@@ -116,53 +81,24 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     out_star = star
 
     for i in range(start_idx, dim):
-        # i is the number of neurons to process
-        stable = check_stable(i, bounds)
+
+        # Loop all the neurons to process
+        status = check_stable(i, bounds)
         mask = tensors.identity(out_star.n_neurons)
         mask[i, i] = 0
-        lb = bounds.get_lower()[i]
-        ub = bounds.get_upper()[i]
 
-        # Positive stable
-        if stable == 1:
-            continue
+        match status:
+            case NeuronState.POSITIVE_STABLE:
+                continue
 
-        # Negative stable
-        elif stable == -1:
-            new_c = tensors.matmul(mask, out_star.center)
-            new_b = tensors.matmul(mask, out_star.basis_matrix)
-            new_pred = out_star.predicate_matrix
-            new_bias = out_star.predicate_bias
+            case NeuronState.NEGATIVE_STABLE:
+                out_star = star.create_negative_stable(i)
 
-            out_star = Star(new_pred, new_bias, new_c, new_b)
+            case NeuronState.UNSTABLE:
+                out_star = star.create_approx(i, bounds.get_lower()[i], bounds.get_upper()[i])
 
-        # Unstable
-        else:
-            col_c_mat = out_star.predicate_matrix.shape[1]
-            row_c_mat = out_star.predicate_matrix.shape[0]
-
-            c_mat_1 = tensors.zeros((1, col_c_mat + 1))
-            c_mat_1[0, col_c_mat] = -1
-            c_mat_2 = tensors.hstack((tensors.array([out_star.basis_matrix[i, :]]), -tensors.ones((1, 1))))
-            coef_3 = - ub / (ub - lb)
-            c_mat_3 = tensors.hstack((tensors.array([coef_3 * out_star.basis_matrix[i, :]]), tensors.ones((1, 1))))
-            c_mat_0 = tensors.hstack((out_star.predicate_matrix, tensors.zeros((row_c_mat, 1))))
-
-            d_0 = out_star.predicate_bias
-            d_1 = tensors.zeros((1, 1))
-            d_2 = -out_star.center[i] * tensors.ones((1, 1))
-            d_3 = tensors.array([(ub / (ub - lb)) * (out_star.center[i] - lb)])
-
-            new_pred_mat = tensors.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-            new_pred_bias = tensors.vstack((d_0, d_1, d_2, d_3))
-
-            new_center = tensors.matmul(mask, out_star.center)
-            temp_basis_mat = tensors.matmul(mask, out_star.basis_matrix)
-            temp_vec = tensors.zeros((out_star.basis_matrix.shape[0], 1))
-            temp_vec[i, 0] = 1
-            new_basis_mat = tensors.hstack((temp_basis_mat, temp_vec))
-
-            out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
+            case _:
+                raise NotImplementedError
 
     return out_star
 
@@ -199,14 +135,14 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
         if isinstance(layer, nodes.FullyConnectedNode):
             # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
             if layer.bias.shape != (layer.weight.shape[0], 1):
-                bias = np.expand_dims(layer.bias, 1)
+                bias = tensors.expand_dims(layer.bias, 1)
             else:
                 bias = layer.bias
             star = abst.single_fc_forward(star, layer.weight, bias).pop()
 
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
-            l_bounds = bounds[layer.identifier]
+            l_bounds = bounds['numeric_pre'][layer.identifier]
             if i == start_layer:
                 star = approx_relu_forward(star, l_bounds, layer.get_input_dim()[0], start_idx=neuron_idx)
             else:
@@ -230,6 +166,8 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
         The star to process
     nn_list : list
         The neural network represented as a list
+    skip : bool
+        Flag to signal end of propagation
 
     Returns
     ----------
@@ -247,7 +185,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
         if isinstance(layer, nodes.FullyConnectedNode):
             # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
             if layer.bias.shape != (layer.weight.shape[0], 1):
-                bias = np.expand_dims(layer.bias, 1)
+                bias = tensors.expand_dims(layer.bias, 1)
             else:
                 bias = layer.bias
             star = abst.single_fc_forward(star, layer.weight, bias).pop()
@@ -272,7 +210,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     return star
 
 
-def check_intersection(star: Star, prop: NeverProperty) -> (bool, list[Star]):
+def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
     """
     This function checks whether a star intersects with the output property
     using a linear program. Since the output property may contain disjunction
@@ -309,7 +247,7 @@ def check_intersection(star: Star, prop: NeverProperty) -> (bool, list[Star]):
     return intersects, unsafe_stars
 
 
-def intersect_star_lp(current_star, net_list, nn_bounds, prop) -> (bool, list[Star]):
+def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     # Compute the output abstract star from current_star/bounds
     out_star = abs_propagation(current_star, nn_bounds, net_list)
 
@@ -319,27 +257,66 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop) -> (bool, list[St
     return intersects, unsafe_stars
 
 
-def intersect_symb_lp(current_star, net_list, nn_bounds, prop, target) -> (bool, list[Star]):
-    output = None
-    # output >= nn_bounds[0]['model_out'][1].lower.matrix * x_input + lower.offset
-    # output <= nn_bounds[0]['model_out'][1].upper.matrix * x_input + upper.offset
-    # y0 >= 0.25 x0
-    # y0 <= 0.25 x0 + 0.25
-    # I can build a star from this!
+def intersect_symb_lp(input_bounds, nn_bounds, prop):
+    nn_bounds = nn_bounds['symbolic']
 
-    # TODO is it possible to check whether it is fully inside?
+    out_id = list(nn_bounds.keys())[-1]
+    out_neurons = nn_bounds[out_id].lower.matrix.shape[0]
+
+    basis = tensors.identity(out_neurons)
+    center = tensors.zeros((out_neurons, 1))
+
+    predicate_matrix = tensors.zeros((2 * out_neurons, out_neurons))
+    predicate_bias = tensors.zeros((2 * out_neurons, 1))
+
+    # Compute positive and negative weights for the lower bounds
+    lower_weights_plus = get_positive_part(nn_bounds[out_id].lower.matrix)
+    lower_weights_minus = get_negative_part(nn_bounds[out_id].lower.matrix)
+
+    # Compute positive and negative weights for the upper bounds
+    upper_weights_plus = get_positive_part(nn_bounds[out_id].upper.matrix)
+    upper_weights_minus = get_negative_part(nn_bounds[out_id].upper.matrix)
+
+    # Get input lower and upper bounds
+    input_lbs = input_bounds.lower
+    input_ubs = input_bounds.upper
+
+    for i in range(center.shape[0]):
+        # For each i add two rows
+        lb_row_idx = 2 * i
+        ub_row_idx = 2 * i + 1
+
+        # Structure Cx <= d
+        predicate_matrix[lb_row_idx] = nn_bounds[out_id].lower.matrix[i]
+        predicate_matrix[ub_row_idx] = nn_bounds[out_id].upper.matrix[i]
+
+        predicate_bias[lb_row_idx] = (
+                -lower_weights_plus[i].dot(input_lbs) -
+                lower_weights_minus[i].dot(input_ubs) -
+                nn_bounds[out_id].lower.offset[i]
+        )
+        predicate_bias[ub_row_idx] = (
+                upper_weights_plus[i].dot(input_ubs) +
+                upper_weights_minus[i].dot(input_lbs) +
+                nn_bounds[out_id].upper.offset[i]
+        )
+
+    output = Star(predicate_matrix, predicate_bias, center, basis)
     intersects, unsafe_stars = check_intersection(output, prop)
+
     return intersects, unsafe_stars
 
 
-def get_next_target(ref_heur: str, star: Star, nn_list: list) -> (RefinementTarget, Star):
+def get_next_target(ref_heur: str,
+                    star: Star,
+                    nn_list: list) -> tuple[RefinementTarget, Star]:
     if ref_heur == 'sequential':
         return get_target_sequential(star, nn_list)
     else:
         raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star):
+def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -391,8 +368,40 @@ def get_target_sequential(star: Star, nn_list: list) -> (RefinementTarget, Star)
     return new_target, star
 
 
-def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict)\
-        -> list[tuple[Star, dict[str, AbstractBounds]]]:
+def check_stable(var_index: int, bounds: AbstractBounds) -> int:
+    """
+
+    Parameters
+    ----------
+    var_index
+    bounds
+
+    Returns
+    -------
+    0 if unstable, 1 if positive stable, -1 if negative stable
+
+    """
+
+    precision_guard = 10e-15
+
+    lb = bounds.get_lower()[var_index]
+    ub = bounds.get_upper()[var_index]
+
+    # Positive stable
+    if lb >= precision_guard:
+        return 1
+
+    # Negative stable
+    elif ub <= -precision_guard:
+        return -1
+
+    # Unstable
+    else:
+        return 0
+
+
+def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict, update_bounds: bool) \
+        -> list[tuple[Star, dict]]:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -410,6 +419,8 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         The neural network as a list of layers
     bounds_dict : dict
         The bounds of the network layers
+    update_bounds : bool
+        Flag to update the bounds after the split
 
     Returns
     ----------
@@ -421,61 +432,58 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
 
     index = target.neuron_idx
 
-    mask = np.identity(star.center.shape[0])
-    mask[index, index] = 0
-
     cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
-    stable = check_stable(index, cur_bounds)
 
-    # Positive stable
-    if stable == 1:
-        star.ref_layer = target.layer_idx
-        star.ref_neuron += 1
-        return [(star, bounds_dict)]
+    # Loop to filter positive stable neurons
+    while index < star.center.shape[0]:
 
-    # Negative stable
-    elif stable == -1:
-        new_c = np.matmul(mask, star.center)
-        new_b = np.matmul(mask, star.basis_matrix)
-        new_pred = star.predicate_matrix
-        new_bias = star.predicate_bias
-        new_star = Star(new_pred, new_bias, new_c, new_b)
+        status = check_stable(index, cur_bounds)
 
-        new_star.ref_layer = target.layer_idx
-        new_star.ref_neuron = star.ref_neuron + 1
+        match status:
 
-        return [(new_star, bounds_dict)]
+            case NeuronState.POSITIVE_STABLE:
 
-    # Unstable
-    else:
-        # Lower star
-        lower_c = np.matmul(mask, star.center)
-        lower_b = np.matmul(mask, star.basis_matrix)
-        lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
-        lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
-        lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
+                star.ref_layer = target.layer_idx
+                star.ref_neuron += 1
+                index += 1
 
-        lower_star.ref_layer = target.layer_idx
-        lower_star.ref_neuron = star.ref_neuron + 1
+            case NeuronState.NEGATIVE_STABLE:
 
-        # Upper star
-        upper_c = star.center
-        upper_b = star.basis_matrix
-        upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
-        upper_bias = np.vstack((star.predicate_bias, star.center[index]))
-        upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
+                new_star = star.create_negative_stable(index)
 
-        upper_star.ref_layer = target.layer_idx
-        upper_star.ref_neuron = star.ref_neuron + 1
+                new_star.ref_layer = target.layer_idx
+                new_star.ref_neuron = star.ref_neuron + 1
+                return [(new_star, bounds_dict)]
 
-        # TODO update bounds
-        return [
-            (lower_star, bounds_dict),
-            (upper_star, bounds_dict)
-        ]
+            case NeuronState.UNSTABLE:
+
+                lower_star, upper_star = star.split(index)
+
+                lower_star.ref_layer = target.layer_idx
+                lower_star.ref_neuron = star.ref_neuron + 1
+
+                upper_star.ref_layer = target.layer_idx
+                upper_star.ref_neuron = star.ref_neuron + 1
+
+                # Update the bounds after the split
+                if update_bounds:
+                    lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
+                else:
+                    lower_bounds, upper_bounds = bounds_dict, bounds_dict
+
+                return [
+                    (lower_star, lower_bounds),
+                    (upper_star, upper_bounds)
+                ]
+
+            case _:
+                raise NotImplementedError
+
+    # I get here only if I complete the while loop
+    return [(star, bounds_dict)]
 
 
-def get_counterexample(unsafe_stars: list, prop: NeverProperty) -> Tensor:
+def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
     """
     This function is used to extract a counterexample from a star.
     The counterexample that we are interested into is the witness, i.e.,
