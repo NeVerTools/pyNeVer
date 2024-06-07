@@ -1,8 +1,10 @@
 import copy
+import logging
 from collections import OrderedDict
 
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
+from pynever.strategies.bp import LOGGER
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
 from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
@@ -13,6 +15,7 @@ from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_pa
 class BoundsManager:
     def __init__(self):
         self.numeric_bounds = None
+        self.logger = logging.getLogger(LOGGER)
 
     def __repr__(self):
         return str(self.numeric_bounds)
@@ -112,40 +115,26 @@ class BoundsManager:
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
         """
         Create input bounds from the layer target.layer and use the bounds [lb, 0] and [0, ub]
-        for neuron target.neuron to init a new shot of bounds propagation as if the input layer
-        was target.layer
+        for neuron target neuron to init a new shot of bounds propagation as if the input layer
+        was target layer
 
         """
 
-        try:
-            split_bounds = pre_branch_bounds['numeric_pre'][nn[target.layer_idx].identifier]
-
-        except KeyError:
-            print('KeyError in branching, no update was performed.')
-            return pre_branch_bounds, pre_branch_bounds
-
-        print(f"======================================================================\nTarget {target}")
+        self.logger.info(f'======================================================================\nTarget {target}')
         negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
         positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
-        print()
-        # Lower branch
-        # lower_branch = copy.deepcopy(split_bounds)
-        # lower_branch.upper[target.neuron_idx] = 0
-        # lower_input_bounds = HyperRectangleBounds(lower_branch.lower,
-        #                                           lower_branch.upper)
-        #
-        # # Upper branch
-        # upper_branch = copy.deepcopy(split_bounds)
-        # upper_branch.lower[target.neuron_idx] = 0
-        # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
-        #                                           upper_branch.upper)
+        self.logger.info('\n')
 
         negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
         positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
-        print("Pre branch output bounds", pre_branch_bounds['numeric_post'][nn[-1].identifier])
-        print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
-        print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
-        print()
+
+        out_layer = nn[-1].identifier
+        self.logger.info(f'Original branch output bounds: {pre_branch_bounds["numeric_post"][out_layer]}')
+        self.logger.info(f'Negative branch output bounds: {negative_branch_bounds["numeric_post"][out_layer]}')
+        self.logger.info(f'Positive branch output bounds: {positive_branch_bounds["numeric_post"][out_layer]}')
+
+        self.logger.info('\n')
+
         return (self.compute_bounds(negative_branch_input, nn),
                 self.compute_bounds(positive_branch_input, nn))
 
@@ -158,7 +147,7 @@ class BoundsManager:
         We have a lower bound equation for y from the input variables. Namely,
             y >= c * x + b
 
-        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+        for all x coming from the HyperRectangle [l,u] (i.e., li <= xi <=ui).
 
         Since we are constraining y to be positive, it means that c * x + b should be positive as well.
         We therefore need to recompute the bounds for x. We do it as follows.
@@ -184,6 +173,7 @@ class BoundsManager:
         Returns
         -------
         tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+
         """
 
         # the bounds for the input layer that we try to refine
@@ -193,7 +183,7 @@ class BoundsManager:
             # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
             symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
         except KeyError:
-            print('KeyError in branching, no update was performed.')
+            self.logger.info('KeyError in branching, no update was performed.')
             return input_bounds
 
         # The linear equation for the lower bound of the target neuron
@@ -203,9 +193,9 @@ class BoundsManager:
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        print(f"Positive branch")
-        print("lower", input_lower_bounds)
-        print("upper", input_upper_bounds)
+        self.logger.info('Positive branch')
+        self.logger.info(f'lower: {input_lower_bounds}')
+        self.logger.info(f'upper: {input_upper_bounds}')
 
         n_input_dimensions = len(coef)
         changes = True
@@ -238,7 +228,7 @@ class BoundsManager:
                         input_upper_bounds[i] = new_upper_i
                         changes = True
 
-        print(f'Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        self.logger.info(f'Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -276,6 +266,7 @@ class BoundsManager:
         Returns
         -------
         tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+
         """
 
         # the bounds for the input layer that we try to refine
@@ -295,9 +286,9 @@ class BoundsManager:
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        print("Negative branch")
-        print("lower", input_lower_bounds)
-        print("upper", input_upper_bounds)
+        self.logger.info('Negative branch')
+        self.logger.info(f'lower: {input_lower_bounds}')
+        self.logger.info(f'upper: {input_upper_bounds}')
 
         n_input_dimensions = len(coef)
         changes = True
@@ -330,7 +321,7 @@ class BoundsManager:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
 
-        print(f'Updated negative bounds for branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        self.logger.info(f'Updated negative bounds for branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def compute_dense_output_bounds(self, layer, inputs):

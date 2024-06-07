@@ -1,4 +1,5 @@
 import numpy as np
+
 from pynever.strategies.bp.bounds import HyperRectangleBounds
 
 DEBUG = False
@@ -17,37 +18,34 @@ class PropertyFormatConverter:
            The representation of vector d
        """
 
-    def __init__(self, property=None):
-        if property is not None:
-            self.coeff = property.in_coef_mat
-            self.bias = property.in_bias_mat
-        else:
-            self.input_test()
+    def __init__(self, property):
+
+        self.coeff = property.in_coef_mat
+        self.bias = property.in_bias_mat
 
         self.num_vars = self.coeff.shape[1]
 
         self.check_input_validity()
 
         self.lower_bound_vector = np.empty(self.num_vars, dtype=object)
-        self.lower_bound_vector.fill(None)
         self.upper_bound_vector = np.empty(self.num_vars, dtype=object)
-        self.upper_bound_vector.fill(None)
 
         self.get_vectors()
 
     def check_input_validity(self):
         """
-        This code checks if every input variable has its own lower and upper value set, otherwise il closes the program
+        This code checks if the property is well-structured and represents a HyperRectangle
+
         """
-        assert self.coeff.shape[0] == (2 * self.coeff.shape[1]), "Wrong property format: not convertible"
-        assert self.coeff.shape[0] == self.bias.shape[0], "Wrong property format: not convertible"
+
+        if self.coeff.shape[0] != (2 * self.coeff.shape[1]) and self.coeff.shape[0] != self.bias.shape[0]:
+            raise Exception('The property is not well structured')
 
         # Check that for each row in self.coeff matrix there is only one 1 or one -1
-
         for row in self.coeff:
-            check = (all(x == 0 or x == -1 or x == 1 for x in row) and \
-                     (np.count_nonzero(row == 1) + np.count_nonzero(row == -1) == 1))
-            assert check, "Wrong property format: not convertible"
+            if not (all(x == 0 or x == -1 or x == 1 for x in row) and
+                    (np.count_nonzero(row == 1) + np.count_nonzero(row == -1) == 1)):
+                raise Exception('The property is not a HyperRectangle')
 
     def get_vectors(self) -> HyperRectangleBounds:
 
@@ -63,7 +61,8 @@ class PropertyFormatConverter:
 
         # check that all elements of self.lower_bound_vector are lower than the related elements
         # of self.upper_bound_vector
-        assert (all(self.lower_bound_vector <= self.upper_bound_vector)), "Wrong property format: not convertible"
+        if not all(self.lower_bound_vector <= self.upper_bound_vector):
+            raise Exception('The property is not a HyperRectangle')
 
         if DEBUG:
             print("lower_bound_vector: ", self.lower_bound_vector)
