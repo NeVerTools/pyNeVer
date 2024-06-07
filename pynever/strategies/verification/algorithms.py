@@ -4,14 +4,13 @@ import logging
 import time
 
 import pynever.networks as networks
-import pynever.nodes as nodes
 import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.verification.search as sf
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star
-from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.verification import LOGGER
-from pynever.strategies.verification.parameters import NeverVerificationParameters, SearchVerificationParameters
+from pynever.strategies.verification.parameters import NeverVerificationParameters, SearchVerificationParameters, \
+    PropagationStrategy
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
 
@@ -204,28 +203,18 @@ class SearchVerification(VerificationStrategy):
         self.parameters = parameters
         self.logger = logging.getLogger(LOGGER)
 
-    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
-            -> tuple[Star, dict[str, AbstractBounds], list[nodes.LayerNode]]:
+    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty):
         """
         Initialize the search algorithm and compute the starting values for
         the bounds, the star and the target
-
-        Parameters
-        ----------
-        network
-        prop
-
-        Returns
-        -------
 
         """
 
         in_star = prop.to_input_star()
         in_star.ref_layer = 0
 
-        return (in_star,
-                sf.get_bounds(network, prop, self.parameters.bounds),
-                bm.net2list(network))
+        return (in_star, bm.BoundsManager.get_input_bounds(prop),
+                sf.get_bounds(network, prop, self.parameters.bounds), bm.net2list(network))
 
     def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
@@ -235,7 +224,7 @@ class SearchVerification(VerificationStrategy):
         ----------
         network : NeuralNetwork
             The network model in the internal representation
-        prop : NeverProperty
+        prop : Property
             The property specification
 
         Returns
@@ -247,8 +236,7 @@ class SearchVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork):
-            in_star, nn_bounds, net_list = self.init_search(network, prop)
-            nn_bounds = nn_bounds[1]  # TODO use symbolic
+            in_star, input_bounds, nn_bounds, net_list = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
@@ -260,15 +248,29 @@ class SearchVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
+        # Flag to update bounds
+        update = True
+
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
+            prev_layer = current_star.ref_layer
 
-            # TODO use stars or symb bounds
-            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            if self.parameters.propagation == PropagationStrategy.STAR_LP:
+                intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+            elif self.parameters.propagation == PropagationStrategy.BOUNDS:
+                intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
+            else:
+                raise NotImplementedError('Intersection strategy not supported')
 
             if intersects:
                 # If new target is None there is no more refinement to do
                 target, current_star = sf.get_next_target(self.parameters.heuristic, current_star, net_list)
+
+                # Update bounds once per layer
+                if current_star.ref_layer > prev_layer:
+                    update = True
+                else:
+                    update = False
 
                 if target is None:
                     # Nothing else to split, or
@@ -280,7 +282,7 @@ class SearchVerification(VerificationStrategy):
                     # We cannot conclude anything at this point.
                     # Split the current branch according to the target
                     frontier.extend(
-                        sf.split_star(current_star, target, net_list, nn_bounds)
+                        sf.split_star(current_star, target, net_list, nn_bounds, update)
                     )
 
             else:

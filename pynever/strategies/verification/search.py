@@ -6,7 +6,7 @@ from pynever.strategies.abstraction.star import Star
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
-from pynever.strategies.verification import NeuronState
+from pynever.strategies.verification.parameters import NeuronState, BoundsBackend, RefinementStrategy
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
 
@@ -25,7 +25,7 @@ class RefinementTarget:
         return f'({self.layer_idx}, {self.neuron_idx})'
 
 
-def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dict:
+def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: BoundsBackend) -> dict:
     """
     This function gets the bounds of the neural network for the given property
     of interest. The bounds are computed based on a strategy that allows to
@@ -47,13 +47,17 @@ def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: str) -> dic
 
     """
 
-    if strategy == 'symbolic':
-        return BoundsManager().compute_bounds_from_property(nn, prop)
+    match strategy:
+        case BoundsBackend.SYMBOLIC:
+            return BoundsManager().compute_bounds_from_property(nn, prop)
 
-    elif strategy == 'LiRPA':
-        # return something...
-        pass
-    # TODO add more strategies
+        case BoundsBackend.LIRPA:
+            # return something...
+            raise NotImplementedError
+
+        case _:
+            # TODO add more strategies
+            raise NotImplementedError
 
 
 def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Star:
@@ -210,7 +214,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
 
         elif isinstance(layer, nodes.ReLUNode):
             # If all the neurons have been processed...
-            if skip:  # star.ref_neuron == star.center.shape[0] - 1 and skip:
+            if skip:  # star.ref_neuron == star.n_neurons - 1 and skip:
                 skip = False
                 i += 1
                 continue
@@ -324,16 +328,20 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def get_next_target(ref_heur: str,
-                    star: Star,
-                    nn_list: list) -> tuple[RefinementTarget, Star]:
-    if ref_heur == 'sequential':
-        return get_target_sequential(star, nn_list)
-    else:
-        raise NotImplementedError('Only sequential refinement supported')
+def get_next_target(heuristic: RefinementStrategy, star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
+    """
+    This function selects the next refinement target based on the selected heuristic
+
+    """
+
+    match heuristic:
+        case RefinementStrategy.SEQUENTIAL:
+            return get_target_sequential(star, nn_list)
+        case _:
+            raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, Star]:
+def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -348,7 +356,7 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, 
 
     Returns
     ----------
-    tuple, Star
+    RefinementTarget, Star
         The new target for the refinement, which is None when there is no more
         refinement to do for this star, and the propagated star
 
@@ -366,7 +374,7 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, 
     star = propagate_until_relu(star, nn_list, False)
     current_neuron = star.ref_neuron
 
-    if current_neuron < star.center.shape[0]:
+    if current_neuron < star.n_neurons:
         # There are more neurons in the layer: increment the neuron count
         new_target = RefinementTarget(star.ref_layer, current_neuron)
 
@@ -439,7 +447,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
     cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
 
     # Loop to filter positive stable neurons
-    while index < star.center.shape[0]:
+    while index < star.n_neurons:
 
         status = check_stable(index, cur_bounds)
 

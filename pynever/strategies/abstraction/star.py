@@ -11,7 +11,6 @@ from ortools.linear_solver import pywraplp
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
-from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.tensors import Tensor
 
 
@@ -309,7 +308,7 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.center.shape[0])
+        mask = tensors.identity(self.n_neurons)
         mask[index, index] = 0
 
         new_c = tensors.matmul(mask, self.center)
@@ -325,7 +324,7 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.center.shape[0])
+        mask = tensors.identity(self.n_neurons)
         mask[index, index] = 0
 
         # Build all components of the approximate star
@@ -362,7 +361,7 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.center.shape[0])
+        mask = tensors.identity(self.n_neurons)
         mask[index, index] = 0
 
         # Lower star
