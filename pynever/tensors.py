@@ -1,26 +1,49 @@
+"""Internal representation of a tensor
+
+This module contains out internal representation of a tensor and some relevant tensor operations.
+
+"""
 import enum
 from collections.abc import Iterable
+from numpy.typing import ArrayLike
 
 import numpy
 import tensorflow
 
 
 class BackEnd(enum.Enum):
+    """Support for either numpy or tensorflow."""
     NUMPY = 0
     TENSORFLOW = 1
 
 
 class Tensor(numpy.ndarray, tensorflow.Tensor):
-    """
-    Our internal representation of a Tensor. Right now it just a placeholder.
-    """
+    """Our internal representation of a Tensor. Right now it just a placeholder."""
 
 
 # TODO move to configuration file
 BACKEND = BackEnd.TENSORFLOW
 
 
+# TODO is iterable in size correct?
 def random_uniform(low: float | int, high: float | int, size: int | Iterable | tuple[int]) -> Tensor:
+    """Returns a Tensor containing samples drawn from a random uniform distribution.
+
+    Parameters
+    ----------
+    low : float | int
+        The lower bound of the distribution
+    high : float | int
+        The upper bound of the distribution
+    size : int | Iterable | tuple[int]
+        The shape of the returned Tensor, specified as a tuple or an integer
+
+    Returns
+    -------
+    Tensor
+        The computed output
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
@@ -30,7 +53,22 @@ def random_uniform(low: float | int, high: float | int, size: int | Iterable | t
             raise NotImplementedError
 
 
-def ones(shape: tuple, dtype=float) -> Tensor:
+def ones(shape: tuple[int], dtype=float) -> Tensor:
+    """Returns a Tensor filled with ones.
+
+    Parameters
+    ----------
+    shape : tuple
+        The shape of the tensor to return
+    dtype : type
+        The type of its elements
+
+    Returns
+    -------
+    Tensor
+        The Tensor filled with ones
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.ones(shape=shape, dtype=dtype))
@@ -41,6 +79,21 @@ def ones(shape: tuple, dtype=float) -> Tensor:
 
 
 def zeros(shape: tuple, dtype=float) -> Tensor:
+    """Returns a Tensor filled with zeroes.
+
+    Parameters
+    ----------
+    shape : tuple
+        The shape of the tensor to return
+    dtype : type
+        The type of its elements
+
+    Returns
+    -------
+    Tensor
+        The Tensor filled with zeroes
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.zeros(shape=shape, dtype=dtype))
@@ -50,7 +103,27 @@ def zeros(shape: tuple, dtype=float) -> Tensor:
             raise NotImplementedError
 
 
+# TODO should dtype be specified here?
 def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tensor:
+    """Returns the product of the Tensor elements along a specified axis (or axes).
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor on which we want to calculate the product
+    axis : int | tuple[int] | None
+        The axis (or axes) along which we calculate the product. If None is given the product of all the elements is
+        returned
+    dtype: type
+        The type of the elements of the returned Tensor
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the product of the elements of the input Tensor along the axis
+
+    """
+    # TODO specify keepdims in np.prod?
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
@@ -62,6 +135,19 @@ def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tenso
 
 
 def sqrt(in_tensor: Tensor) -> Tensor:
+    """Returns the element-wise square root of a Tensor.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor on which we want to calculate the square root
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the square root of the elements of the input Tensor
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.sqrt(in_tensor))
@@ -72,6 +158,21 @@ def sqrt(in_tensor: Tensor) -> Tensor:
 
 
 def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor:
+    """Returns a reshaped Tensor with a specified new shape
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to be reshaped
+    new_shape : int | Iterable | tuple[int]
+        The new shape of the Tensor
+
+    Returns
+    -------
+    Tensor
+        The reshaped Tensor
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.reshape(a=in_tensor, newshape=new_shape))
@@ -81,7 +182,20 @@ def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor
             raise NotImplementedError
 
 
-def array(array_like) -> Tensor:
+def array(array_like: ArrayLike) -> Tensor:
+    """Returns a Tensor from the ArrayLike object given as input.
+
+    Parameters
+    ----------
+    array_like : ArrayLike
+        The input ArrayLike object
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the elements of the ArrayLike object
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.array(array_like))
@@ -92,6 +206,23 @@ def array(array_like) -> Tensor:
 
 
 def loadtxt(fname: str, dtype=float, delimiter: str = ' ') -> Tensor:
+    """Returns a Tensor filled with data from a text file
+
+    Parameters
+    ----------
+    fname : str
+        The pathname of the text file
+    dtype: type
+        The type of the elements of the returned Tensor
+    delimiter: str
+        The data separator character
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the data loaded from the text file
+
+    """
     np_a = numpy.loadtxt(fname=fname, dtype=dtype, delimiter=delimiter)
     match BACKEND:
         case BackEnd.NUMPY:
@@ -104,6 +235,23 @@ def loadtxt(fname: str, dtype=float, delimiter: str = ' ') -> Tensor:
 
 def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
                   size: int | tuple[int]) -> Tensor:
+    """Returns a Tensor containing samples drawn from a random normal distribution.
+
+    Parameters
+    ----------
+    mean : float | Iterable[float]
+        The mean of the normal distribution
+    std : float | Iterable[float]
+        The standard deviation of the distribution
+    size : int | Iterable | tuple[int]
+        The shape of the returned Tensor, specified as a tuple or an integer
+
+    Returns
+    -------
+    Tensor
+        The computed output
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().normal(loc=mean, scale=std, size=size))
@@ -114,6 +262,21 @@ def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
 
 
 def identity(n: int, dtype=float) -> Tensor:
+    """Returns a square identity matrix.
+
+    Parameters
+    ----------
+    n : int
+        The dimension of the square matrix
+    dtype : type
+        The type of its elements
+
+    Returns
+    -------
+    Tensor
+        The identity matrix
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.identity(n=n, dtype=dtype))
@@ -124,6 +287,21 @@ def identity(n: int, dtype=float) -> Tensor:
 
 
 def matmul(x1: Tensor, x2: Tensor) -> Tensor:
+    """Returns the matrix product of two tensors.
+
+    Parameters
+    ----------
+    x1 : Tensor
+        The first Tensor
+    x2 : Tensor
+        The second Tensor
+
+    Returns
+    -------
+    Tensor
+        The computed output
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.matmul(x1, x2))
@@ -134,6 +312,21 @@ def matmul(x1: Tensor, x2: Tensor) -> Tensor:
 
 
 def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
+    """Checks whether all the elements of a Tensor over a given axis evaluate to True.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int] | None
+        The axis along which we want to evaluate the elements
+
+    Returns
+    -------
+    Tensor
+        A Tensor with reduced dimensions along the axis containing the results of the evaluation
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.all(a=in_tensor, axis=axis))
@@ -144,6 +337,21 @@ def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = Non
 
 
 def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Tensor:
+    """Returns a Tensor containing samples drawn from a standard random normal distribution (mean = 0, std = 1).
+
+    Parameters
+    ----------
+    size : int | Iterable | tuple[int]
+        The shape of the returned Tensor, specified as a tuple or an integer
+    dtype
+        The type of the elements of the distribution
+
+    Returns
+    -------
+    Tensor
+        The computed output
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().standard_normal(size=size, dtype=dtype))
@@ -154,10 +362,48 @@ def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Te
 
 
 def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> bool:
+    """Checks whether two Tensors are element-wise almost equal (i.e. equal within a tolerance value).
+
+    Parameters
+    ----------
+    x1 : Tensor
+        The first Tensor
+    x2 : Tensor
+        The second Tensor
+    rtol : float
+        The relative tolerance parameter
+    atol : float
+        The absolute tolerance parameter
+    equal_nan : bool
+        Should be set to True if NaNs are considered to be equal, False otherwise
+
+    Returns
+    -------
+    Tensor
+        True if they are close, False otherwise
+
+    """
     return bool(numpy.isclose(x1, x2, rtol, atol, equal_nan).any())
 
 
 def reduce_min(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdims: bool = False) -> Tensor:
+    """Returns the minimum of a Tensor along a specified axis.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int]
+        The axis along which we want to calculate the minimum
+    keepdims : bool
+        Parameter to decide whether the output will have reduced dimensions or not
+
+    Returns
+    -------
+    Tensor
+        The Tensor containing the minimums
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.min(a=in_tensor, axis=axis, keepdims=keepdims))
@@ -168,6 +414,23 @@ def reduce_min(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdim
 
 
 def reduce_max(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdims: bool = False) -> Tensor:
+    """Returns the maximum of a Tensor along a specified axis.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int]
+        The axis along which we want to calculate the maximum
+    keepdims : bool
+        Parameter to decide whether the output will have reduced dimensions or not
+
+    Returns
+    -------
+    Tensor
+        The Tensor containing the maximums
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.max(a=in_tensor, axis=axis, keepdims=keepdims))
@@ -178,6 +441,21 @@ def reduce_max(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdim
 
 
 def argmax(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
+    """Returns the index of the maximum of a Tensor along a specified axis.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int]
+        The axis along which we want to calculate the maximum
+
+    Returns
+    -------
+    Tensor
+        The Tensor containing the indices
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.argmax(a=in_tensor, axis=axis))
@@ -188,6 +466,21 @@ def argmax(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
 
 
 def argmin(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
+    """Returns the index of the minimum of a Tensor along a specified axis.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int]
+        The axis along which we want to calculate the minimum
+
+    Returns
+    -------
+    Tensor
+        The Tensor containing the indices
+
+    """
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.argmin(a=in_tensor, axis=axis))
