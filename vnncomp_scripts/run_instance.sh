@@ -3,7 +3,7 @@
 # NeVer2
 # run_instance.sh script for VNN-COMP 2024
 
-TOOL_NAME=nnenum
+TOOL_NAME=NeVer2
 VERSION_STRING=v1
 
 # check arguments
@@ -22,10 +22,10 @@ echo "Running $TOOL_NAME on benchmark instance in category '$CATEGORY' with onnx
 
 # setup environment variable for tool (doing it earlier won't be persistent with docker)"
 DIR=$(dirname $(dirname $(realpath $0)))
-export PYTHONPATH="$PYTHONPATH:$DIR/src"
+export PYTHONPATH="$PYTHONPATH:$DIR"
 
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
 # run the tool to produce the results file
-python3 -m nnenum.nnenum "$ONNX_FILE" "$VNNLIB_FILE" "$TIMEOUT" "$RESULTS_FILE"
+python3 -m never2_single -o "$RESULTS_FILE" -t "$TIMEOUT" "$ONNX_FILE" "$VNNLIB_FILE" ssbp
