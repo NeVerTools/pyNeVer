@@ -198,6 +198,9 @@ class BoundsManager:
             for i in range(n_input_dimensions):
                 c = coef[i]
 
+                if c == 0:
+                    continue
+
                 ## the rest is moved to the other side, so we have the minus and divided by c
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
@@ -291,6 +294,7 @@ class BoundsManager:
 
                 ## the rest is moved to the other side, so we have the minus
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
+                shift /= c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
@@ -300,6 +304,8 @@ class BoundsManager:
                     # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
                     new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
                         rem_lower_input_bounds) - shift
+                    if new_upper_i < input_lower_bounds[i]:
+                        input_upper_bounds[i] = input_lower_bounds[i]
                     if new_upper_i < input_upper_bounds[i]:
                         input_upper_bounds[i] = new_upper_i
                         changes = True
@@ -307,6 +313,8 @@ class BoundsManager:
                     # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
                     new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
                         rem_upper_input_bounds) - shift
+                    if new_lower_i > input_upper_bounds[i]:
+                        input_lower_bounds[i] = input_upper_bounds[i]
                     if new_lower_i > input_lower_bounds[i]:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
