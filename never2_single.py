@@ -40,17 +40,17 @@ def add_options(p: ArgumentParser):
     return p
 
 
-parser = ArgumentParser(prog='never2',
-                        description='Neural Network verifier',
-                        epilog='Università degli Studi di Genova')
-
-# Instance
-parser.add_argument('model', help='network model in ONNX format')
-parser.add_argument('property', help='property specification in VNN-LIB format')
-
-parser = add_options(parser)
-
 if __name__ == '__main__':
+    parser = ArgumentParser(prog='NeVer2',
+                            description='Neural Network verifier',
+                            epilog='Università degli Studi di Genova')
+
+    # Instance
+    parser.add_argument('model', help='network model in ONNX format')
+    parser.add_argument('property', help='property specification in VNN-LIB format')
+
+    parser = add_options(parser)
+
     args = vars(parser.parse_args())
 
     # Clear default log file
