@@ -18,7 +18,10 @@ class HyperRectangleBounds(AbstractBounds):
         self.size = len(lower)
 
     def __repr__(self):
-        return "Input Bounds: " + ', '.join(map(str, zip(self.lower, self.upper)))
+        # return "Input Bounds: " + ', '.join(map(str, zip(self.lower, self.upper)))
+
+        return ', '.join(map(str, zip(["{:.5f}".format(n) for n in self.lower],
+                                      ["{:.5f}".format(n) for n in self.upper])))
 
     def get_size(self):
         return self.size

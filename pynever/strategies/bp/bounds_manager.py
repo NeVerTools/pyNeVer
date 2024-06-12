@@ -65,6 +65,10 @@ class BoundsManager:
             elif isinstance(layers[i], nodes.ReLUNode):
                 current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
                                                                                 input_hyper_rect)
+                # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
+                # For instance, if the last layer is fully connected identity,
+                # then the output bounds for the last layer are going to be different (non-clipped)
+                # from these clipped bounds
                 current_layer_output_numeric_bounds = HyperRectangleBounds(
                     np.maximum(current_layer_input_numeric_bounds.get_lower(), 0),
                     np.maximum(current_layer_input_numeric_bounds.get_upper(), 0))
@@ -104,6 +108,9 @@ class BoundsManager:
             return pre_branch_bounds, pre_branch_bounds
 
         print(f"======================================================================\nTarget {target}")
+        input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
+        print(f"--- Input bounds\n{input_bounds.get_lower()}\n{input_bounds.get_upper()}")
+
         negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
         positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
         print()
@@ -121,7 +128,7 @@ class BoundsManager:
 
         negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
         positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
-        print("Pre branch output bounds", pre_branch_bounds['numeric_post'][nn[-1].identifier])
+        print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
         print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
         print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
         print()
@@ -182,10 +189,6 @@ class BoundsManager:
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        print(f"Positive branch")
-        print("lower", input_lower_bounds)
-        print("upper", input_upper_bounds)
-
         n_input_dimensions = len(coef)
         changes = True
 
@@ -217,7 +220,7 @@ class BoundsManager:
                         input_upper_bounds[i] = new_upper_i
                         changes = True
 
-        print(f'Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        print(f'--- Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -274,10 +277,6 @@ class BoundsManager:
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
-        print("Negative branch")
-        print("lower", input_lower_bounds)
-        print("upper", input_upper_bounds)
-
         n_input_dimensions = len(coef)
         changes = True
 
@@ -286,6 +285,9 @@ class BoundsManager:
             changes = False
             for i in range(n_input_dimensions):
                 c = coef[i]
+
+                if c == 0:
+                    continue
 
                 ## the rest is moved to the other side, so we have the minus
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
@@ -309,7 +311,7 @@ class BoundsManager:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
 
-        print(f'Updated negative bounds for branch: \n{input_lower_bounds}\n{input_upper_bounds}')
+        print(f'--- Updated bounds for negative branch: \n{input_lower_bounds}\n{input_upper_bounds}')
         return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
 
     def compute_dense_output_bounds(self, layer, inputs):
