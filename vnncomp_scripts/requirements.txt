@@ -1,0 +1,8 @@
+numpy==1.26.4
+onnx==1.16.0
+protobuf==4.25.3
+ortools==9.9.3963
+torch==2.2.2
+torchvision==0.17.2
+tensorflow==2.16.1
+pysmt
