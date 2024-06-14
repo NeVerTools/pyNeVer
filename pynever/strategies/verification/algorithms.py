@@ -213,8 +213,7 @@ class SearchVerification(VerificationStrategy):
         in_star = prop.to_input_star()
         in_star.ref_layer = 0
 
-        return (in_star, bm.BoundsManager.get_input_bounds(prop),
-                sf.get_bounds(network, prop, self.parameters.bounds), bm.net2list(network))
+        return in_star, bm.BoundsManager.get_input_bounds(prop), sf.get_bounds(network, prop, self.parameters.bounds)
 
     def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
@@ -236,7 +235,7 @@ class SearchVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork):
-            in_star, input_bounds, nn_bounds, net_list = self.init_search(network, prop)
+            in_star, input_bounds, nn_bounds = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
@@ -256,7 +255,7 @@ class SearchVerification(VerificationStrategy):
             prev_layer = current_star.ref_layer
 
             if self.parameters.propagation == PropagationStrategy.STAR_LP:
-                intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+                intersects, unsafe_stars = sf.intersect_star_lp(current_star, network, nn_bounds, prop)
             elif self.parameters.propagation == PropagationStrategy.BOUNDS:
                 intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
             else:
@@ -264,7 +263,7 @@ class SearchVerification(VerificationStrategy):
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.parameters.heuristic, current_star, net_list)
+                target, current_star = sf.get_next_target(self.parameters.heuristic, current_star, network)
 
                 # Update bounds once per layer
                 if current_star.ref_layer > prev_layer:
@@ -282,7 +281,7 @@ class SearchVerification(VerificationStrategy):
                     # We cannot conclude anything at this point.
                     # Split the current branch according to the target
                     frontier.extend(
-                        sf.split_star(current_star, target, net_list, nn_bounds, update)
+                        sf.split_star(current_star, target, network, nn_bounds, update)
                     )
 
             else:

@@ -1,8 +1,8 @@
 import abc
+import collections
 import copy
 
 import pynever.nodes as nodes
-
 from pynever.exceptions import EmptyNetworkError, InvalidNodeError, NotInNetworkError
 
 
@@ -472,6 +472,48 @@ class SequentialNetwork(NeuralNetwork):
         else:
             return 0
 
+    def layers_iterator(self, offset: int = 0) -> collections.abc.Generator[nodes.ConcreteLayerNode | None, None, None]:
+        """
+        This method builds a generator for the layers of the network in sequential order.
+        It allows to have an iterable interface when needed
+
+        offset: int
+            Offset to start the generation
+
+        """
+
+        if self.is_empty():
+            return
+        else:
+            node = self.get_first_node()
+
+            counter = 0
+            while node is not None:
+                if counter >= offset:
+                    yield node
+
+                node = self.get_next_node(node)
+                counter += 1
+
+    def get_identifier_from_index(self, index: int) -> str:
+        """
+        This method returns the identifier of the layer at the given index
+
+        index : int
+            Index of the layer to return
+
+        """
+
+        if index > len(self.nodes):
+            raise IndexError
+        else:
+            counter = 0
+            for layer in self.layers_iterator():
+                if counter == index:
+                    return layer.identifier
+
+                counter += 1
+
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
         return f"{self.identifier} : {body}"
@@ -485,7 +527,6 @@ class AcyclicNetwork(NeuralNetwork):
 
     def add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
                  children: list[nodes.LayerNode] | None = None):
-
         self.generic_add_node(node, parents, children)
         if not self.is_acyclic():
             self.remove_node(node)

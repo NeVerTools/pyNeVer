@@ -50,14 +50,12 @@ class BoundsManager:
         input_hyper_rect = BoundsManager.get_input_bounds(prop)
 
         # Get layers
-        if isinstance(net, SequentialNetwork):
-            layers = net2list(net)
-        else:
+        if not isinstance(net, SequentialNetwork):
             raise NotImplementedError
 
-        return self.compute_bounds(input_hyper_rect, layers)
+        return self.compute_bounds(input_hyper_rect, net)
 
-    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, layers: list) -> dict:
+    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN given as layers
         using forward symbolic bound propagation and
@@ -78,15 +76,15 @@ class BoundsManager:
         current_layer_input_numeric_bounds = input_hyper_rect
 
         # Iterate through the layers
-        for i in range(0, len(layers)):
+        for layer in network.layers_iterator():
 
-            if isinstance(layers[i], nodes.FullyConnectedNode):
-                current_layer_output_equation = self.compute_dense_output_bounds(layers[i],
+            if isinstance(layer, nodes.FullyConnectedNode):
+                current_layer_output_equation = self.compute_dense_output_bounds(layer,
                                                                                  current_layer_input_equation)
                 current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(
                     input_hyper_rect)
 
-            elif isinstance(layers[i], nodes.ReLUNode):
+            elif isinstance(layer, nodes.ReLUNode):
                 current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
                                                                                 input_hyper_rect)
                 current_layer_output_numeric_bounds = HyperRectangleBounds(
@@ -97,9 +95,9 @@ class BoundsManager:
                 raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
 
             # Store the current equations and numeric bounds
-            symbolic_bounds[layers[i].identifier] = current_layer_output_equation
-            numeric_preactivation_bounds[layers[i].identifier] = current_layer_input_numeric_bounds
-            numeric_postactivation_bounds[layers[i].identifier] = current_layer_output_numeric_bounds
+            symbolic_bounds[layer.identifier] = current_layer_output_equation
+            numeric_preactivation_bounds[layer.identifier] = current_layer_input_numeric_bounds
+            numeric_postactivation_bounds[layer.identifier] = current_layer_output_numeric_bounds
 
             # Update the current input equation and numeric bounds
             current_layer_input_equation = current_layer_output_equation
@@ -112,7 +110,14 @@ class BoundsManager:
             'numeric_post': numeric_postactivation_bounds
         }
 
-    def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
+    @staticmethod
+    def get_symbolic_bounds_at(bounds: dict, target: 'RefinementTarget', nn: SequentialNetwork) \
+            -> SymbolicLinearBounds:
+        # Previous layer
+        return bounds['symbolic'][nn.get_identifier_from_index(target.layer_idx - 1)]
+
+    def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: 'RefinementTarget') \
+            -> tuple[dict, dict]:
         """
         Create input bounds from the layer target.layer and use the bounds [lb, 0] and [0, ub]
         for neuron target neuron to init a new shot of bounds propagation as if the input layer
@@ -139,7 +144,7 @@ class BoundsManager:
                 self.compute_bounds(positive_branch_input, nn))
 
     def refine_input_bounds_for_branch(self, pre_branch_bounds: dict,
-                                       nn: list,
+                                       nn: SequentialNetwork,
                                        target: 'RefinementTarget',
                                        positive_branch: bool):
         """
@@ -194,11 +199,10 @@ class BoundsManager:
         """
 
         # the bounds for the input layer that we try to refine
-        input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
+        input_bounds = pre_branch_bounds['numeric_pre'][nn.get_first_node().identifier]
 
         try:
-            # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
-            symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
+            symbolic_preact_bounds = self.get_symbolic_bounds_at(pre_branch_bounds, target, nn)
         except KeyError:
             print('KeyError in branching, no update was performed.')
             return input_bounds
@@ -231,7 +235,7 @@ class BoundsManager:
             for i in range(n_input_dimensions):
                 c = coef[i]
 
-                ## the rest is moved to the other side, so we have the minus
+                """ the rest is moved to the other side, so we have the minus """
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
@@ -368,30 +372,3 @@ def get_lin_upper_bound_coefficients(lower, upper):
     add = -mult * lower
 
     return mult, add
-
-
-def net2list(network: SequentialNetwork) -> list:
-    """
-    Create the layers representation as a list
-
-    Parameters
-    ----------
-    network : SequentialNetwork
-        The network in the internal representation
-
-    Returns
-    ----------
-    list
-        The list of the layers
-
-    """
-
-    layers = list()
-    node = network.get_first_node()
-    layers.append(node)
-
-    while node is not network.get_last_node():
-        node = network.get_next_node(node)
-        layers.append(node)
-
-    return layers

@@ -123,7 +123,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     return out_star
 
 
-def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
+def abs_propagation(star: Star, bounds: dict, network: SequentialNetwork) -> Star:
     """
     This method performs the abstract propagation of a single star starting
     from a specific layer and neuron. The output is a single star that uses
@@ -135,8 +135,8 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
         The star to process
     bounds : dict
         The bounds of the network layers
-    nn_list : list
-        The neural network represented as a list
+    network : SequentialNetwork
+        The neural network
 
     Returns
     ----------
@@ -147,9 +147,9 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
 
     start_layer = star.ref_layer
     neuron_idx = star.ref_neuron
+    layer_count = 0
 
-    for layer in nn_list[start_layer:]:
-        i = nn_list.index(layer)
+    for layer in network.layers_iterator(start_layer):
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -164,7 +164,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
             l_bounds = bounds['numeric_pre'][layer.identifier]
-            if i == start_layer:
+            if layer_count == start_layer:
                 star = approx_relu_forward(star, l_bounds, layer.get_input_dim()[0], start_idx=neuron_idx)
             else:
                 star = approx_relu_forward(star, l_bounds, layer.get_input_dim()[0])
@@ -175,7 +175,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     return star
 
 
-def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
+def propagate_until_relu(star: Star, network: SequentialNetwork, skip: bool) -> Star:
     """
     This function performs the star propagation throughout Fully Connected layers
     only, until a ReLU layer is encountered. This is used in order to process
@@ -185,8 +185,8 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     ----------
     star : Star
         The star to process
-    nn_list : list
-        The neural network represented as a list
+    network : SequentialNetwork
+        The neural network
     skip : bool
         Flag to signal end of propagation
 
@@ -200,7 +200,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     start_layer = star.ref_layer
     i = 0
 
-    for layer in nn_list[start_layer:]:
+    for layer in network.layers_iterator(start_layer):
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -268,9 +268,9 @@ def check_intersection(star: Star, prop: NeverProperty) -> tuple[bool, list[Star
     return intersects, unsafe_stars
 
 
-def intersect_star_lp(current_star, net_list, nn_bounds, prop):
+def intersect_star_lp(current_star, network, nn_bounds, prop):
     # Compute the output abstract star from current_star/bounds
-    out_star = abs_propagation(current_star, nn_bounds, net_list)
+    out_star = abs_propagation(current_star, nn_bounds, network)
 
     # Check intersection using a LP
     intersects, unsafe_stars = check_intersection(out_star, prop)
@@ -328,7 +328,8 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def get_next_target(heuristic: RefinementStrategy, star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
+def get_next_target(heuristic: RefinementStrategy, star: Star, network: SequentialNetwork) \
+        -> tuple[RefinementTarget | None, Star]:
     """
     This function selects the next refinement target based on the selected heuristic
 
@@ -336,12 +337,12 @@ def get_next_target(heuristic: RefinementStrategy, star: Star, nn_list: list) ->
 
     match heuristic:
         case RefinementStrategy.SEQUENTIAL:
-            return get_target_sequential(star, nn_list)
+            return get_target_sequential(star, network)
         case _:
             raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
+def get_target_sequential(star: Star, network: SequentialNetwork) -> tuple[RefinementTarget | None, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -351,8 +352,8 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
     ----------
     star : Star
         The star to refine
-    nn_list : list
-        The list of the network layers
+    network : SequentialNetwork
+        The neural network
 
     Returns
     ----------
@@ -362,8 +363,10 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
 
     """
 
-    def get_last_relu(net_list: list):
+    def get_last_relu_idx(nn: SequentialNetwork):
         last_relu_idx = 0
+        net_list = [layer for layer in nn.layers_iterator()]
+
         for net_layer in net_list[::-1]:
             if isinstance(net_layer, nodes.ReLUNode):
                 last_relu_idx = net_list.index(net_layer)
@@ -371,7 +374,7 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
 
         return last_relu_idx
 
-    star = propagate_until_relu(star, nn_list, False)
+    star = propagate_until_relu(star, network, False)
     current_neuron = star.ref_neuron
 
     if current_neuron < star.n_neurons:
@@ -379,13 +382,13 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
         new_target = RefinementTarget(star.ref_layer, current_neuron)
 
     else:
-        if star.ref_layer == get_last_relu(nn_list):
+        if star.ref_layer == get_last_relu_idx(network):
             # There are no more neurons and no more layers
             new_target = None
 
         else:
             # There is another ReLU layer: propagate the star to that layer and reset the neuron
-            star = propagate_until_relu(star, nn_list, True)
+            star = propagate_until_relu(star, network, True)
             star.ref_neuron = 0
             next_layer = star.ref_layer
             new_target = RefinementTarget(next_layer, 0)
@@ -412,7 +415,7 @@ def check_stable(var_index: int, bounds: AbstractBounds) -> NeuronState:
         return NeuronState.UNSTABLE
 
 
-def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict: dict, update_bounds: bool) \
+def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork, bounds_dict: dict, update_bounds: bool) \
         -> list[tuple[Star, dict]]:
     """
     For a star we only need the var_index to target a specific neuron.
@@ -427,8 +430,8 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
         The star object to split
     target : RefinementTarget
         The target layer and neuron to refine
-    nn_list : list
-        The neural network as a list of layers
+    network : SequentialNetwork
+        The neural network
     bounds_dict : dict
         The bounds of the network layers
     update_bounds : bool
@@ -444,7 +447,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
 
     index = target.neuron_idx
 
-    cur_bounds = bounds_dict[nn_list[star.ref_layer].identifier]
+    cur_bounds = bounds_dict[network.get_identifier_from_index(star.ref_layer)]
 
     # Loop to filter positive stable neurons
     while index < star.n_neurons:
@@ -479,7 +482,7 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
 
                 # Update the bounds after the split
                 if update_bounds:
-                    lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
+                    lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, network, target)
                 else:
                     lower_bounds, upper_bounds = bounds_dict, bounds_dict
 
