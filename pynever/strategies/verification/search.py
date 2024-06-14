@@ -172,6 +172,8 @@ def abs_propagation(star: Star, bounds: dict, network: SequentialNetwork) -> Sta
         else:
             raise NotImplementedError('Unsupported layer')
 
+        layer_count += 1
+
     return star
 
 
