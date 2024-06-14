@@ -134,14 +134,19 @@ class BoundsManager:
         # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
         #                                           upper_branch.upper)
 
-        negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
-        positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
-        print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
-        print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
-        print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
-        print()
-        return (self.compute_bounds(negative_branch_input, nn),
-                self.compute_bounds(positive_branch_input, nn))
+        try:
+            negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
+            positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
+            print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
+            print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
+            print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
+            print()
+        except:
+            pass
+
+        negative_bounds = None if negative_branch_input is None else self.compute_bounds(negative_branch_input, nn)
+        positive_bounds = None if positive_branch_input is None else self.compute_bounds(positive_branch_input, nn)
+        return (negative_bounds, positive_bounds)
 
     def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
         """
@@ -186,7 +191,8 @@ class BoundsManager:
         refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
 
         print(f'--- Updated bounds for positive branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
-        return HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
+        return None if refined_lower_bounds is None \
+            else HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
         """
@@ -231,7 +237,8 @@ class BoundsManager:
         refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
         print(f'--- Updated bounds for negative branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
-        return HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
+        return None if refined_lower_bounds is None \
+            else HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
 
     def _refine_input_bounds(self, coef, shift, input_bounds, sign):
         """
@@ -267,7 +274,8 @@ class BoundsManager:
 
         n_input_dimensions = len(coef)
         changes = True
-        # continue updating the bounds until they stop improving
+
+        # Continue updating the bounds until they stop improving
         while changes:
             changes = False
             for i in range(n_input_dimensions):
@@ -278,7 +286,7 @@ class BoundsManager:
 
                 ## the rest is moved to the other side, so we have the minus and divided by c
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
-                shift = shift / c
+                shift_div_c = shift / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
@@ -287,16 +295,22 @@ class BoundsManager:
                 if c * sign.value > 0:
                     "c > 0 and sign = 1 or c < 0 and sign = -1"
                     # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
-                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
-                        rem_upper_input_bounds) - shift
+                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + \
+                                  neg_rem_coef.dot(rem_upper_input_bounds) - shift_div_c
+                    if new_lower_i > input_upper_bounds[i]:
+                        # infeasible branch
+                        return None, None
                     if new_lower_i > input_lower_bounds[i]:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
                 elif c * sign.value < 0:
                     "c < 0 and sign = 1 or c > 0 and sign = -1"
                     # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
-                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
-                        rem_lower_input_bounds) - shift
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + \
+                                  neg_rem_coef.dot(rem_lower_input_bounds) - shift_div_c
+                    if new_upper_i < input_lower_bounds[i]:
+                        # infeasible branch
+                        return None, None
                     if new_upper_i < input_upper_bounds[i]:
                         input_upper_bounds[i] = new_upper_i
                         changes = True

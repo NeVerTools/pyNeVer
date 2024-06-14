@@ -432,10 +432,9 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
             else:
                 lower_bounds, upper_bounds = bounds_dict, bounds_dict
 
-            return [
-                (lower_star, lower_bounds),
-                (upper_star, upper_bounds)
-            ]
+            return \
+                ([] if lower_bounds is None else [(lower_star, lower_bounds)]) + \
+                ([] if upper_bounds is None else [(upper_star, upper_bounds)])
 
     # I get here only if I complete the while loop
     return [(star, bounds_dict)]
