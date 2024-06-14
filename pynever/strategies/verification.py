@@ -281,6 +281,7 @@ class SearchVerification(VerificationStrategy):
             self.search_params = {
                 'heuristic': 'sequential',
                 'bounds': 'symbolic',
+                # 'bounds': 'lirpa',
                 'intersection': 'star_lp',
                 'timeout': 300
             }
@@ -372,6 +373,7 @@ class SearchVerification(VerificationStrategy):
 
             else:
                 """This branch is safe, no refinement needed"""
+                print(f"Target {target} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:

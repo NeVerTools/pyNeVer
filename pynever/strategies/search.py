@@ -72,8 +72,8 @@ def get_bounds(nn: SequentialNetwork, prop: 'NeVerProperty', strategy: str) -> d
     if strategy == 'symbolic':
         return BoundsManager().compute_bounds_from_property(nn, prop)
 
-    elif strategy == 'LiRPA':
-        # return something...
+    elif strategy == 'lirpa':
+        return BoundsManager.compute_lirpa_bounds(nn, prop)
         pass
     # TODO add more strategies
 

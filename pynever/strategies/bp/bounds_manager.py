@@ -9,6 +9,7 @@ from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
+from pynever.strategies.conversion import PyTorchConverter
 
 
 class RefiningBound(Enum):
@@ -24,6 +25,54 @@ class BoundsManager:
 
     def __repr__(self):
         return str(self.numeric_bounds)
+
+    @staticmethod
+    def compute_lirpa_bounds(net: NeuralNetwork, prop: 'NeverProperty'):
+        from collections import defaultdict
+        import torch
+        from auto_LiRPA import BoundedModule, BoundedTensor
+        from auto_LiRPA.perturbations import PerturbationLpNorm
+
+        # Convert the network into pytorch format
+        model = PyTorchConverter().from_neural_network(net).pytorch_network
+
+        ## Wrap model with auto_LiRPA
+        # The second parameter is for constructing the trace of the computational graph,
+        # and its content is not important.
+        lirpa_model = BoundedModule(model, torch.empty_like(image))
+
+        ## Step 4: Compute bounds using LiRPA given a perturbation
+        eps = 0.3
+        norm = float("inf")
+        ptb = PerturbationLpNorm(norm=norm, eps=eps)
+        image = BoundedTensor(image, ptb)
+        # Get model prediction as usual
+        pred = lirpa_model(image)
+        label = torch.argmax(pred, dim=1).cpu().detach().numpy()
+
+
+        print('Demonstration 2: Obtaining linear coefficients of the lower and upper bounds.\n')
+        # There are many bound coefficients during CROWN bound calculation; here we are interested in the linear bounds
+        # of the output layer, with respect to the input layer (the image).
+        required_A = defaultdict(set)
+        required_A[lirpa_model.output_name[0]].add(lirpa_model.input_name[0])
+
+        lb, ub, A_dict = lirpa_model.compute_bounds(x=(image,), method='backward', return_A=True,
+                                                    needed_A_dict=required_A)
+        lower_A, lower_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lA'], \
+        A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lbias']
+        upper_A, upper_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['uA'], \
+        A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['ubias']
+        print(f'lower bound linear coefficients size (batch, output_dim, *input_dims): {list(lower_A.size())}')
+        print(f'lower bound linear coefficients norm (smaller is better): {lower_A.norm()}')
+        print(f'lower bound bias term size (batch, output_dim): {list(lower_bias.size())}')
+        print(f'lower bound bias term sum (larger is better): {lower_bias.sum()}')
+        print(f'upper bound linear coefficients size (batch, output_dim, *input_dims): {list(upper_A.size())}')
+        print(f'upper bound linear coefficients norm (smaller is better): {upper_A.norm()}')
+        print(f'upper bound bias term size (batch, output_dim): {list(upper_bias.size())}')
+        print(f'upper bound bias term sum (smaller is better): {upper_bias.sum()}')
+        print(f'These linear lower and upper bounds are valid everywhere within the perturbation radii.\n')
+
 
     def compute_bounds_from_property(self, net: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
@@ -134,15 +183,15 @@ class BoundsManager:
         # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
         #                                           upper_branch.upper)
 
-        try:
-            negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
-            positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
-            print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
-            print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
-            print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
-            print()
-        except:
-            pass
+        # try:
+        #     negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
+        #     positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
+        #     print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
+        #     print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
+        #     print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
+        #     print()
+        # except:
+        #     pass
 
         negative_bounds = None if negative_branch_input is None else self.compute_bounds(negative_branch_input, nn)
         positive_bounds = None if positive_branch_input is None else self.compute_bounds(positive_branch_input, nn)
