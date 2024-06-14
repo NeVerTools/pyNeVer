@@ -378,12 +378,14 @@ def get_lin_lower_bound_coefficients(lower, upper):
     if lower >= 0:
         return 1, 0
 
-    if upper <= 0:
-        return 0, 0
+    if upper >= - lower:
+        mult = upper / (upper - lower)
+        return mult, 0
 
-    mult = upper / (upper - lower)
-
-    return mult, 0
+    # upper <= 0:
+    # or
+    # -lower > upper, i.e., 0 is a tighter lower bound that the slope mult above
+    return 0, 0
 
 
 def get_lin_upper_bound_coefficients(lower, upper):
