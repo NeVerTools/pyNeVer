@@ -1,5 +1,6 @@
 import copy
 from collections import OrderedDict
+from enum import Enum
 
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
@@ -10,7 +11,14 @@ from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_pa
     compute_lin_lower_and_upper
 
 
+class RefiningBound(Enum):
+    LowerBound = 1
+    UpperBound = -1
+
+
 class BoundsManager:
+
+
     def __init__(self):
         self.numeric_bounds = None
 
@@ -147,18 +155,7 @@ class BoundsManager:
         for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
 
         Since we are constraining y to be positive, it means that c * x + b should be positive as well.
-        We therefore need to recompute the bounds for x. We do it as follows.
-
-        We have the following constraint c1 * x1 + ... + cn * xn + b >= 0
-
-        Then
-            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
-            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
-
-        Thus, when c1 > 0, we can compute a new lower bound of x1,
-        and when c1 < 0, we can compute a new upper bound of x1.
-        We do it using the standard interval arithmetics.
-        We only update the bound if it improves the previous one.
+        We therefore need to recompute the bounds for x using its lower bound.
 
 
         Parameters
@@ -186,42 +183,10 @@ class BoundsManager:
         coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
-        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
-        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
+        refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
 
-        n_input_dimensions = len(coef)
-        changes = True
-
-        # continue updating the bounds until they stop improving
-        while changes:
-            changes = False
-            for i in range(n_input_dimensions):
-                c = coef[i]
-
-                ## the rest is moved to the other side, so we have the minus and divided by c
-                negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
-                pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
-                neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
-                rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
-                rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
-
-                if c > 0:
-                    # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
-                    new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
-                        rem_upper_input_bounds) - shift
-                    if new_lower_i > input_lower_bounds[i]:
-                        input_lower_bounds[i] = new_lower_i
-                        changes = True
-                elif c < 0:
-                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
-                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
-                        rem_lower_input_bounds) - shift
-                    if new_upper_i < input_upper_bounds[i]:
-                        input_upper_bounds[i] = new_upper_i
-                        changes = True
-
-        print(f'--- Updated bounds for positive branch: \n{input_lower_bounds}\n{input_upper_bounds}')
-        return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
+        print(f'--- Updated bounds for positive branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
+        return HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
         """
@@ -235,18 +200,7 @@ class BoundsManager:
         for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
 
         Since we are constraining y to be negative, it means that c * x + b should be negative as well.
-        We therefore need to recompute the bounds for x. We do it as follows.
-
-        We have the following constraint c1 * x1 + ... + cn * xn + b <= 0
-
-        Then
-            x1 <= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is positive
-            x1 >= (-c2 * x2 - ... -cn * xn - b )/c1 if c1 is negative
-
-        Thus, when c1 > 0, we can compute a new upper bound of x1,
-        and when c1 < 0, we can compute a new lower bound of x1.
-        We do it using the standard interval arithmetics.
-        We only update the bound if it improves the previous one.
+        We therefore need to recompute the bounds for x using its upper bound.
 
 
         Parameters
@@ -274,13 +228,46 @@ class BoundsManager:
         coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
 
+        refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
+
+        print(f'--- Updated bounds for negative branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
+        return HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
+
+    def _refine_input_bounds(self, coef, shift, input_bounds, sign):
+        """
+        We have an equation from the input variables
+            c * x + b
+
+        for x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+
+        If sign is RefininBound.LowerBound, then we are constraining the equation to be positive.
+        If sign is RefininBound.UpperBound, we are constraining the equation to be negative.
+
+        In both cases, we can refine the bounds for x to the imposed solution space.
+        We do it as follows.
+
+        Assuming sign is RefininBound.LowerBound, we have the following constraint c1 * x1 + ... + cn * xn + b >= 0
+
+        Then
+            x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
+            x1 <= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new lower bound of x1,
+        and when c1 < 0, we can compute a new upper bound of x1.
+        We do it using the standard interval arithmetics.
+        We only update the bound if it improves the previous one.
+
+        Following a similar logic, if sign is RefiningBound.UpperBound,
+        when c1 > 0, we can compute a new upper bound of x1,
+        and when c1 < 0, we can compute a new lower bound of x1.
+
+        """
         input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
         input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
 
         n_input_dimensions = len(coef)
         changes = True
-
-        # Continue updating the bounds until they stop improving
+        # continue updating the bounds until they stop improving
         while changes:
             changes = False
             for i in range(n_input_dimensions):
@@ -289,30 +276,32 @@ class BoundsManager:
                 if c == 0:
                     continue
 
-                ## the rest is moved to the other side, so we have the minus
+                ## the rest is moved to the other side, so we have the minus and divided by c
                 negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
+                shift = shift / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
                 rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
 
-                if c > 0:
-                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
-                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
-                        rem_lower_input_bounds) - shift
-                    if new_upper_i < input_upper_bounds[i]:
-                        input_upper_bounds[i] = new_upper_i
-                        changes = True
-                elif c < 0:
+                if c * sign.value > 0:
+                    "c > 0 and sign = 1 or c < 0 and sign = -1"
                     # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
                     new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + neg_rem_coef.dot(
                         rem_upper_input_bounds) - shift
                     if new_lower_i > input_lower_bounds[i]:
                         input_lower_bounds[i] = new_lower_i
                         changes = True
+                elif c * sign.value < 0:
+                    "c < 0 and sign = 1 or c > 0 and sign = -1"
+                    # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
+                    new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + neg_rem_coef.dot(
+                        rem_lower_input_bounds) - shift
+                    if new_upper_i < input_upper_bounds[i]:
+                        input_upper_bounds[i] = new_upper_i
+                        changes = True
 
-        print(f'--- Updated bounds for negative branch: \n{input_lower_bounds}\n{input_upper_bounds}')
-        return HyperRectangleBounds(input_lower_bounds, input_upper_bounds)
+        return input_lower_bounds, input_upper_bounds
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)
