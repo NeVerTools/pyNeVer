@@ -2,6 +2,8 @@ import copy
 from collections import OrderedDict
 from enum import Enum
 
+import numpy as np
+
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bp.bounds import SymbolicLinearBounds
@@ -193,8 +195,12 @@ class BoundsManager:
         # except:
         #     pass
 
-        negative_bounds = None if negative_branch_input is None else self.compute_bounds(negative_branch_input, nn)
-        positive_bounds = None if positive_branch_input is None else self.compute_bounds(positive_branch_input, nn)
+        negative_bounds = None if negative_branch_input is None else (
+            pre_branch_bounds if negative_branch_input == input_bounds else
+            self.compute_bounds(negative_branch_input, nn))
+        positive_bounds = None if positive_branch_input is None else (
+            pre_branch_bounds if positive_branch_input == input_bounds else
+            self.compute_bounds(positive_branch_input, nn))
         return (negative_bounds, positive_bounds)
 
     def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -237,11 +243,11 @@ class BoundsManager:
         coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
-        refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
+        print(f'Lower bound equation: {coef} {shift}')
+        refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
+        print(f'--- Updated bounds for positive branch: \n{refined_bounds}')
 
-        print(f'--- Updated bounds for positive branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
-        return None if refined_lower_bounds is None \
-            else HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
+        return refined_bounds
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
         """
@@ -282,12 +288,12 @@ class BoundsManager:
         # The linear equation for the upper bound of the target neuron
         coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+        print(f'Upper bound equation: {coef} {shift}')
 
-        refined_lower_bounds, refined_upper_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
+        refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
-        print(f'--- Updated bounds for negative branch: \n{refined_lower_bounds}\n{refined_upper_bounds}')
-        return None if refined_lower_bounds is None \
-            else HyperRectangleBounds(refined_lower_bounds, refined_upper_bounds)
+        print(f'--- Updated bounds for negative branch: \n{refined_bounds}')
+        return refined_bounds
 
     def _refine_input_bounds(self, coef, shift, input_bounds, sign):
         """
@@ -318,8 +324,7 @@ class BoundsManager:
         and when c1 < 0, we can compute a new lower bound of x1.
 
         """
-        input_lower_bounds = copy.deepcopy(input_bounds.get_lower())
-        input_upper_bounds = copy.deepcopy(input_bounds.get_upper())
+        refined_input_bounds = input_bounds
 
         n_input_dimensions = len(coef)
         changes = True
@@ -338,33 +343,47 @@ class BoundsManager:
                 shift_div_c = shift / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
-                rem_lower_input_bounds = np.array(list(input_lower_bounds[:i]) + list(input_lower_bounds[i + 1:]))
-                rem_upper_input_bounds = np.array(list(input_upper_bounds[:i]) + list(input_upper_bounds[i + 1:]))
+                rem_lower_input_bounds = np.array(list(refined_input_bounds.get_lower()[:i]) + list(refined_input_bounds.get_lower()[i + 1:]))
+                rem_upper_input_bounds = np.array(list(refined_input_bounds.get_upper()[:i]) + list(refined_input_bounds.get_upper()[i + 1:]))
 
                 if c * sign.value > 0:
                     "c > 0 and sign = 1 or c < 0 and sign = -1"
                     # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
                     new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + \
                                   neg_rem_coef.dot(rem_upper_input_bounds) - shift_div_c
-                    if new_lower_i > input_upper_bounds[i]:
+                    if new_lower_i > refined_input_bounds.get_upper()[i]:
                         # infeasible branch
-                        return None, None
-                    if new_lower_i > input_lower_bounds[i]:
-                        input_lower_bounds[i] = new_lower_i
+                        # print("i", i, "infeasible")
+                        return None
+                    elif new_lower_i > refined_input_bounds.get_lower()[i]:
+                        if refined_input_bounds == input_bounds:
+                            refined_input_bounds = input_bounds.clone()
+
+                        refined_input_bounds.get_lower()[i] = new_lower_i
+                        print("i", i, "New lower", new_lower_i)
                         changes = True
+                    # else:
+                    #     print("i", i, "Bound not improved")
+
                 elif c * sign.value < 0:
                     "c < 0 and sign = 1 or c > 0 and sign = -1"
                     # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
                     new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + \
                                   neg_rem_coef.dot(rem_lower_input_bounds) - shift_div_c
-                    if new_upper_i < input_lower_bounds[i]:
+                    if new_upper_i < refined_input_bounds.get_lower()[i]:
                         # infeasible branch
-                        return None, None
-                    if new_upper_i < input_upper_bounds[i]:
-                        input_upper_bounds[i] = new_upper_i
+                        # print("i", i, "infeasible")
+                        return None
+                    elif new_upper_i < refined_input_bounds.get_upper()[i]:
+                        if refined_input_bounds == input_bounds:
+                            refined_input_bounds = input_bounds.clone()
+                        refined_input_bounds.get_upper()[i] = new_upper_i
+                        print("i", i, "New upper", new_upper_i)
                         changes = True
+                    # else:
+                    #     print("i", i, "Bound not improved")
 
-        return input_lower_bounds, input_upper_bounds
+        return refined_input_bounds
 
     def compute_dense_output_bounds(self, layer, inputs):
         weights_plus = get_positive_part(layer.weight)
