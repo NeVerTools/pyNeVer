@@ -114,12 +114,19 @@ class BoundsManager:
         current_layer_input_equation = SymbolicLinearBounds(lower_equation, upper_equation)
         current_layer_input_numeric_bounds = input_hyper_rect
 
+        stable = 0
+
         ## Iterate through the layers
         for i in range(0, len(layers)):
 
             if isinstance(layers[i], nodes.FullyConnectedNode):
                 current_layer_output_equation = self.compute_dense_output_bounds(layers[i], current_layer_input_equation)
                 current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(input_hyper_rect)
+                if i < len(layers) - 1:
+                    for j in range(current_layer_output_numeric_bounds.size):
+                        if current_layer_output_numeric_bounds.get_upper()[j] <= 0 or \
+                            current_layer_output_numeric_bounds.get_lower()[j] >= 0:
+                            stable += 1
 
             elif isinstance(layers[i], nodes.ReLUNode):
                 current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
@@ -148,7 +155,8 @@ class BoundsManager:
         return {
             'symbolic': symbolic_bounds,
             'numeric_pre': numeric_preactivation_bounds,
-            'numeric_post': numeric_postactivation_bounds
+            'numeric_post': numeric_postactivation_bounds,
+            'stable_count': stable
         }
 
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
@@ -168,39 +176,21 @@ class BoundsManager:
 
         print(f"======================================================================\nTarget {target}")
         input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
-        print(f"--- Input bounds\n{input_bounds.get_lower()}\n{input_bounds.get_upper()}")
+        print(f"--- Input bounds\n{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
         negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
-        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
-        print()
-        # Lower branch
-        # lower_branch = copy.deepcopy(split_bounds)
-        # lower_branch.upper[target.neuron_idx] = 0
-        # lower_input_bounds = HyperRectangleBounds(lower_branch.lower,
-        #                                           lower_branch.upper)
-        #
-        # # Upper branch
-        # upper_branch = copy.deepcopy(split_bounds)
-        # upper_branch.lower[target.neuron_idx] = 0
-        # upper_input_bounds = HyperRectangleBounds(upper_branch.lower,
-        #                                           upper_branch.upper)
-
-        # try:
-        #     negative_branch_bounds = self.compute_bounds(negative_branch_input, nn)
-        #     positive_branch_bounds = self.compute_bounds(positive_branch_input, nn)
-        #     print("Pre branch output bounds     ", pre_branch_bounds['numeric_post'][nn[-1].identifier])
-        #     print("Negative branch output bounds", negative_branch_bounds['numeric_post'][nn[-1].identifier])
-        #     print("Positive branch output bounds", positive_branch_bounds['numeric_post'][nn[-1].identifier])
-        #     print()
-        # except:
-        #     pass
-
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn))
+        print(f"--- Updated bounds for negative branch: \n{negative_branch_input} --- stable count {None if negative_bounds is None else negative_bounds['stable_count']}")
+
+        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn))
+        print(f"--- Updated bounds for positive branch: \n{positive_branch_input} --- stable count {None if positive_bounds is None else positive_bounds['stable_count']}")
+        print()
+
         return (negative_bounds, positive_bounds)
 
     def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -243,10 +233,7 @@ class BoundsManager:
         coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
-        print(f'Lower bound equation: {coef} {shift}')
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
-        print(f'--- Updated bounds for positive branch: \n{refined_bounds}')
-
         return refined_bounds
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
@@ -288,11 +275,8 @@ class BoundsManager:
         # The linear equation for the upper bound of the target neuron
         coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
         shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
-        print(f'Upper bound equation: {coef} {shift}')
 
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
-
-        print(f'--- Updated bounds for negative branch: \n{refined_bounds}')
         return refined_bounds
 
     def _refine_input_bounds(self, coef, shift, input_bounds, sign):
@@ -360,7 +344,7 @@ class BoundsManager:
                             refined_input_bounds = input_bounds.clone()
 
                         refined_input_bounds.get_lower()[i] = new_lower_i
-                        print("i", i, "New lower", new_lower_i)
+                        # print("i", i, "New lower", new_lower_i)
                         changes = True
                     # else:
                     #     print("i", i, "Bound not improved")
@@ -378,7 +362,7 @@ class BoundsManager:
                         if refined_input_bounds == input_bounds:
                             refined_input_bounds = input_bounds.clone()
                         refined_input_bounds.get_upper()[i] = new_upper_i
-                        print("i", i, "New upper", new_upper_i)
+                        # print("i", i, "New upper", new_upper_i)
                         changes = True
                     # else:
                     #     print("i", i, "Bound not improved")
