@@ -330,6 +330,7 @@ class SearchVerification(VerificationStrategy):
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
         stop_flag = False
+        target = None
 
         # Start timer
         timer = 0
@@ -373,7 +374,7 @@ class SearchVerification(VerificationStrategy):
 
             else:
                 """This branch is safe, no refinement needed"""
-                print(f"Target {target} is safe")
+                self.logger.info(f"Target {target if target is not None else (0, 0)} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:
