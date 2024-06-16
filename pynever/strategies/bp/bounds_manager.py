@@ -139,8 +139,12 @@ class BoundsManager:
                     np.maximum(current_layer_input_numeric_bounds.get_lower(), 0),
                     np.maximum(current_layer_input_numeric_bounds.get_upper(), 0))
 
+            elif isinstance(layers[i], nodes.FlattenNode):
+                current_layer_output_equation = current_layer_input_equation
+                current_layer_output_numeric_bounds = current_layer_input_numeric_bounds
             else:
-                raise Exception("Currently supporting bounds computation only for Relu and Linear activation functions")
+                raise Exception("Currently supporting bounds computation only for FullyConnected, Relu and Flatten layers. \n"
+                                "Instead got {}".format(layers[i].__class__))
 
             # Store the current equations and numeric bounds
             symbolic_bounds[layers[i].identifier] = current_layer_output_equation
