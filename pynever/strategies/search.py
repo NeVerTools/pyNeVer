@@ -426,6 +426,9 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
             upper_star.ref_layer = target.layer_idx
             upper_star.ref_neuron = star.ref_neuron + 1
 
+            # Update the target neuron based on the index increment if the branch was stable (@392)
+            target.neuron_idx = index
+
             # Update the bounds after the split
             if update_bounds:
                 lower_bounds, upper_bounds = BoundsManager().branch_update_bounds(bounds_dict, nn_list, target)
