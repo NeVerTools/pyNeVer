@@ -1,8 +1,6 @@
-import copy
+import logging
 from collections import OrderedDict
 from enum import Enum
-
-import numpy as np
 
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
@@ -13,6 +11,8 @@ from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_pa
     compute_lin_lower_and_upper
 from pynever.strategies.conversion import PyTorchConverter
 
+logger_name = 'pynever.strategies.bp.bounds_manager'
+
 
 class RefiningBound(Enum):
     LowerBound = 1
@@ -21,9 +21,9 @@ class RefiningBound(Enum):
 
 class BoundsManager:
 
-
     def __init__(self):
         self.numeric_bounds = None
+        self.logger = logging.getLogger(logger_name)
 
     def __repr__(self):
         return str(self.numeric_bounds)
@@ -52,7 +52,6 @@ class BoundsManager:
         pred = lirpa_model(image)
         label = torch.argmax(pred, dim=1).cpu().detach().numpy()
 
-
         print('Demonstration 2: Obtaining linear coefficients of the lower and upper bounds.\n')
         # There are many bound coefficients during CROWN bound calculation; here we are interested in the linear bounds
         # of the output layer, with respect to the input layer (the image).
@@ -62,9 +61,9 @@ class BoundsManager:
         lb, ub, A_dict = lirpa_model.compute_bounds(x=(image,), method='backward', return_A=True,
                                                     needed_A_dict=required_A)
         lower_A, lower_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lA'], \
-        A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lbias']
+            A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lbias']
         upper_A, upper_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['uA'], \
-        A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['ubias']
+            A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['ubias']
         print(f'lower bound linear coefficients size (batch, output_dim, *input_dims): {list(lower_A.size())}')
         print(f'lower bound linear coefficients norm (smaller is better): {lower_A.norm()}')
         print(f'lower bound bias term size (batch, output_dim): {list(lower_bias.size())}')
@@ -74,7 +73,6 @@ class BoundsManager:
         print(f'upper bound bias term size (batch, output_dim): {list(upper_bias.size())}')
         print(f'upper bound bias term sum (smaller is better): {upper_bias.sum()}')
         print(f'These linear lower and upper bounds are valid everywhere within the perturbation radii.\n')
-
 
     def compute_bounds_from_property(self, net: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
@@ -120,12 +118,14 @@ class BoundsManager:
         for i in range(0, len(layers)):
 
             if isinstance(layers[i], nodes.FullyConnectedNode):
-                current_layer_output_equation = self.compute_dense_output_bounds(layers[i], current_layer_input_equation)
-                current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(input_hyper_rect)
+                current_layer_output_equation = self.compute_dense_output_bounds(layers[i],
+                                                                                 current_layer_input_equation)
+                current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(
+                    input_hyper_rect)
                 if i < len(layers) - 1:
                     for j in range(current_layer_output_numeric_bounds.size):
                         if current_layer_output_numeric_bounds.get_upper()[j] <= 0 or \
-                            current_layer_output_numeric_bounds.get_lower()[j] >= 0:
+                                current_layer_output_numeric_bounds.get_lower()[j] >= 0:
                             stable += 1
 
             elif isinstance(layers[i], nodes.ReLUNode):
@@ -171,25 +171,27 @@ class BoundsManager:
             split_bounds = pre_branch_bounds['numeric_pre'][nn[target.layer_idx].identifier]
 
         except KeyError:
-            print('KeyError in branching, no update was performed.')
+            self.logger.info('KeyError in branching, no update was performed.')
             return pre_branch_bounds, pre_branch_bounds
 
-        print(f"======================================================================\nTarget {target}")
+        self.logger.info(f"======================================================================\nTarget {target}")
         input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
-        print(f"--- Input bounds\n{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
+        self.logger.info(f"--- Input bounds\n{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
         negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn))
-        print(f"--- Updated bounds for negative branch: \n{negative_branch_input} --- stable count {None if negative_bounds is None else negative_bounds['stable_count']}")
+        self.logger.info(
+            f"--- Updated bounds for negative branch: \n{negative_branch_input} --- stable count {None if negative_bounds is None else negative_bounds['stable_count']}")
 
         positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn))
-        print(f"--- Updated bounds for positive branch: \n{positive_branch_input} --- stable count {None if positive_bounds is None else positive_bounds['stable_count']}")
-        print()
+        self.logger.info(
+            f"--- Updated bounds for positive branch: \n{positive_branch_input} --- stable count {None if positive_bounds is None else positive_bounds['stable_count']}")
+        self.logger.info('')
 
         return (negative_bounds, positive_bounds)
 
@@ -226,7 +228,7 @@ class BoundsManager:
             # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
             symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
         except KeyError:
-            print('KeyError in branching, no update was performed.')
+            self.logger.info('KeyError in branching, no update was performed.')
             return input_bounds
 
         # The linear equation for the lower bound of the target neuron
@@ -269,7 +271,7 @@ class BoundsManager:
             # TODO: retrieve symbolic preactivation bounds properly (make a function for that, instead of hardcoding -1)
             symbolic_preact_bounds = pre_branch_bounds['symbolic'][nn[target.layer_idx - 1].identifier]
         except KeyError:
-            print('KeyError in branching, no update was performed.')
+            self.logger.info('KeyError in branching, no update was performed.')
             return input_bounds
 
         # The linear equation for the upper bound of the target neuron
@@ -327,8 +329,10 @@ class BoundsManager:
                 shift_div_c = shift / c
                 pos_rem_coef = np.maximum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
                 neg_rem_coef = np.minimum(np.zeros(n_input_dimensions - 1), negated_rem_coef)
-                rem_lower_input_bounds = np.array(list(refined_input_bounds.get_lower()[:i]) + list(refined_input_bounds.get_lower()[i + 1:]))
-                rem_upper_input_bounds = np.array(list(refined_input_bounds.get_upper()[:i]) + list(refined_input_bounds.get_upper()[i + 1:]))
+                rem_lower_input_bounds = np.array(
+                    list(refined_input_bounds.get_lower()[:i]) + list(refined_input_bounds.get_lower()[i + 1:]))
+                rem_upper_input_bounds = np.array(
+                    list(refined_input_bounds.get_upper()[:i]) + list(refined_input_bounds.get_upper()[i + 1:]))
 
                 if c * sign.value > 0:
                     "c > 0 and sign = 1 or c < 0 and sign = -1"
@@ -337,17 +341,17 @@ class BoundsManager:
                                   neg_rem_coef.dot(rem_upper_input_bounds) - shift_div_c
                     if new_lower_i > refined_input_bounds.get_upper()[i]:
                         # infeasible branch
-                        # print("i", i, "infeasible")
+                        # self.logger.info("i", i, "infeasible")
                         return None
                     elif new_lower_i > refined_input_bounds.get_lower()[i]:
                         if refined_input_bounds == input_bounds:
                             refined_input_bounds = input_bounds.clone()
 
                         refined_input_bounds.get_lower()[i] = new_lower_i
-                        # print("i", i, "New lower", new_lower_i)
+                        # self.logger.info("i", i, "New lower", new_lower_i)
                         changes = True
                     # else:
-                    #     print("i", i, "Bound not improved")
+                    #     self.logger.info("i", i, "Bound not improved")
 
                 elif c * sign.value < 0:
                     "c < 0 and sign = 1 or c > 0 and sign = -1"
@@ -356,16 +360,16 @@ class BoundsManager:
                                   neg_rem_coef.dot(rem_lower_input_bounds) - shift_div_c
                     if new_upper_i < refined_input_bounds.get_lower()[i]:
                         # infeasible branch
-                        # print("i", i, "infeasible")
+                        # self.logger.info("i", i, "infeasible")
                         return None
                     elif new_upper_i < refined_input_bounds.get_upper()[i]:
                         if refined_input_bounds == input_bounds:
                             refined_input_bounds = input_bounds.clone()
                         refined_input_bounds.get_upper()[i] = new_upper_i
-                        # print("i", i, "New upper", new_upper_i)
+                        # self.logger.info("i", i, "New upper", new_upper_i)
                         changes = True
                     # else:
-                    #     print("i", i, "Bound not improved")
+                    #     self.logger.info("i", i, "Bound not improved")
 
         return refined_input_bounds
 

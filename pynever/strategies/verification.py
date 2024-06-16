@@ -363,6 +363,7 @@ class SearchVerification(VerificationStrategy):
                     # Nothing else to split, or
                     # Found a counterexample
                     cex = sf.get_counterexample(unsafe_stars, prop)
+                    self.logger.info('Execution time: {:.5f} s'.format(timer))
                     return False, cex
 
                 else:
@@ -374,7 +375,7 @@ class SearchVerification(VerificationStrategy):
 
             else:
                 """This branch is safe, no refinement needed"""
-                print(f"Branch {(current_star.ref_layer, current_star.ref_neuron)} is safe")
+                self.logger.info(f"Branch {(current_star.ref_layer, current_star.ref_neuron)} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:
@@ -383,8 +384,10 @@ class SearchVerification(VerificationStrategy):
                 start_time = time.perf_counter()
 
         if stop_flag:
+            self.logger.info('Execution time: {:.5f} s'.format(timer))
             return False,
         else:
+            self.logger.info('Execution time: {:.5f} s'.format(timer))
             return True,
 
 
