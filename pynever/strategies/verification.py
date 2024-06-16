@@ -374,7 +374,7 @@ class SearchVerification(VerificationStrategy):
 
             else:
                 """This branch is safe, no refinement needed"""
-                self.logger.info(f"Target {target if target is not None else (0, 0)} is safe")
+                print(f"Branch {(current_star.ref_layer, current_star.ref_neuron)} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:
