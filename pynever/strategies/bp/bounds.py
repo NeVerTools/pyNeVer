@@ -1,3 +1,6 @@
+import copy
+
+
 class AbstractBounds:
     def __init__(self, lower, upper):
         self.lower = lower
@@ -20,8 +23,11 @@ class HyperRectangleBounds(AbstractBounds):
     def __repr__(self):
         # return "Input Bounds: " + ', '.join(map(str, zip(self.lower, self.upper)))
 
-        return ', '.join(map(str, zip(["{:.5f}".format(n) for n in self.lower],
-                                      ["{:.5f}".format(n) for n in self.upper])))
+        return ', '.join(["({:.5f}, {:.5f})".format(self.lower[i], self.upper[i])
+                          for i in range(self.size)])
+
+    def clone(self):
+        return HyperRectangleBounds(copy.deepcopy(self.lower), copy.deepcopy(self.upper))
 
     def get_size(self):
         return self.size
