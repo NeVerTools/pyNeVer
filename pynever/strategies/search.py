@@ -286,11 +286,30 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
 
 def get_next_target(ref_heur: str,
                     star: Star,
-                    nn_list: list) -> tuple[RefinementTarget, Star]:
+                    nn_list: list,
+                    bounds: dict) -> tuple[RefinementTarget, Star]:
     if ref_heur == 'sequential':
-        return get_target_sequential(star, nn_list)
+        return get_next_unstable(star, nn_list, bounds)
     else:
         raise NotImplementedError('Only sequential refinement supported')
+
+
+def get_next_unstable(star: Star, nn_list: list, bounds_dict: dict) -> tuple[RefinementTarget, Star]:
+    # TODO next target
+    next_target, next_star = get_target_sequential(star, nn_list)
+    index = next_target.neuron_idx
+    cur_bounds = bounds_dict['numeric_pre'][nn_list[next_star.ref_layer].identifier]
+
+    stable = abst.check_stable(index, cur_bounds)
+
+    while stable != 0:
+        next_target, next_star = get_target_sequential(next_star, nn_list)
+        index = next_target.neuron_idx
+        cur_bounds = bounds_dict['numeric_pre'][nn_list[next_star.ref_layer].identifier]
+
+        stable = abst.check_stable(index, cur_bounds)
+
+    return next_target, next_star
 
 
 def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, Star]:
@@ -436,8 +455,8 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
                 lower_bounds, upper_bounds = bounds_dict, bounds_dict
 
             return \
-                ([] if lower_bounds is None else [(lower_star, lower_bounds)]) + \
-                ([] if upper_bounds is None else [(upper_star, upper_bounds)])
+                    ([] if lower_bounds is None else [(lower_star, lower_bounds)]) + \
+                    ([] if upper_bounds is None else [(upper_star, upper_bounds)])
 
     # I get here only if I complete the while loop
     return [(star, bounds_dict)]

@@ -330,7 +330,6 @@ class SearchVerification(VerificationStrategy):
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
         stop_flag = False
-        target = None
 
         # Start timer
         timer = 0
@@ -341,7 +340,7 @@ class SearchVerification(VerificationStrategy):
 
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
-            prev_layer = current_star.ref_layer
+            # prev_layer = current_star.ref_layer
 
             if self.search_params['intersection'] == 'star_lp':
                 intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
@@ -352,7 +351,7 @@ class SearchVerification(VerificationStrategy):
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list)
+                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list, nn_bounds)
                 
                 # if current_star.ref_layer > prev_layer:
                 #     update = True
