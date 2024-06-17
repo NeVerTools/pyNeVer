@@ -21,8 +21,7 @@ class RefinementState(abc.ABC):
     implementations.
 
     """
-
-    raise NotImplementedError
+    pass
 
 
 class AbsLayerNode(nodes.LayerNode):

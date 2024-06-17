@@ -683,7 +683,7 @@ class ONNXConverter(ConversionStrategy):
                 weight = parameters[node.input[1]]
                 for att in node.attribute:
                     if (att.name == 'transA' or att.name == 'transB') and att.i == 0:
-                        weight = weight.T
+                        weight = parameters[node.input[1]].T
 
                 if len(node.input) <= 2:
                     has_bias = False

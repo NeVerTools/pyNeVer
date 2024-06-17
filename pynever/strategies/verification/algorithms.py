@@ -201,7 +201,7 @@ class SearchVerification(VerificationStrategy):
 
     def __init__(self, parameters: SearchVerificationParameters):
         self.parameters = parameters
-        self.logger = logging.getLogger(LOGGER)
+        self.logger = LOGGER
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty):
         """

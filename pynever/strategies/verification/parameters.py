@@ -59,7 +59,7 @@ class PropagationStrategy(enum.Enum):
 # TODO add documentation
 
 class VerificationParameters(abc.ABC):
-    raise NotImplementedError
+    pass
 
 
 class NeverVerificationParameters(VerificationParameters):

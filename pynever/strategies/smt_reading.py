@@ -325,8 +325,10 @@ class SmtPropertyParser:
             suffix = re.sub(pattern, '', str(d.args[0]))
 
             if input_name != '':
-                output_name = str(d.args[0]).replace(suffix, '')
-                break
+                temp_name = str(d.args[0]).replace(suffix, '')
+                if temp_name != input_name:
+                    output_name = temp_name
+                    break
             else:
                 input_name = str(d.args[0]).replace(suffix, '')
 
