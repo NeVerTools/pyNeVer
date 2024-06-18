@@ -279,9 +279,9 @@ class SearchVerification(VerificationStrategy):
             self.search_params = search_params
         else:
             self.search_params = {
-                'heuristic': 'sequential',
+                # 'heuristic': 'sequential',
+                'heuristic': 'seq_optimized',
                 'bounds': 'symbolic',
-                # 'bounds': 'lirpa',
                 'intersection': 'star_lp',
                 'timeout': 300
             }
@@ -290,18 +290,38 @@ class SearchVerification(VerificationStrategy):
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeVerProperty):
         """
-        Initialize the search algorithm and compute the starting values for
-        the bounds, the star and the target
+        Initialize the search algorithm and compute the
+        starting values for the bounds, the star and the target
 
         """
 
-        in_star = prop.to_input_star()
-        in_star.ref_layer = 0
+        star0 = prop.to_input_star()
+        bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
 
-        return (in_star,
-                sf.get_input_bounds(prop),
-                sf.get_bounds(network, prop, self.search_params['bounds']),
-                bm.net2list(network))
+        star1 = self.init_star_first_layer(star0, bounds, network)
+
+        return star1, sf.get_input_bounds(prop), bounds, bm.net2list(network)
+
+    def init_star_first_layer(self, star0, bounds, network):
+        """
+        Compute the initial star which will always start from the first layer and
+        where we will use the bounds to determine the inactive nodes,
+        so that we could set the transformation for them to 0.
+        """
+        first_layer = network.get_first_node()
+        second_layer = network.get_next_node(first_layer)
+
+        if isinstance(first_layer, nodes.FullyConnectedNode) and isinstance(second_layer, nodes.ReLUNode):
+            second_layer_inactive = bounds['stability_info'][bm.StabilityInfo.INACTIVE][second_layer.identifier]
+            new_basis_matrix, new_center = sf.mask_transfomation_for_inactive_neurons(
+                second_layer_inactive,
+                np.matmul(first_layer.weight, star0.basis_matrix),
+                np.dot(first_layer.weight, star0.center) + first_layer.bias)
+
+            return abst.Star(star0.predicate_matrix, star0.predicate_bias, new_center, new_basis_matrix, ref_layer=1)
+        else:
+            raise Exception(
+                "Currently supporting only FullyConnectedNodes. Instead got {}".format(type(first_layer.__class__)))
 
     def verify(self, network: networks.NeuralNetwork, prop: Property) -> (bool, Optional[Tensor]):
         """
@@ -342,17 +362,13 @@ class SearchVerification(VerificationStrategy):
             current_star, nn_bounds = frontier.pop()
             # prev_layer = current_star.ref_layer
 
-            if self.search_params['intersection'] == 'star_lp':
-                intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
-            elif self.search_params['intersection'] == 'bounds_lp':
-                intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
-            else:
-                raise NotImplementedError('Intersection strategy not supported')
+            intersects, unsafe_stars = self.compute_intersection(current_star, input_bounds, nn_bounds, net_list, prop)
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, net_list, nn_bounds)
-                
+                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, nn_bounds,
+                                                          net_list)
+
                 # if current_star.ref_layer > prev_layer:
                 #     update = True
                 # else:
@@ -369,7 +385,8 @@ class SearchVerification(VerificationStrategy):
                     # We cannot conclude anything at this point.
                     # Split the current branch according to the target
                     frontier.extend(
-                        sf.split_star(current_star, target, net_list, nn_bounds, update)
+                        # sf.split_star(current_star, target, net_list, nn_bounds, update)
+                        sf.split_star_opt(current_star, target, net_list, nn_bounds)
                     )
 
             else:
@@ -388,6 +405,18 @@ class SearchVerification(VerificationStrategy):
         else:
             self.logger.info('Execution time: {:.5f} s'.format(timer))
             return True,
+
+    def compute_intersection(self, current_star, input_bounds, nn_bounds, net_list, prop):
+        if self.search_params['intersection'] == 'star_lp':
+            intersects, unsafe_stars = sf.intersect_star_lp(current_star, net_list, nn_bounds, prop)
+
+        elif self.search_params['intersection'] == 'bounds_lp':
+            intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
+
+        else:
+            raise NotImplementedError('Intersection strategy not supported')
+
+        return intersects, unsafe_stars
 
 
 class NeverVerification(VerificationStrategy):

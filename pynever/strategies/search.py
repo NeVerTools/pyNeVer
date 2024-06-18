@@ -7,7 +7,7 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds import HyperRectangleBounds
-from pynever.strategies.bp.bounds_manager import BoundsManager
+from pynever.strategies.bp.bounds_manager import BoundsManager, StabilityInfo
 from pynever.strategies.bp.utils.property_converter import PropertyFormatConverter
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
 from pynever.tensors import Tensor
@@ -284,35 +284,32 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def get_next_target(ref_heur: str,
-                    star: Star,
-                    nn_list: list,
-                    bounds: dict) -> tuple[RefinementTarget, Star]:
+def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, nn_list: list) \
+        -> tuple[RefinementTarget | None, Star]:
     if ref_heur == 'sequential':
-        return get_next_unstable(star, nn_list, bounds)
+        return get_target_sequential(star, nn_list)
+
+    elif ref_heur == 'seq_optimized':
+        return get_target_sequential_optimized(star, nn_bounds, nn_list)
+
     else:
         raise NotImplementedError('Only sequential refinement supported')
 
 
-def get_next_unstable(star: Star, nn_list: list, bounds_dict: dict) -> tuple[RefinementTarget, Star]:
-    # TODO next target
-    next_target, next_star = get_target_sequential(star, nn_list)
-    index = next_target.neuron_idx
-    cur_bounds = bounds_dict['numeric_pre'][nn_list[next_star.ref_layer].identifier]
+def get_target_sequential_optimized(star: Star, nn_bounds: dict, nn_list: list) -> tuple[RefinementTarget | None, Star]:
+    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
+        layer_id, neuron_n = nn_bounds['stability_info'][StabilityInfo.UNSTABLE][0]
+        layer_n = nn_list.index(layer_id)
 
-    stable = abst.check_stable(index, cur_bounds)
+        star.ref_layer = layer_n
+        star.ref_neuron = neuron_n
 
-    while stable != 0:
-        next_target, next_star = get_target_sequential(next_star, nn_list)
-        index = next_target.neuron_idx
-        cur_bounds = bounds_dict['numeric_pre'][nn_list[next_star.ref_layer].identifier]
+        return RefinementTarget(layer_n, neuron_n), star
 
-        stable = abst.check_stable(index, cur_bounds)
-
-    return next_target, next_star
+    return None, star
 
 
-def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget, Star]:
+def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -416,12 +413,11 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
             new_b = np.matmul(mask, star.basis_matrix)
             new_pred = star.predicate_matrix
             new_bias = star.predicate_bias
-            new_star = Star(new_pred, new_bias, new_c, new_b)
+            star = Star(new_pred, new_bias, new_c, new_b)
 
-            new_star.ref_layer = target.layer_idx
-            new_star.ref_neuron = star.ref_neuron + 1
-
-            return [(new_star, bounds_dict)]
+            star.ref_layer = target.layer_idx
+            star.ref_neuron = star.ref_neuron + 1
+            index += 1
 
         # Unstable
         else:
@@ -460,6 +456,86 @@ def split_star(star: Star, target: RefinementTarget, nn_list: list, bounds_dict:
 
     # I get here only if I complete the while loop
     return [(star, bounds_dict)]
+
+
+def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dict) -> list:
+    """
+    Optimized split method
+
+    target is known to be unstable wrt bounds.
+    """
+    # Update the bounds after the split
+    negative_bounds, positive_bounds = BoundsManager().branch_update_bounds(nn_bounds, nn_list, target)
+
+    return compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
+            compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
+
+
+def mask_transfomation_for_inactive_neurons(inactive_neurons: list, matrix, offset):
+    # The mask for all inactive neurons, to set the transformation of the corresponding neurons to 0
+    mask = np.diag(
+        [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(matrix.shape[1])]
+    )
+
+    return np.matmul(mask, matrix), np.matmul(mask, offset)
+
+
+def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
+
+    if bounds is None:
+        return []
+
+    if target.layer_idx != star.ref_layer:
+        #TODO: add the symbolic equation constraint to the predicate.
+        # Could be useful when doing the intersection check with LP
+        return [(star, bounds)]
+
+    index = target.neuron_idx
+    layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
+
+    mask = np.identity(star.center.shape[0])
+    mask[index, index] = 0
+
+    new_basis_matrix, new_center = mask_transfomation_for_inactive_neurons(
+        layer_inactive,
+        np.matmul(mask, star.basis_matrix),
+        np.matmul(mask, star.center)
+    )
+
+    # Lower star
+    lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
+    lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
+    lower_star = Star(lower_pred, lower_bias, new_basis_matrix, new_center,
+                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx)
+
+    return [(lower_star, bounds)]
+
+def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
+
+    if bounds is None:
+        return []
+
+    if target.layer_idx != star.ref_layer:
+        #TODO: add the symbolic equation constraint to the predicate.
+        # Could be useful when doing the intersection check with LP
+        return [(star, bounds)]
+
+    index = target.neuron_idx
+    layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
+
+    new_basis_matrix, new_center = mask_transfomation_for_inactive_neurons(
+        layer_inactive,
+        star.basis_matrix,
+        star.center
+    )
+
+    # Lower star
+    upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
+    upper_bias = np.vstack((star.predicate_bias, star.center[index]))
+    upper_star = Star(upper_pred, upper_bias, new_basis_matrix, new_center,
+                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx)
+
+    return [(upper_star, bounds)]
 
 
 def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:

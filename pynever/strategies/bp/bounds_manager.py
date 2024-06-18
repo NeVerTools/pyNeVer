@@ -9,7 +9,6 @@ from pynever.strategies.bp.linearfunctions import LinearFunctions
 from pynever.strategies.bp.utils.property_converter import *
 from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.conversion import PyTorchConverter
 
 logger_name = 'pynever.strategies.bp.bounds_manager'
 
@@ -17,6 +16,12 @@ logger_name = 'pynever.strategies.bp.bounds_manager'
 class RefiningBound(Enum):
     LowerBound = 1
     UpperBound = -1
+
+
+class StabilityInfo(Enum):
+    INACTIVE = 0
+    ACTIVE = 1
+    UNSTABLE = 2
 
 
 class BoundsManager:
@@ -27,52 +32,6 @@ class BoundsManager:
 
     def __repr__(self):
         return str(self.numeric_bounds)
-
-    @staticmethod
-    def compute_lirpa_bounds(net: NeuralNetwork, prop: 'NeverProperty'):
-        from collections import defaultdict
-        import torch
-        from auto_LiRPA import BoundedModule, BoundedTensor
-        from auto_LiRPA.perturbations import PerturbationLpNorm
-
-        # Convert the network into pytorch format
-        model = PyTorchConverter().from_neural_network(net).pytorch_network
-
-        ## Wrap model with auto_LiRPA
-        # The second parameter is for constructing the trace of the computational graph,
-        # and its content is not important.
-        lirpa_model = BoundedModule(model, torch.empty_like(image))
-
-        ## Step 4: Compute bounds using LiRPA given a perturbation
-        eps = 0.3
-        norm = float("inf")
-        ptb = PerturbationLpNorm(norm=norm, eps=eps)
-        image = BoundedTensor(image, ptb)
-        # Get model prediction as usual
-        pred = lirpa_model(image)
-        label = torch.argmax(pred, dim=1).cpu().detach().numpy()
-
-        print('Demonstration 2: Obtaining linear coefficients of the lower and upper bounds.\n')
-        # There are many bound coefficients during CROWN bound calculation; here we are interested in the linear bounds
-        # of the output layer, with respect to the input layer (the image).
-        required_A = defaultdict(set)
-        required_A[lirpa_model.output_name[0]].add(lirpa_model.input_name[0])
-
-        lb, ub, A_dict = lirpa_model.compute_bounds(x=(image,), method='backward', return_A=True,
-                                                    needed_A_dict=required_A)
-        lower_A, lower_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lA'], \
-            A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['lbias']
-        upper_A, upper_bias = A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['uA'], \
-            A_dict[lirpa_model.output_name[0]][lirpa_model.input_name[0]]['ubias']
-        print(f'lower bound linear coefficients size (batch, output_dim, *input_dims): {list(lower_A.size())}')
-        print(f'lower bound linear coefficients norm (smaller is better): {lower_A.norm()}')
-        print(f'lower bound bias term size (batch, output_dim): {list(lower_bias.size())}')
-        print(f'lower bound bias term sum (larger is better): {lower_bias.sum()}')
-        print(f'upper bound linear coefficients size (batch, output_dim, *input_dims): {list(upper_A.size())}')
-        print(f'upper bound linear coefficients norm (smaller is better): {upper_A.norm()}')
-        print(f'upper bound bias term size (batch, output_dim): {list(upper_bias.size())}')
-        print(f'upper bound bias term sum (smaller is better): {upper_bias.sum()}')
-        print(f'These linear lower and upper bounds are valid everywhere within the perturbation radii.\n')
 
     def compute_bounds_from_property(self, net: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
@@ -104,6 +63,7 @@ class BoundsManager:
         symbolic_bounds = dict()
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
+        stability_info = {StabilityInfo.INACTIVE: dict(), StabilityInfo.ACTIVE: dict(), StabilityInfo.UNSTABLE: list()}
 
         ## Initialising the current equations
         input_size = input_hyper_rect.get_size()
@@ -115,22 +75,30 @@ class BoundsManager:
         stable = 0
 
         ## Iterate through the layers
-        for i in range(0, len(layers)):
+        for layer in layers:
 
-            if isinstance(layers[i], nodes.FullyConnectedNode):
-                current_layer_output_equation = self.compute_dense_output_bounds(layers[i],
+            if isinstance(layer, nodes.FullyConnectedNode):
+                current_layer_output_equation = self.compute_dense_output_bounds(layer,
                                                                                  current_layer_input_equation)
                 current_layer_output_numeric_bounds = current_layer_output_equation.to_hyper_rectangle_bounds(
                     input_hyper_rect)
-                if i < len(layers) - 1:
-                    for j in range(current_layer_output_numeric_bounds.size):
-                        if current_layer_output_numeric_bounds.get_upper()[j] <= 0 or \
-                                current_layer_output_numeric_bounds.get_lower()[j] >= 0:
-                            stable += 1
 
-            elif isinstance(layers[i], nodes.ReLUNode):
+            elif isinstance(layer, nodes.ReLUNode):
                 current_layer_output_equation = self.compute_relu_output_bounds(current_layer_input_equation,
                                                                                 input_hyper_rect)
+
+                stability_info[StabilityInfo.INACTIVE][layer.identifier] = list()
+                stability_info[StabilityInfo.ACTIVE][layer.identifier] = list()
+                for j in range(current_layer_input_numeric_bounds.size):
+                    if current_layer_input_numeric_bounds.get_upper()[j] <= 0:
+                        stability_info[StabilityInfo.INACTIVE][layer.identifier].append(j)
+                        stable += 1
+                    elif current_layer_input_numeric_bounds.get_lower()[j] >= 0:
+                        stability_info[StabilityInfo.ACTIVE][layer.identifier].append(j)
+                        stable += 1
+                    else:
+                        stability_info[StabilityInfo.UNSTABLE].append((layer.identifier, j))
+
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 # For instance, if the last layer is fully connected identity,
                 # then the output bounds for the last layer are going to be different (non-clipped)
@@ -139,17 +107,18 @@ class BoundsManager:
                     np.maximum(current_layer_input_numeric_bounds.get_lower(), 0),
                     np.maximum(current_layer_input_numeric_bounds.get_upper(), 0))
 
-            elif isinstance(layers[i], nodes.FlattenNode):
+            elif isinstance(layer, nodes.FlattenNode):
                 current_layer_output_equation = current_layer_input_equation
                 current_layer_output_numeric_bounds = current_layer_input_numeric_bounds
             else:
-                raise Exception("Currently supporting bounds computation only for FullyConnected, Relu and Flatten layers. \n"
-                                "Instead got {}".format(layers[i].__class__))
+                raise Exception(
+                    "Currently supporting bounds computation only for FullyConnected, Relu and Flatten layers. \n"
+                    "Instead got {}".format(layer.__class__))
 
             # Store the current equations and numeric bounds
-            symbolic_bounds[layers[i].identifier] = current_layer_output_equation
-            numeric_preactivation_bounds[layers[i].identifier] = current_layer_input_numeric_bounds
-            numeric_postactivation_bounds[layers[i].identifier] = current_layer_output_numeric_bounds
+            symbolic_bounds[layer.identifier] = current_layer_output_equation
+            numeric_preactivation_bounds[layer.identifier] = current_layer_input_numeric_bounds
+            numeric_postactivation_bounds[layer.identifier] = current_layer_output_numeric_bounds
 
             # Update the current input equation and numeric bounds
             current_layer_input_equation = current_layer_output_equation
@@ -160,6 +129,7 @@ class BoundsManager:
             'symbolic': symbolic_bounds,
             'numeric_pre': numeric_preactivation_bounds,
             'numeric_post': numeric_postactivation_bounds,
+            'stability_info': stability_info,
             'stable_count': stable
         }
 

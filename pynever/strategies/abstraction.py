@@ -64,10 +64,6 @@ class Star:
         Matrix of the Predicate.
     predicate_bias : Tensor
         Bias of the Predicate.
-    ubs : list
-        Upper bounds of the points defined by the Star.
-    lbs : list
-        Lower bounds of the points defined by the Star.
     is_empty : bool
         Boolean flag: True if the Star defines an empty set of points, False otherwise
 
@@ -81,7 +77,7 @@ class Star:
     """
 
     def __init__(self, predicate_matrix: Tensor, predicate_bias: Tensor, center: Tensor = None,
-                 basis_matrix: Tensor = None, is_empty: bool = None):
+                 basis_matrix: Tensor = None, is_empty: bool = None, ref_layer: int = None, ref_neuron: int = 0):
 
         predicate_dim_message = f"Error: the first dimension of the predicate_matrix ({predicate_matrix.shape[0]}) " \
                                 f"must be equal to the dimension of the predicate_bias ({predicate_bias.shape[0]})."
@@ -107,8 +103,6 @@ class Star:
             self.center = center
             self.basis_matrix = basis_matrix
 
-        self.lbs = [None for _ in range(self.center.shape[0])]
-        self.ubs = [None for _ in range(self.center.shape[0])]
         self.is_empty = is_empty
 
         # Reference layer of the star (where it comes from)
