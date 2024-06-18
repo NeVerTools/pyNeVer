@@ -316,7 +316,7 @@ class SearchVerification(VerificationStrategy):
             new_basis_matrix, new_center = sf.mask_transfomation_for_inactive_neurons(
                 second_layer_inactive,
                 np.matmul(first_layer.weight, star0.basis_matrix),
-                np.dot(first_layer.weight, star0.center) + first_layer.bias)
+                np.dot(first_layer.weight, star0.center) + sf.get_layer_bias_as_two_dimensional(first_layer))
 
             return abst.Star(star0.predicate_matrix, star0.predicate_bias, new_center, new_basis_matrix, ref_layer=1)
         else:
@@ -366,8 +366,8 @@ class SearchVerification(VerificationStrategy):
 
             if intersects:
                 # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.search_params['heuristic'], current_star, nn_bounds,
-                                                          net_list)
+                target, current_star = sf.get_next_target(self.search_params['heuristic'],
+                                                          current_star, nn_bounds, net_list)
 
                 # if current_star.ref_layer > prev_layer:
                 #     update = True

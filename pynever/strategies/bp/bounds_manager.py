@@ -64,6 +64,7 @@ class BoundsManager:
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         stability_info = {StabilityInfo.INACTIVE: dict(), StabilityInfo.ACTIVE: dict(), StabilityInfo.UNSTABLE: list()}
+        overapproximation_area = list()
 
         ## Initialising the current equations
         input_size = input_hyper_rect.get_size()
@@ -73,6 +74,7 @@ class BoundsManager:
         current_layer_input_numeric_bounds = input_hyper_rect
 
         stable = 0
+        layer_n = 0
 
         ## Iterate through the layers
         for layer in layers:
@@ -89,15 +91,18 @@ class BoundsManager:
 
                 stability_info[StabilityInfo.INACTIVE][layer.identifier] = list()
                 stability_info[StabilityInfo.ACTIVE][layer.identifier] = list()
-                for j in range(current_layer_input_numeric_bounds.size):
-                    if current_layer_input_numeric_bounds.get_upper()[j] <= 0:
-                        stability_info[StabilityInfo.INACTIVE][layer.identifier].append(j)
+                for neuron_n in range(current_layer_input_numeric_bounds.size):
+                    l, u = current_layer_input_numeric_bounds.get_dimension_bounds(neuron_n)
+                    if u <= 0:
+                        stability_info[StabilityInfo.INACTIVE][layer.identifier].append(neuron_n)
                         stable += 1
-                    elif current_layer_input_numeric_bounds.get_lower()[j] >= 0:
-                        stability_info[StabilityInfo.ACTIVE][layer.identifier].append(j)
+                    elif l >= 0:
+                        stability_info[StabilityInfo.ACTIVE][layer.identifier].append(neuron_n)
                         stable += 1
                     else:
-                        stability_info[StabilityInfo.UNSTABLE].append((layer.identifier, j))
+                        stability_info[StabilityInfo.UNSTABLE].append((layer_n, neuron_n))
+                        area = 0.5 * (u - l) * u
+                        overapproximation_area.append(((layer_n, neuron_n), area))
 
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 # For instance, if the last layer is fully connected identity,
@@ -124,13 +129,19 @@ class BoundsManager:
             current_layer_input_equation = current_layer_output_equation
             current_layer_input_numeric_bounds = current_layer_output_numeric_bounds
 
+            layer_n += 1
+
+        # sort the overapproximation areas in increasing order by the area
+        overapproximation_area = sorted(overapproximation_area, key=lambda x: x[1])
+
         # Put all the collected bounds in a dictionary and return it
         return {
             'symbolic': symbolic_bounds,
             'numeric_pre': numeric_preactivation_bounds,
             'numeric_post': numeric_postactivation_bounds,
             'stability_info': stability_info,
-            'stable_count': stable
+            'stable_count': stable,
+            'overapproximation_area': overapproximation_area
         }
 
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:

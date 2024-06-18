@@ -26,6 +26,9 @@ class RefinementTarget:
     def __repr__(self):
         return f'({self.layer_idx}, {self.neuron_idx})'
 
+    def to_pair(self):
+        return self.layer_idx, self.neuron_idx
+
 
 def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
     """
@@ -109,10 +112,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
             # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
-            if layer.bias.shape != (layer.weight.shape[0], 1):
-                bias = np.expand_dims(layer.bias, 1)
-            else:
-                bias = layer.bias
+            bias = get_layer_bias_as_two_dimensional(layer)
             star = abst.single_fc_forward(star, layer.weight, bias).pop()
 
         # Propagate ReLU starting from target
@@ -159,10 +159,7 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
             # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
-            if layer.bias.shape != (layer.weight.shape[0], 1):
-                bias = np.expand_dims(layer.bias, 1)
-            else:
-                bias = layer.bias
+            bias = get_layer_bias_as_two_dimensional(layer)
             star = abst.single_fc_forward(star, layer.weight, bias).pop()
             i += 1
 
@@ -183,6 +180,15 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
     star.ref_layer = start_layer + i
 
     return star
+
+
+def get_layer_bias_as_two_dimensional(layer):
+    # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
+    if layer.bias.shape != (layer.weight.shape[0], 1):
+        bias = np.expand_dims(layer.bias, 1)
+    else:
+        bias = layer.bias
+    return bias
 
 
 def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
@@ -298,13 +304,12 @@ def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, nn_list: list) \
 
 def get_target_sequential_optimized(star: Star, nn_bounds: dict, nn_list: list) -> tuple[RefinementTarget | None, Star]:
     if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
-        layer_id, neuron_n = nn_bounds['stability_info'][StabilityInfo.UNSTABLE][0]
-        layer_n = nn_list.index(layer_id)
+        for layer_n, neuron_n in nn_bounds['stability_info'][StabilityInfo.UNSTABLE]:
+            if not (layer_n, neuron_n) in star.fixed_neurons:
+                star.ref_layer = layer_n
+                star.ref_neuron = neuron_n
 
-        star.ref_layer = layer_n
-        star.ref_neuron = neuron_n
-
-        return RefinementTarget(layer_n, neuron_n), star
+                return RefinementTarget(layer_n, neuron_n), star
 
     return None, star
 
@@ -468,13 +473,13 @@ def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dic
     negative_bounds, positive_bounds = BoundsManager().branch_update_bounds(nn_bounds, nn_list, target)
 
     return compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
-            compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
+        compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
 
 
 def mask_transfomation_for_inactive_neurons(inactive_neurons: list, matrix, offset):
     # The mask for all inactive neurons, to set the transformation of the corresponding neurons to 0
     mask = np.diag(
-        [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(matrix.shape[1])]
+        [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(matrix.shape[0])]
     )
 
     return np.matmul(mask, matrix), np.matmul(mask, offset)
@@ -502,11 +507,14 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
         np.matmul(mask, star.center)
     )
 
+    fixed_so_far = copy.deepcopy(star.fixed_neurons)
+    fixed_so_far[target.to_pair()] = 0
+
     # Lower star
     lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
     lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
-    lower_star = Star(lower_pred, lower_bias, new_basis_matrix, new_center,
-                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx)
+    lower_star = Star(lower_pred, lower_bias, new_center, new_basis_matrix,
+                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
 
     return [(lower_star, bounds)]
 
@@ -529,11 +537,14 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
         star.center
     )
 
-    # Lower star
+    fixed_so_far = copy.deepcopy(star.fixed_neurons)
+    fixed_so_far[target.to_pair()] = 1
+
+    # Upper star
     upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
     upper_bias = np.vstack((star.predicate_bias, star.center[index]))
-    upper_star = Star(upper_pred, upper_bias, new_basis_matrix, new_center,
-                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx)
+    upper_star = Star(upper_pred, upper_bias, new_center, new_basis_matrix,
+                      ref_layer=target.layer_idx, ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
 
     return [(upper_star, bounds)]
 
