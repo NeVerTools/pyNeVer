@@ -313,7 +313,7 @@ class SearchVerification(VerificationStrategy):
 
         if isinstance(first_layer, nodes.FullyConnectedNode) and isinstance(second_layer, nodes.ReLUNode):
             second_layer_inactive = bounds['stability_info'][bm.StabilityInfo.INACTIVE][second_layer.identifier]
-            new_basis_matrix, new_center = sf.mask_transfomation_for_inactive_neurons(
+            new_basis_matrix, new_center = sf.mask_transformation_for_inactive_neurons(
                 second_layer_inactive,
                 np.matmul(first_layer.weight, star0.basis_matrix),
                 np.dot(first_layer.weight, star0.center) + sf.get_layer_bias_as_two_dimensional(first_layer))
@@ -346,6 +346,9 @@ class SearchVerification(VerificationStrategy):
             in_star, input_bounds, nn_bounds, net_list = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
+
+        self.logger.info(f"Inactive neurons: {nn_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
+                         f"  Active neurons: {nn_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n\n")
 
         # Frontier is a stack of tuples (Star, AbstractBounds)
         frontier = [(in_star, nn_bounds)]
@@ -391,7 +394,7 @@ class SearchVerification(VerificationStrategy):
 
             else:
                 """This branch is safe, no refinement needed"""
-                self.logger.info(f"Branch {(current_star.ref_layer, current_star.ref_neuron)} is safe")
+                self.logger.info(f"Branch {current_star.fixed_neurons} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.search_params['timeout']:

@@ -476,7 +476,7 @@ def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dic
         compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
 
 
-def mask_transfomation_for_inactive_neurons(inactive_neurons: list, matrix, offset):
+def mask_transformation_for_inactive_neurons(inactive_neurons: list, matrix, offset):
     # The mask for all inactive neurons, to set the transformation of the corresponding neurons to 0
     mask = np.diag(
         [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(matrix.shape[0])]
@@ -501,7 +501,7 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
     mask = np.identity(star.center.shape[0])
     mask[index, index] = 0
 
-    new_basis_matrix, new_center = mask_transfomation_for_inactive_neurons(
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
         layer_inactive,
         np.matmul(mask, star.basis_matrix),
         np.matmul(mask, star.center)
@@ -531,7 +531,7 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
     index = target.neuron_idx
     layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
 
-    new_basis_matrix, new_center = mask_transfomation_for_inactive_neurons(
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
         layer_inactive,
         star.basis_matrix,
         star.center
