@@ -132,17 +132,30 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     return star
 
 
-def propagate_and_init_star_before_relu_layer(star, bounds, network, relu_layer_n=1):
+def propagate_and_init_star_before_relu_layer(star, bounds, network, from_layer_n=0):
     """
     Compute the initial star which will always start from the first layer and
     where we will use the bounds to determine the inactive nodes,
     so that we could set the transformation for them to 0.
     """
     #TODO: check if this method duplicates other methods
-    fc_layer = network.get_first_node()
-    for _ in range(relu_layer_n - 1):
-        fc_layer = network.get_next_node(fc_layer)
-    relu_layer = network.get_next_node(fc_layer)
+
+    layer = network.get_first_node()
+
+    # Skip the first from_layer_n layers
+    for _ in range(from_layer_n):
+        layer = network.get_next_node(layer)
+
+    # Find the first ReLU layer
+    relu_layer_n = from_layer_n
+    prev_layer = layer
+    while(not isinstance(layer, nodes.ReLUNode)):
+        prev_layer = layer
+        layer = network.get_next_node(layer)
+        relu_layer_n += 1
+
+    fc_layer = prev_layer
+    relu_layer = layer
 
     if isinstance(fc_layer, nodes.FullyConnectedNode) and isinstance(relu_layer, nodes.ReLUNode):
         layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier]
