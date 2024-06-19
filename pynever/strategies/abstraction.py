@@ -77,7 +77,8 @@ class Star:
     """
 
     def __init__(self, predicate_matrix: Tensor, predicate_bias: Tensor, center: Tensor = None,
-                 basis_matrix: Tensor = None, is_empty: bool = None, ref_layer: int = None, ref_neuron: int = 0,
+                 basis_matrix: Tensor = None, is_empty: bool = None,
+                 ref_layer: int = None, ref_neuron: int = 0, ref_unstable_neurons: set = None,
                  fixed_neurons: dict = dict()):
 
         predicate_dim_message = f"Error: the first dimension of the predicate_matrix ({predicate_matrix.shape[0]}) " \
@@ -109,8 +110,11 @@ class Star:
         # Reference layer of the star (where it comes from)
         self.ref_layer = ref_layer
 
-        # Starting number of predicates (used in search verification)
+        # Reference neuron of the star (last fixed one)
         self.ref_neuron = ref_neuron
+
+        # Unstable neurons in the reference layer
+        self.ref_unstable_neurons = ref_unstable_neurons
 
         # The neurons fixed so far
         self.fixed_neurons = fixed_neurons
