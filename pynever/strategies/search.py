@@ -498,25 +498,22 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
     index = target.neuron_idx
     layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
 
-    mask = np.identity(star.center.shape[0])
-    mask[index, index] = 0
-
     new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
-        layer_inactive,
-        np.matmul(mask, star.basis_matrix),
-        np.matmul(mask, star.center)
+        layer_inactive + [index], star.basis_matrix, star.center
     )
 
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
     fixed_so_far[target.to_pair()] = 0
 
-    # Lower star
-    lower_pred = np.vstack((star.predicate_matrix, star.basis_matrix[index, :]))
-    lower_bias = np.vstack((star.predicate_bias, -star.center[index]))
+    # Update the predicate to include the constraint that the target neuron y is inactive
+    lower_pred, lower_bias = add_to_predicate_active_constraint(star.predicate_matrix, star.predicate_bias,
+                                                                get_neuron_equation(star, index))
+
     lower_star = Star(lower_pred, lower_bias, new_center, new_basis_matrix,
                       ref_layer=target.layer_idx, ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
 
     return [(lower_star, bounds)]
+
 
 def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
 
@@ -531,22 +528,47 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
     index = target.neuron_idx
     layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
 
-    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
-        layer_inactive,
-        star.basis_matrix,
-        star.center
-    )
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(layer_inactive, star.basis_matrix, star.center)
 
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
     fixed_so_far[target.to_pair()] = 1
 
-    # Upper star
-    upper_pred = np.vstack((star.predicate_matrix, -star.basis_matrix[index, :]))
-    upper_bias = np.vstack((star.predicate_bias, star.center[index]))
+    # Update the predicate to include the constraint that the target neuron is active
+    upper_pred, upper_bias = add_to_predicate_active_constraint(star.predicate_matrix, star.predicate_bias,
+                                                                get_neuron_equation(star, index))
+
     upper_star = Star(upper_pred, upper_bias, new_center, new_basis_matrix,
                       ref_layer=target.layer_idx, ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
 
     return [(upper_star, bounds)]
+
+
+def get_neuron_equation(star, neuron_idx):
+    return star.basis_matrix[neuron_idx, :], star.center[neuron_idx]
+
+
+def add_to_predicate_active_constraint(predicate_matrix, predicate_bias, equation):
+    """
+    Update the predicate to include the constraint that the neuron defined by equation is active,
+    i.e., if the neuron y is defined as coeff * x + shift, where x are input neurons,
+    then coeff * x + shift >= 0, or, equivalently, - coeff * x <= shift
+    """
+    coeff, shift = equation
+    pred = np.vstack((predicate_matrix, -coeff))
+    bias = np.vstack((predicate_bias, shift))
+    return pred, bias
+
+
+def add_to_predicate_inactive_constraint(predicate_matrix, predicate_bias, equation):
+    """
+    Update the predicate to include the constraint that the neuron defined by equation is inactive,
+    i.e., if the neuron y is defined as coeff * x + shift, where x are input neurons,
+    then coeff * x + shift <= 0, or, equivalently, coeff * x <= -shift
+    """
+    coeff, shift = equation
+    pred = np.vstack((predicate_matrix, coeff))
+    bias = np.vstack((predicate_bias, -shift))
+    return pred, bias
 
 
 def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
