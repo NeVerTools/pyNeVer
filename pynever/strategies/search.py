@@ -546,8 +546,17 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
     fixed_so_far[target.to_pair()] = 0
 
-    ref_layer_unstable = copy.deepcopy(star.ref_unstable_neurons)
-    ref_layer_unstable.remove(index)
+    # Some of the neurons that were unstable at the beginning
+    # could have become stable due to prior splitting.
+    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds.
+    layer_unstable_per_bounds = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
+                                 if layer_n == target.layer_idx}
+    ref_layer_unstable = star.ref_unstable_neurons & layer_unstable_per_bounds
+
+    # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
+    ref_layer_unstable.discard(index)
+
+
 
     # Update the predicate to include the constraint that the target neuron y is inactive
     lower_pred, lower_bias = add_to_predicate_inactive_constraint(star.predicate_matrix, star.predicate_bias,
@@ -579,8 +588,15 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
     fixed_so_far[target.to_pair()] = 1
 
-    ref_layer_unstable = copy.deepcopy(star.ref_unstable_neurons)
-    ref_layer_unstable.remove(index)
+    # Some of the neurons that were unstable at the beginning
+    # could have become stable due to prior splitting.
+    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds.
+    layer_unstable_per_bounds = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
+                                 if layer_n == target.layer_idx}
+    ref_layer_unstable = star.ref_unstable_neurons & layer_unstable_per_bounds
+
+    # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
+    ref_layer_unstable.discard(index)
 
     # Update the predicate to include the constraint that the target neuron is active
     upper_pred, upper_bias = add_to_predicate_active_constraint(star.predicate_matrix, star.predicate_bias,
