@@ -729,12 +729,12 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     new_predicate_matrix = star.predicate_matrix
     new_predicate_bias = star.predicate_bias
 
-    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix)
+    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix, fixed_neurons=star.fixed_neurons)
 
     return {new_star}
 
 
-def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx: int = 0) -> Star:
+def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx: int = 0, layer_n: int = 1) -> Star:
     """
     Approximate abstract propagation for a ReLU layer starting from a
     specific index
@@ -759,6 +759,8 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     out_star = star
 
+    fixed_neurons = star.fixed_neurons
+
     for i in range(start_idx, dim):
         # i is the number of neurons to process
         stable = check_stable(i, bounds)
@@ -767,8 +769,13 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
         lb = bounds.get_lower()[i]
         ub = bounds.get_upper()[i]
 
+        # neuron i has been fixed before, so we don't need to
+        # approximate it (as it might still appear unstable according to the bounds
+        if (layer_n, i) in fixed_neurons:
+            continue
+
         # Positive stable
-        if stable == 1:
+        elif stable == 1:
             continue
 
         # Negative stable
@@ -778,7 +785,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
             new_pred = out_star.predicate_matrix
             new_bias = out_star.predicate_bias
 
-            out_star = Star(new_pred, new_bias, new_c, new_b)
+            out_star = Star(new_pred, new_bias, new_c, new_b, fixed_neurons=fixed_neurons)
 
         # Unstable
         else:
@@ -806,7 +813,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
             temp_vec[i, 0] = 1
             new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
 
-            out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
+            out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
 
     return out_star
 

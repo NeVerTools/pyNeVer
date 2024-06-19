@@ -119,9 +119,9 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
         elif isinstance(layer, nodes.ReLUNode):
             l_bounds = bounds['numeric_pre'][layer.identifier]
             if i == start_layer:
-                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=neuron_idx)
+                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=neuron_idx, layer_n=i)
             else:
-                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0])
+                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], layer_n=i)
 
         elif isinstance(layer, nodes.FlattenNode):
             continue
@@ -309,6 +309,18 @@ def get_target_sequential_optimized(star: Star, nn_bounds: dict, nn_list: list) 
     if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
         for layer_n, neuron_n in nn_bounds['stability_info'][StabilityInfo.UNSTABLE]:
             if not (layer_n, neuron_n) in star.fixed_neurons:
+
+
+                if layer_n != star.ref_layer:
+                    if check_reference_layer_complete(star, nn_bounds, nn_list):
+                        # the current layer is complete, so we need to move to the next layer
+                        # through the fully connected transformation
+                        #
+                        star = propagate_until_relu(star, nn_list, True)
+                        star.ref_neuron = 0
+                        next_layer = star.ref_layer
+                        new_target = RefinementTarget(next_layer, 0)
+
                 star.ref_layer = layer_n
                 star.ref_neuron = neuron_n
 
@@ -316,6 +328,15 @@ def get_target_sequential_optimized(star: Star, nn_bounds: dict, nn_list: list) 
 
     return None, star
 
+def check_reference_layer_complete(star: Star, nn_bounds, nn_list):
+    """
+    Check if all the neurons in the star reference layer are either stable or have been fixed
+    """
+    fixed_neurons_count = len(nn_bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[star.ref_layer].identifier]) + \
+                    len(nn_bounds['stability_info'][StabilityInfo.ACTIVE][nn_list[star.ref_layer].identifier]) + \
+                    len([neuron_n for (layer_n, neuron_n) in star.fixed_neurons.keys() if layer_n == star.ref_layer])
+
+    return fixed_neurons_count == star.center.shape[0]
 
 def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
     """
@@ -509,8 +530,8 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
     fixed_so_far[target.to_pair()] = 0
 
     # Update the predicate to include the constraint that the target neuron y is inactive
-    lower_pred, lower_bias = add_to_predicate_active_constraint(star.predicate_matrix, star.predicate_bias,
-                                                                get_neuron_equation(star, index))
+    lower_pred, lower_bias = add_to_predicate_inactive_constraint(star.predicate_matrix, star.predicate_bias,
+                                                                  get_neuron_equation(star, index))
 
     lower_star = Star(lower_pred, lower_bias, new_center, new_basis_matrix,
                       ref_layer=target.layer_idx, ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
@@ -531,7 +552,8 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
     index = target.neuron_idx
     layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][nn_list[target.layer_idx].identifier]
 
-    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(layer_inactive, star.basis_matrix, star.center)
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
+        layer_inactive, star.basis_matrix, star.center)
 
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
     fixed_so_far[target.to_pair()] = 1
