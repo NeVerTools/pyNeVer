@@ -64,7 +64,7 @@ class BoundsManager:
         numeric_preactivation_bounds = dict()
         numeric_postactivation_bounds = OrderedDict()
         stability_info = {StabilityInfo.INACTIVE: dict(), StabilityInfo.ACTIVE: dict(), StabilityInfo.UNSTABLE: list()}
-        overapproximation_area = list()
+        overapproximation_area = {'sorted': list(), 'map': dict()}
 
         ## Initialising the current equations
         input_size = input_hyper_rect.get_size()
@@ -102,7 +102,8 @@ class BoundsManager:
                     else:
                         stability_info[StabilityInfo.UNSTABLE].append((layer_n, neuron_n))
                         area = 0.5 * (u - l) * u
-                        overapproximation_area.append(((layer_n, neuron_n), area))
+                        overapproximation_area['sorted'].append(((layer_n, neuron_n), area))
+                        overapproximation_area['map'][(layer_n, neuron_n)] = area
 
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 # For instance, if the last layer is fully connected identity,
@@ -132,7 +133,7 @@ class BoundsManager:
             layer_n += 1
 
         # sort the overapproximation areas in increasing order by the area
-        overapproximation_area = sorted(overapproximation_area, key=lambda x: x[1])
+        overapproximation_area['sorted'] = sorted(overapproximation_area['sorted'], key=lambda x: x[1])
 
         # Put all the collected bounds in a dictionary and return it
         return {
@@ -152,14 +153,8 @@ class BoundsManager:
 
         """
 
-        try:
-            split_bounds = pre_branch_bounds['numeric_pre'][nn[target.layer_idx].identifier]
-
-        except KeyError:
-            self.logger.info('KeyError in branching, no update was performed.')
-            return pre_branch_bounds, pre_branch_bounds
-
-        self.logger.info(f"======================================================================\nTarget {target}")
+        self.logger.info(f"======================================================================\nTarget {target} "
+                         f"Overapprox area {pre_branch_bounds['overapproximation_area']['map'][target.to_pair()]}")
         input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
         self.logger.info(f"--- Input bounds\n{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
@@ -273,13 +268,13 @@ class BoundsManager:
 
         for x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
 
-        If sign is RefininBound.LowerBound, then we are constraining the equation to be positive.
-        If sign is RefininBound.UpperBound, we are constraining the equation to be negative.
+        If sign is RefiningBound.LowerBound, then we are constraining the equation to be positive.
+        If sign is RefiningBound.UpperBound, we are constraining the equation to be negative.
 
         In both cases, we can refine the bounds for x to the imposed solution space.
         We do it as follows.
 
-        Assuming sign is RefininBound.LowerBound, we have the following constraint c1 * x1 + ... + cn * xn + b >= 0
+        Assuming sign is RefiningBound.LowerBound, we have the following constraint c1 * x1 + ... + cn * xn + b >= 0
 
         Then
             x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
@@ -300,7 +295,7 @@ class BoundsManager:
         n_input_dimensions = len(coef)
         changes = True
 
-        # Continue updating the bounds until they stop improving
+        # Continue updating the bounds until they stop improving -> disabled at the moment
         while changes:
             changes = False
             for i in range(n_input_dimensions):
@@ -355,6 +350,9 @@ class BoundsManager:
                         changes = True
                     # else:
                     #     self.logger.info("i", i, "Bound not improved")
+
+            # does not seem that bounds can improve in the second iteration
+            changes = False
 
         return refined_input_bounds
 

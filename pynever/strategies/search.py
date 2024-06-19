@@ -117,11 +117,13 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
 
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
-            l_bounds = bounds['numeric_pre'][layer.identifier]
+            layer_bounds = bounds['numeric_pre'][layer.identifier]
+            # layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][layer.identifier]
+
             if i == start_layer:
-                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], start_idx=neuron_idx, layer_n=i)
+                star = abst.approx_relu_forward(star, layer_bounds, layer.in_dim[0], start_idx=neuron_idx, layer_n=i)
             else:
-                star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0], layer_n=i)
+                star = abst.approx_relu_forward(star, layer_bounds, layer.in_dim[0], layer_n=i)
 
         elif isinstance(layer, nodes.FlattenNode):
             continue
@@ -344,8 +346,44 @@ def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, network) \
     elif ref_heur == 'seq_optimized':
         return get_target_sequential_optimized(star, nn_bounds, network)
 
+    elif ref_heur == 'lowest_overapprox_in_curr_layer':
+        return get_target_lowest_overapprox_current_layer(star, nn_bounds, network)
+
     else:
         raise NotImplementedError('Only sequential refinement supported')
+
+
+def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, network) -> tuple[RefinementTarget | None, Star]:
+    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
+        if not star.ref_unstable_neurons is None and len(star.ref_unstable_neurons) == 0:
+            # the current layer is complete, so we need to move to the next layer
+            # through the fully connected transformation
+            star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, from_layer_n=star.ref_layer)
+
+            next_layers = sorted([layer_n for (layer_n, neuron_n) in nn_bounds['overapproximation_area']['map'].keys()
+                                  if layer_n > star.ref_layer])
+            if len(next_layers) == 0:
+                return None, star
+
+            star.ref_layer = next_layers[0]
+
+        else:
+            # stay in the current layer
+            pass
+
+        # select candidates from star.ref_layer
+        candidates_sorted = [((layer_n, neuron_n), area)
+                             for (layer_n, neuron_n), area in nn_bounds['overapproximation_area']['sorted']
+                             if layer_n == star.ref_layer]
+
+        # select candidate that has not been fixed yet
+        for (layer_n, neuron_n), _ in candidates_sorted:
+            if not (layer_n, neuron_n) in star.fixed_neurons:
+
+                star.ref_neuron = neuron_n
+                return RefinementTarget(layer_n, neuron_n), star
+
+    return None, star
 
 
 def get_target_sequential_optimized(star: Star, nn_bounds: dict, network) -> tuple[RefinementTarget | None, Star]:

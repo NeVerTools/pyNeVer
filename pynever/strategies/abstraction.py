@@ -761,63 +761,53 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     """
 
-    out_star = star
-
     fixed_neurons = star.fixed_neurons
 
-    for i in range(start_idx, dim):
-        # i is the number of neurons to process
-        stable = check_stable(i, bounds)
+    # Set the transformation for inactive neurons to 0
+    inactive = [i for i in range(start_idx, dim) if check_stable(i, bounds) == -1]
+    #
+    from pynever.strategies.search import mask_transformation_for_inactive_neurons
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(inactive, star.basis_matrix, star.center)
+    out_star = Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix,
+                    fixed_neurons=fixed_neurons)
+
+    # Compute the set of unstable neurons.
+    # Neuron i has been fixed before, so we don't need to
+    # approximate it (as it might still appear unstable according to the bounds)
+    unstable = [i for i in range(start_idx, dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
+
+    # Approximate unstable neurons
+    for neuron_n in unstable:
+        lb = bounds.get_lower()[neuron_n]
+        ub = bounds.get_upper()[neuron_n]
         mask = np.identity(out_star.center.shape[0])
-        mask[i, i] = 0
-        lb = bounds.get_lower()[i]
-        ub = bounds.get_upper()[i]
+        mask[neuron_n, neuron_n] = 0
 
-        # neuron i has been fixed before, so we don't need to
-        # approximate it (as it might still appear unstable according to the bounds
-        if (layer_n, i) in fixed_neurons:
-            continue
+        col_c_mat = out_star.predicate_matrix.shape[1]
+        row_c_mat = out_star.predicate_matrix.shape[0]
 
-        # Positive stable
-        elif stable == 1:
-            continue
+        c_mat_1 = np.zeros((1, col_c_mat + 1))
+        c_mat_1[0, col_c_mat] = -1
+        c_mat_2 = np.hstack((np.array([out_star.basis_matrix[neuron_n, :]]), -np.ones((1, 1))))
+        coef_3 = - ub / (ub - lb)
+        c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[neuron_n, :]]), np.ones((1, 1))))
+        c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
 
-        # Negative stable
-        elif stable == -1:
-            new_c = np.matmul(mask, out_star.center)
-            new_b = np.matmul(mask, out_star.basis_matrix)
-            new_pred = out_star.predicate_matrix
-            new_bias = out_star.predicate_bias
+        d_0 = out_star.predicate_bias
+        d_1 = np.zeros((1, 1))
+        d_2 = -out_star.center[neuron_n] * np.ones((1, 1))
+        d_3 = np.array([(ub / (ub - lb)) * (out_star.center[neuron_n] - lb)])
 
-            out_star = Star(new_pred, new_bias, new_c, new_b, fixed_neurons=fixed_neurons)
+        new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
+        new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
 
-        # Unstable
-        else:
-            col_c_mat = out_star.predicate_matrix.shape[1]
-            row_c_mat = out_star.predicate_matrix.shape[0]
+        new_center = np.matmul(mask, out_star.center)
+        temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
+        temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
+        temp_vec[neuron_n, 0] = 1
+        new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
 
-            c_mat_1 = np.zeros((1, col_c_mat + 1))
-            c_mat_1[0, col_c_mat] = -1
-            c_mat_2 = np.hstack((np.array([out_star.basis_matrix[i, :]]), -np.ones((1, 1))))
-            coef_3 = - ub / (ub - lb)
-            c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[i, :]]), np.ones((1, 1))))
-            c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
-
-            d_0 = out_star.predicate_bias
-            d_1 = np.zeros((1, 1))
-            d_2 = -out_star.center[i] * np.ones((1, 1))
-            d_3 = np.array([(ub / (ub - lb)) * (out_star.center[i] - lb)])
-
-            new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-            new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
-
-            new_center = np.matmul(mask, out_star.center)
-            temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
-            temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
-            temp_vec[i, 0] = 1
-            new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-
-            out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
+        out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
 
     return out_star
 
