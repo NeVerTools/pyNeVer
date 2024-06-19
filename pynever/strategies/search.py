@@ -123,6 +123,9 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
             else:
                 star = abst.approx_relu_forward(star, l_bounds, layer.in_dim[0])
 
+        elif isinstance(layer, nodes.FlattenNode):
+            continue
+
         else:
             raise NotImplementedError('Unsupported layer')
 
