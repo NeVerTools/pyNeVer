@@ -8,6 +8,7 @@ import pynever.strategies.bp.bounds_manager as bm
 import pynever.strategies.verification.search as sf
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star
+from pynever.strategies.bp.bounds import HyperRectangleBounds
 from pynever.strategies.verification import LOGGER
 from pynever.strategies.verification.parameters import NeverVerificationParameters, SearchVerificationParameters, \
     PropagationStrategy
@@ -121,8 +122,7 @@ class NeverVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         # TODO remove assert in bound propagation
         try:
-            bound_manager = bm.BoundsManager()
-            _, _, self.layers_bounds = bound_manager.compute_bounds_from_property(network, prop)
+            _, _, self.layers_bounds = bm.BoundsManager.compute_bounds_from_property(network, prop)
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}
@@ -203,7 +203,8 @@ class SearchVerification(VerificationStrategy):
         self.parameters = parameters
         self.logger = LOGGER
 
-    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty):
+    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
+            -> tuple[Star, HyperRectangleBounds, dict]:
         """
         Initialize the search algorithm and compute the starting values for
         the bounds, the star and the target
@@ -214,6 +215,23 @@ class SearchVerification(VerificationStrategy):
         in_star.ref_layer = 0
 
         return in_star, bm.BoundsManager.get_input_bounds(prop), sf.get_bounds(network, prop, self.parameters.bounds)
+
+    def compute_intersection(self, star: Star, prop: NeverProperty, network: networks.SequentialNetwork,
+                             input_bounds: HyperRectangleBounds, nn_bounds: dict) -> tuple[bool, list[Star]]:
+        """
+
+        """
+
+        if self.parameters.propagation == PropagationStrategy.STAR_LP:
+            intersects, unsafe_stars = sf.intersect_star_lp(star, prop, network, nn_bounds)
+
+        elif self.parameters.propagation == PropagationStrategy.BOUNDS:
+            intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
+
+        else:
+            raise NotImplementedError('Intersection strategy not supported')
+
+        return intersects, unsafe_stars
 
     def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
         """
@@ -236,6 +254,7 @@ class SearchVerification(VerificationStrategy):
 
         if isinstance(network, networks.SequentialNetwork):
             in_star, input_bounds, nn_bounds = self.init_search(network, prop)
+
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
@@ -247,34 +266,30 @@ class SearchVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
-        # Flag to update bounds
-        update = True
-
         while len(frontier) > 0 and not stop_flag:
             current_star, nn_bounds = frontier.pop()
-            prev_layer = current_star.ref_layer
+            # prev_layer = current_star.ref_layer
 
-            if self.parameters.propagation == PropagationStrategy.STAR_LP:
-                intersects, unsafe_stars = sf.intersect_star_lp(current_star, network, nn_bounds, prop)
-            elif self.parameters.propagation == PropagationStrategy.BOUNDS:
-                intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
-            else:
-                raise NotImplementedError('Intersection strategy not supported')
+            intersects, unsafe_stars = self.compute_intersection(current_star, prop, network, input_bounds, nn_bounds)
 
             if intersects:
                 # If new target is None there is no more refinement to do
                 target, current_star = sf.get_next_target(self.parameters.heuristic, current_star, network)
 
+                # Always update the bounds
+                update = True
+
                 # Update bounds once per layer
-                if current_star.ref_layer > prev_layer:
-                    update = True
-                else:
-                    update = False
+                # if current_star.ref_layer > prev_layer:
+                #     update = True
+                # else:
+                #     update = False
 
                 if target is None:
                     # Nothing else to split, or
                     # Found a counterexample
                     cex = sf.get_counterexample(unsafe_stars, prop)
+                    self.logger.info('Result: unsafe\nExecution time: {:.5f} s'.format(timer))
                     return False, cex
 
                 else:
@@ -285,7 +300,8 @@ class SearchVerification(VerificationStrategy):
                     )
 
             else:
-                """This branch is safe, no refinement needed"""
+                # This branch is safe, no refinement needed
+                self.logger.info(f"Branch {(current_star.ref_layer, current_star.ref_neuron)} is safe")
 
             timer += (time.perf_counter() - start_time)
             if timer > self.parameters.timeout:
@@ -294,6 +310,8 @@ class SearchVerification(VerificationStrategy):
                 start_time = time.perf_counter()
 
         if stop_flag:
+            self.logger.info('Result: timeout\nExecution time: {:.5f} s'.format(timer))
             return False, None
-        else:
-            return True, None
+
+        self.logger.info('Result: safe\nExecution time: {:.5f} s'.format(timer))
+        return True, None

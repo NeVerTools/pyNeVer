@@ -1,3 +1,6 @@
+import copy
+
+
 class AbstractBounds:
     def __init__(self, lower, upper):
         self.lower = lower
@@ -18,7 +21,13 @@ class HyperRectangleBounds(AbstractBounds):
         self.size = len(lower)
 
     def __repr__(self):
-        return "Input Bounds: " + ', '.join(map(str, zip(self.lower, self.upper)))
+        # return "Input Bounds: " + ', '.join(map(str, zip(self.lower, self.upper)))
+
+        return ', '.join(["({:.5f}, {:.5f})".format(self.lower[i], self.upper[i])
+                          for i in range(self.size)])
+
+    def clone(self):
+        return HyperRectangleBounds(copy.deepcopy(self.lower), copy.deepcopy(self.upper))
 
     def get_size(self):
         return self.size
@@ -51,12 +60,11 @@ class SymbolicLinearBounds(AbstractBounds):
         return self.lower.compute_min_values(input_bounds)
 
     def get_all_bounds(self, input_bounds):
-        return self.lower.compute_min_values(input_bounds),\
-               self.lower.compute_max_values(input_bounds),\
-               self.upper.compute_min_values(input_bounds),\
-               self.upper.compute_max_values(input_bounds)
+        return self.lower.compute_min_values(input_bounds), \
+            self.lower.compute_max_values(input_bounds), \
+            self.upper.compute_min_values(input_bounds), \
+            self.upper.compute_max_values(input_bounds)
 
     def to_hyper_rectangle_bounds(self, input_bounds):
         return HyperRectangleBounds(self.lower.compute_min_values(input_bounds),
                                     self.upper.compute_max_values(input_bounds))
-

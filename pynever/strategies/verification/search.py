@@ -5,7 +5,6 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import Star
 from pynever.strategies.bp.bounds import AbstractBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
 from pynever.strategies.verification.parameters import NeuronState, BoundsBackend, RefinementStrategy
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
@@ -270,64 +269,26 @@ def check_intersection(star: Star, prop: NeverProperty) -> tuple[bool, list[Star
     return intersects, unsafe_stars
 
 
-def intersect_star_lp(current_star, network, nn_bounds, prop):
-    # Compute the output abstract star from current_star/bounds
-    out_star = abs_propagation(current_star, nn_bounds, network)
+def intersect_star_lp(star: Star, prop: NeverProperty, network: SequentialNetwork, nn_bounds: dict) \
+        -> tuple[bool, list[Star]]:
+    """
+    This method computes the intersection between a star and one or
+    more hyper planes specified by a property using an LP
 
-    # Check intersection using a LP
+    """
+
+    # Compute the output abstract star from star/bounds
+    out_star = abs_propagation(star, nn_bounds, network)
+
+    # Check intersection using an LP
     intersects, unsafe_stars = check_intersection(out_star, prop)
 
     return intersects, unsafe_stars
 
 
 def intersect_symb_lp(input_bounds, nn_bounds, prop):
-    nn_bounds = nn_bounds['symbolic']
-
-    out_id = list(nn_bounds.keys())[-1]
-    out_neurons = nn_bounds[out_id].lower.matrix.shape[0]
-
-    basis = tensors.identity(out_neurons)
-    center = tensors.zeros((out_neurons, 1))
-
-    predicate_matrix = tensors.zeros((2 * out_neurons, out_neurons))
-    predicate_bias = tensors.zeros((2 * out_neurons, 1))
-
-    # Compute positive and negative weights for the lower bounds
-    lower_weights_plus = get_positive_part(nn_bounds[out_id].lower.matrix)
-    lower_weights_minus = get_negative_part(nn_bounds[out_id].lower.matrix)
-
-    # Compute positive and negative weights for the upper bounds
-    upper_weights_plus = get_positive_part(nn_bounds[out_id].upper.matrix)
-    upper_weights_minus = get_negative_part(nn_bounds[out_id].upper.matrix)
-
-    # Get input lower and upper bounds
-    input_lbs = input_bounds.lower
-    input_ubs = input_bounds.upper
-
-    for i in range(center.shape[0]):
-        # For each i add two rows
-        lb_row_idx = 2 * i
-        ub_row_idx = 2 * i + 1
-
-        # Structure Cx <= d
-        predicate_matrix[lb_row_idx] = nn_bounds[out_id].lower.matrix[i]
-        predicate_matrix[ub_row_idx] = nn_bounds[out_id].upper.matrix[i]
-
-        predicate_bias[lb_row_idx] = (
-                -lower_weights_plus[i].dot(input_lbs) -
-                lower_weights_minus[i].dot(input_ubs) -
-                nn_bounds[out_id].lower.offset[i]
-        )
-        predicate_bias[ub_row_idx] = (
-                upper_weights_plus[i].dot(input_ubs) +
-                upper_weights_minus[i].dot(input_lbs) +
-                nn_bounds[out_id].upper.offset[i]
-        )
-
-    output = Star(predicate_matrix, predicate_bias, center, basis)
-    intersects, unsafe_stars = check_intersection(output, prop)
-
-    return intersects, unsafe_stars
+    # TODO
+    raise NotImplementedError
 
 
 def get_next_target(heuristic: RefinementStrategy, star: Star, network: SequentialNetwork) \
@@ -340,6 +301,7 @@ def get_next_target(heuristic: RefinementStrategy, star: Star, network: Sequenti
     match heuristic:
         case RefinementStrategy.SEQUENTIAL:
             return get_target_sequential(star, network)
+
         case _:
             raise NotImplementedError('Only sequential refinement supported')
 
@@ -398,27 +360,8 @@ def get_target_sequential(star: Star, network: SequentialNetwork) -> tuple[Refin
     return new_target, star
 
 
-def check_stable(var_index: int, bounds: AbstractBounds) -> NeuronState:
-    precision_guard = 10e-15
-
-    lb = bounds.get_lower()[var_index]
-    ub = bounds.get_upper()[var_index]
-
-    # Positive stable
-    if lb >= precision_guard:
-        return NeuronState.POSITIVE_STABLE
-
-    # Negative stable
-    elif ub <= -precision_guard:
-        return NeuronState.NEGATIVE_STABLE
-
-    # Unstable
-    else:
-        return NeuronState.UNSTABLE
-
-
-def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork, bounds_dict: dict, update_bounds: bool) \
-        -> list[tuple[Star, dict]]:
+def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork,
+               bounds_dict: dict, update_bounds: bool) -> list[tuple[Star, dict]]:
     """
     For a star we only need the var_index to target a specific neuron.
     The index relative to this neuron is determined by the heuristic that
@@ -454,7 +397,7 @@ def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork,
     # Loop to filter positive stable neurons
     while index < star.n_neurons:
 
-        status = check_stable(index, cur_bounds)
+        status = BoundsManager.check_stable(index, cur_bounds)
 
         match status:
 
@@ -500,7 +443,7 @@ def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork,
     return [(star, bounds_dict)]
 
 
-def get_counterexample(unsafe_stars: list, prop: 'NeverProperty') -> Tensor:
+def get_counterexample(unsafe_stars: list, prop: NeverProperty) -> Tensor:
     """
     This function is used to extract a counterexample from a star.
     The counterexample that we are interested into is the witness, i.e.,
