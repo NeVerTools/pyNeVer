@@ -7,7 +7,7 @@ import numpy as np
 import pynever.nodes as nodes
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
-from pynever.strategies.bp.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds
 from pynever.strategies.verification.parameters import VerificationParameters
 
 

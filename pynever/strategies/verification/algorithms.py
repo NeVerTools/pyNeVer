@@ -4,11 +4,11 @@ import logging
 import time
 
 import pynever.networks as networks
-import pynever.strategies.bp.bounds_manager as bm
+import pynever.strategies.bounds_propagation.bounds_manager as bm
 import pynever.strategies.verification.search as sf
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star
-from pynever.strategies.bp.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.verification import LOGGER
 from pynever.strategies.verification.parameters import NeverVerificationParameters, SearchVerificationParameters, \
     PropagationStrategy
@@ -58,24 +58,6 @@ class NeverVerification(VerificationStrategy):
     Attributes
     ----------
 
-    heuristic : str
-        Heuristic used to decide the refinement level of the ReLU abstraction.
-        At present can be only one of the following:
-        - given_flags: the neuron to be refined are selected referring to the list given in params
-        - best_n_neurons: for each star the best n neuron to refine are selected based on the loss of precision
-          the abstraction would incur using the coarse over_approximation.
-        - overapprox: no neuron refinement.
-        - complete: full neuron refinement.
-        - mixed: equal number of neuron refined in each ReLU Layer.
-
-    params : List
-        Parameters for the heuristic of interest.
-        If the heuristic is given_flags then params is a list whose first element is the list of refinement flags.
-        If the heuristic is best_n_neurons then params is a list whose first element is the number of neurons to refine.
-
-    refinement_level : int
-        Refinement level for the sigmoid abstraction.
-
     Methods
     ----------
     verify(NeuralNetwork, NeverProperty)
@@ -122,7 +104,9 @@ class NeverVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         # TODO remove assert in bound propagation
         try:
-            _, _, self.layers_bounds = bm.BoundsManager.compute_bounds_from_property(network, prop)
+            manager = bm.BoundsManager()
+            _, _, self.layers_bounds = manager.compute_bounds_from_property(network, prop)
+
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}

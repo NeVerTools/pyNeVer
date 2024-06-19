@@ -3,11 +3,11 @@ from enum import Enum
 
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.bp import LOGGER
-from pynever.strategies.bp.bounds import SymbolicLinearBounds, AbstractBounds
-from pynever.strategies.bp.linearfunctions import LinearFunctions
-from pynever.strategies.bp.utils.property_converter import *
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, \
+from pynever.strategies.bounds_propagation import LOGGER
+from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, AbstractBounds
+from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.bounds_propagation.utils.property_converter import *
+from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.verification.parameters import NeuronState
 from pynever.strategies.verification.properties import NeverProperty

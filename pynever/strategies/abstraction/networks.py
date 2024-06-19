@@ -6,7 +6,7 @@ import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.bp.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds
 from pynever.strategies.verification.parameters import NeverVerificationParameters
 
 from pynever.strategies.abstraction import LOGGER_LAYER

@@ -3,8 +3,8 @@ import copy
 from pynever import nodes, tensors
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import Star
-from pynever.strategies.bp.bounds import AbstractBounds
-from pynever.strategies.bp.bounds_manager import BoundsManager
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.verification.parameters import NeuronState, BoundsBackend, RefinementStrategy
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
@@ -104,7 +104,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     for i in range(start_idx, dim):
 
         # Loop all the neurons to process
-        status = check_stable(i, bounds)
+        status = BoundsManager.check_stable(i, bounds)
 
         match status:
             case NeuronState.POSITIVE_STABLE:

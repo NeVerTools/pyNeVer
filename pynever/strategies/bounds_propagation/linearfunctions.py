@@ -1,4 +1,4 @@
-from pynever.strategies.bp.utils.utils import *
+from pynever.strategies.bounds_propagation.utils.utils import *
 
 
 class LinearFunctions:

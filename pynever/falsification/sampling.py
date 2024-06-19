@@ -1,6 +1,6 @@
 from pynever.networks import SequentialNetwork
 from pynever.strategies import conversion, smt_reading, verification
-from pynever.strategies.bp.utils.property_converter import PropertyFormatConverter
+from pynever.strategies.bounds_propagation.utils.property_converter import PropertyFormatConverter
 
 import numpy as np
 import torch
