@@ -132,7 +132,7 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     return star
 
 
-def propagate_and_init_star_before_relu_layer(star, bounds, network, from_layer_n=0):
+def propagate_and_init_star_before_relu_layer(star, bounds, network, from_layer_n=-1):
     """
     Compute the initial star which will always start from the first layer and
     where we will use the bounds to determine the inactive nodes,
@@ -142,12 +142,12 @@ def propagate_and_init_star_before_relu_layer(star, bounds, network, from_layer_
 
     layer = network.get_first_node()
 
-    # Skip the first from_layer_n layers
-    for _ in range(from_layer_n):
+    # Skip the first from_layer_n + 1 layers
+    for _ in range(from_layer_n + 1):
         layer = network.get_next_node(layer)
 
     # Find the first ReLU layer
-    relu_layer_n = from_layer_n
+    relu_layer_n = from_layer_n + 1
     prev_layer = layer
     while(not isinstance(layer, nodes.ReLUNode)):
         prev_layer = layer
@@ -359,7 +359,7 @@ def get_target_sequential_optimized(star: Star, nn_bounds: dict, network) -> tup
                         # the current layer is complete, so we need to move to the next layer
                         # through the fully connected transformation
                         #
-                        star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, layer_n)
+                        star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, from_layer_n=star.ref_layer)
 
                 star.ref_neuron = neuron_n
 
