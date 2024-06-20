@@ -766,29 +766,49 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     #  In particular, need to check that fixed_neurons is properly passed and updated
     fixed_neurons = star.fixed_neurons
 
-    # Set the transformation for inactive neurons to 0
+    # We will set the transformation for inactive neurons to 0
     inactive = [i for i in range(dim) if check_stable(i, bounds) == -1]
-    #
-    from pynever.strategies.search import mask_transformation_for_inactive_neurons
-    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(inactive, star.basis_matrix, star.center)
-    out_star = Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix,
-                    fixed_neurons=fixed_neurons)
 
     # Compute the set of unstable neurons.
     # Neuron i has been fixed before, so we don't need to
     # approximate it (as it might still appear unstable according to the bounds)
     unstable = [i for i in range(dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
 
-    # Approximate unstable neurons
+    # Return if there are no unstable neurons
+    if len(unstable) == 0:
+        if len(inactive) > 0:
+            from pynever.strategies.search import mask_transformation_for_inactive_neurons
+            new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
+                inactive, star.basis_matrix, star.center)
+            return Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
+        return star
+
+
+    ## The rest is mostly about approximating unstable neurons
     unstable_count = len(unstable)
     lower_bounds = [bounds.get_lower()[neuron_n] for neuron_n in unstable]
     upper_bounds = [bounds.get_upper()[neuron_n] for neuron_n in unstable]
 
+    ### =================== First, update the predicate ===================
+    ## For every unstable neuron y we introduce a fresh variable z and
+    # relate it to the input variables x via 3 constraints.
+    #
+    # (1)  z >= 0
+    # (2)  z >= y = eq(x)                      // eq(x) is the equation that defines y from x,
+    #                                          // it is stored in the basis of the star
+    # (3)  z <= relu_slope * y + relu_shift
+
+    ## For every unstable neuron we add 3 rows to lower_left_matrix
+    # that correspond to the original x variables
+    #
+    # (1) zeros
+    # (2) equation for the neuron in the basis matrix
+    # (3) the upper triangular relaxation, that is     ub / (ub - lb) * equation
     def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub, star):
-        first_row = np.zeros(star.center.shape[0])
         from pynever.strategies.search import get_neuron_equation
+        first_row = np.zeros(star.predicate_matrix.shape[1])
         second_row = get_neuron_equation(star, neuron_n)[0]
-        third_row = ub * (ub - lb) * get_neuron_equation(star, neuron_n)[0]
+        third_row = ub / (ub - lb) * get_neuron_equation(star, neuron_n)[0]
         return [first_row, second_row, third_row]
 
     lower_left_matrix = [
@@ -797,6 +817,8 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     ]
     lower_left_matrix = np.array(lower_left_matrix).reshape(3 * unstable_count, -1)
 
+    ## For every unstable neuron we add a column [-1, -1, 1]^T to lower_right_matrix
+    # that corresponds to the fresh variable z
     new_dimension_column = [[-1], [-1], [1]]
     zero_column = [[0], [0], [0]]
     lower_right_matrix = [
@@ -805,59 +827,74 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     ]
     lower_right_matrix = np.array(lower_right_matrix).reshape(unstable_count, -1).transpose()
 
+    ## The new predicate matrix is made of 4 blocks, [[1, 2], [3, 4]], where
+    # 1 is the original predicate matrix, 2 is zeros,
+    # 3 is lower_left_matrix and 4 is lower_right_matrix
     new_pred_matrix = np.block([
-        [out_star.predicate_matrix, np.zeros((out_star.predicate_matrix.shape[0], unstable_count))],
+        [star.predicate_matrix, np.zeros((star.predicate_matrix.shape[0], unstable_count))],
         [lower_left_matrix, lower_right_matrix]
     ])
 
-    # Init the bias with the original one
-    new_pred_bias = out_star.predicate_bias
+    ## The new predicate bias adds the shifts from the above constraints.
+    # So for each unstable neuron we append a vector
+    #           [0, -c, relu_slope * (c - lower_bound)]
+    additional_bias = [[[0],
+                        -star.center[unstable[i]],
+                        (upper_bounds[i] / (upper_bounds[i] - lower_bounds[i])) * (star.center[unstable[i]] - lower_bounds[i])
+                       ] for i in range(unstable_count)]
+    additional_bias = np.array(additional_bias).reshape(-1, 1)
+    # Stack the new values
+    new_pred_bias = np.vstack([star.predicate_bias, additional_bias])
 
-    # Then stack the new values
+    ### =================== Second, update the basis ===================
+    ## The new basis sets to 0 all unstable neurons and adds a 1 for the fresh variable z
+    # Set the transformation for inactive and unstable neurons to 0
+    from pynever.strategies.search import mask_transformation_for_inactive_neurons
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
+        inactive + unstable, star.basis_matrix, star.center)
+
+    # Add a 1 for each fresh variable z
+    basis_height = star.basis_matrix.shape[0]
+    additional_basis_columns = np.zeros((basis_height, unstable_count))
     for i in range(unstable_count):
-        lb = lower_bounds[i]
-        ub = upper_bounds[i]
-        c = out_star.center[unstable[i]]
-        new_pred_bias = np.vstack([
-            new_pred_bias,
-            np.array([0]),
-            np.array([-c]),
-            np.array([(ub / (ub - lb)) * (c - lb)])
-        ])
+        additional_basis_columns[unstable[i]][i] = 1
 
-        # for neuron_n in unstable:
-        #     lb = bounds.get_lower()[neuron_n]
-        #     ub = bounds.get_upper()[neuron_n]
-        #     mask = np.identity(out_star.center.shape[0])
-        #     mask[neuron_n, neuron_n] = 0
-        #
-        #     col_c_mat = out_star.predicate_matrix.shape[1]
-        #     row_c_mat = out_star.predicate_matrix.shape[0]
-        #
-        #     c_mat_1 = np.zeros((1, col_c_mat + 1))
-        #     c_mat_1[0, col_c_mat] = -1
-        #     c_mat_2 = np.hstack((np.array([out_star.basis_matrix[neuron_n, :]]), -np.ones((1, 1))))
-        #     coef_3 = - ub / (ub - lb)
-        #     c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[neuron_n, :]]), np.ones((1, 1))))
-        #     c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
-        #
-        #     d_0 = out_star.predicate_bias
-        #     d_1 = np.zeros((1, 1))
-        #     d_2 = -out_star.center[neuron_n] * np.ones((1, 1))
-        #     d_3 = np.array([(ub / (ub - lb)) * (out_star.center[neuron_n] - lb)])
-        #
-        #     new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-        #     new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
-        #
-        #     new_center = np.matmul(mask, out_star.center)
-        #     temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
-        #     temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
-        #     temp_vec[neuron_n, 0] = 1
-        #     new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-        #
-        #     out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
+    new_basis_matrix = np.hstack((new_basis_matrix, additional_basis_columns))
 
     return Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
+
+def old_abstract_propagation():
+    for neuron_n in unstable:
+        lb = bounds.get_lower()[neuron_n]
+        ub = bounds.get_upper()[neuron_n]
+        mask = np.identity(out_star.center.shape[0])
+        mask[neuron_n, neuron_n] = 0
+
+        col_c_mat = out_star.predicate_matrix.shape[1]
+        row_c_mat = out_star.predicate_matrix.shape[0]
+
+        c_mat_1 = np.zeros((1, col_c_mat + 1))
+        c_mat_1[0, col_c_mat] = -1
+        c_mat_2 = np.hstack((np.array([out_star.basis_matrix[neuron_n, :]]), -np.ones((1, 1))))
+        coef_3 = - ub / (ub - lb)
+        c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[neuron_n, :]]), np.ones((1, 1))))
+        c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
+
+        d_0 = out_star.predicate_bias
+        d_1 = np.zeros((1, 1))
+        d_2 = -out_star.center[neuron_n] * np.ones((1, 1))
+        d_3 = np.array([(ub / (ub - lb)) * (out_star.center[neuron_n] - lb)])
+
+        new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
+        new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
+
+        new_center = np.matmul(mask, out_star.center)
+        temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
+        temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
+        temp_vec[neuron_n, 0] = 1
+        new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
+
+        out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
 
 
 def sig(x: float) -> float:
