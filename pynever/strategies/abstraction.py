@@ -733,7 +733,8 @@ def single_fc_forward(star: Star, weight: Tensor, bias: Tensor) -> Set[Star]:
     new_predicate_matrix = star.predicate_matrix
     new_predicate_bias = star.predicate_bias
 
-    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix, fixed_neurons=star.fixed_neurons)
+    new_star = Star(new_predicate_matrix, new_predicate_bias, new_center, new_basis_matrix,
+                    fixed_neurons=star.fixed_neurons)
 
     return {new_star}
 
@@ -787,7 +788,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
         first_row = np.zeros(star.center.shape[0])
         from pynever.strategies.search import get_neuron_equation
         second_row = get_neuron_equation(star, neuron_n)[0]
-        third_row = ub * (ub-lb) * get_neuron_equation(star, neuron_n)[0]
+        third_row = ub * (ub - lb) * get_neuron_equation(star, neuron_n)[0]
         return [first_row, second_row, third_row]
 
     lower_left_matrix = [
@@ -799,7 +800,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     new_dimension_column = [[-1], [-1], [1]]
     zero_column = [[0], [0], [0]]
     lower_right_matrix = [
-        [zero_column for _ in range(i)] + [new_dimension_column] + [zero_column for _ in range(i+1, unstable_count)]
+        [zero_column for _ in range(i)] + [new_dimension_column] + [zero_column for _ in range(i + 1, unstable_count)]
         for i in range(unstable_count)
     ]
     lower_right_matrix = np.array(lower_right_matrix).reshape(unstable_count, -1).transpose()
@@ -809,39 +810,54 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
         [lower_left_matrix, lower_right_matrix]
     ])
 
-    for neuron_n in unstable:
-        lb = bounds.get_lower()[neuron_n]
-        ub = bounds.get_upper()[neuron_n]
-        mask = np.identity(out_star.center.shape[0])
-        mask[neuron_n, neuron_n] = 0
+    # Init the bias with the original one
+    new_pred_bias = out_star.predicate_bias
 
-        col_c_mat = out_star.predicate_matrix.shape[1]
-        row_c_mat = out_star.predicate_matrix.shape[0]
+    # Then stack the new values
+    for i in range(unstable_count):
+        lb = lower_bounds[i]
+        ub = upper_bounds[i]
+        c = out_star.center[unstable[i]]
+        new_pred_bias = np.vstack([
+            new_pred_bias,
+            np.array([0]),
+            np.array([-c]),
+            np.array([(ub / (ub - lb)) * (c - lb)])
+        ])
 
-        c_mat_1 = np.zeros((1, col_c_mat + 1))
-        c_mat_1[0, col_c_mat] = -1
-        c_mat_2 = np.hstack((np.array([out_star.basis_matrix[neuron_n, :]]), -np.ones((1, 1))))
-        coef_3 = - ub / (ub - lb)
-        c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[neuron_n, :]]), np.ones((1, 1))))
-        c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
+        # for neuron_n in unstable:
+        #     lb = bounds.get_lower()[neuron_n]
+        #     ub = bounds.get_upper()[neuron_n]
+        #     mask = np.identity(out_star.center.shape[0])
+        #     mask[neuron_n, neuron_n] = 0
+        #
+        #     col_c_mat = out_star.predicate_matrix.shape[1]
+        #     row_c_mat = out_star.predicate_matrix.shape[0]
+        #
+        #     c_mat_1 = np.zeros((1, col_c_mat + 1))
+        #     c_mat_1[0, col_c_mat] = -1
+        #     c_mat_2 = np.hstack((np.array([out_star.basis_matrix[neuron_n, :]]), -np.ones((1, 1))))
+        #     coef_3 = - ub / (ub - lb)
+        #     c_mat_3 = np.hstack((np.array([coef_3 * out_star.basis_matrix[neuron_n, :]]), np.ones((1, 1))))
+        #     c_mat_0 = np.hstack((out_star.predicate_matrix, np.zeros((row_c_mat, 1))))
+        #
+        #     d_0 = out_star.predicate_bias
+        #     d_1 = np.zeros((1, 1))
+        #     d_2 = -out_star.center[neuron_n] * np.ones((1, 1))
+        #     d_3 = np.array([(ub / (ub - lb)) * (out_star.center[neuron_n] - lb)])
+        #
+        #     new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
+        #     new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
+        #
+        #     new_center = np.matmul(mask, out_star.center)
+        #     temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
+        #     temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
+        #     temp_vec[neuron_n, 0] = 1
+        #     new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
+        #
+        #     out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
 
-        d_0 = out_star.predicate_bias
-        d_1 = np.zeros((1, 1))
-        d_2 = -out_star.center[neuron_n] * np.ones((1, 1))
-        d_3 = np.array([(ub / (ub - lb)) * (out_star.center[neuron_n] - lb)])
-
-        new_pred_mat = np.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-        new_pred_bias = np.vstack((d_0, d_1, d_2, d_3))
-
-        new_center = np.matmul(mask, out_star.center)
-        temp_basis_mat = np.matmul(mask, out_star.basis_matrix)
-        temp_vec = np.zeros((out_star.basis_matrix.shape[0], 1))
-        temp_vec[neuron_n, 0] = 1
-        new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
-
-        out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
-
-    return out_star
+    return Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
 
 
 def sig(x: float) -> float:
@@ -882,7 +898,8 @@ def area_sig_triangle(lb: float, ub: float) -> float:
     return base * height / 2.0
 
 
-def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float, tolerance: float) -> \
+def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float,
+                             tolerance: float) -> \
         Set[Star]:
     assert approx_level >= 0
 
@@ -1031,8 +1048,10 @@ def single_concat_forward(first_star: Star, second_star: Star) -> Set[Star]:
 
     new_basis_matrix = np.zeros((first_star.basis_matrix.shape[0] + second_star.basis_matrix.shape[0],
                                  first_star.basis_matrix.shape[1] + second_star.basis_matrix.shape[1]))
-    new_basis_matrix[0:first_star.basis_matrix.shape[0], 0:first_star.basis_matrix.shape[1]] = first_star.basis_matrix
-    new_basis_matrix[first_star.basis_matrix.shape[0]:, first_star.basis_matrix.shape[1]:] = second_star.basis_matrix
+    new_basis_matrix[0:first_star.basis_matrix.shape[0],
+    0:first_star.basis_matrix.shape[1]] = first_star.basis_matrix
+    new_basis_matrix[first_star.basis_matrix.shape[0]:,
+    first_star.basis_matrix.shape[1]:] = second_star.basis_matrix
 
     new_center = np.vstack((first_star.center, second_star.center))
 
@@ -1314,7 +1333,7 @@ class AbsFullyConnectedNode(AbsSingleInputLayerNode):
         ----------
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
-            
+
         """
 
         if isinstance(abs_input, StarSet):
@@ -1849,12 +1868,14 @@ class AbsNeuralNetwork(abc.ABC):
 
     def get_roots(self) -> List[AbsLayerNode]:
 
-        root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if not self.has_parents(root_node)]
+        root_nodes = [root_node for root_node_id, root_node in self.nodes.items() if
+                      not self.has_parents(root_node)]
         return root_nodes
 
     def get_leaves(self) -> List[AbsLayerNode]:
 
-        leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if not self.has_children(leaf_node)]
+        leaf_nodes = [leaf_node for leaf_node_id, leaf_node in self.nodes.items() if
+                      not self.has_children(leaf_node)]
         return leaf_nodes
 
     def remove_node(self, node: AbsLayerNode):
@@ -2150,7 +2171,8 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
             raise Exception("The IDs of the Abstract Elements do not corresponds to the expected Input IDs!")
 
         if set(abs_input_ids) != set(self.input_edges.keys()):
-            raise Exception("The IDs of the Abstract Elements do not corresponds to the Keys of the Input Edges Dict!")
+            raise Exception(
+                "The IDs of the Abstract Elements do not corresponds to the Keys of the Input Edges Dict!")
 
         if [] in self.input_edges.values():
             raise Exception("Every Input in the Input Edges Dictionary should have at least an Edge!")
