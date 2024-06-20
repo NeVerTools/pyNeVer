@@ -766,7 +766,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     #  In particular, need to check that fixed_neurons is properly passed and updated
     fixed_neurons = star.fixed_neurons
 
-    # We will set the transformation for inactive neurons to 0
+    # Set the transformation for inactive neurons to 0
     inactive = [i for i in range(dim) if check_stable(i, bounds) == -1]
 
     # Compute the set of unstable neurons.
@@ -776,12 +776,9 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     # Return if there are no unstable neurons
     if len(unstable) == 0:
-        if len(inactive) > 0:
-            from pynever.strategies.search import mask_transformation_for_inactive_neurons
-            new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
-                inactive, star.basis_matrix, star.center)
-            return Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
-        return star
+        from pynever.strategies.search import mask_transformation_for_inactive_neurons
+        new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(inactive, star.basis_matrix, star.center)
+        return Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
 
 
     ## The rest is mostly about approximating unstable neurons
@@ -803,12 +800,12 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     #
     # (1) zeros
     # (2) equation for the neuron in the basis matrix
-    # (3) the upper triangular relaxation, that is     ub / (ub - lb) * equation
+    # (3) - the upper triangular relaxation, that is    - ub / (ub - lb) * equation
     def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub, star):
         from pynever.strategies.search import get_neuron_equation
         first_row = np.zeros(star.predicate_matrix.shape[1])
         second_row = get_neuron_equation(star, neuron_n)[0]
-        third_row = ub / (ub - lb) * get_neuron_equation(star, neuron_n)[0]
+        third_row = - ub / (ub - lb) * get_neuron_equation(star, neuron_n)[0]
         return [first_row, second_row, third_row]
 
     lower_left_matrix = [
@@ -863,7 +860,47 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     return Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix, fixed_neurons=fixed_neurons)
 
-def old_abstract_propagation():
+def approx_relu_forward_orig(star: Star, bounds: AbstractBounds, dim: int, start_idx: int = 0, layer_n: int = 1) -> Star:
+    """
+    Approximate abstract propagation for a ReLU layer starting from a
+    specific index
+
+    Parameters
+    ----------
+    star : Star
+        The star to propagate in this layer
+    bounds : AbstractBounds
+        The bounds of this layer
+    dim : int
+        The number of neurons in this layer
+    start_idx : int
+        The neuron to start the propagation from
+
+    Returns
+    ----------
+    Star
+        The abstract star result from the propagation
+
+    """
+
+    # TODO: not using start_idx anymore. Check that it does not interfere with old implementations.
+    #  In particular, need to check that fixed_neurons is properly passed and updated
+    fixed_neurons = star.fixed_neurons
+
+    # Set the transformation for inactive neurons to 0
+    inactive = [i for i in range(dim) if check_stable(i, bounds) == -1]
+    #
+    from pynever.strategies.search import mask_transformation_for_inactive_neurons
+    new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(inactive, star.basis_matrix, star.center)
+    out_star = Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix,
+                    fixed_neurons=fixed_neurons)
+
+    # Compute the set of unstable neurons.
+    # Neuron i has been fixed before, so we don't need to
+    # approximate it (as it might still appear unstable according to the bounds)
+    unstable = [i for i in range(dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
+
+    # Approximate unstable neurons
     for neuron_n in unstable:
         lb = bounds.get_lower()[neuron_n]
         ub = bounds.get_upper()[neuron_n]
@@ -895,6 +932,8 @@ def old_abstract_propagation():
         new_basis_mat = np.hstack((temp_basis_mat, temp_vec))
 
         out_star = Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat, fixed_neurons=fixed_neurons)
+
+    return out_star
 
 
 def sig(x: float) -> float:
