@@ -779,6 +779,36 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     unstable = [i for i in range(dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
 
     # Approximate unstable neurons
+    unstable_count = len(unstable)
+    lower_bounds = [bounds.get_lower()[neuron_n] for neuron_n in unstable]
+    upper_bounds = [bounds.get_upper()[neuron_n] for neuron_n in unstable]
+
+    def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub, star):
+        first_row = np.zeros(star.center.shape[0])
+        from pynever.strategies.search import get_neuron_equation
+        second_row = get_neuron_equation(star, neuron_n)[0]
+        third_row = ub * (ub-lb) * get_neuron_equation(star, neuron_n)[0]
+        return [first_row, second_row, third_row]
+
+    lower_left_matrix = [
+        _get_left_matrix_for_unstable_neuron(unstable[i], lower_bounds[i], upper_bounds[i], star)
+        for i in range(unstable_count)
+    ]
+    lower_left_matrix = np.array(lower_left_matrix).reshape(3 * unstable_count, -1)
+
+    new_dimension_column = [[-1], [-1], [1]]
+    zero_column = [[0], [0], [0]]
+    lower_right_matrix = [
+        [zero_column for _ in range(i)] + [new_dimension_column] + [zero_column for _ in range(i+1, unstable_count)]
+        for i in range(unstable_count)
+    ]
+    lower_right_matrix = np.array(lower_right_matrix).reshape(unstable_count, -1).transpose()
+
+    new_pred_matrix = np.block([
+        [out_star.predicate_matrix, np.zeros((out_star.predicate_matrix.shape[0], unstable_count))],
+        [lower_left_matrix, lower_right_matrix]
+    ])
+
     for neuron_n in unstable:
         lb = bounds.get_lower()[neuron_n]
         ub = bounds.get_upper()[neuron_n]

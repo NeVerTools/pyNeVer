@@ -354,7 +354,12 @@ def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, network) \
 
 
 def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, network) -> tuple[RefinementTarget | None, Star]:
-    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
+    # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
+    unstable = nn_bounds['stability_info'][StabilityInfo.UNSTABLE]
+    unstable = [neuron for neuron in unstable if not neuron in star.fixed_neurons]
+
+    # There are still unstable neurons
+    if len(unstable) > 0:
         if not star.ref_unstable_neurons is None and len(star.ref_unstable_neurons) == 0:
             # the current layer is complete, so we need to move to the next layer
             # through the fully connected transformation
@@ -383,6 +388,7 @@ def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, netw
                 star.ref_neuron = neuron_n
                 return RefinementTarget(layer_n, neuron_n), star
 
+    # No unstable neurons
     return None, star
 
 

@@ -280,11 +280,11 @@ class SearchVerification(VerificationStrategy):
         else:
             self.search_params = {
                 # 'heuristic': 'sequential',
-                # 'heuristic': 'seq_optimized',
-                'heuristic': 'lowest_overapprox_in_curr_layer',
+                'heuristic': 'seq_optimized',
+                # 'heuristic': 'lowest_overapprox_in_curr_layer',
                 'bounds': 'symbolic',
                 'intersection': 'star_lp',
-                'timeout': 300
+                'timeout': 3600
             }
 
         self.logger = logging.getLogger(logger_name)
