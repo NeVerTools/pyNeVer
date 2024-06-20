@@ -145,7 +145,7 @@ class BoundsManager:
             'overapproximation_area': overapproximation_area
         }
 
-    def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget') -> tuple[dict, dict]:
+    def branch_update_bounds(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget', branch) -> tuple[dict, dict]:
         """
         Create input bounds from the layer target.layer and use the bounds [lb, 0] and [0, ub]
         for neuron target.neuron to init a new shot of bounds propagation as if the input layer
@@ -158,7 +158,7 @@ class BoundsManager:
         input_bounds = pre_branch_bounds['numeric_pre'][nn[0].identifier]
         self.logger.info(f"--- Input bounds\n{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
-        negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target)
+        negative_branch_input = self.refine_input_bounds_for_negative_branch(pre_branch_bounds, nn, target, branch)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn))
@@ -218,7 +218,7 @@ class BoundsManager:
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
         return refined_bounds
 
-    def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
+    def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget', branch):
         """
         Given an unstable neuron y that we are going to constrain to be negative,
         we recompute tighter input bounds of x=(x1,...,xn)
@@ -259,6 +259,8 @@ class BoundsManager:
         shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
 
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
+
+
         return refined_bounds
 
     def _refine_input_bounds(self, coef, shift, input_bounds, sign):

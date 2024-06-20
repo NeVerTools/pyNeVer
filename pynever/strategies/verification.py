@@ -361,7 +361,8 @@ class SearchVerification(VerificationStrategy):
                     # Nothing else to split, or
                     # Found a counterexample
                     cex = sf.get_counterexample(unsafe_stars, prop)
-                    self.logger.info('Execution time: {:.5f} s'.format(timer))
+                    self.logger.info('Counterexample in branch {}.\n'
+                                     'Execution time: {:.5f} s'.format(current_star.fixed_neurons, timer))
                     return False, cex
 
                 else:

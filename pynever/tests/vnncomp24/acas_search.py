@@ -11,7 +11,7 @@ logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.INFO)
 
 prop = verification.NeVerProperty()
-prop.from_smt_file('../../../examples/benchmarks/ACAS XU/Properties/prop_3.vnnlib')
+prop.from_smt_file('../../../examples/benchmarks/ACAS XU/Properties/prop_2.vnnlib')
 
 onnx_nn = conversion.load_network_path('../../../examples/benchmarks/ACAS XU/Networks/ACAS_XU_2_9.onnx')
 nn = ONNXConverter().to_neural_network(onnx_nn)

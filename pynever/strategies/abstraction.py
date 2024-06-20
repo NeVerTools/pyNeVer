@@ -761,10 +761,12 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     """
 
+    # TODO: not using start_idx anymore. Check that it does not interfere with old implementations.
+    #  In particular, need to check that fixed_neurons is properly passed and updated
     fixed_neurons = star.fixed_neurons
 
     # Set the transformation for inactive neurons to 0
-    inactive = [i for i in range(start_idx, dim) if check_stable(i, bounds) == -1]
+    inactive = [i for i in range(dim) if check_stable(i, bounds) == -1]
     #
     from pynever.strategies.search import mask_transformation_for_inactive_neurons
     new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(inactive, star.basis_matrix, star.center)
@@ -774,7 +776,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     # Compute the set of unstable neurons.
     # Neuron i has been fixed before, so we don't need to
     # approximate it (as it might still appear unstable according to the bounds)
-    unstable = [i for i in range(start_idx, dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
+    unstable = [i for i in range(dim) if check_stable(i, bounds) == 0 and not (layer_n, i) in fixed_neurons]
 
     # Approximate unstable neurons
     for neuron_n in unstable:

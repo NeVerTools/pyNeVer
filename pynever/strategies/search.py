@@ -361,7 +361,7 @@ def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, netw
             star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, from_layer_n=star.ref_layer)
 
             next_layers = sorted([layer_n for (layer_n, neuron_n) in nn_bounds['overapproximation_area']['map'].keys()
-                                  if layer_n > star.ref_layer])
+                                  if layer_n >= star.ref_layer])
             if len(next_layers) == 0:
                 return None, star
 
@@ -562,7 +562,7 @@ def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dic
     target is known to be unstable wrt bounds.
     """
     # Update the bounds after the split
-    negative_bounds, positive_bounds = BoundsManager().branch_update_bounds(nn_bounds, nn_list, target)
+    negative_bounds, positive_bounds = BoundsManager().branch_update_bounds(nn_bounds, nn_list, target, star.fixed_neurons)
 
     return compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
         compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
