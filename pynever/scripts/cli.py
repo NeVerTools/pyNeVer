@@ -7,13 +7,13 @@ import sys
 import time
 
 import pynever.networks as networks
-from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
-from pynever.strategies.conversion.converters.onnx import ONNXConverter
-import pynever.strategies.verification.properties as verprop
-import pynever.strategies.verification.parameters as verparams
 import pynever.strategies.verification.algorithms as veralg
-from pynever.tensors import Tensor
+import pynever.strategies.verification.parameters as verparams
+import pynever.strategies.verification.properties as verprop
 import pynever.utilities as utilities
+from pynever.strategies.conversion.converters.onnx import ONNXConverter
+from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
+from pynever.tensors import Tensor
 
 # Log to stdout
 logger = logging.getLogger('pynever.strategies.verification')
@@ -23,7 +23,7 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 POST_CONDITIONS_TEMP_FILE = 'pynever/scripts/intermediate.vnnlib'
 
 
-def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str | None)\
+def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str | None) \
         -> None:
     """
     This method starts the verification procedure on the network model
@@ -77,11 +77,11 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
         prop = verprop.VnnLibProperty(os.path.abspath(POST_CONDITIONS_TEMP_FILE))
         os.remove(POST_CONDITIONS_TEMP_FILE)
 
-    params = verparams.NeverVerificationParameters(strategy,
-                                                   [[1] for _ in range(network.count_relu_layers())]
-                                                   if strategy == 'mixed' else None)
+    params = verparams.SSLPVerificationParameters(strategy,
+                                                  [[1] for _ in range(network.count_relu_layers())]
+                                                  if strategy == 'mixed' else None)
 
-    ver_strategy = veralg.NeverVerification(params)
+    ver_strategy = veralg.SSLPVerification(params)
 
     model_name = os.path.basename(nn_path)
     property_name = os.path.basename(property_file)
@@ -127,7 +127,7 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
                              answer, fancy_cex, fancy_out])
 
 
-def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None, timeout: int, params_file: str)\
+def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None, timeout: int, params_file: str) \
         -> None:
     """
     This method starts the verification procedure on the network model provided
@@ -180,18 +180,18 @@ def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None,
 
     # Read the property file
     prop = verprop.VnnLibProperty(prop_path)
-    ver_params = verparams.SearchVerificationParameters(timeout=timeout)
+    ver_params = verparams.SSBPVerificationParameters(timeout=timeout)
 
     if os.path.isfile(params_path):
         params = json.loads(params_path)
         if not ({'heuristic', 'bounds', 'intersection'} <= set(params.keys())):
             raise Exception(f'Error: parameters file {params_path} does not contain valid parameters')
-        ver_params = verparams.SearchVerificationParameters(params['heuristic'],
-                                                            params['bounds'],
-                                                            params['intersection'],
-                                                            timeout)
+        ver_params = verparams.SSBPVerificationParameters(params['heuristic'],
+                                                          params['bounds'],
+                                                          params['intersection'],
+                                                          timeout)
 
-    ver_strategy = veralg.SearchVerification(ver_params)
+    ver_strategy = veralg.SSBPVerification(ver_params)
 
     start_time = time.perf_counter()
     result, _ = ver_strategy.verify(network, prop)

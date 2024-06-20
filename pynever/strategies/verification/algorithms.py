@@ -1,6 +1,5 @@
 import abc
 import copy
-import logging
 import time
 
 import pynever.networks as networks
@@ -10,7 +9,7 @@ from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.verification import LOGGER
-from pynever.strategies.verification.parameters import NeverVerificationParameters, SearchVerificationParameters, \
+from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters, \
     PropagationStrategy
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
@@ -51,7 +50,7 @@ class VerificationStrategy(abc.ABC):
         raise NotImplementedError
 
 
-class NeverVerification(VerificationStrategy):
+class SSLPVerification(VerificationStrategy):
     """
     Class used to represent the Never verification strategy.
 
@@ -65,10 +64,10 @@ class NeverVerification(VerificationStrategy):
 
     """
 
-    def __init__(self, params: NeverVerificationParameters):
+    def __init__(self, params: SSLPVerificationParameters):
 
         self.params = params
-        self.logger = logging.getLogger(LOGGER)
+        self.logger = LOGGER
 
         self.counterexample_stars = None
         self.layers_bounds = {}
@@ -105,7 +104,7 @@ class NeverVerification(VerificationStrategy):
         # TODO remove assert in bound propagation
         try:
             manager = bm.BoundsManager()
-            _, _, self.layers_bounds = manager.compute_bounds_from_property(network, prop)
+            self.layers_bounds = manager.compute_bounds_from_property(network, prop)
 
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
@@ -142,7 +141,7 @@ class NeverVerification(VerificationStrategy):
 
         counterexample: Tensor | None = None
         if len(unsafe_stars) > 0:
-            self.counterexample_stars = NeverVerification.get_counterexample_stars(prop, unsafe_stars)
+            self.counterexample_stars = SSLPVerification.get_counterexample_stars(prop, unsafe_stars)
             counterexample = self.counterexample_stars[0].get_samples(num_samples=1)[0]
 
         ver_end_time = time.perf_counter()
@@ -165,7 +164,7 @@ class NeverVerification(VerificationStrategy):
         return counterexample_stars
 
 
-class SearchVerification(VerificationStrategy):
+class SSBPVerification(VerificationStrategy):
     """
     Class used to represent the search-based verification strategy. It employs
     star propagation with Symbolic Bounds Propagation and an abstraction-refinement
@@ -183,7 +182,7 @@ class SearchVerification(VerificationStrategy):
 
     """
 
-    def __init__(self, parameters: SearchVerificationParameters):
+    def __init__(self, parameters: SSBPVerificationParameters):
         self.parameters = parameters
         self.logger = LOGGER
 

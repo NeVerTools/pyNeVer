@@ -83,7 +83,7 @@ def launch_instances(instances_file: str):
         for instance in csv_reader:
 
             network_path = f'{folder}/{instance[0]}'
-            ver_strategy = veralgs.SearchVerification(verparams.SearchVerificationParameters())
+            ver_strategy = veralgs.SSBPVerification(verparams.SSBPVerificationParameters())
             onnx_net = convrepr.load_network_path(network_path)
             if isinstance(onnx_net, convrepr.ONNXNetwork):
                 net = ONNXConverter().to_neural_network(onnx_net)

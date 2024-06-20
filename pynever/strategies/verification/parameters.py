@@ -62,7 +62,7 @@ class VerificationParameters(abc.ABC):
     pass
 
 
-class NeverVerificationParameters(VerificationParameters):
+class SSLPVerificationParameters(VerificationParameters):
     def __init__(self, heuristic: str, neurons_to_refine: list | None = None,
                  approx_levels: int | list[int] | None = None):
         if heuristic not in ['overapprox', 'complete', 'mixed']:
@@ -78,7 +78,7 @@ class NeverVerificationParameters(VerificationParameters):
         self.approx_levels = approx_levels
 
 
-class SearchVerificationParameters(VerificationParameters):
+class SSBPVerificationParameters(VerificationParameters):
     def __init__(self,
                  heuristic: RefinementStrategy = RefinementStrategy.SEQUENTIAL,
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,

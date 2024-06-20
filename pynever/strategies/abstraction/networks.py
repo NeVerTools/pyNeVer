@@ -7,7 +7,7 @@ import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction.star import AbsElement
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.verification.parameters import NeverVerificationParameters
+from pynever.strategies.verification.parameters import SSLPVerificationParameters
 
 from pynever.strategies.abstraction import LOGGER_LAYER
 
@@ -53,7 +53,7 @@ class AbsNeuralNetwork(abc.ABC):
         'SumNode': absnodes.AbsSumNode,
     }
 
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: NeverVerificationParameters,
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: SSLPVerificationParameters,
                  bounds: dict[str, AbstractBounds] | None = None):
         self.nodes: dict[str, absnodes.AbsLayerNode] = {}
         self.ref_network = ref_network
@@ -144,7 +144,7 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
     """
 
-    def __init__(self, ref_network: networks.SequentialNetwork, parameters: NeverVerificationParameters):
+    def __init__(self, ref_network: networks.SequentialNetwork, parameters: SSLPVerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
 
@@ -195,7 +195,7 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
 class AbsAcyclicNetwork(AbsNeuralNetwork):
 
-    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: NeverVerificationParameters):
+    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: SSLPVerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
         self.input_ids: dict[str, str | None] = {k: self.get_abstract(v).identifier
