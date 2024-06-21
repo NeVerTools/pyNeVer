@@ -165,7 +165,7 @@ class BoundsManager:
         self.logger.info(
             f"--- Updated bounds for negative branch: \n{negative_branch_input} --- stable count {None if negative_bounds is None else negative_bounds['stable_count']}")
 
-        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target)
+        positive_branch_input = self.refine_input_bounds_for_positive_branch(pre_branch_bounds, nn, target, branch)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn))
@@ -175,7 +175,7 @@ class BoundsManager:
 
         return (negative_bounds, positive_bounds)
 
-    def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget'):
+    def refine_input_bounds_for_positive_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget', branch):
         """
         Given an unstable neuron y that we are going to constrain to be positive,
         we recompute tighter input bounds of x=(x1,...,xn)
@@ -216,6 +216,20 @@ class BoundsManager:
         shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
+
+        if refined_bounds == input_bounds:
+            self.logger.info("Bounds not refined. Trying with all the branch")
+            if len(branch) > 1:
+                for ((layer_n, neuron_n), value) in branch.items():
+                    if value == 0:
+                        coef = coef - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]
+                        shift = shift - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n]
+                    else:
+                        coef = coef + pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_matrix()[neuron_n]
+                        shift = shift + pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_offset()[neuron_n]
+
+                refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
+
         return refined_bounds
 
     def refine_input_bounds_for_negative_branch(self, pre_branch_bounds: dict, nn: list, target: 'RefinementTarget', branch):
@@ -260,6 +274,18 @@ class BoundsManager:
 
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
+        if refined_bounds == input_bounds:
+            self.logger.info("Bounds not refined. Trying with all the branch")
+            if len(branch) > 1:
+                for ((layer_n, neuron_n), value) in branch.items():
+                    if value == 0:
+                        coef = coef + pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]
+                        shift = shift + pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n]
+                    else:
+                        coef = coef - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_matrix()[neuron_n]
+                        shift = shift - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_offset()[neuron_n]
+
+                refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
         return refined_bounds
 
