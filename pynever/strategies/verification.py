@@ -284,7 +284,7 @@ class SearchVerification(VerificationStrategy):
                 'heuristic': 'lowest_overapprox_in_curr_layer',
                 'bounds': 'symbolic',
                 'intersection': 'star_lp',
-                'timeout': 3600
+                'timeout': 600
             }
 
         self.logger = logging.getLogger(logger_name)
