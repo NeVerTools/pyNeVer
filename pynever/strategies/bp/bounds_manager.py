@@ -26,6 +26,8 @@ class StabilityInfo(Enum):
 
 class BoundsManager:
 
+    INPUT_DIMENSIONS_TO_REFINE = 50
+
     def __init__(self):
         self.numeric_bounds = None
         self.logger = logging.getLogger(logger_name)
@@ -218,7 +220,6 @@ class BoundsManager:
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
 
         if refined_bounds == input_bounds and len(branch) > 0:
-            self.logger.info("Bounds not refined. Trying with all the branch")
             # we negate the equation because in the branch we normalise all constraints as equation <= 0
             refined_bounds = self.refine_input_bounds_for_branch(branch, -coef, -shift, input_bounds, nn, pre_branch_bounds)
 
@@ -268,7 +269,6 @@ class BoundsManager:
         refined_bounds = self._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
         if refined_bounds == input_bounds and len(branch) > 0:
-            self.logger.info("Bounds not refined. Trying with all the branch")
             refined_bounds = self.refine_input_bounds_for_branch(branch, coef, shift, input_bounds, nn, pre_branch_bounds)
 
         return refined_bounds
@@ -280,16 +280,16 @@ class BoundsManager:
         ## Collecting the equations from all the fixes, including the latest
         coefs = np.array(
             [pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]
-            if value == 0 else
-            - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]
-            for ((layer_n, neuron_n), value) in branch.items()] + [coef]
+             if value == 0 else
+             -pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]
+             for ((layer_n, neuron_n), value) in branch.items()] + [coef]
         )
 
         shifts = np.array(
             [pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n]
-            if value == 0 else
-            - pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n]
-            for ((layer_n, neuron_n), value) in branch.items()] + [shift]
+             if value == 0 else
+             -pre_branch_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n]
+             for ((layer_n, neuron_n), value) in branch.items()] + [shift]
         )
 
         ## The rest is similar to _refine_input_bounds,
@@ -298,28 +298,55 @@ class BoundsManager:
         refined_input_bounds = input_bounds
 
         n_input_dimensions = len(coef)
-        for i in range(n_input_dimensions):
-            # For each input dimension i, we select the subset of the equations
-            # with the same coefficient sign for i and optimise for the sum of those equations
-            for mask in [(coefs[:, i] > 0), (coefs[:, i] < 0)]:
+
+        all_dimensions = np.array(range(n_input_dimensions))
+        dimensions_to_consider = []
+        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
+            # we will only consider the dimensions
+            # with the aggregated coefficient that is large enough in absolute terms
+            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
+            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
+
+            filtering_pos_coefs = abs(np.array([coefs[(coefs[:, i] > 0), i].sum() for i in range(n_input_dimensions)]))
+            cutoff_c = np.quantile(filtering_pos_coefs, percentage)
+            dimensions_to_consider.append(all_dimensions[(filtering_pos_coefs > cutoff_c)])
+
+            filtering_neg_coefs = abs(np.array([coefs[(coefs[:, i] < 0), i].sum() for i in range(n_input_dimensions)]))
+            cutoff_c = np.quantile(filtering_neg_coefs, percentage)
+            dimensions_to_consider.append(all_dimensions[(filtering_neg_coefs > cutoff_c)])
+            # self.logger.info(f"Cutoff coefficient {cutoff_c} dimensions to consider {dimensions_to_consider}")
+        else:
+            dimensions_to_consider.extend([all_dimensions, all_dimensions])
+
+        for dimensions, sign in zip(dimensions_to_consider, ["pos", "neg"]):
+            for i in dimensions:
+                # For each input dimension i, we select the subset of the equations
+                # with the same coefficient sign for i and optimise for the sum of those equations
+                if sign == "pos":
+                    mask = (coefs[:, i] > 0)
+                else:
+                    mask = (coefs[:, i] < 0)
+
                 coef_i = coefs[mask, :]
                 shift_i = shifts[mask].sum()
 
-                if len(coef_i) <= 0:
-                    # none or one equation have been selected. Nothing to be done
+                if len(coef_i) <= 1:
+                    # none or one equation have been selected. We want to combine at least two equations.
+                    # Nothing to be done
                     continue
 
-                coef_i = coefs.sum(axis=0)
+                coef_i = coef_i.sum(axis=0)
                 i_bounds = self._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i, RefiningBound.UpperBound)
 
                 if i_bounds is None:
+                    self.logger.info(f"!! Split is infeasible !! {coef_i[i]}")
                     # The split is infeasible
                     return None
                 elif i_bounds == 0:
                     # No changes
                     pass
                 else:
-                    self.logger.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Bounds refined for branch !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    self.logger.info(f"!! Bounds refined for branch !! {coef_i[i]}")
                     # Bounds have been refined
                     if refined_input_bounds == input_bounds:
                         # Only create a new copy of the bounds if there was a change
@@ -363,12 +390,16 @@ class BoundsManager:
 
         n_input_dimensions = len(coef)
 
-        dimensions_to_consider = range(n_input_dimensions)
-        if n_input_dimensions > 50:
+        dimensions_to_consider = np.array(range(n_input_dimensions))
+        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the coefficient that is large enough in absolute terms
-            cutoff_c = np.quantile(abs(coef), 0.85)
+            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
+            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
+            cutoff_c = np.quantile(abs(coef), percentage)
             mask = (abs(coef) > cutoff_c)
+            dimensions_to_consider = dimensions_to_consider[mask]
+            # self.logger.info(f"Cutoff coefficient {cutoff_c} dimensions to consider {dimensions_to_consider}")
 
         for i in dimensions_to_consider:
             # Refine the bounds for each input dimension

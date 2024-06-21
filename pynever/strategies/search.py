@@ -1,4 +1,5 @@
 import copy
+import datetime
 
 import numpy as np
 
@@ -271,9 +272,12 @@ def check_intersection(star: Star, prop: 'NeVerProperty') -> (bool, list):
         intersection = abst.intersect_with_halfspace(star,
                                                      prop.out_coef_mat[i],
                                                      prop.out_bias_mat[i])
+        # print(f"{datetime.datetime.now()} Intersected with half space")
+
         if not intersection.check_if_empty():
             intersects = True
             unsafe_stars.append(intersection)
+        # print(f"{datetime.datetime.now()} Checked if empty")
 
     return intersects, unsafe_stars
 
@@ -282,6 +286,7 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
     # Compute the output abstract star from current_star/bounds
     out_star = abs_propagation(current_star, nn_bounds, net_list)
 
+    # print(f"Abstract propagation computed {datetime.datetime.now()}")
     # Check intersection using a LP
     intersects, unsafe_stars = check_intersection(out_star, prop)
 

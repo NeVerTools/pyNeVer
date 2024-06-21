@@ -1,5 +1,6 @@
 import abc
 import copy
+import datetime
 import logging
 import operator
 import time
@@ -284,7 +285,8 @@ class SearchVerification(VerificationStrategy):
                 'heuristic': 'lowest_overapprox_in_curr_layer',
                 'bounds': 'symbolic',
                 'intersection': 'star_lp',
-                'timeout': 600
+                # 'intersection': 'bounds_lp',
+                'timeout': 1200
             }
 
         self.logger = logging.getLogger(logger_name)
@@ -342,11 +344,13 @@ class SearchVerification(VerificationStrategy):
         update = True
 
         while len(frontier) > 0 and not stop_flag:
+            self.logger.info(f"{datetime.datetime.now()} Start of the loop")
             current_star, nn_bounds = frontier.pop()
             # prev_layer = current_star.ref_layer
 
             intersects, unsafe_stars = self.compute_intersection(current_star, input_bounds, nn_bounds, net_list, prop)
 
+            self.logger.info(f"{datetime.datetime.now()} Intersection computed")
             if intersects:
                 # If new target is None there is no more refinement to do
                 target, current_star = sf.get_next_target(self.search_params['heuristic'],
@@ -372,6 +376,7 @@ class SearchVerification(VerificationStrategy):
                         # sf.split_star(current_star, target, net_list, nn_bounds, update)
                         sf.split_star_opt(current_star, target, net_list, nn_bounds)
                     )
+                    self.logger.info(f"{datetime.datetime.now()} Split computed")
 
             else:
                 """This branch is safe, no refinement needed"""
