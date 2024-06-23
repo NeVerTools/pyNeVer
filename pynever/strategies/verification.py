@@ -284,9 +284,9 @@ class SearchVerification(VerificationStrategy):
                 # 'heuristic': 'seq_optimized',
                 'heuristic': 'lowest_overapprox_in_curr_layer',
                 'bounds': 'symbolic',
-                'intersection': 'star_lp',
+                # 'intersection': 'star_lp',
                 # 'intersection': 'bounds_lp',
-                # 'intersection': 'light_milp',
+                'intersection': 'adaptive',
                 'timeout': 1200
             }
 
@@ -341,48 +341,42 @@ class SearchVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
-        # Flag to update bounds
-        update = True
-
         while len(frontier) > 0 and not stop_flag:
             self.logger.info(f"{datetime.datetime.now()} Start of the loop")
             current_star, nn_bounds = frontier.pop()
-            # prev_layer = current_star.ref_layer
 
             intersects, unsafe_stars = self.compute_intersection(current_star, input_bounds, nn_bounds, net_list, prop)
-
             self.logger.info(f"{datetime.datetime.now()} Intersection computed")
+
             if intersects:
-                # If new target is None there is no more refinement to do
-                target, current_star = sf.get_next_target(self.search_params['heuristic'],
-                                                          current_star, nn_bounds, network)
-
-                # if current_star.ref_layer > prev_layer:
-                #     update = True
-                # else:
-                #     update = False
-
-                if target is None:
-                    # Nothing else to split, or
-                    # Found a counterexample
-                    # TODO something hacky, in intersect_adaptive now returning counter-example directly
-                    cex = sf.get_counterexample(unsafe_stars, prop)
-                    # cex = sf.check_valid_counterexample(unsafe_stars, network, prop)
+                # Check if the answer is a valid counter-example
+                if sf.check_valid_counterexample(unsafe_stars, net_list, prop):
+                    # Found a counterexample. Can stop here
                     self.logger.info('Counterexample in branch {}.\n'
                                      'Execution time: {:.5f} s'.format(current_star.fixed_neurons, timer))
-                    return False, cex
+                    return False, unsafe_stars
 
                 else:
-                    # We cannot conclude anything at this point.
-                    # Split the current branch according to the target
-                    frontier.extend(
-                        # sf.split_star(current_star, target, net_list, nn_bounds, update)
-                        sf.split_star_opt(current_star, target, net_list, nn_bounds)
-                    )
-                    self.logger.info(f"{datetime.datetime.now()} Split computed")
+                    # We cannot conclude anything at this point. Should try to split.
+                    # Pick the neuron to split according to the heuristic
+                    target, current_star = sf.get_next_target(self.search_params['heuristic'],
+                                                              current_star, nn_bounds, network)
+
+                    if not target is None:
+                        # Split the current branch according to the target
+                        frontier.extend(
+                            sf.split_star_opt(current_star, target, net_list, nn_bounds)
+                        )
+                        self.logger.info(f"{datetime.datetime.now()} Split computed")
+                    else:
+                        # There is no more refinement to do, i.e., all neurons have been fixed.
+                        # We can end up here because the bounds might not be aware that all neurons have been fixed.
+                        # So there can be some overapproximation.
+                        # We should detect and throw more exact intersection check
+                        raise Exception("This point should not be reachable")
 
             else:
-                """This branch is safe, no refinement needed"""
+                # This branch is safe, no refinement needed
                 self.logger.info(f"Branch {current_star.fixed_neurons} is safe")
 
             timer += (time.perf_counter() - start_time)
@@ -405,8 +399,11 @@ class SearchVerification(VerificationStrategy):
         elif self.search_params['intersection'] == 'bounds_lp':
             intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
 
-        elif self.search_params['intersection'] == 'light_milp':
-            intersects, unsafe_stars = sf.intersect_lightweight_milp(current_star, net_list, nn_bounds, prop)
+        # elif self.search_params['intersection'] == 'light_milp':
+        #     intersects, unsafe_stars = sf.intersect_lightweight_milp(current_star, net_list, nn_bounds, prop)
+
+        elif self.search_params['intersection'] == 'adaptive':
+            intersects, unsafe_stars = sf.intersect_adaptive(current_star, net_list, nn_bounds, prop)
 
         else:
             raise NotImplementedError('Intersection strategy not supported')

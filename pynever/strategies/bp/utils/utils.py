@@ -34,3 +34,4 @@ def compute_lin_lower_and_upper(weights_minus, weights_plus, bias, lower_matrix,
            compute_upper(weights_minus, weights_plus, lower_matrix, upper_matrix), \
            compute_upper(weights_minus, weights_plus, lower_offset, upper_offset) + bias
 
+

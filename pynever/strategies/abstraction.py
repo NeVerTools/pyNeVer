@@ -767,7 +767,9 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     fixed_neurons = star.fixed_neurons
 
     # Set the transformation for inactive neurons to 0
-    inactive = [i for i in range(dim) if check_stable(i, bounds) == -1]
+    # Include also the neurons that were fixed to be inactive
+    inactive = ([i for i in range(dim) if check_stable(i, bounds) == -1] +
+                [i for (lay_n, i), value in fixed_neurons.items() if lay_n == layer_n and value == 0])
 
     # Compute the set of unstable neurons.
     # Neuron i has been fixed before, so we don't need to
@@ -794,6 +796,7 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     # (2)  z >= y = eq(x)                      // eq(x) is the equation that defines y from x,
     #                                          // it is stored in the basis of the star
     # (3)  z <= relu_slope * y + relu_shift
+    # (4)  z <= ub
 
     ## For every unstable neuron we add 3 rows to lower_left_matrix
     # that correspond to the original x variables
@@ -801,23 +804,25 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
     # (1) zeros
     # (2) equation for the neuron in the basis matrix
     # (3) - the upper triangular relaxation, that is    - ub / (ub - lb) * equation
+    # (4) zeros
     def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub, star):
         from pynever.strategies.search import get_neuron_equation
         first_row = np.zeros(star.predicate_matrix.shape[1])
         second_row = get_neuron_equation(star, neuron_n)[0]
         third_row = - ub / (ub - lb) * get_neuron_equation(star, neuron_n)[0]
-        return [first_row, second_row, third_row]
+        fourth_row = np.zeros(star.predicate_matrix.shape[1])
+        return [first_row, second_row, third_row, fourth_row]
 
     lower_left_matrix = [
         _get_left_matrix_for_unstable_neuron(unstable[i], lower_bounds[i], upper_bounds[i], star)
         for i in range(unstable_count)
     ]
-    lower_left_matrix = np.array(lower_left_matrix).reshape(3 * unstable_count, -1)
+    lower_left_matrix = np.array(lower_left_matrix).reshape(4 * unstable_count, -1)
 
-    ## For every unstable neuron we add a column [-1, -1, 1]^T to lower_right_matrix
+    ## For every unstable neuron we add a column [-1, -1, 1, 1]^T to lower_right_matrix
     # that corresponds to the fresh variable z
-    new_dimension_column = [[-1], [-1], [1]]
-    zero_column = [[0], [0], [0]]
+    new_dimension_column = [[-1], [-1], [1], [1]]
+    zero_column = [[0], [0], [0], [0]]
     lower_right_matrix = [
         [zero_column for _ in range(i)] + [new_dimension_column] + [zero_column for _ in range(i + 1, unstable_count)]
         for i in range(unstable_count)
@@ -834,10 +839,11 @@ def approx_relu_forward(star: Star, bounds: AbstractBounds, dim: int, start_idx:
 
     ## The new predicate bias adds the shifts from the above constraints.
     # So for each unstable neuron we append a vector
-    #           [0, -c, relu_slope * (c - lower_bound)]
+    #           [0, -c, relu_slope * (c - lower_bound), upper_bound]
     additional_bias = [[[0],
                         -star.center[unstable[i]],
-                        (upper_bounds[i] / (upper_bounds[i] - lower_bounds[i])) * (star.center[unstable[i]] - lower_bounds[i])
+                        (upper_bounds[i] / (upper_bounds[i] - lower_bounds[i])) * (star.center[unstable[i]] - lower_bounds[i]),
+                        [upper_bounds[i]]
                        ] for i in range(unstable_count)]
     additional_bias = np.array(additional_bias).reshape(-1, 1)
     # Stack the new values
