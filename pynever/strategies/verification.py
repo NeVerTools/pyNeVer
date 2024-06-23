@@ -286,6 +286,7 @@ class SearchVerification(VerificationStrategy):
                 'bounds': 'symbolic',
                 'intersection': 'star_lp',
                 # 'intersection': 'bounds_lp',
+                # 'intersection': 'light_milp',
                 'timeout': 1200
             }
 
@@ -364,7 +365,9 @@ class SearchVerification(VerificationStrategy):
                 if target is None:
                     # Nothing else to split, or
                     # Found a counterexample
+                    # TODO something hacky, in intersect_adaptive now returning counter-example directly
                     cex = sf.get_counterexample(unsafe_stars, prop)
+                    # cex = sf.check_valid_counterexample(unsafe_stars, network, prop)
                     self.logger.info('Counterexample in branch {}.\n'
                                      'Execution time: {:.5f} s'.format(current_star.fixed_neurons, timer))
                     return False, cex
@@ -401,6 +404,9 @@ class SearchVerification(VerificationStrategy):
 
         elif self.search_params['intersection'] == 'bounds_lp':
             intersects, unsafe_stars = sf.intersect_symb_lp(input_bounds, nn_bounds, prop)
+
+        elif self.search_params['intersection'] == 'light_milp':
+            intersects, unsafe_stars = sf.intersect_lightweight_milp(current_star, net_list, nn_bounds, prop)
 
         else:
             raise NotImplementedError('Intersection strategy not supported')

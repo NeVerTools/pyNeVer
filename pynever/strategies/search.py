@@ -10,7 +10,7 @@ from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds import HyperRectangleBounds
 from pynever.strategies.bp.bounds_manager import BoundsManager, StabilityInfo
 from pynever.strategies.bp.utils.property_converter import PropertyFormatConverter
-from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part
+from pynever.strategies.bp.utils.utils import get_positive_part, get_negative_part, compute_max
 from pynever.tensors import Tensor
 
 
@@ -292,6 +292,93 @@ def intersect_star_lp(current_star, net_list, nn_bounds, prop):
 
     return intersects, unsafe_stars
 
+def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
+    """
+    Checks for an intersection by building a MILP that has
+    * three kinds of variables:
+        - input variables
+        - output variables
+        - binary variables for encoding the disjunction in the output property
+    * three kinds of constraints:
+        - for each fixed neuron, a constraint using its lower or upper bound
+        - for each output variable, a lower and an upper bound constraint from the input variables
+        - the constraints involving binary variables to encode the output property
+
+    Returns
+    -------
+    a pair
+        - True if there is a solution to the above program, and
+          the values to the input variables in this solution in an array
+        - False otherwise, and empty array []
+    """
+    from ortools.linear_solver import pywraplp
+
+    input_bounds = nn_bounds['numeric_pre'][nn[0].identifier]
+    n_input_dimensions = input_bounds.get_size()
+    output_bounds = nn_bounds['numeric_post'][nn[-1].identifier]
+    n_output_dimensions = output_bounds.get_size()
+
+    solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
+
+    input_vars = np.array([
+        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+        for j in range(n_input_dimensions)])
+
+    output_vars = np.array([
+        solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
+        for j in range(n_output_dimensions)])
+
+    ## The constraints from the branching
+    for (layer_n, neuron_n), value in star.fixed_neurons.items():
+        if value == 0:
+            solver.Add(
+                input_vars.dot(nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]) +
+                nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n] <= 0)
+        else:
+            solver.Add(
+                input_vars.dot(nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_matrix()[neuron_n]) +
+                nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_offset()[neuron_n] >= 0)
+
+    ## The constraints relating input and output variables
+    for j in range(n_output_dimensions):
+        solver.Add(
+            input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_upper().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn[-1].identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
+        solver.Add(
+            input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
+
+    ## The constraints for the property
+    n_disjunctions = len(prop.out_coef_mat)
+    # binary variables for each of the disjunctions
+    # delta_i = 1 means disjunct i is satisfied
+    deltas = np.array([solver.IntVar(0, 1, f"delta{j}") for j in range(n_disjunctions)])
+    solver.Add(deltas.dot(np.ones(n_disjunctions)) == 1)
+
+    # For each disjunction in the output property, add the constraints conditioned by deltas
+    for i in range(n_disjunctions):
+        conjunction = []
+        for j in range(len(prop.out_coef_mat[i])):
+            # the big M constant as not clear how to do indicator constraints
+            bigM = compute_max(prop.out_coef_mat[i][j], output_bounds)
+
+            # when delta_i = 0, the constraint is automatically satisfied because of the bigM
+            conjunction.append(solver.Add(
+                output_vars.dot(prop.out_coef_mat[i][j])
+                - (1-deltas[i]) * bigM
+                - prop.out_bias_mat[i][j][0] <= 0
+            ))
+
+    solver.Maximize(0)
+    status = solver.Solve()
+    if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
+        return False, []
+    else:
+        # [sat_disj_index] = [i for i in range(n_disjunctions) if deltas[i].solution_value() == 1]
+        return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
+
+def check_valid_counterexample(candidate_cex, network, prop):
+    network
 
 def intersect_symb_lp(input_bounds, nn_bounds, prop):
     nn_bounds = nn_bounds['symbolic']
