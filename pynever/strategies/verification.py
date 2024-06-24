@@ -415,6 +415,20 @@ class SearchVerification(VerificationStrategy):
 
         return intersects, unsafe_stars
 
+    def get_next_target(self, ref_heur: str, star: Star, nn_bounds: dict, network: networks.SequentialNetwork) \
+            -> tuple[RefinementTarget | None, Star]:
+        if ref_heur == 'sequential':
+            return get_target_sequential(star, network)
+
+        elif ref_heur == 'seq_optimized':
+            return get_target_sequential_optimized(star, nn_bounds, network)
+
+        elif ref_heur == 'lowest_overapprox_in_curr_layer':
+            return get_target_lowest_overapprox_current_layer(star, nn_bounds, network)
+
+        else:
+            raise NotImplementedError('Only sequential refinement supported')
+
 
 class NeverVerification(VerificationStrategy):
     """
