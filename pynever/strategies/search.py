@@ -478,7 +478,7 @@ def _encode_output_property_constraints(solver, prop, output_bounds, output_vars
         conjunction = []
         for j in range(len(prop.out_coef_mat[i])):
             # the big M constant as not clear how to do indicator constraints
-            bigM = compute_max(prop.out_coef_mat[i][j], output_bounds)
+            bigM = compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
@@ -793,9 +793,13 @@ def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dic
     # Update the bounds after the split
     negative_bounds, positive_bounds = BoundsManager().branch_update_bounds(nn_bounds, nn_list, target, star.fixed_neurons)
 
-    return compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
+    stars = compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
         compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
 
+    # stars = sorted(stars, key=lambda x: x[2])
+    stars = [(s, bounds) for (s, bounds, _) in stars]
+
+    return stars
 
 def mask_transformation_for_inactive_neurons(inactive_neurons: list, matrix, offset):
     # The mask for all inactive neurons, to set the transformation of the corresponding neurons to 0
@@ -846,7 +850,7 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
                       ref_layer=target.layer_idx, ref_neuron=target.neuron_idx,
                       ref_unstable_neurons=ref_layer_unstable, fixed_neurons=fixed_so_far)
 
-    return [(lower_star, bounds)]
+    return [(lower_star, bounds, bounds['stable_count'])]
 
 
 def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
@@ -886,7 +890,7 @@ def compute_star_after_fixing_to_positive(star, bounds, target, nn_list):
                       ref_layer=target.layer_idx, ref_neuron=target.neuron_idx,
                       ref_unstable_neurons=ref_layer_unstable, fixed_neurons=fixed_so_far)
 
-    return [(upper_star, bounds)]
+    return [(upper_star, bounds, bounds['stable_count'])]
 
 
 def get_neuron_equation(star, neuron_idx):

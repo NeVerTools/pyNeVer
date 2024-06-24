@@ -342,11 +342,11 @@ class SearchVerification(VerificationStrategy):
         start_time = time.perf_counter()
 
         while len(frontier) > 0 and not stop_flag:
-            self.logger.info(f"{datetime.datetime.now()} Start of the loop")
+            # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
             current_star, nn_bounds = frontier.pop()
 
             intersects, unsafe_stars = self.compute_intersection(current_star, input_bounds, nn_bounds, net_list, prop)
-            self.logger.info(f"{datetime.datetime.now()} Intersection computed")
+            # self.logger.info(f"{datetime.datetime.now()} Intersection computed")
 
             if intersects:
                 # Check if the answer is a valid counter-example
@@ -367,7 +367,7 @@ class SearchVerification(VerificationStrategy):
                         frontier.extend(
                             sf.split_star_opt(current_star, target, net_list, nn_bounds)
                         )
-                        self.logger.info(f"{datetime.datetime.now()} Split computed")
+                        # self.logger.info(f"{datetime.datetime.now()} Split computed")
                     else:
                         # There is no more refinement to do, i.e., all neurons have been fixed.
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
