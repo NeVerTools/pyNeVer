@@ -288,6 +288,15 @@ class FullyConnectedNode(ConcreteLayerNode):
         self.has_bias = has_bias
         self.bias = bias
 
+    def get_layer_bias_as_two_dimensional(self) -> Tensor:
+        """
+        This method expands the bias since they are memorized
+        like one-dimensional vectors in FC nodes.
+
+        """
+
+        return self.bias if self.bias.shape == (self.weight.shape[0], 1) else np.expand_dims(self.bias, 1)
+
     def get_input_dim(self) -> Tuple:
         return self.in_dims[0]
 

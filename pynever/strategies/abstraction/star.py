@@ -11,6 +11,9 @@ from ortools.linear_solver import pywraplp
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
 
@@ -76,8 +79,8 @@ class Star:
         self.predicate_bias: Tensor = predicate_bias
 
         if center is None and basis_matrix is None:
-            self.center: Tensor = np.zeros((predicate_matrix.shape[1], 1))
-            self.basis_matrix: Tensor = np.identity(predicate_matrix.shape[1])
+            self.center: Tensor = tensors.zeros((predicate_matrix.shape[1], 1))
+            self.basis_matrix: Tensor = tensors.identity(predicate_matrix.shape[1])
 
         else:
             center_dim_message = f"Error: the first dimension of the basis_matrix ({basis_matrix.shape[0]}) " \
@@ -95,12 +98,6 @@ class Star:
             self.basis_matrix: Tensor = basis_matrix
 
         self.n_neurons: int = self.center.shape[0]
-
-        # Reference layer of the star (where it comes from)
-        self.ref_layer: int = 0
-
-        # Starting number of predicates (used in search verification)
-        self.ref_neuron: int = 0
 
         # Private Attributes used for the sampling of the star.
         self.__auxiliary_points: list[Tensor] | None = None
@@ -206,7 +203,7 @@ class Star:
         if alpha_point.shape[0] != self.predicate_matrix.shape[1]:
             raise InvalidDimensionError(dim_error_msg)
 
-        tests = np.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
+        tests = tensors.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
         test = np.all(tests)
 
         return test
@@ -536,6 +533,200 @@ class Star:
         new_star: Star = Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
 
         return new_star
+
+
+class ExtendedStar(Star):
+    """
+    This class represent an extended definition of a Star, with more efficient
+    parameters and methods.
+
+    """
+
+    def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: int = None,
+                 ref_neuron: int = 0, ref_unstable_neurons: set = None, fixed_neurons: dict = None):
+        super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
+
+        # Reference layer of the star (where it comes from)
+        self.ref_layer: int = ref_layer
+
+        # Starting number of predicates (used in search verification)
+        self.ref_neuron: int = ref_neuron
+
+        # Unstable neurons in the reference layer
+        self.ref_unstable_neurons = ref_unstable_neurons
+
+        # The neurons fixed so far
+        self.fixed_neurons = dict() if fixed_neurons is None else fixed_neurons
+
+    def get_neuron_equation(self, neuron_idx) -> LinearFunctions:
+        """
+        This method creates the linear function for a neuron
+
+        """
+
+        return LinearFunctions(self.basis_matrix[neuron_idx, :], self.center[neuron_idx])
+
+    def mask_for_inactive_neurons(self, inactive_neurons: list) -> LinearFunctions:
+        """
+        This method creates the mask for all inactive neurons,
+        to set the transformation of the corresponding neurons to 0
+
+        """
+
+        mask = np.diag(
+            [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])]
+        )
+
+        return LinearFunctions(tensors.matmul(mask, self.basis_matrix), tensors.matmul(mask, self.center))
+
+    def approx_relu_forward(self, bounds: AbstractBounds, dim: int, layer_n: int = 1) -> Star:
+        """
+        Approximate abstract propagation for a ReLU layer
+
+        Parameters
+        ----------
+        bounds : AbstractBounds
+            The bounds of this layer
+        dim : int
+            The number of neurons in this layer
+        layer_n : int
+
+
+        Returns
+        ----------
+        Star
+            The abstract star result from the propagation
+
+        """
+
+        # Set the transformation for inactive neurons to 0
+        # Include also the neurons that were fixed to be inactive
+        inactive = (
+                [i for i in range(dim) if BoundsManager.check_stable(i, bounds) == -1] +
+                [i for (lay_n, i), value in self.fixed_neurons.items()
+                 if lay_n == layer_n and value == 0]
+        )
+
+        # Compute the set of unstable neurons.
+        # Neuron i has been fixed before, so we don't need to
+        # approximate it (as it might still appear unstable according to the bounds)
+        unstable_neurons = [
+            i for i in range(dim)
+            if BoundsManager.check_stable(i, bounds) == 0 and not (layer_n, i) in self.fixed_neurons
+        ]
+
+        # Return if there are no unstable neurons
+        if len(unstable_neurons) == 0:
+            new_transformation = self.mask_for_inactive_neurons(inactive)
+
+            return ExtendedStar(LinearFunctions(self.predicate_matrix, self.predicate_bias),
+                                new_transformation, fixed_neurons=self.fixed_neurons)
+
+        # Create the approximate matrices for the star
+        return ExtendedStar(self.create_approx_predicate(unstable_neurons, bounds),
+                            self.create_approx_transformation(unstable_neurons, inactive),
+                            fixed_neurons=self.fixed_neurons)
+
+    def create_approx_predicate(self, unstable_neurons: list[int], bounds: AbstractBounds) -> LinearFunctions:
+        """
+
+        """
+
+        # For every unstable neuron y we introduce a fresh variable z and
+        # relate it to the input variables x via 3 constraints.
+        #
+        # (1)  z >= 0
+        # (2)  z >= y = eq(x)                      // eq(x) is the equation that defines y from x,
+        #                                          // it is stored in the basis of the star
+        # (3)  z <= relu_slope * y + relu_shift
+        # (4)  z <= ub
+
+        # For every unstable neuron we add 3 rows to lower_left_matrix
+        # that correspond to the original x variables
+        #
+        # (1) zeros
+        # (2) equation for the neuron in the basis matrix
+        # (3) - the upper triangular relaxation, that is    - ub / (ub - lb) * equation
+        # (4) zeros
+
+        def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub):
+            first_row = np.zeros(self.predicate_matrix.shape[1])
+            second_row = self.get_neuron_equation(neuron_n).matrix
+            third_row = - ub / (ub - lb) * self.get_neuron_equation(neuron_n).matrix
+            fourth_row = np.zeros(self.predicate_matrix.shape[1])
+
+            return [first_row, second_row, third_row, fourth_row]
+
+        unstable_count = len(unstable_neurons)
+        lower_bounds = [bounds.get_lower()[neuron_n] for neuron_n in unstable_neurons]
+        upper_bounds = [bounds.get_upper()[neuron_n] for neuron_n in unstable_neurons]
+
+        lower_left_matrix = [
+            _get_left_matrix_for_unstable_neuron(unstable_neurons[i], lower_bounds[i], upper_bounds[i])
+            for i in range(unstable_count)
+        ]
+        lower_left_matrix = np.array(lower_left_matrix).reshape(4 * unstable_count, -1)
+
+        # For every unstable neuron we add a column [-1, -1, 1, 1]^T to lower_right_matrix
+        # that corresponds to the fresh variable z
+        new_dimension_column = [[-1], [-1], [1], [1]]
+        zero_column = [[0], [0], [0], [0]]
+        lower_right_matrix = [
+            [zero_column for _ in range(i)] + [new_dimension_column] +
+            [zero_column for _ in range(i + 1, unstable_count)]
+            for i in range(unstable_count)
+        ]
+        lower_right_matrix = np.array(lower_right_matrix).reshape(unstable_count, -1).transpose()
+
+        # The new predicate matrix is made of 4 blocks, [[1, 2], [3, 4]], where
+        # 1 is the original predicate matrix, 2 is zeros,
+        # 3 is lower_left_matrix and 4 is lower_right_matrix
+        new_pred_matrix = np.block([
+            [self.predicate_matrix, np.zeros((self.predicate_matrix.shape[0], unstable_count))],
+            [lower_left_matrix, lower_right_matrix]
+        ])
+
+        # The new predicate bias adds the shifts from the above constraints.
+        # So for each unstable neuron we append a vector
+        #           [0, -c, relu_slope * (c - lower_bound), upper_bound]
+        additional_bias = [
+            [[0],
+             -self.center[unstable_neurons[i]],
+             (upper_bounds[i] / (upper_bounds[i] - lower_bounds[i])) * (
+                     self.center[unstable_neurons[i]] - lower_bounds[i]),
+             [upper_bounds[i]]
+             ]
+            for i in range(unstable_count)
+        ]
+        additional_bias = np.array(additional_bias).reshape(-1, 1)
+
+        # Stack the new values
+        new_pred_bias = np.vstack([self.predicate_bias, additional_bias])
+
+        return LinearFunctions(new_pred_matrix, new_pred_bias)
+
+    def create_approx_transformation(self, unstable_neurons: list[int], inactive: list[int]) -> LinearFunctions:
+        """
+
+        """
+
+        unstable_count = len(unstable_neurons)
+
+        # The new basis sets to 0 all unstable neurons and adds a 1 for the fresh variable z
+        # Set the transformation for inactive and unstable neurons to 0
+
+        new_transformation = self.mask_for_inactive_neurons(inactive + unstable_neurons)
+
+        # Add a 1 for each fresh variable z
+        basis_height = self.basis_matrix.shape[0]
+        additional_basis_columns = np.zeros((basis_height, unstable_count))
+        for i in range(unstable_count):
+            additional_basis_columns[unstable_neurons[i]][i] = 1
+
+        new_basis_matrix = np.hstack((new_transformation.matrix, additional_basis_columns))
+        new_transformation.matrix = new_basis_matrix
+
+        return new_transformation
 
 
 class StarSet(AbsElement):

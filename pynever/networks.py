@@ -499,12 +499,20 @@ class SequentialNetwork(NeuralNetwork):
         """
         This method returns the identifier of the layer at the given index
 
+        Parameters
+        ----------
+
         index : int
             Index of the layer to return
 
+        Returns
+        ----------
+        str
+            The identifier of the layer at the given index
+
         """
 
-        if index > len(self.nodes):
+        if index > len(self.nodes) or index < 0:
             raise IndexError
         else:
             counter = 0
@@ -513,6 +521,33 @@ class SequentialNetwork(NeuralNetwork):
                     return layer.identifier
 
                 counter += 1
+
+    def get_index_from_identifier(self, identifier: str) -> int:
+        """
+        This method returns the index of the layer with the given
+        identifier
+
+        Parameters
+        ----------
+        identifier : str
+            Identifier of the layer to return
+
+        Returns
+        ----------
+        int
+            The index of the layer with the given identifier
+
+        """
+
+        counter = 0
+
+        for layer in self.layers_iterator():
+            if layer.identifier == identifier:
+                return counter
+
+            counter += 1
+
+        raise NotInNetworkError(f'There is no layer with identifier {identifier}')
 
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
