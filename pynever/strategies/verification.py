@@ -302,7 +302,7 @@ class SearchVerification(VerificationStrategy):
         star0 = prop.to_input_star()
         bounds = sf.get_bounds(network, prop, self.search_params['bounds'])
 
-        star1 = sf.propagate_and_init_star_before_relu_layer(star0, bounds, network)
+        star1 = sf.propagate_and_init_star_before_relu_layer(star0, bounds, network, skip=False)
 
         return star1, sf.get_input_bounds(prop), bounds, bm.net2list(network)
 
@@ -326,15 +326,15 @@ class SearchVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork) and isinstance(prop, NeVerProperty):
-            in_star, input_bounds, nn_bounds, net_list = self.init_search(network, prop)
+            in_star, input_bounds, in_bounds, net_list = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork and NeVerProperty objects are supported at present')
 
-        self.logger.info(f"Inactive neurons: {nn_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
-                         f"  Active neurons: {nn_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n\n")
+        self.logger.info(f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
+                         f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n\n")
 
         # Frontier is a stack of tuples (Star, AbstractBounds)
-        frontier = [(in_star, nn_bounds)]
+        frontier = [(in_star, in_bounds)]
         stop_flag = False
 
         # Start timer
@@ -362,7 +362,7 @@ class SearchVerification(VerificationStrategy):
                     target, current_star = sf.get_next_target(self.search_params['heuristic'],
                                                               current_star, nn_bounds, network)
 
-                    if not target is None:
+                    if target is not None:
                         # Split the current branch according to the target
                         frontier.extend(
                             sf.split_star_opt(current_star, target, net_list, nn_bounds)
@@ -373,6 +373,11 @@ class SearchVerification(VerificationStrategy):
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
+                        intersects, unsafe_stars = self.compute_intersection(current_star, input_bounds, nn_bounds,
+                                                                             net_list, prop)
+                        target, current_star = sf.get_next_target(self.search_params['heuristic'],
+                                                                  current_star, nn_bounds, network)
+
                         raise Exception("This point should not be reachable")
 
             else:

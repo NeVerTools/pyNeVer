@@ -4,7 +4,7 @@ import datetime
 import numpy as np
 
 import pynever.strategies.abstraction as abst
-from pynever import nodes
+from pynever import nodes, networks
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction import Star
 from pynever.strategies.bp.bounds import HyperRectangleBounds
@@ -135,51 +135,31 @@ def abs_propagation(star: Star, bounds: dict, nn_list: list) -> Star:
     return star
 
 
-def propagate_and_init_star_before_relu_layer(star, bounds, network, from_layer_n=-1):
+def propagate_and_init_star_before_relu_layer(star, bounds, network, skip=True):
     """
     Compute the initial star which will always start from the first layer and
     where we will use the bounds to determine the inactive nodes,
     so that we could set the transformation for them to 0.
     """
-    #TODO: check if this method duplicates other methods
+    new_star, relu_layer = propagate_until_relu(star, network, skip=skip)
+    relu_layer_n = new_star.ref_layer
 
-    layer = network.get_first_node()
-
-    # Skip the first from_layer_n + 1 layers
-    for _ in range(from_layer_n + 1):
-        layer = network.get_next_node(layer)
-
-    # Find the first ReLU layer
-    relu_layer_n = from_layer_n + 1
-    prev_layer = layer
-    while(not isinstance(layer, nodes.ReLUNode)):
-        prev_layer = layer
-        layer = network.get_next_node(layer)
-        relu_layer_n += 1
-
-    fc_layer = prev_layer
-    relu_layer = layer
-
-    if isinstance(fc_layer, nodes.FullyConnectedNode) and isinstance(relu_layer, nodes.ReLUNode):
+    if relu_layer is not None:
         layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier] +
-                          [i for (lay_n, i), value in star.fixed_neurons.items() if lay_n == relu_layer_n and value == 0])
+                          [i for (lay_n, i), value in new_star.fixed_neurons.items() if lay_n == relu_layer_n and value == 0])
         layer_unstable = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-                          if layer_n == relu_layer_n and not (layer_n, neuron_n) in star.fixed_neurons}
+                          if layer_n == relu_layer_n and not (layer_n, neuron_n) in new_star.fixed_neurons}
 
-        # TODO: have a method to propagate the fully connected layer through star
         new_basis_matrix, new_center = mask_transformation_for_inactive_neurons(
-            layer_inactive,
-            np.matmul(fc_layer.weight, star.basis_matrix),
-            np.dot(fc_layer.weight, star.center) + get_layer_bias_as_two_dimensional(fc_layer))
+            layer_inactive, new_star.basis_matrix, new_star.center)
 
-        return abst.Star(star.predicate_matrix, star.predicate_bias, new_center, new_basis_matrix,
-                         ref_layer=relu_layer_n, ref_unstable_neurons=layer_unstable, fixed_neurons=star.fixed_neurons)
-    else:
-        raise Exception(
-            f"Currently expecting layer {relu_layer_n} to be a ReLUNode and the previous layer a FullyConnectedNode.\n"
-            f" Instead got {type(fc_layer.__class__)} and {type(relu_layer.__class__)}")
+        return abst.Star(new_star.predicate_matrix, new_star.predicate_bias, new_center, new_basis_matrix,
+                         ref_layer=relu_layer_n, ref_unstable_neurons=layer_unstable, fixed_neurons=new_star.fixed_neurons)
 
-def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
+    return new_star
+
+
+def propagate_until_relu(star: Star, network: networks.SequentialNetwork, skip: bool) -> Star:
     """
     This function performs the star propagation throughout Fully Connected layers
     only, until a ReLU layer is encountered. This is used in order to process
@@ -201,10 +181,18 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
 
     """
 
-    start_layer = star.ref_layer
+    if not skip:
+        # not skip means we are starting from the beginning.
+        # So the stars ref_layer might not be initialised.
+        # For the correct count, it needs to be set to -1
+        start_layer = 0
+    else:
+        start_layer = star.ref_layer
+
     i = 0
 
-    for layer in nn_list[start_layer:]:
+    relu_layer = None
+    for layer in network.layers_iterator(start_layer):
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -221,15 +209,17 @@ def propagate_until_relu(star: Star, nn_list: list, skip: bool) -> Star:
                 continue
             # Otherwise, stay on this layer and interrupt cycle
             else:
+                relu_layer = layer
                 break
 
         else:
-            raise NotImplementedError('Unsupported layer')
+            raise NotImplementedError(f'Currently supporting only FullyConnected and ReLU nodes. '
+                                      f'Unsupported layer {layer.__class__}')
 
     # Set reference layer
     star.ref_layer = start_layer + i
 
-    return star
+    return star, relu_layer
 
 
 def get_layer_bias_as_two_dimensional(layer):
@@ -330,10 +320,10 @@ def intersect_bounds(star, nn, nn_bounds, prop: 'NeverProperty'):
                 break
         if conjunction_intersects:
             # only now use the method that calls an LP solver when we need a counter-example
-            return intersect_abstract_star_lp(star, nn, nn_bounds, prop)
+            return intersect_abstract_star_milp(star, nn, nn_bounds, prop)
     return False, []
 
-def intersect_abstract_star_lp(star, nn, nn_bounds, prop: 'NeverProperty'):
+def intersect_abstract_star_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
     """
     Another implementation of intersect_star_lp
     """
@@ -391,7 +381,7 @@ def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
         - output variables
         - binary variables for encoding the disjunction in the output property
     * three kinds of constraints:
-        - for each fixed neuron, a constraint using its lower or upper bound
+        - for each fixed neuron, a constraint using its symbolic lower or upper bound
         - for each output variable, a lower and an upper bound constraint from the input variables
         - the constraints involving binary variables to encode the output property
 
@@ -489,6 +479,7 @@ def _encode_output_property_constraints(solver, prop, output_bounds, output_vars
 
 
 def check_valid_counterexample(candidate_cex, nn, prop):
+    # TODO: replace this with a normal forward pass
     input_bounds = HyperRectangleBounds(np.array(candidate_cex), np.array(candidate_cex))
     bounds = BoundsManager().compute_bounds(input_bounds, nn)
     output_bounds = bounds['numeric_post'][nn[-1].identifier]
@@ -502,7 +493,6 @@ def check_valid_counterexample(candidate_cex, nn, prop):
         # Every condition
         satisfied = True
         for j in range(len(prop.out_coef_mat[i])):
-            # the big M constant as not clear how to do indicator constraints
             if prop.out_coef_mat[i][j].dot(candidate_output) - prop.out_bias_mat[i][j][0] > 0:
                 # this conjunct is not satisfied, as it should be <= 0
                 satisfied = False
@@ -561,7 +551,7 @@ def intersect_symb_lp(input_bounds, nn_bounds, prop):
     return intersects, unsafe_stars
 
 
-def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, network) \
+def get_next_target(ref_heur: str, star: Star, nn_bounds: dict, network: networks.SequentialNetwork) \
         -> tuple[RefinementTarget | None, Star]:
     if ref_heur == 'sequential':
         return get_target_sequential(star, network)
@@ -581,15 +571,22 @@ def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, netw
     unstable = nn_bounds['stability_info'][StabilityInfo.UNSTABLE]
     unstable = [neuron for neuron in unstable if not neuron in star.fixed_neurons]
 
+    unstable_lowest_layer = sorted(list({layer_n for (layer_n, _) in unstable}))
+    if len(unstable_lowest_layer) != 0:
+        unstable_lowest_layer = unstable_lowest_layer[0]
+
     # There are still unstable neurons
     if len(unstable) > 0:
         if not star.ref_unstable_neurons is None and len(star.ref_unstable_neurons) == 0:
             # the current layer is complete, so we need to move to the next layer
             # through the fully connected transformation
-            star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, from_layer_n=star.ref_layer)
+            star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
 
-            next_layers = sorted([layer_n for (layer_n, neuron_n) in nn_bounds['overapproximation_area']['map'].keys()
-                                  if layer_n >= star.ref_layer])
+            # if star.ref_layer > unstable_lowest_layer:
+            #     x = 5
+
+            next_layers = sorted(list({layer_n for (layer_n, neuron_n) in nn_bounds['overapproximation_area']['map'].keys()
+                                       if layer_n >= star.ref_layer}))
             if len(next_layers) == 0:
                 return None, star
 
@@ -615,18 +612,19 @@ def get_target_lowest_overapprox_current_layer(star: Star, nn_bounds: dict, netw
     return None, star
 
 
-def get_target_sequential_optimized(star: Star, nn_bounds: dict, network) -> tuple[RefinementTarget | None, Star]:
-    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
-        for layer_n, neuron_n in nn_bounds['stability_info'][StabilityInfo.UNSTABLE]:
-            if not (layer_n, neuron_n) in star.fixed_neurons:
+def get_target_sequential_optimized(star: Star, nn_bounds: dict, network: networks.SequentialNetwork) -> tuple[RefinementTarget | None, Star]:
+    unstable = nn_bounds['stability_info'][StabilityInfo.UNSTABLE]
+    unstable = [neuron for neuron in unstable if not neuron in star.fixed_neurons]
 
+    if len(unstable) > 0:
+        for layer_n, neuron_n in unstable:
                 if layer_n != star.ref_layer:
                     # TODO: have the check as a method of Star? Or some other util
                     if not star.ref_unstable_neurons is None and len(star.ref_unstable_neurons) == 0:
                         # the current layer is complete, so we need to move to the next layer
                         # through the fully connected transformation
                         #
-                        star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network, from_layer_n=star.ref_layer)
+                        star = propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
 
                 star.ref_neuron = neuron_n
 
@@ -635,7 +633,7 @@ def get_target_sequential_optimized(star: Star, nn_bounds: dict, network) -> tup
     return None, star
 
 
-def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget | None, Star]:
+def get_target_sequential(star: Star, network: networks.SequentialNetwork) -> tuple[RefinementTarget | None, Star]:
     """
     This function updates the target for the refinement of the star using
     a sequential approach. For each ReLU layer all neurons are refined
@@ -656,16 +654,7 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
 
     """
 
-    def get_last_relu(net_list: list):
-        last_relu_idx = 0
-        for net_layer in net_list[::-1]:
-            if isinstance(net_layer, nodes.ReLUNode):
-                last_relu_idx = net_list.index(net_layer)
-                break
-
-        return last_relu_idx
-
-    star = propagate_until_relu(star, nn_list, False)
+    star, _ = propagate_until_relu(star, network, False)
     current_neuron = star.ref_neuron
 
     if current_neuron < star.center.shape[0]:
@@ -673,13 +662,13 @@ def get_target_sequential(star: Star, nn_list: list) -> tuple[RefinementTarget |
         new_target = RefinementTarget(star.ref_layer, current_neuron)
 
     else:
-        if star.ref_layer == get_last_relu(nn_list):
+        if star.ref_layer == network.get_last_relu_index():
             # There are no more neurons and no more layers
             new_target = None
 
         else:
             # There is another ReLU layer: propagate the star to that layer and reset the neuron
-            star = propagate_until_relu(star, nn_list, True)
+            star, _ = propagate_until_relu(star, network, True)
             star.ref_neuron = 0
             next_layer = star.ref_layer
             new_target = RefinementTarget(next_layer, 0)
@@ -796,6 +785,9 @@ def split_star_opt(star: Star, target: RefinementTarget, nn_list, nn_bounds: dic
     stars = compute_star_after_fixing_to_negative(star, negative_bounds, target, nn_list) +\
         compute_star_after_fixing_to_positive(star, positive_bounds, target, nn_list)
 
+    if (5, 35) in star.fixed_neurons and len(stars) == 2 and (5, 35) not in stars[1][0].fixed_neurons:
+        x = 5
+
     # stars = sorted(stars, key=lambda x: x[2])
     stars = [(s, bounds) for (s, bounds, _) in stars]
 
@@ -840,6 +832,8 @@ def compute_star_after_fixing_to_negative(star, bounds, target, nn_list):
     # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
     ref_layer_unstable.discard(index)
 
+    # if (5, 35) in bounds['stability_info'][StabilityInfo.UNSTABLE] and 35 not in ref_layer_unstable and target.to_pair() != (5,35) and target.layer_idx == 5:
+    #     print(star.fixed_neurons, target)
 
 
     # Update the predicate to include the constraint that the target neuron y is inactive

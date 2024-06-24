@@ -1,4 +1,5 @@
 import abc
+import collections
 from typing import List, Optional
 import copy
 
@@ -348,6 +349,39 @@ class SequentialNetwork(NeuralNetwork):
             return relu_count
         else:
             return 0
+
+    def layers_iterator(self, offset: int = 0) -> collections.abc.Generator[nodes.LayerNode | None, None, None]:
+        """
+        This method builds a generator for the layers of the network in sequential order.
+        It allows to have an iterable interface when needed
+
+        offset: int
+            Offset to start the generation
+
+        """
+
+        if self.is_empty():
+            return
+        else:
+            node = self.get_first_node()
+
+            counter = 0
+            while node is not None:
+                if counter >= offset:
+                    yield node
+
+                node = self.get_next_node(node)
+                counter += 1
+
+    def get_last_relu_index(self):
+        last_relu_idx = 0
+        index = 0
+        for net_layer in self.layers_iterator():
+            if isinstance(net_layer, nodes.ReLUNode):
+                last_relu_idx = index
+            index += 1
+
+        return last_relu_idx
 
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
