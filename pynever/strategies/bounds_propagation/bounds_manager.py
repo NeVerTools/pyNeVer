@@ -9,9 +9,8 @@ from pynever.strategies.bounds_propagation.linearfunctions import LinearFunction
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.verification.parameters import NeuronState
 from pynever.strategies.verification.properties import NeverProperty
-from pynever.strategies.verification.parameters import RefinementTarget
+from pynever.strategies.verification.ssbp.constants import NeuronState, RefinementTarget
 
 
 class RefiningBound(Enum):
@@ -74,7 +73,7 @@ class BoundsManager:
 
         """
 
-        return bounds['symbolic'][nn.get_identifier_from_index(target.layer_idx - 1)]
+        return bounds['symbolic'][nn.get_id_from_index(target.layer_idx - 1)]
 
     def compute_bounds_from_property(self, network: NeuralNetwork, prop: NeverProperty) -> dict:
         """

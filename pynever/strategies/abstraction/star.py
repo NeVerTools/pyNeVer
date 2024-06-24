@@ -566,6 +566,22 @@ class ExtendedStar(Star):
 
         return LinearFunctions(self.basis_matrix[neuron_idx, :], self.center[neuron_idx])
 
+    def get_predicate_equation(self) -> LinearFunctions:
+        """
+        This method creates the linear function for the predicate of the star
+
+        """
+
+        return LinearFunctions(self.predicate_matrix, self.predicate_bias)
+
+    def get_transformation_equation(self) -> LinearFunctions:
+        """
+        This method creates the linear function for the transformation of the star
+
+        """
+
+        return LinearFunctions(self.basis_matrix, self.center)
+
     def mask_for_inactive_neurons(self, inactive_neurons: list) -> LinearFunctions:
         """
         This method creates the mask for all inactive neurons,
@@ -579,7 +595,22 @@ class ExtendedStar(Star):
 
         return LinearFunctions(tensors.matmul(mask, self.basis_matrix), tensors.matmul(mask, self.center))
 
-    def approx_relu_forward(self, bounds: AbstractBounds, dim: int, layer_n: int = 1) -> Star:
+    def single_fc_forward(self, weight: Tensor, bias: Tensor) -> ExtendedStar:
+        """
+        Static copy of the forward pass of the fully connected layer
+
+        """
+
+        if weight.shape[1] != self.basis_matrix.shape[0]:
+            raise Exception
+
+        new_basis_matrix = tensors.matmul(weight, self.basis_matrix)
+        new_center = tensors.matmul(weight, self.center) + bias
+
+        return ExtendedStar(LinearFunctions(self.predicate_matrix, self.predicate_bias),
+                            LinearFunctions(new_basis_matrix, new_center))
+
+    def approx_relu_forward(self, bounds: AbstractBounds, dim: int, layer_index: int = 1) -> ExtendedStar:
         """
         Approximate abstract propagation for a ReLU layer
 
@@ -589,8 +620,8 @@ class ExtendedStar(Star):
             The bounds of this layer
         dim : int
             The number of neurons in this layer
-        layer_n : int
-
+        layer_index : int
+            The index of the layer in the network
 
         Returns
         ----------
@@ -604,7 +635,7 @@ class ExtendedStar(Star):
         inactive = (
                 [i for i in range(dim) if BoundsManager.check_stable(i, bounds) == -1] +
                 [i for (lay_n, i), value in self.fixed_neurons.items()
-                 if lay_n == layer_n and value == 0]
+                 if lay_n == layer_index and value == 0]
         )
 
         # Compute the set of unstable neurons.
@@ -612,7 +643,7 @@ class ExtendedStar(Star):
         # approximate it (as it might still appear unstable according to the bounds)
         unstable_neurons = [
             i for i in range(dim)
-            if BoundsManager.check_stable(i, bounds) == 0 and not (layer_n, i) in self.fixed_neurons
+            if BoundsManager.check_stable(i, bounds) == 0 and not (layer_index, i) in self.fixed_neurons
         ]
 
         # Return if there are no unstable neurons

@@ -378,7 +378,7 @@ def split_star(star: Star, target: RefinementTarget, network: SequentialNetwork,
 
     index = target.neuron_idx
 
-    cur_bounds = bounds_dict[network.get_identifier_from_index(star.ref_layer)]
+    cur_bounds = bounds_dict[network.get_id_from_index(star.ref_layer)]
 
     # Loop to filter positive stable neurons
     while index < star.n_neurons:

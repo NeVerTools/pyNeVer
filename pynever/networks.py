@@ -495,7 +495,7 @@ class SequentialNetwork(NeuralNetwork):
                 node = self.get_next_node(node)
                 counter += 1
 
-    def get_identifier_from_index(self, index: int) -> str:
+    def get_id_from_index(self, index: int) -> str:
         """
         This method returns the identifier of the layer at the given index
 
@@ -522,7 +522,7 @@ class SequentialNetwork(NeuralNetwork):
 
                 counter += 1
 
-    def get_index_from_identifier(self, identifier: str) -> int:
+    def get_index_from_id(self, identifier: str) -> int:
         """
         This method returns the index of the layer with the given
         identifier
