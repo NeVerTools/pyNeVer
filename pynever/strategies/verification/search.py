@@ -5,23 +5,9 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import Star
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.verification.parameters import NeuronState, BoundsBackend, RefinementStrategy
+from pynever.strategies.verification.parameters import NeuronState, BoundsBackend, RefinementStrategy, RefinementTarget
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.tensors import Tensor
-
-
-class RefinementTarget:
-    """
-
-    """
-
-    # TODO how to use with ResNets? Layer identifier?
-    def __init__(self, layer: int, neuron: int):
-        self.layer_idx = layer
-        self.neuron_idx = neuron
-
-    def __repr__(self):
-        return f'({self.layer_idx}, {self.neuron_idx})'
 
 
 def get_bounds(nn: SequentialNetwork, prop: NeverProperty, strategy: BoundsBackend) -> dict:

@@ -44,7 +44,7 @@ class ONNXNetwork(AlternativeRepresentation):
 
     """
 
-    @dispatch(str, str | None)
+    # @dispatch(str, str)
     def __init__(self, path: str, identifier: str | None = None):
         super().__init__(path, identifier)
 
@@ -53,11 +53,11 @@ class ONNXNetwork(AlternativeRepresentation):
         except Exception:  # TODO mettere eccezione corretta
             raise ValueError('Incorrect file format for ONNX network')
 
-    @dispatch(onnx.ModelProto, str)
-    def __init__(self, onnx_network: onnx.ModelProto, identifier):
-        super().__init__('', identifier)
-
-        self.onnx_network = deepcopy(onnx_network)
+    # @dispatch(onnx.ModelProto, str)
+    # def __init__(self, onnx_network: onnx.ModelProto, identifier):
+    #     super().__init__('', identifier)
+    #
+    #     self.onnx_network = deepcopy(onnx_network)
 
     def save(self, new_path: str):
         onnx.save(self.onnx_network, new_path)
@@ -75,7 +75,7 @@ class PyTorchNetwork(AlternativeRepresentation):
 
     """
 
-    @dispatch(str, str | None)
+    # @dispatch(str, str)
     def __init__(self, path: str, identifier: str | None = None):
         super().__init__(path, identifier)
         try:
@@ -83,10 +83,10 @@ class PyTorchNetwork(AlternativeRepresentation):
         except Exception:  # TODO mettere eccezione corretta
             raise ValueError('Incorrect file format for PyTorch network')
 
-    @dispatch(str, torch.nn.Module)
-    def __init__(self, identifier: str, pytorch_network: torch.nn.Module):
-        super().__init__('', identifier)
-        self.pytorch_network = deepcopy(pytorch_network)
+    # @dispatch(str, torch.nn.Module)
+    # def __init__(self, identifier: str, pytorch_network: torch.nn.Module):
+    #     super().__init__('', identifier)
+    #     self.pytorch_network = deepcopy(pytorch_network)
 
     def save(self, new_path: str):
         torch.save(self.pytorch_network, new_path)

@@ -11,7 +11,7 @@ from pynever.strategies.bounds_propagation.utils.utils import get_positive_part,
     compute_lin_lower_and_upper
 from pynever.strategies.verification.parameters import NeuronState
 from pynever.strategies.verification.properties import NeverProperty
-from pynever.strategies.verification.search import RefinementTarget
+from pynever.strategies.verification.parameters import RefinementTarget
 
 
 class RefiningBound(Enum):

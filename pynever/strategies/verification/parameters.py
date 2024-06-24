@@ -43,6 +43,20 @@ class RefinementStrategy(enum.Enum):
     SEQUENTIAL = 1
 
 
+class RefinementTarget:
+    """
+
+    """
+
+    # TODO how to use with ResNets? Layer identifier?
+    def __init__(self, layer: int, neuron: int):
+        self.layer_idx = layer
+        self.neuron_idx = neuron
+
+    def __repr__(self):
+        return f'({self.layer_idx}, {self.neuron_idx})'
+
+
 class PropagationStrategy(enum.Enum):
     """
     This class is used as an enumerator to represent different propagation strategies.

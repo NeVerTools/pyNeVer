@@ -33,7 +33,7 @@ class NotInNetworkError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-    @dispatch('nodes.LayerNode')
+    @dispatch()
     def __init__(self, node):
         super().__init__(f'{node.identifier} is not a node of the Network')
 
