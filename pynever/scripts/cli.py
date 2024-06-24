@@ -315,7 +315,12 @@ def ssbp_verify_batch(csv_file: str, logfile: str, timeout: int, params_file: st
                     if len(row) >= 2:
                         net_path = f'{folder}/{row[0]}'
                         prop_path = f'{folder}/{row[1]}'
-                        ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+
+                        try:
+                            ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+                        except Exception as e:
+                            print(e)
+                            exec_ok = False
                     else:
                         print('Invalid row: ', row)
                         exec_ok = False
