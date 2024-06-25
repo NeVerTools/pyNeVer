@@ -76,17 +76,17 @@ class PyTorchNetwork(AlternativeRepresentation):
     """
 
     # @dispatch(str, str)
-    def __init__(self, path: str, identifier: str | None = None):
-        super().__init__(path, identifier)
-        try:
-            self.pytorch_network = torch.load(path)
-        except Exception:  # TODO mettere eccezione corretta
-            raise ValueError('Incorrect file format for PyTorch network')
+    # def __init__(self, path: str, identifier: str | None = None):
+    #     super().__init__(path, identifier)
+    #     try:
+    #         self.pytorch_network = torch.load(path)
+    #     except Exception:  # TODO mettere eccezione corretta
+    #         raise ValueError('Incorrect file format for PyTorch network')
 
     # @dispatch(str, torch.nn.Module)
-    # def __init__(self, identifier: str, pytorch_network: torch.nn.Module):
-    #     super().__init__('', identifier)
-    #     self.pytorch_network = deepcopy(pytorch_network)
+    def __init__(self, identifier: str, pytorch_network: torch.nn.Module):
+        super().__init__('', identifier)
+        self.pytorch_network = deepcopy(pytorch_network)
 
     def save(self, new_path: str):
         torch.save(self.pytorch_network, new_path)

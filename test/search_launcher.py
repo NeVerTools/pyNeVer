@@ -47,7 +47,7 @@ def format_csv(answer: tuple[bool, Tensor | None], nn: NeuralNetwork, prop_name:
 
     fancy_cex = '['
     for component in answer[1]:
-        fancy_cex += str(float(component[0]))
+        fancy_cex += str(float(component))
         fancy_cex += ' '
     fancy_cex = fancy_cex[:-1]
     fancy_cex += ']'

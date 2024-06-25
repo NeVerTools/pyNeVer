@@ -178,21 +178,21 @@ def intersect_light_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_
     for (layer_n, neuron_n), value in star.fixed_neurons.items():
         if value == 0:
             solver.Add(
-                input_vars.dot(nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_matrix()[neuron_n]) +
-                nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_upper().get_offset()[neuron_n] <= 0)
+                input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]) +
+                nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_offset()[neuron_n] <= 0)
         else:
             solver.Add(
-                input_vars.dot(nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_matrix()[neuron_n]) +
-                nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_offset()[neuron_n] >= 0)
+                input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_matrix()[neuron_n]) +
+                nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_offset()[neuron_n] >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_upper().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn[-1].identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
+            input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_upper().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_upper().get_offset()[j] - output_vars[j] >= 0)
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
+            input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_lower().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_lower().get_offset()[j] - output_vars[j] <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -244,13 +244,13 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
             ))
 
 
-def check_valid_counterexample(candidate_cex: Tensor, nn: networks.SequentialNetwork, prop: NeverProperty) -> bool:
+def check_valid_counterexample(candidate_cex: list[float], nn: networks.SequentialNetwork, prop: NeverProperty) -> bool:
     """
     This functions checks if a candidate counterexample is a true counterexample for the property
 
     """
 
-    candidate_output = utilities.execute_network(nn, candidate_cex)
+    candidate_output = utilities.execute_network(nn, Tensor(np.array(candidate_cex)))
     n_disjunctions = len(prop.out_coef_mat)
 
     # For each disjunction in the output property, check at least one is satisfied

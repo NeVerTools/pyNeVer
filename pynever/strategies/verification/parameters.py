@@ -27,9 +27,9 @@ class SSLPVerificationParameters(VerificationParameters):
 
 class SSBPVerificationParameters(VerificationParameters):
     def __init__(self,
-                 heuristic: RefinementStrategy = RefinementStrategy.SEQUENTIAL,
+                 heuristic: RefinementStrategy = RefinementStrategy.LOWEST_APPROX,
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,
-                 propagation: PropagationStrategy = PropagationStrategy.STAR_LP,
+                 propagation: PropagationStrategy = PropagationStrategy.ADAPTIVE,
                  timeout: int = 300):
         self.heuristic = heuristic
         self.bounds = bounds

@@ -55,6 +55,7 @@ class RefinementStrategy(enum.Enum):
     """
 
     SEQUENTIAL = 1
+    LOWEST_APPROX = 2
 
 
 class PropagationStrategy(enum.Enum):
@@ -67,4 +68,4 @@ class PropagationStrategy(enum.Enum):
     """
 
     STAR_LP = 1
-    BOUNDS = 2
+    ADAPTIVE = 2

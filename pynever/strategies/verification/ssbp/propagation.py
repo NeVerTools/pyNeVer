@@ -28,6 +28,9 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
 
     start_layer = star.ref_layer
 
+    if start_layer is None:
+        return star
+
     for layer in network.layers_iterator(start_layer):
         i = network.get_index_from_id(layer.identifier)
 

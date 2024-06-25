@@ -8,7 +8,6 @@ from pynever.strategies.bounds_propagation.linearfunctions import LinearFunction
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import NeuronState, RefinementTarget
 from pynever.tensors import Tensor
 
@@ -66,7 +65,7 @@ class BoundsManager:
             return NeuronState.UNSTABLE
 
     @staticmethod
-    def get_input_bounds(prop: NeverProperty) -> HyperRectangleBounds:
+    def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
         """
         This method computes the numeric bounds of the input layer
 
@@ -96,7 +95,7 @@ class BoundsManager:
 
         return bounds['symbolic'][nn.get_id_from_index(target.layer_idx - 1)]
 
-    def compute_bounds_from_property(self, network: NeuralNetwork, prop: NeverProperty) -> dict:
+    def compute_bounds_from_property(self, network: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
         Precomputes bounds for all nodes using symbolic linear propagation
 
@@ -163,7 +162,7 @@ class BoundsManager:
                 stability_info[StabilityInfo.INACTIVE][layer.identifier] = list()
                 stability_info[StabilityInfo.ACTIVE][layer.identifier] = list()
 
-                for neuron_n in range(len(cur_layer_input_num_bounds)):
+                for neuron_n in range(cur_layer_input_num_bounds.size):
 
                     l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
 
