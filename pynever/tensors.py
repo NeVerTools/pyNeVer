@@ -5,10 +5,10 @@ This module contains out internal representation of a tensor and some relevant t
 """
 import enum
 from collections.abc import Iterable
-from numpy.typing import ArrayLike
 
 import numpy
 import torch
+from numpy.typing import ArrayLike
 
 
 class BackEnd(enum.Enum):
@@ -18,12 +18,14 @@ class BackEnd(enum.Enum):
 
 class PtTensor(torch.Tensor):
     """Placeholder for a possible PyTorch implementation"""
+
     def __new__(cls, t: torch.Tensor):
         return torch.Tensor._make_wrapper_subclass(cls, t.data.size(), dtype=t.dtype)
 
 
 class Tensor(numpy.ndarray):
     """Our internal representation of a Tensor. Right now it just a placeholder."""
+
     def __new__(cls, t: numpy.ndarray):
         obj = numpy.asarray(t).view(cls)
         # If attributes are added they should be added here
@@ -32,7 +34,6 @@ class Tensor(numpy.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
-
         if obj is None:
             return
         # If attributes are added they should be also initialized here

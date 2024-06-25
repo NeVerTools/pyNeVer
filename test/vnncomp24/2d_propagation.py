@@ -2,7 +2,9 @@ import numpy as np
 
 from pynever import nodes
 from pynever.networks import SequentialNetwork
-from pynever.strategies import verification
+from pynever.strategies.verification.algorithms import SSBPVerification
+from pynever.strategies.verification.parameters import SSBPVerificationParameters
+from pynever.strategies.verification.properties import VnnLibProperty
 
 # NETWORK DEFINITION
 # W = np.array([[1, 1], [1, -1]])
@@ -19,13 +21,12 @@ rl_2 = nodes.ReLUNode('ReLU_2', (2,))
 fc_3 = nodes.FullyConnectedNode('Y', (2,), 2, W2, b2)
 
 nn = SequentialNetwork('NN', 'X')
-nn.add_node(fc_1)
-nn.add_node(rl_1)
-nn.add_node(fc_2)
-nn.add_node(rl_2)
-nn.add_node(fc_3)
+nn.append_node(fc_1)
+nn.append_node(rl_1)
+nn.append_node(fc_2)
+nn.append_node(rl_2)
+nn.append_node(fc_3)
 
-prop = verification.NeVerProperty()
-prop.from_smt_file('2d_prop.vnnlib')
+prop = VnnLibProperty('2d_prop.vnnlib')
 
-print(verification.SearchVerification().verify(nn, prop))
+print(SSBPVerification(SSBPVerificationParameters()).verify(nn, prop))
