@@ -3,7 +3,7 @@ import copy
 from pynever import networks
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget
 
@@ -150,8 +150,7 @@ def compute_star_after_fixing_to_negative(star: ExtendedStar, bounds: dict, targ
     ref_layer_unstable.discard(index)
 
     # Update the predicate to include the constraint that the target neuron y is inactive
-    lower_predicate = add_to_predicate_inactive_constraint(star.predicate_matrix, star.predicate_bias,
-                                                           get_neuron_equation(star, index))
+    lower_predicate = star.add_to_predicate_inactive_constraint(index)
 
     lower_star = ExtendedStar(lower_predicate, new_transformation, ref_layer=target.layer_idx,
                               ref_neuron=target.neuron_idx, ref_unstable_neurons=ref_layer_unstable,
@@ -195,8 +194,7 @@ def compute_star_after_fixing_to_positive(star: ExtendedStar, bounds: dict, targ
     ref_layer_unstable.discard(index)
 
     # Update the predicate to include the constraint that the target neuron is active
-    upper_predicate = add_to_predicate_active_constraint(star.predicate_matrix, star.predicate_bias,
-                                                         get_neuron_equation(star, index))
+    upper_predicate = star.add_to_predicate_active_constraint(index)
 
     upper_star = ExtendedStar(upper_predicate, new_transformation, ref_layer=target.layer_idx,
                               ref_neuron=target.neuron_idx, ref_unstable_neurons=ref_layer_unstable,

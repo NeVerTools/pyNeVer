@@ -757,6 +757,34 @@ class ExtendedStar(Star):
 
         return new_transformation
 
+    def add_to_predicate_active_constraint(self, index: int) -> LinearFunctions:
+        """
+        Update the predicate to include the constraint that the neuron defined by equation is active,
+        i.e., if the neuron y is defined as coeff * x + shift, where x are input neurons,
+        then coeff * x + shift >= 0, or, equivalently, - coeff * x <= shift
+
+        """
+
+        eq = self.get_neuron_equation(index)
+        pred = np.vstack((self.predicate_matrix, -eq.matrix))
+        bias = np.vstack((self.predicate_bias, eq.offset))
+
+        return LinearFunctions(pred, bias)
+
+    def add_to_predicate_inactive_constraint(self, index: int) -> LinearFunctions:
+        """
+        Update the predicate to include the constraint that the neuron defined by equation is inactive,
+        i.e., if the neuron y is defined as coeff * x + shift, where x are input neurons,
+        then coeff * x + shift <= 0, or, equivalently, coeff * x <= -shift
+
+        """
+
+        eq = self.get_neuron_equation(index)
+        pred = np.vstack((self.predicate_matrix, eq.matrix))
+        bias = np.vstack((self.predicate_bias, -eq.offset))
+
+        return LinearFunctions(pred, bias)
+
 
 class StarSet(AbsElement):
     """

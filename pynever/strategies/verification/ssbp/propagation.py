@@ -1,6 +1,7 @@
 from pynever import networks, nodes
 
 from pynever.strategies.abstraction.star import ExtendedStar
+from pynever.strategies.bounds_propagation.bounds_manager import StabilityInfo
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
@@ -40,10 +41,10 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
         elif isinstance(layer, nodes.ReLUNode):
             layer_bounds = bounds['numeric_pre'][layer.identifier]
 
-            # layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][layer.identifier]
             star = star.approx_relu_forward(layer_bounds, layer.get_input_dim()[0], layer_index=i)
 
         elif isinstance(layer, nodes.FlattenNode):
+            # Do nothing
             continue
 
         else:
@@ -71,7 +72,7 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
         layer_unstable = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
                           if layer_n == relu_layer_n and not (layer_n, neuron_n) in new_star.fixed_neurons}
 
-        new_transformation = new_star.mask_transformation_for_inactive_neurons(layer_inactive)
+        new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
         return ExtendedStar(new_star.get_transformation_equation(), new_transformation, ref_layer=relu_layer_n,
                             ref_unstable_neurons=layer_unstable, fixed_neurons=new_star.fixed_neurons)
@@ -127,10 +128,15 @@ def propagate_until_relu(star: ExtendedStar, network: networks.SequentialNetwork
                 skip = False
                 i += 1
                 continue
+
             # Otherwise, stay on this layer and interrupt cycle
             else:
                 relu_layer = layer
                 break
+
+        elif isinstance(layer, nodes.FlattenNode):
+            # Do nothing
+            i += 1
 
         else:
             raise NotImplementedError(f'Currently supporting only FullyConnected and ReLU nodes. '
