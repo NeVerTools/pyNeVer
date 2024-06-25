@@ -17,6 +17,10 @@ logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.INFO)
 
+logger_stream = logging.getLogger("pynever.strategies.bounds_propagation")
+logger_stream.addHandler(logging.StreamHandler())
+logger_stream.setLevel(logging.DEBUG)
+
 logger_file = logging.getLogger("log_file")
 logger_file.addHandler(logging.FileHandler('logs/experiments.csv'))
 logger_file.setLevel(logging.INFO)

@@ -9,9 +9,9 @@ from pynever.strategies.verification.properties import VnnLibProperty
 logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.INFO)
-logger_stream = logging.getLogger("pynever.strategies.bp.bounds_manager")
+logger_stream = logging.getLogger("pynever.strategies.bounds_propagation")
 logger_stream.addHandler(logging.StreamHandler())
-logger_stream.setLevel(logging.INFO)
+logger_stream.setLevel(logging.DEBUG)
 
 prop = VnnLibProperty('../../examples/benchmarks/ACAS XU/Properties/prop_2.vnnlib')
 
