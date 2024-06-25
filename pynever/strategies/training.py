@@ -3,7 +3,7 @@ import logging
 import math
 import os
 import shutil
-from typing import Callable, Dict
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -12,7 +12,8 @@ import torch.utils.data as tdt
 
 import pynever.datasets as datasets
 import pynever.networks as networks
-import pynever.strategies.conversion as cv
+from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
+from pynever.strategies.conversion.representation import PyTorchNetwork
 
 logger_name = "pynever.strategies.training"
 
@@ -47,7 +48,7 @@ class TrainingStrategy(abc.ABC):
             dataset.
 
         """
-        pass
+        raise NotImplementedError
 
 
 class TestingStrategy(abc.ABC):
@@ -76,10 +77,10 @@ class TestingStrategy(abc.ABC):
         Returns
         ----------
         float
-            A measure of the correctness of the networks dependant on the concrete children
+            A measure of the correctness of the networks dependent on the concrete children
 
         """
-        pass
+        raise NotImplementedError
 
 
 class PytorchTraining(TrainingStrategy):
@@ -131,12 +132,9 @@ class PytorchTraining(TrainingStrategy):
 
     network_transform : Callable, Optional
         We provide the possibility to define a function which will be applied to the network after
-        the computation of backward and before the optimizer step. In practice we use it for the manipulation
+        the computation of backward and before the optimizer step. In practice, we use it for the manipulation
         needed to the pruning oriented training. It should take a pytorch module (i.e., the neural network) as
         input and optional supplementary parameters () should be given as attributes of the object. (default: None)
-
-    cuda : bool, Optional
-        Whether to use the cuda library for the procedure (default: False).
 
     train_patience : int, Optional
         The number of epochs in which the loss may not decrease before the
@@ -151,9 +149,9 @@ class PytorchTraining(TrainingStrategy):
 
     """
 
-    def __init__(self, optimizer_con: type, opt_params: Dict, loss_function: Callable, n_epochs: int,
+    def __init__(self, optimizer_con: type, opt_params: dict, loss_function: Callable, n_epochs: int,
                  validation_percentage: float, train_batch_size: int, validation_batch_size: int, r_split: bool = True,
-                 scheduler_con: type = None, sch_params: Dict = None, precision_metric: Callable = None,
+                 scheduler_con: type = None, sch_params: dict = None, precision_metric: Callable = None,
                  network_transform: Callable = None, device: str = 'cpu', train_patience: int = None,
                  checkpoints_root: str = '', verbose_rate: int = None):
 
@@ -176,7 +174,8 @@ class PytorchTraining(TrainingStrategy):
         self.r_split = r_split
         self.network_transform = network_transform
 
-        assert device == 'cpu' or device == 'cuda' or device == 'mps'
+        if device not in ['cpu', 'cuda', 'mps']:
+            raise Exception
         self.device = torch.device(device)
 
         if train_patience is None:
@@ -193,18 +192,14 @@ class PytorchTraining(TrainingStrategy):
 
     def train(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -> networks.NeuralNetwork:
 
-        pytorch_converter = cv.PyTorchConverter()
+        pytorch_converter = PyTorchConverter()
         py_net = pytorch_converter.from_neural_network(network)
 
         py_net = self.pytorch_training(py_net, dataset)
 
-        network.alt_rep_cache.clear()
-        network.alt_rep_cache.append(py_net)
-        network.up_to_date = False
+        return pytorch_converter.to_neural_network(py_net)
 
-        return network
-
-    def pytorch_training(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> cv.PyTorchNetwork:
+    def pytorch_training(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> PyTorchNetwork:
 
         """
         Training procedure for the PyTorchNetwork.
@@ -280,9 +275,8 @@ class PytorchTraining(TrainingStrategy):
         # history_score is used to keep track of the evolution of training loss and validation loss
         history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
 
-
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
-        # epochs until termination we consider all the batches
+        # epoch until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
 
             if epochs_without_decrease > self.train_patience:
@@ -317,7 +311,7 @@ class PytorchTraining(TrainingStrategy):
                 if batch_idx % self.verbose_rate == 0:
                     logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                         epoch, batch_idx * len(data), len(training_set),
-                               100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
                         loss.data.item()))
 
             # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
@@ -399,28 +393,26 @@ class PytorchTesting(TestingStrategy):
 
     metric_params : Dict
         Supplementary parameters for the metric other than the output and the target (which should always be the first
-        two parameters of the metric. It is assumed that it produce a float value and such value
+        two parameters of the metric). It is assumed that it produce a float value and such value
         decrease for increasing correctness of the network (as the traditional loss value).
 
     test_batch_size : int
         Dimension for the test batch size for the testing procedure
-
-    cuda : bool, Optional
-        Whether to use the cuda library for the procedure (default: False).
 
     save_results : bool, Optional
         Whether to save outputs, targets and losses as attributes.
 
     """
 
-    def __init__(self, metric: Callable, metric_params: Dict, test_batch_size: int, device: str = 'cpu',
+    def __init__(self, metric: Callable, metric_params: dict, test_batch_size: int, device: str = 'cpu',
                  save_results: bool = False, mps: bool = False):
 
         TestingStrategy.__init__(self)
         self.metric = metric
         self.metric_params = metric_params
         self.test_batch_size = test_batch_size
-        assert device == 'cpu' or device == 'cuda' or device == 'mps'
+        if device not in ['cpu', 'cuda', 'mps']:
+            raise Exception
         self.device = torch.device(device)
         self.mps = mps
         self.save_results = save_results
@@ -435,14 +427,14 @@ class PytorchTesting(TestingStrategy):
 
     def test(self, network: networks.NeuralNetwork, dataset: datasets.Dataset) -> float:
 
-        pytorch_converter = cv.PyTorchConverter()
+        pytorch_converter = PyTorchConverter()
         py_net = pytorch_converter.from_neural_network(network)
 
         measure = self.pytorch_testing(py_net, dataset)
 
         return measure
 
-    def pytorch_testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> float:
+    def pytorch_testing(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> float:
 
         net.pytorch_network.to(self.device)
 

@@ -10,3 +10,4 @@ pyNeVer.egg-info/
 !**/IEEEAccess2023/vnncomp_benchmarks/logs/*
 temp*
 !**/data/placeholder.txt
+*.DS_STORE

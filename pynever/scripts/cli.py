@@ -6,20 +6,25 @@ import re
 import sys
 import time
 
-import pynever.networks as nets
-import pynever.strategies.conversion as conv
-import pynever.strategies.verification as ver
-from pynever import utilities
+import pynever.networks as networks
+import pynever.strategies.verification.algorithms as veralg
+import pynever.strategies.verification.parameters as verparams
+import pynever.strategies.verification.properties as verprop
+import pynever.utilities as utilities
+from pynever.strategies.conversion.converters.onnx import ONNXConverter
+from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
 from pynever.tensors import Tensor
-from pynever.utilities import execute_network
 
 # Log to stdout
 logger = logging.getLogger('pynever.strategies.verification')
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
+POST_CONDITIONS_TEMP_FILE = 'pynever/scripts/intermediate.vnnlib'
 
-def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str) -> bool:
+
+def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, strategy: str, logfile: str | None) \
+        -> None:
     """
     This method starts the verification procedure on the network model
     provided in the model_file path and prints the result with the SSLP algorithm
@@ -48,99 +53,82 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
     prop_path = os.path.abspath(property_file)
 
     if not os.path.isfile(nn_path):
-        print(f'Error: file {nn_path} not found!')
-        return False
+        raise Exception(f'Error: file {nn_path} not found!')
 
-    elif not os.path.isfile(prop_path):
-        print(f'Error: file {prop_path} not found!')
-        return False
+    if not os.path.isfile(prop_path):
+        raise Exception(f'Error: file {prop_path} not found!')
 
-    else:
         # Read the network file
-        alt_repr = conv.load_network_path(nn_path)
+    alt_repr = load_network_path(nn_path)
 
-        if alt_repr is not None:
-            if isinstance(alt_repr, conv.ONNXNetwork):
-                network = conv.ONNXConverter().to_neural_network(alt_repr)
+    if not isinstance(alt_repr, ONNXNetwork):
+        raise Exception('The network is not an ONNX network!')
 
-                if isinstance(network, nets.SequentialNetwork):
-                    # Read the property file
-                    to_verify = ver.NeVerProperty()
+    network = ONNXConverter().to_neural_network(alt_repr)
 
-                    if safety_prop:
-                        neg_post_condition(prop_path)
-                        to_verify.from_smt_file(os.path.abspath('pynever/scripts/intermediate.vnnlib'))
-                        os.remove('pynever/scripts/intermediate.vnnlib')
-                    else:
-                        to_verify.from_smt_file(prop_path)
+    if not isinstance(network, networks.SequentialNetwork):
+        raise Exception('The network is not a sequential network!')
 
-                    params = []
-                    if strategy == 'overapprox':
-                        params = [[0] for _ in range(network.count_relu_layers())]
-                    elif strategy == 'mixed':
-                        params = [[1] for _ in range(network.count_relu_layers())]
-                    elif strategy == 'complete':
-                        params = [[10000] for _ in range(network.count_relu_layers())]
-                    ver_strategy = ver.NeverVerification(strategy, params)
+    # Read the property file
+    prop = verprop.VnnLibProperty(prop_path)
 
-                    model_name = os.path.basename(nn_path)
-                    property_name = os.path.basename(property_file)
+    if safety_prop:
+        neg_post_condition(prop_path)
+        prop = verprop.VnnLibProperty(os.path.abspath(POST_CONDITIONS_TEMP_FILE))
+        os.remove(POST_CONDITIONS_TEMP_FILE)
 
-                    ver_start_time = time.perf_counter()
-                    safe = ver_strategy.verify(network, to_verify)
-                    fancy_cex = None
-                    fancy_out = None
+    params = verparams.SSLPVerificationParameters(strategy,
+                                                  [[1] for _ in range(network.count_relu_layers())]
+                                                  if strategy == 'mixed' else None)
 
-                    if not safe:
-                        if strategy == 'complete':
-                            answer = 'Falsified'
-                            counter_stars = ver_strategy.counterexample_stars
-                            if counter_stars is not None:
-                                cexs = []
+    ver_strategy = veralg.SSLPVerification(params)
 
-                                # Extract counterexamples (one per star is enough)
-                                for cex_star in counter_stars:
-                                    cexs.extend(cex_star.get_samples(num_samples=1))
+    model_name = os.path.basename(nn_path)
+    property_name = os.path.basename(property_file)
 
-                                if len(cexs) > 0:
-                                    fancy_cex = reformat_counterexample(cexs[0])
-                                    fancy_out = reformat_counterexample(execute_network(network, cexs[0]))
-                        else:
-                            answer = 'Unknown'
-                    else:
-                        answer = 'Verified'
+    ver_start_time = time.perf_counter()
+    safe, counterexample = ver_strategy.verify(network, prop)
+    ver_end_time = time.perf_counter() - ver_start_time
 
-                    ver_end_time = time.perf_counter() - ver_start_time
-                    print(f'Benchmark: {model_name}, {property_name}')
-                    print('----------------------------')
-                    print(f'Result: {answer}')
+    fancy_cex = None
+    fancy_out = None
 
-                    if answer == 'Falsified':
-                        print(f'Counterexample: {fancy_cex} -> {fancy_out}')
+    answer = 'Unknown'
+    if safe:
+        answer = 'Verified'
+    else:
+        if counterexample is not None:
+            answer = 'Falsified'
+            fancy_cex = reformat_counterexample(counterexample)
+            fancy_out = reformat_counterexample(utilities.execute_network(network, counterexample))
 
-                    print(f'Time elapsed: {ver_end_time}\n\n')
+    print(f'Benchmark: {model_name}, {property_name}')
+    print('----------------------------')
+    print(f'Result: {answer}')
 
-                    with open(logfile, 'a+', newline='') as csv_out:
-                        # Init writer with current file pointer
-                        writer = csv.writer(csv_out)
+    if counterexample is not None:
+        print(f'Counterexample: {fancy_cex} -> {fancy_out}')
 
-                        # Set file pointer to the beginning to read the first line
-                        csv_out.seek(0)
-                        if csv_out.readline() == '':
-                            writer.writerow(['Network', 'Property', 'Verification strategy', 'Verification time',
-                                             'Answer', 'Counterexample', 'Unsafe output'])
+    print(f'Time elapsed: {ver_end_time}\n\n')
 
-                        # Write with the writer which still points at the end
-                        writer.writerow([model_name, property_name, strategy, ver_end_time,
-                                         answer, fancy_cex, fancy_out])
-                    return True
+    if logfile is not None:
+        with open(logfile, 'a+', newline='') as csv_out:
+            # Init writer with current file pointer
+            writer = csv.writer(csv_out)
 
-            else:
-                print('The model is not an ONNX model.')
-                return False
+            # Set file pointer to the beginning to read the first line
+            csv_out.seek(0)
+            if csv_out.readline() == '':
+                writer.writerow(['Network', 'Property', 'Verification strategy', 'Verification time',
+                                 'Answer', 'Counterexample', 'Unsafe output'])
+
+            # Write with the writer which still points at the end
+            writer.writerow([model_name, property_name, strategy, ver_end_time,
+                             answer, fancy_cex, fancy_out])
 
 
-def ssbp_verify_single(model_file: str, property_file: str, logfile: str, timeout: int, params_file: str) -> bool:
+def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None, timeout: int, params_file: str) \
+        -> None:
     """
     This method starts the verification procedure on the network model provided
     in the model_file path for the property specified in property_file, using
@@ -169,58 +157,53 @@ def ssbp_verify_single(model_file: str, property_file: str, logfile: str, timeou
     nn_path = os.path.abspath(model_file)
     prop_path = os.path.abspath(property_file)
     params_path = os.path.abspath(params_file)
-    params = None
 
     if not os.path.isfile(nn_path):
-        print(f'Error: file {nn_path} not found!')
-        return False
+        raise Exception(f'Error: file {nn_path} not found!')
 
-    elif not os.path.isfile(prop_path):
-        print(f'Error: file {prop_path} not found!')
-        return False
+    if not os.path.isfile(prop_path):
+        raise Exception(f'Error: file {prop_path} not found!')
 
-    elif params_file != '' and not os.path.isfile(params_path):
-        print(f'Error: file {params_path} not found!')
-        return False
+    if params_file != '' and not os.path.isfile(params_path):
+        raise Exception(f'Error: file {params_path} not found!')
 
-    else:
-        # Read the network file
-        alt_repr = conv.load_network_path(nn_path)
+    # Read the network file
+    alt_repr = load_network_path(nn_path)
 
-        if alt_repr is not None:
-            if isinstance(alt_repr, conv.ONNXNetwork):
-                network = conv.ONNXConverter().to_neural_network(alt_repr)
+    if not isinstance(alt_repr, ONNXNetwork):
+        raise Exception('The network is not an ONNX network!')
 
-                if isinstance(network, nets.SequentialNetwork):
-                    # Read the property file
-                    to_verify = ver.NeVerProperty()
-                    to_verify.from_smt_file(prop_path)
+    network = ONNXConverter().to_neural_network(alt_repr)
 
-                    if os.path.isfile(params_path):
-                        params = json.loads(params_path)
+    if not isinstance(network, networks.SequentialNetwork):
+        raise Exception('The network is not a sequential network!')
 
-                    ver_strategy = ver.SearchVerification(params)
-                    ver_strategy.search_params['timeout'] = timeout
+    # Read the property file
+    prop = verprop.VnnLibProperty(prop_path)
+    ver_params = verparams.SSBPVerificationParameters(timeout=timeout)
 
-                    start_time = time.perf_counter()
-                    result = ver_strategy.verify(network, to_verify)
-                    lap = time.perf_counter() - start_time
+    if os.path.isfile(params_path):
+        params = json.loads(params_path)
+        if not ({'heuristic', 'bounds', 'intersection'} <= set(params.keys())):
+            raise Exception(f'Error: parameters file {params_path} does not contain valid parameters')
+        ver_params = verparams.SSBPVerificationParameters(params['heuristic'],
+                                                          params['bounds'],
+                                                          params['intersection'],
+                                                          timeout)
 
-                    p_name = prop_path.split('/')[-1].split('\\')[-1]
-                    net_name = network.identifier.split('/')[-1].split('\\')[-1]
-                    instance_name = f'{net_name} - {p_name}'
-                    dump_results(instance_name, network, result, lap, logfile)
+    ver_strategy = veralg.SSBPVerification(ver_params)
 
-                    return result[0]
-            else:
-                print('Not an ONNX model.')
-                return False
-        else:
-            print('The model is not readable.')
-            return False
+    start_time = time.perf_counter()
+    result, _ = ver_strategy.verify(network, prop)
+    lap = time.perf_counter() - start_time
+
+    p_name = prop_path.split('/')[-1].split('\\')[-1]
+    net_name = network.identifier.split('/')[-1].split('\\')[-1]
+    instance_name = f'{net_name} - {p_name}'
+    dump_results(instance_name, network, result, lap, logfile)
 
 
-def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str) -> bool:
+def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str | None) -> bool:
     """
     This method starts the verification procedure on the instances provided
     in the csv_file path and prints the result with the SSLP algorithm
@@ -248,30 +231,27 @@ def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: 
     exec_ok = True
 
     if not os.path.isfile(csv_file_path):
-        print('Invalid path for the CSV file.')
-        return False
+        raise Exception('Invalid path for the CSV file.')
 
-    else:
-        with open(csv_file_path, newline='') as f:
+    with open(csv_file_path, newline='') as f:
+        try:
+            reader = csv.reader(f)
+        except OSError:
+            raise Exception('Cannot open file ', csv_file)
+
+        for row in reader:
             try:
-                reader = csv.reader(f)
-            except OSError:
-                print('Cannot open file ', csv_file)
-                return False
+                net_path = f'{folder}/{row[0]}'
+                prop_path = f'{folder}/{row[1]}'
+                sslp_verify_single(safety_prop, net_path, prop_path, strategy, logfile)
+            except Exception as e:
+                exec_ok = False
+                print(e)
 
-            else:
-                for row in reader:
-                    if len(row) >= 2:
-                        net_path = f'{folder}/{row[0]}'
-                        prop_path = f'{folder}/{row[1]}'
-                        sslp_verify_single(safety_prop, net_path, prop_path, strategy, logfile)
-                    else:
-                        print('Invalid row: ', row)
-                        exec_ok = False
     return exec_ok
 
 
-def ssbp_verify_batch(csv_file: str, logfile: str, timeout: int, params_file: str) -> bool:
+def ssbp_verify_batch(csv_file: str, logfile: str | None, timeout: int, params_file: str) -> bool:
     """
     This method starts the verification procedure on the batch of instances
     provided in the csv_file path, using the SSBP algorithm
@@ -299,31 +279,23 @@ def ssbp_verify_batch(csv_file: str, logfile: str, timeout: int, params_file: st
     exec_ok = True
 
     if not os.path.isfile(csv_file_path):
-        print('Invalid path for the CSV file.')
-        return False
+        raise Exception('Invalid path for the CSV file.')
 
-    else:
-        with open(csv_file_path, newline='') as f:
+    with open(csv_file_path, newline='') as f:
+        try:
+            reader = csv.reader(f)
+        except OSError:
+            raise Exception('Cannot open file ', csv_file)
+
+        for row in reader:
             try:
-                reader = csv.reader(f)
-            except OSError:
-                print('Cannot open file ', csv_file)
-                return False
+                net_path = f'{folder}/{row[0]}'
+                prop_path = f'{folder}/{row[1]}'
+                ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+            except Exception as e:
+                exec_ok = False
+                print(e)
 
-            else:
-                for row in reader:
-                    if len(row) >= 2:
-                        net_path = f'{folder}/{row[0]}'
-                        prop_path = f'{folder}/{row[1]}'
-
-                        try:
-                            ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
-                        except Exception as e:
-                            print(e)
-                            exec_ok = False
-                    else:
-                        print('Invalid row: ', row)
-                        exec_ok = False
     return exec_ok
 
 
@@ -397,7 +369,7 @@ def neg_post_condition(prop_path: str) -> None:
         return number
 
     with open(prop_path, 'r', newline='') as cur_prop:
-        with open('pynever/scripts/intermediate.vnnlib', 'w', newline='') as new_prop:
+        with open(POST_CONDITIONS_TEMP_FILE, 'w', newline='') as new_prop:
             # List of post-condition constraints
             y_constraints = []
 
