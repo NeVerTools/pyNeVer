@@ -194,7 +194,7 @@ def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None,
     ver_strategy = veralg.SSBPVerification(ver_params)
 
     start_time = time.perf_counter()
-    result, _ = ver_strategy.verify(network, prop)
+    result = ver_strategy.verify(network, prop)
     lap = time.perf_counter() - start_time
 
     p_name = prop_path.split('/')[-1].split('\\')[-1]
