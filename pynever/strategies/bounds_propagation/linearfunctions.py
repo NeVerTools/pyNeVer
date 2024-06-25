@@ -1,3 +1,4 @@
+from pynever import tensors
 from pynever.strategies.bounds_propagation.utils.utils import *
 
 
@@ -19,6 +20,13 @@ class LinearFunctions:
 
     def clone(self):
         return LinearFunctions(self.matrix.copy(), self.offset.copy())
+
+    def mask_zero_outputs(self, zero_outputs):
+        mask = np.diag(
+            [0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)]
+        )
+
+        return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
 
     def get_size(self):
         return self.size

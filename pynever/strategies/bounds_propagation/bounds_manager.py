@@ -17,6 +17,11 @@ class RefiningBound(Enum):
     UpperBound = -1
 
 
+class NeuronSplit(Enum):
+    Negative = 0
+    Positive = 1
+
+
 class StabilityInfo(Enum):
     INACTIVE = 0
     ACTIVE = 1
@@ -110,7 +115,7 @@ class BoundsManager:
 
         return self.compute_bounds(input_hyper_rect, network)
 
-    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork) -> dict:
+    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork, fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -156,6 +161,13 @@ class BoundsManager:
 
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
+
+                # set the equations to zero for the neurons that have been fixed to 0
+                current_layer_inactive = self.extract_layer_inactive_from_branch(fixed_neurons, layer_n)
+                if len(current_layer_inactive) > 0:
+                    cur_layer_input_eq = SymbolicLinearBounds(
+                        cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
+                        cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
 
@@ -228,6 +240,12 @@ class BoundsManager:
             'overapproximation_area': overapprox_area
         }
 
+    @staticmethod
+    def extract_layer_inactive_from_branch(fixed_neurons, layer_n):
+        # TODO make this a util method somewhere else
+        return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
+                if lay_n == layer_n and value == 0]
+
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
                              fixed_neurons: dict) -> tuple[dict, dict]:
         """
@@ -246,19 +264,19 @@ class BoundsManager:
         self.logger.debug(f"--- Input bounds\n"
                           f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
-        negative_branch_input = self.refine_input_bounds_negative_split(pre_branch_bounds, nn, target, fixed_neurons)
+        negative_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Negative)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
-            self.compute_bounds(negative_branch_input, nn))
+            self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
 
         self.logger.debug(f"--- Updated bounds for negative branch:\n"
                           f"{negative_branch_input} --- stable count "
                           f"{None if negative_bounds is None else negative_bounds['stable_count']}")
 
-        positive_branch_input = self.refine_input_bounds_positive_split(pre_branch_bounds, nn, target, fixed_neurons)
+        positive_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Positive)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
-            self.compute_bounds(positive_branch_input, nn))
+            self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1}))
 
         self.logger.debug(f"--- Updated bounds for positive branch:\n"
                           f"{positive_branch_input} --- stable count "
@@ -321,8 +339,8 @@ class BoundsManager:
 
         return refined_bounds
 
-    def refine_input_bounds_negative_split(self, pre_branch_bounds: dict, nn: SequentialNetwork,
-                                           target: RefinementTarget, fixed_neurons: dict) -> HyperRectangleBounds:
+    def refine_input_bounds_after_split(self, pre_branch_bounds: dict, nn: SequentialNetwork,
+                                        target: RefinementTarget, fixed_neurons: dict, sign: NeuronSplit) -> HyperRectangleBounds:
         """
         Given an unstable neuron y that we are going to constrain to be negative,
         we recompute tighter input bounds of x=(x1,...,xn)
@@ -363,9 +381,14 @@ class BoundsManager:
             self.logger.info('KeyError in branching, no update was performed.')
             return input_bounds
 
-        # The linear equation for the upper bound of the target neuron
-        coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
-        shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+        if sign == NeuronSplit.Negative:
+            # The linear equation for the upper bound of the target neuron
+            coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
+            shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+        else: # sign == NeuronSplit.Positive:
+            # The linear equation for the lower bound of the target neuron
+            coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
+            shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
         refined_bounds = BoundsManager._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
 
