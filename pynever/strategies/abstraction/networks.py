@@ -5,11 +5,10 @@ import time
 import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
+from pynever.strategies.abstraction import LOGGER_LAYER
 from pynever.strategies.abstraction.star import AbsElement
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
 from pynever.strategies.verification.parameters import SSLPVerificationParameters
-
-from pynever.strategies.abstraction import LOGGER_LAYER
 
 
 # TODO update documentation
@@ -147,6 +146,10 @@ class AbsSeqNetwork(AbsNeuralNetwork):
     def __init__(self, ref_network: networks.SequentialNetwork, parameters: SSLPVerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
+        self.bounds = None
+
+    def set_bounds(self, layers_bounds):
+        self.bounds = layers_bounds
 
     def forward(self, abs_input: AbsElement) -> AbsElement:
         """
@@ -167,10 +170,13 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         current_node = self.get_abstract(self.ref_network.get_first_node())
 
         while current_node is not None:
-
             time_start = time.perf_counter()
 
-            abs_input = current_node.forward(abs_input, self.bounds[current_node.identifier])
+            if self.bounds:
+                identifier = current_node.identifier.replace('ABS_', '')
+                abs_input = current_node.forward(abs_input, self.bounds[identifier])
+            else:
+                abs_input = current_node.forward(abs_input)
 
             time_end = time.perf_counter()
 
