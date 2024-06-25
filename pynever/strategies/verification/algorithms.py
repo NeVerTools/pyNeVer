@@ -116,6 +116,8 @@ class SSLPVerification(VerificationStrategy):
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}
 
+        abst_network.set_bounds(self.layers_bounds['numeric_pre'])
+
         input_star = Star(prop.in_coef_mat, prop.in_bias_mat)
         input_starset = StarSet({input_star})
 
