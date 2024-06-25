@@ -1,7 +1,8 @@
 import numpy as np
 from ortools.linear_solver import pywraplp
 
-from pynever import networks, utilities
+from pynever import utilities
+from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
@@ -10,7 +11,64 @@ from pynever.strategies.verification.ssbp import split, propagation
 from pynever.tensors import Tensor
 
 
-def intersect_adaptive(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: SequentialNetwork, nn_bounds: dict) \
+        -> tuple[bool, Tensor | None]:
+    """
+    This method computes the intersection between a star and one or
+    more hyper planes specified by a property using an LP
+
+    """
+
+    # Compute the output abstract star from star/bounds
+    out_star = propagation.abs_propagation(star, network, nn_bounds)
+
+    # Check intersection using an LP
+    intersects, unsafe_stars = check_star_intersection(out_star, prop)
+
+    if len(unsafe_stars) == 0:
+        return intersects, None
+
+    return intersects, unsafe_stars[0].get_samples(num_samples=1)[0]
+
+
+def check_star_intersection(star: ExtendedStar, prop: NeverProperty) -> tuple[bool, list[ExtendedStar]]:
+    """
+    This function checks whether a star intersects with the output property
+    using a linear program. Since the output property may contain disjunction
+    the intersection is computed with all the half-spaces in the output property.
+    If an intersection occurs, the resulting star is saved and returned for
+    extracting a counterexample
+
+    Parameters
+    ----------
+    star : Star
+        The star to intersect with the output property
+    prop : NeverProperty
+        The property of interest
+
+    Returns
+    -------
+    (bool, list)
+        A tuple containing the result of the intersection check (True/False) and
+        the list of unfeasible stars. If the result is True the list must contain
+        at least one element, otherwise the list must be empty
+
+    """
+
+    intersects = False
+    unsafe_stars = []
+
+    # Loop possible disjunctions
+    for i in range(len(prop.out_coef_mat)):
+        intersection = star.intersect_with_halfspace(prop.out_coef_mat[i], prop.out_bias_mat[i])
+        if not intersection.check_if_empty():
+            intersects = True
+            unsafe_stars.append(intersection)
+
+    return intersects, unsafe_stars
+
+
+def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Control the intersection method based on the unstable neurons
@@ -30,7 +88,7 @@ def intersect_adaptive(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bo
     return intersect_light_milp(star, nn, nn_bounds, prop)
 
 
-def intersect_bounds(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     This intersection method uses an LP and should be called only
@@ -77,7 +135,7 @@ def intersect_bounds(star: ExtendedStar, nn: networks.SequentialNetwork, nn_boun
     return False, []
 
 
-def intersect_abstract_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     This intersection method uses a MILP to retrieve a counterexample
@@ -137,7 +195,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: networks.SequentialNetwork, 
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
-def intersect_light_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Checks for an intersection by building a MILP that has
@@ -178,11 +236,13 @@ def intersect_light_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_
     for (layer_n, neuron_n), value in star.fixed_neurons.items():
         if value == 0:
             solver.Add(
-                input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]) +
+                input_vars.dot(
+                    nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]) +
                 nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_offset()[neuron_n] <= 0)
         else:
             solver.Add(
-                input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_matrix()[neuron_n]) +
+                input_vars.dot(
+                    nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_matrix()[neuron_n]) +
                 nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_offset()[neuron_n] >= 0)
 
     # The constraints relating input and output variables
@@ -244,13 +304,13 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
             ))
 
 
-def check_valid_counterexample(candidate_cex: list[float], nn: networks.SequentialNetwork, prop: NeverProperty) -> bool:
+def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, prop: NeverProperty) -> bool:
     """
     This functions checks if a candidate counterexample is a true counterexample for the property
 
     """
 
-    candidate_output = utilities.execute_network(nn, Tensor(np.array(candidate_cex)))
+    candidate_output = utilities.execute_network(nn, candidate_cex)
     n_disjunctions = len(prop.out_coef_mat)
 
     # For each disjunction in the output property, check at least one is satisfied
