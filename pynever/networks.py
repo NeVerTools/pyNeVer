@@ -512,9 +512,14 @@ class SequentialNetwork(NeuralNetwork):
 
         """
 
-        if index > len(self.nodes) or index < 0:
+        if abs(index) > len(self.nodes):
             raise IndexError
         else:
+
+            # If index is negative flip it
+            if index < 0:
+                index = len(self.nodes) + index
+
             counter = 0
             for layer in self.layers_iterator():
                 if counter == index:

@@ -1,26 +1,59 @@
-def intersect_adaptive(star, nn, nn_bounds, prop: 'NeverProperty'):
-    unstable = nn_bounds['stability_info'][StabilityInfo.UNSTABLE]
-    unstable = [neuron for neuron in unstable if not neuron in star.fixed_neurons]
+import numpy as np
+from ortools.linear_solver import pywraplp
+
+from pynever import networks, utilities
+from pynever.strategies.abstraction.star import ExtendedStar
+from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
+from pynever.strategies.verification.properties import NeverProperty
+from pynever.strategies.verification.ssbp import split, propagation
+from pynever.tensors import Tensor
+
+
+def intersect_adaptive(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
+    """
+    Control the intersection method based on the unstable neurons
+
+    Returns
+    ----------
+    tuple[bool, list[float]]
+        A tuple with the result (True or False) and the counterexample, if present
+
+    """
+
+    unstable = split.get_unstable_fixed_neurons(star, nn_bounds)
 
     if len(unstable) == 0:
         return intersect_bounds(star, nn, nn_bounds, prop)
-    return intersect_lightweight_milp(star, nn, nn_bounds, prop)
+
+    return intersect_light_milp(star, nn, nn_bounds, prop)
 
 
-def intersect_bounds(star, nn, nn_bounds, prop: 'NeverProperty'):
+def intersect_bounds(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
     """
-    This method should be called when there are no unstable neurons
-    """
-    star = abs_propagation(star, nn_bounds, nn)
+    This intersection method uses an LP and should be called only
+    when there are no unstable neurons
 
-    input_bounds = nn_bounds['numeric_pre'][nn[0].identifier]
+    Returns
+    ----------
+    tuple[bool, list[float]]
+        A tuple with the result (True or False) and the counterexample, if present
+
+    """
+
+    star = propagation.abs_propagation(star, nn, nn_bounds)
+
+    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
 
     # Since all relu neurons have been fixed,
     # we assume that the basis is the linear function describing the relation
     # between the input and the output neurons.
     # So we recompute the output bounds given the equation by the bases
-    output_bounds = HyperRectangleBounds(compute_min(star.basis_matrix, input_bounds) + star.center.reshape(-1),
-                                         compute_max(star.basis_matrix, input_bounds) + star.center.reshape(-1))
+    output_bounds = HyperRectangleBounds(
+        bounds_utils.compute_min(star.basis_matrix, input_bounds) + star.center.reshape(-1),
+        bounds_utils.compute_max(star.basis_matrix, input_bounds) + star.center.reshape(-1))
 
     n_disjunctions = len(prop.out_coef_mat)
 
@@ -28,36 +61,48 @@ def intersect_bounds(star, nn, nn_bounds, prop: 'NeverProperty'):
     for i in range(n_disjunctions):
         # Every condition
         conjunction_intersects = True
+
         for j in range(len(prop.out_coef_mat[i])):
-            max_value = compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            max_value = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+
             if max_value > 0:
                 # this conjunct is not satisfied, as it should be <= 0
                 conjunction_intersects = False
                 break
+
         if conjunction_intersects:
             # only now use the method that calls an LP solver when we need a counter-example
-            return intersect_abstract_star_milp(star, nn, nn_bounds, prop)
+            return intersect_abstract_milp(star, nn, nn_bounds, prop)
+
     return False, []
 
 
-def intersect_abstract_star_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
+def intersect_abstract_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
     """
-    Another implementation of intersect_star_lp
-    """
-    star = abs_propagation(star, nn_bounds, nn)
+    This intersection method uses a MILP to retrieve a counterexample
 
-    input_bounds = nn_bounds['numeric_pre'][nn[0].identifier]
+    Returns
+    ----------
+    tuple[bool, list[float]]
+        A tuple with the result (True or False) and the counterexample, if present
+
+    """
+
+    star = propagation.abs_propagation(star, nn, nn_bounds)
+
+    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
+
     # there could be new input dimensions introduced
     # comparing to the original network inputs
     n_input_dimensions = star.basis_matrix.shape[1]
 
-    output_bounds = nn_bounds['numeric_post'][nn[-1].identifier]
+    output_bounds = nn_bounds['numeric_post'][nn.get_id_from_index(-1)]
     n_output_dimensions = output_bounds.get_size()
 
-    from ortools.linear_solver import pywraplp
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
 
-    ## Create the input and the output variables
+    # Create the input and the output variables
     input_vars = np.array([
         solver.NumVar(input_bounds.get_lower()[j] if j < input_bounds.get_size() else 0,
                       input_bounds.get_upper()[j] if j < input_bounds.get_size() else solver.infinity(),
@@ -68,29 +113,32 @@ def intersect_abstract_star_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    ## The constraints relating input and output variables
+    # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
             input_vars.dot(star.basis_matrix[j]) + star.center[j][0] - output_vars[j] == 0)
 
-    ## The constraints from the predicate
+    # The constraints from the predicate
     for j in range(star.predicate_matrix.shape[0]):
         solver.Add(
             input_vars.dot(star.predicate_matrix[j]) + star.predicate_bias[j][0] <= 0)
 
-    ## The constraints for the property
+    # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
 
     solver.Maximize(0)
     status = solver.Solve()
+
     if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
         return False, []
+
     else:
-        # [sat_disj_index] = [i for i in range(n_disjunctions) if deltas[i].solution_value() == 1]
+        # TODO check
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
-def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
+def intersect_light_milp(star: ExtendedStar, nn: networks.SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
     """
     Checks for an intersection by building a MILP that has
     * three kinds of variables:
@@ -108,12 +156,12 @@ def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
         - True if there is a solution to the above program, and
           the values to the input variables in this solution in an array
         - False otherwise, and empty array []
-    """
-    from ortools.linear_solver import pywraplp
 
-    input_bounds = nn_bounds['numeric_pre'][nn[0].identifier]
+    """
+
+    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
     n_input_dimensions = input_bounds.get_size()
-    output_bounds = nn_bounds['numeric_post'][nn[-1].identifier]
+    output_bounds = nn_bounds['numeric_post'][nn.get_id_from_index(-1)]
     n_output_dimensions = output_bounds.get_size()
 
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
@@ -126,7 +174,7 @@ def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    ## The constraints from the branching
+    # The constraints from the branching
     for (layer_n, neuron_n), value in star.fixed_neurons.items():
         if value == 0:
             solver.Add(
@@ -137,7 +185,7 @@ def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
                 input_vars.dot(nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_matrix()[neuron_n]) +
                 nn_bounds['symbolic'][nn[layer_n - 1].identifier].get_lower().get_offset()[neuron_n] >= 0)
 
-    ## The constraints relating input and output variables
+    # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
             input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_upper().get_matrix()[j]) +
@@ -146,21 +194,24 @@ def intersect_lightweight_milp(star, nn, nn_bounds, prop: 'NeverProperty'):
             input_vars.dot(nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_matrix()[j]) +
             nn_bounds['symbolic'][nn[-1].identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
 
-    ## The constraints for the property
+    # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
 
     solver.Maximize(0)
     status = solver.Solve()
+
     if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
         return False, []
+
     else:
-        # [sat_disj_index] = [i for i in range(n_disjunctions) if deltas[i].solution_value() == 1]
+        # TODO check
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
-def _encode_output_property_constraints(solver, prop, output_bounds, output_vars):
+def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProperty,
+                                        output_bounds: dict, output_vars: np.ndarray) -> None:
     """
-    Encodes and adds to the solver the constraints from encoding the ouput property.
+    Encodes and adds to the solver the constraints from encoding the output property.
 
     Parameters
     ----------
@@ -169,10 +220,8 @@ def _encode_output_property_constraints(solver, prop, output_bounds, output_vars
     output_bounds
     output_vars
 
-    Returns
-    -------
-
     """
+
     n_disjunctions = len(prop.out_coef_mat)
 
     # binary variables for each of the disjunctions
@@ -185,7 +234,7 @@ def _encode_output_property_constraints(solver, prop, output_bounds, output_vars
         conjunction = []
         for j in range(len(prop.out_coef_mat[i])):
             # the big M constant as not clear how to do indicator constraints
-            bigM = compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            bigM = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
@@ -195,14 +244,13 @@ def _encode_output_property_constraints(solver, prop, output_bounds, output_vars
             ))
 
 
-def check_valid_counterexample(candidate_cex, nn, prop):
-    # TODO: replace this with a normal forward pass
-    input_bounds = HyperRectangleBounds(np.array(candidate_cex), np.array(candidate_cex))
-    bounds = BoundsManager().compute_bounds(input_bounds, nn)
-    output_bounds = bounds['numeric_post'][nn[-1].identifier]
+def check_valid_counterexample(candidate_cex: Tensor, nn: networks.SequentialNetwork, prop: NeverProperty) -> bool:
+    """
+    This functions checks if a candidate counterexample is a true counterexample for the property
 
-    candidate_output = output_bounds.get_lower()
+    """
 
+    candidate_output = utilities.execute_network(nn, candidate_cex)
     n_disjunctions = len(prop.out_coef_mat)
 
     # For each disjunction in the output property, check at least one is satisfied
@@ -214,6 +262,8 @@ def check_valid_counterexample(candidate_cex, nn, prop):
                 # this conjunct is not satisfied, as it should be <= 0
                 satisfied = False
                 break
+
         if satisfied:
             return True
+
     return False
