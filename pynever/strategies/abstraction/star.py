@@ -607,8 +607,7 @@ class ExtendedStar(Star):
         new_basis_matrix = tensors.matmul(weight, self.basis_matrix)
         new_center = tensors.matmul(weight, self.center) + bias
 
-        return ExtendedStar(LinearFunctions(self.predicate_matrix, self.predicate_bias),
-                            LinearFunctions(new_basis_matrix, new_center))
+        return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center))
 
     def approx_relu_forward(self, bounds: AbstractBounds, dim: int, layer_index: int = 1) -> ExtendedStar:
         """
@@ -650,8 +649,7 @@ class ExtendedStar(Star):
         if len(unstable_neurons) == 0:
             new_transformation = self.mask_for_inactive_neurons(inactive)
 
-            return ExtendedStar(LinearFunctions(self.predicate_matrix, self.predicate_bias),
-                                new_transformation, fixed_neurons=self.fixed_neurons)
+            return ExtendedStar(self.get_predicate_equation(), new_transformation, fixed_neurons=self.fixed_neurons)
 
         # Create the approximate matrices for the star
         return ExtendedStar(self.create_approx_predicate(unstable_neurons, bounds),
