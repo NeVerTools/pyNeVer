@@ -13,9 +13,9 @@ logger_stream = logging.getLogger("pynever.strategies.bounds_propagation")
 logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.DEBUG)
 
-prop = VnnLibProperty('../../examples/benchmarks/ACAS XU/Properties/prop_3.vnnlib')
+prop = VnnLibProperty('../../examples/benchmarks/ACAS XU/Properties/prop_2.vnnlib')
 
-onnx_nn = representation.load_network_path('../../examples/benchmarks/ACAS XU/Networks/ACAS_XU_2_9.onnx')
+onnx_nn = representation.load_network_path('../../examples/benchmarks/ACAS XU/Networks/ACAS_XU_3_5.onnx')
 nn = ONNXConverter().to_neural_network(onnx_nn)
 
 if __name__ == '__main__':

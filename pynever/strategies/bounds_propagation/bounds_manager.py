@@ -249,10 +249,9 @@ class BoundsManager:
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
                              fixed_neurons: dict) -> tuple[dict, dict]:
         """
-        Create input bounds from the layer target layer and use the bounds [lb, 0] and [0, ub]
-        for neuron target neuron to init a new shot of bounds propagation as if the input layer
-        was target layer
-
+        Update the bounds for after splitting the target neuron.
+        Attempts to refine the input bounds for each of the two splits.
+        If the input bounds have been updated, recomputes the bounds.
         """
 
         self.logger.debug(f"======================================================================\n"
@@ -264,96 +263,48 @@ class BoundsManager:
         self.logger.debug(f"--- Input bounds\n"
                           f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
-        negative_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Negative)
+        negative_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
+                                                                     NeuronSplit.Negative)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
-
         self.logger.debug(f"--- Updated bounds for negative branch:\n"
                           f"{negative_branch_input} --- stable count "
                           f"{None if negative_bounds is None else negative_bounds['stable_count']}")
 
-        positive_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Positive)
+        positive_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
+                                                                     NeuronSplit.Positive)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1}))
-
         self.logger.debug(f"--- Updated bounds for positive branch:\n"
                           f"{positive_branch_input} --- stable count "
                           f"{None if positive_bounds is None else positive_bounds['stable_count']}\n\n")
 
         return negative_bounds, positive_bounds
 
-    def refine_input_bounds_positive_split(self, pre_branch_bounds: dict, nn: SequentialNetwork,
-                                           target: RefinementTarget, fixed_neurons: dict) -> HyperRectangleBounds:
-        """
-        Given an unstable neuron y that we are going to constrain to be positive,
-        we recompute tighter input bounds of x=(x1,...,xn)
-        for the solution space induced by this positive branch.
-
-        We have a lower bound equation for y from the input variables. Namely,
-            y >= c * x + b
-
-        for all x coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
-
-        Since we are constraining y to be positive, it means that c * x + b should be positive as well.
-        We therefore need to recompute the bounds for x using its lower bound.
-
-
-        Parameters
-        ----------
-        pre_branch_bounds : dict
-            The bounds before the split
-        nn : SequentialNetwork
-            The neural network
-        target : RefinementTarget
-            The neuron to be split
-        fixed_neurons : dict
-            The dictionary of fixed neurons so far
-
-        Returns
-        -------
-        tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
-
-        """
-
-        # The bounds for the input layer that we try to refine
-        input_bounds = pre_branch_bounds['numeric_pre'][nn.get_first_node().identifier]
-
-        try:
-            symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, target, nn)
-        except KeyError:
-            self.logger.info('KeyError in branching, no update was performed.')
-            return input_bounds
-
-        # The linear equation for the lower bound of the target neuron
-        coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
-        shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
-
-        refined_bounds = BoundsManager._refine_input_bounds(coef, shift, input_bounds, RefiningBound.LowerBound)
-
-        if refined_bounds == input_bounds and len(fixed_neurons) > 0:
-            # Negate the equation because in the branch we normalise all constraints as equation <= 0
-            refined_bounds = self.refine_input_bounds_for_branch(fixed_neurons, -coef, -shift, input_bounds, nn,
-                                                                 pre_branch_bounds)
-
-        return refined_bounds
-
     def refine_input_bounds_after_split(self, pre_branch_bounds: dict, nn: SequentialNetwork,
-                                        target: RefinementTarget, fixed_neurons: dict, sign: NeuronSplit) -> HyperRectangleBounds:
+                                        target: RefinementTarget, fixed_neurons: dict, status: NeuronSplit) \
+            -> HyperRectangleBounds:
         """
-        Given an unstable neuron y that we are going to constrain to be negative,
+        Given an unstable neuron y that we are going to constrain
+        to be negative or positive according to the status,
         we recompute tighter input bounds of x=(x1,...,xn)
-        for the solution space induced by this negative branch.
+        for the solution space induced by this split.
 
-        We have an upper bound equation for y from the input variables. Namely,
+        If y is set to be negative, we take its upper bound equation from the input variables:
             y <= c * x + b
+        If y is set to be positive, we take its lower bound equation from the input variables:
+            y >= c * x + b
 
         for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
 
-        Since we are constraining y to be negative, it means that c * x + b should be negative as well.
-        We therefore need to recompute the bounds for x using its upper bound.
+        If we are constraining y to be negative, we have the constraint
+            c * x + b <= 0.
+        If we are constraining y to be positive, we have the constraint
+            c * x + b >= 0 or, in the normal form, - c * x - b <= 0.
 
+        We recompute the bounds for x using the constraint.
 
         Parameters
         ----------
@@ -368,7 +319,7 @@ class BoundsManager:
 
         Returns
         -------
-        Tighter input bounds induced by the branch where the target neuron is constrained to be **positive**
+        Tighter input bounds induced by the split
 
         """
 
@@ -381,32 +332,34 @@ class BoundsManager:
             self.logger.info('KeyError in branching, no update was performed.')
             return input_bounds
 
-        if sign == NeuronSplit.Negative:
+        if status == NeuronSplit.Negative:
             # The linear equation for the upper bound of the target neuron
             coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
             shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
         else: # sign == NeuronSplit.Positive:
-            # The linear equation for the lower bound of the target neuron
-            coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
-            shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
+            # The negated linear equation for the lower bound of the target neuron
+            coef = -symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
+            shift = -symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
 
-        refined_bounds = BoundsManager._refine_input_bounds(coef, shift, input_bounds, RefiningBound.UpperBound)
+        refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
 
+        # If the bounds have not been refined,
+        # try to use constraints from all the fixed neurons
         if refined_bounds == input_bounds and len(fixed_neurons) > 0:
-            refined_bounds = self.refine_input_bounds_for_branch(fixed_neurons, coef, shift, input_bounds, nn,
-                                                                 pre_branch_bounds)
+            refined_bounds = self._refine_input_bounds_for_branch(fixed_neurons, coef, shift, input_bounds, nn,
+                                                                  pre_branch_bounds)
 
         return refined_bounds
 
-    def refine_input_bounds_for_branch(self, branch: dict, coef: Tensor, shift: Tensor,
-                                       input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
-                                       pre_branch_bounds: dict) -> HyperRectangleBounds | None:
+    @staticmethod
+    def _refine_input_bounds_for_branch(branch: dict, coef: Tensor, shift: Tensor,
+                                        input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
+                                        pre_branch_bounds: dict) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
-
         """
 
-        # Collecting the equations from all the fixes, including the latest
+        # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         coefs = np.array(
             [pre_branch_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]
              if value == 0 else
@@ -424,12 +377,11 @@ class BoundsManager:
         # The rest is similar to _refine_input_bounds,
         # but we get two different equations for each input dimension i,
         # obtained as the sum of the equations where i appears with the same sign
-        refined_input_bounds = input_bounds
         n_input_dimensions = len(coef)
 
         all_dimensions = np.array(range(n_input_dimensions))
         dimensions_to_consider = []
-
+        # An optimisation for very high-dimensional inputs
         if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the aggregated coefficient that is large enough in absolute terms
@@ -447,6 +399,7 @@ class BoundsManager:
         else:
             dimensions_to_consider.extend([all_dimensions, all_dimensions])
 
+        refined_input_bounds = input_bounds
         for dimensions, sign in zip(dimensions_to_consider, ["pos", "neg"]):
             for i in dimensions:
                 # For each input dimension i, we select the subset of the equations
@@ -465,11 +418,10 @@ class BoundsManager:
                     continue
 
                 coef_i = coef_i.sum(axis=0)
-                i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i,
-                                                                 RefiningBound.UpperBound)
+                i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
 
                 if i_bounds is None:
-                    self.logger.info(f"!! Split is infeasible !! {coef_i[i]}")
+                    LOGGER.info(f"!! Split is infeasible !! {coef_i[i]}")
                     # The split is infeasible
                     return None
 
@@ -478,7 +430,7 @@ class BoundsManager:
                     pass
 
                 else:
-                    self.logger.info(f"!! Bounds refined for branch !! {coef_i[i]}")
+                    LOGGER.info(f"!! Bounds refined for branch !! {coef_i[i]}")
                     # Bounds have been refined
                     if refined_input_bounds == input_bounds:
                         # Only create a new copy of the bounds if there was a change
@@ -490,42 +442,34 @@ class BoundsManager:
         return refined_input_bounds
 
     @staticmethod
-    def _refine_input_bounds(coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds, sign: RefiningBound) \
+    def _refine_input_bounds_for_equation(coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds) \
             -> HyperRectangleBounds | None:
         """
-        We have an equation from the input variables
-            c * x + b
+        We have a constraint from the input variables
+            c1 * x1 + ... + cn * xn + b <= 0
 
-        for x coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
+        for x1,...,xn coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
 
-        If sign is RefiningBound.LowerBound, then we are constraining the equation to be positive.
-        If sign is RefiningBound.UpperBound, we are constraining the equation to be negative.
+        We refine the bounds for x to the imposed solution space.
+        For instance, for x1 we have
 
-        In both cases, we can refine the bounds for x to the imposed solution space.
-        We do it as follows.
+            x1 <= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
+            x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is negative
 
-        Assuming sign is RefiningBound.LowerBound, we have the following constraint c1 * x1 + ... + cn * xn + b >= 0
-
-        Then
-            x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
-            x1 <= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is negative
-
-        Thus, when c1 > 0, we can compute a new lower bound of x1,
-        and when c1 < 0, we can compute a new upper bound of x1.
-        We do it using the standard interval arithmetics.
-        We only update the bound if it improves the previous one.
-
-        Following a similar logic, if sign is RefiningBound.UpperBound,
-        when c1 > 0, we can compute a new upper bound of x1,
+        Thus, when c1 > 0, we can compute a new upper bound of x1,
         and when c1 < 0, we can compute a new lower bound of x1.
+        We do it using the standard interval arithmetics.
 
+        If the new bound is inconsistent, e.g., the new upper bound is below the existing lower bound,
+        it means the corresponding split/branch is not feasible. We return None.
+
+        We only update the bound if it improves the previous one.
         """
-
-        refined_input_bounds = input_bounds
 
         n_input_dimensions = len(coef)
 
         dimensions_to_consider = np.array(range(n_input_dimensions))
+        # An optimisation for very high-dimensional inputs
         if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the coefficient that is large enough in absolute terms
@@ -535,9 +479,10 @@ class BoundsManager:
             mask = (abs(coef) > cutoff_c)
             dimensions_to_consider = dimensions_to_consider[mask]
 
+        refined_input_bounds = input_bounds
         for i in dimensions_to_consider:
             # Refine the bounds for each input dimension
-            i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef, shift, i, sign)
+            i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef, shift, i)
 
             if i_bounds is None:
                 # The split is infeasible
@@ -560,13 +505,21 @@ class BoundsManager:
 
     @staticmethod
     def _refine_input_dimension(input_bounds: HyperRectangleBounds, coef: Tensor, shift: Tensor,
-                                i: int, sign: RefiningBound) -> tuple[float, float] | int | None:
+                                i: int) -> tuple[float, float] | int | None:
         """
-        Refines the input bounds for one dimension. See _refine_input_bounds
+        We are given the constraint
+            coef * (x1,...,xn) + shift <= 0
+
+        See _refine_input_bounds for more information.
+
+        We are refining the bounds for the input dimension i:
+
+            xi <= (-c1 * x1 - ... -cn * xn - b)/ci if ci is positive -- we refine the upper bound
+            xi >= (-c1 * x1 - ... -cn * xn - b)/ci if ci is negative -- we refine the lower bound
 
         Returns
         -------
-        None    if the corresponding split is infeasible
+        None    if the constraint is infeasible
         0       if no changes
         (l, u)  the new bounds for input dimension i
 
@@ -579,7 +532,7 @@ class BoundsManager:
 
         # the rest is moved to the other side, so we have the minus and divided by c
         negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
-        shift_div_c = shift / c
+        shift_div_c = - shift / c
         pos_rem_coef = np.maximum(np.zeros(len(coef) - 1), negated_rem_coef)
         neg_rem_coef = np.minimum(np.zeros(len(coef) - 1), negated_rem_coef)
 
@@ -588,24 +541,10 @@ class BoundsManager:
         rem_upper_input_bounds = np.array(
             list(input_bounds.get_upper()[:i]) + list(input_bounds.get_upper()[i + 1:]))
 
-        if c * sign.value > 0:
-            "c > 0 and sign = 1 or c < 0 and sign = -1"
-            # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
-            new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + \
-                          neg_rem_coef.dot(rem_upper_input_bounds) - shift_div_c
-
-            if new_lower_i > input_bounds.get_upper()[i]:
-                # infeasible branch
-                return None
-
-            elif new_lower_i > input_bounds.get_lower()[i]:
-                return new_lower_i, input_bounds.get_upper()[i]
-
-        elif c * sign.value < 0:
-            "c < 0 and sign = 1 or c > 0 and sign = -1"
+        if c > 0:
             # compute maximum of xi, xi <= (-coefi * rem_xi - b)/c
             new_upper_i = pos_rem_coef.dot(rem_upper_input_bounds) + \
-                          neg_rem_coef.dot(rem_lower_input_bounds) - shift_div_c
+                          neg_rem_coef.dot(rem_lower_input_bounds) + shift_div_c
 
             if new_upper_i < input_bounds.get_lower()[i]:
                 # infeasible branch
@@ -613,6 +552,18 @@ class BoundsManager:
 
             elif new_upper_i < input_bounds.get_upper()[i]:
                 return input_bounds.get_lower()[i], new_upper_i
+
+        elif c < 0:
+            # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
+            new_lower_i = pos_rem_coef.dot(rem_lower_input_bounds) + \
+                          neg_rem_coef.dot(rem_upper_input_bounds) + shift_div_c
+
+            if new_lower_i > input_bounds.get_upper()[i]:
+                # infeasible branch
+                return None
+
+            elif new_lower_i > input_bounds.get_lower()[i]:
+                return new_lower_i, input_bounds.get_upper()[i]
 
         return 0
 
