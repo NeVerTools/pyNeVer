@@ -260,30 +260,31 @@ class BoundsManager:
 
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
 
-        self.logger.debug(f"--- Input bounds\n"
-                          f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
+        LOGGER.debug(f"--- Input bounds\n"
+                     f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
-        negative_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
+        negative_branch_input = BoundsManager.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
                                                                      NeuronSplit.Negative)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
-        self.logger.debug(f"--- Updated bounds for negative branch:\n"
-                          f"{negative_branch_input} --- stable count "
-                          f"{None if negative_bounds is None else negative_bounds['stable_count']}")
+        LOGGER.debug(f"--- Updated bounds for negative branch:\n"
+                     f"{negative_branch_input} --- stable count "
+                     f"{None if negative_bounds is None else negative_bounds['stable_count']}")
 
-        positive_branch_input = self.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
+        positive_branch_input = BoundsManager.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
                                                                      NeuronSplit.Positive)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1}))
-        self.logger.debug(f"--- Updated bounds for positive branch:\n"
-                          f"{positive_branch_input} --- stable count "
-                          f"{None if positive_bounds is None else positive_bounds['stable_count']}\n\n")
+        LOGGER.debug(f"--- Updated bounds for positive branch:\n"
+                     f"{positive_branch_input} --- stable count "
+                     f"{None if positive_bounds is None else positive_bounds['stable_count']}\n\n")
 
         return negative_bounds, positive_bounds
 
-    def refine_input_bounds_after_split(self, pre_branch_bounds: dict, nn: SequentialNetwork,
+    @staticmethod
+    def refine_input_bounds_after_split(pre_branch_bounds: dict, nn: SequentialNetwork,
                                         target: RefinementTarget, fixed_neurons: dict, status: NeuronSplit) \
             -> HyperRectangleBounds:
         """
@@ -329,7 +330,7 @@ class BoundsManager:
         try:
             symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, target, nn)
         except KeyError:
-            self.logger.info('KeyError in branching, no update was performed.')
+            LOGGER.info('KeyError in branching, no update was performed.')
             return input_bounds
 
         if status == NeuronSplit.Negative:
@@ -346,8 +347,9 @@ class BoundsManager:
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
         if refined_bounds == input_bounds and len(fixed_neurons) > 0:
-            refined_bounds = self._refine_input_bounds_for_branch(fixed_neurons, coef, shift, input_bounds, nn,
-                                                                  pre_branch_bounds)
+            refined_bounds = BoundsManager._refine_input_bounds_for_branch(
+                fixed_neurons, coef, shift, input_bounds, nn, pre_branch_bounds
+            )
 
         return refined_bounds
 

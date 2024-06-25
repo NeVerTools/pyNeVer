@@ -3,7 +3,7 @@ import copy
 from pynever import networks
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo, NeuronSplit
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget
 
@@ -107,20 +107,20 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
     mgr = BoundsManager()
     negative_bounds, positive_bounds = mgr.branch_update_bounds(nn_bounds, network, target, star.fixed_neurons)
 
-    stars = compute_star_after_fixing_to_negative(star, negative_bounds, target, network) + \
-            compute_star_after_fixing_to_positive(star, positive_bounds, target, network)
+    stars = compute_star_after_fixing_to_value(star, negative_bounds, target, NeuronSplit.Negative, network) + \
+            compute_star_after_fixing_to_value(star, positive_bounds, target, NeuronSplit.Positive, network)
 
     stars = [(s, bounds) for (s, bounds, _) in stars]
 
     return stars
 
 
-def compute_star_after_fixing_to_negative(star: ExtendedStar, bounds: dict, target: RefinementTarget,
-                                          network: networks.SequentialNetwork) \
+def compute_star_after_fixing_to_value(star: ExtendedStar, bounds: dict, target: RefinementTarget, split: NeuronSplit,
+                                       network: networks.SequentialNetwork) \
         -> list[tuple[ExtendedStar, dict, AbstractBounds | None]]:
     """
-    This function creates the negative branch star with the new constraints and updated bounds
-
+    This function creates the star after fixing target to the value
+    with the new constraints and updated bounds
     """
 
     if bounds is None:
@@ -132,56 +132,13 @@ def compute_star_after_fixing_to_negative(star: ExtendedStar, bounds: dict, targ
         return [(star, bounds, None)]
 
     index = target.neuron_idx
-    layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][network.get_id_from_index(target.layer_idx)]
-
-    new_transformation = star.mask_for_inactive_neurons(layer_inactive + [index])
-
-    fixed_so_far = copy.deepcopy(star.fixed_neurons)
-    fixed_so_far[target.to_pair()] = 0
-
-    # Some of the neurons that were unstable at the beginning
-    # could have become stable due to prior splitting.
-    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds.
-    layer_unstable_per_bounds = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-                                 if layer_n == target.layer_idx}
-    ref_layer_unstable = star.ref_unstable_neurons & layer_unstable_per_bounds
-
-    # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
-    ref_layer_unstable.discard(index)
-
-    # Update the predicate to include the constraint that the target neuron y is inactive
-    lower_predicate = star.add_to_predicate_inactive_constraint(index)
-
-    lower_star = ExtendedStar(lower_predicate, new_transformation, ref_layer=target.layer_idx,
-                              ref_neuron=target.neuron_idx, ref_unstable_neurons=ref_layer_unstable,
-                              fixed_neurons=fixed_so_far)
-
-    return [(lower_star, bounds, bounds['stable_count'])]
-
-
-def compute_star_after_fixing_to_positive(star: ExtendedStar, bounds: dict, target: RefinementTarget,
-                                          network: networks.SequentialNetwork) \
-        -> list[tuple[ExtendedStar, dict, AbstractBounds | None]]:
-    """
-    This function creates the positive branch star with the new constraints and updated bounds
-
-    """
-
-    if bounds is None:
-        return []
-
-    if target.layer_idx != star.ref_layer:
-        # TODO: add the symbolic equation constraint to the predicate.
-        # Could be useful when doing the intersection check with LP
-        return [(star, bounds, None)]
-
-    index = target.neuron_idx
-    layer_inactive = bounds['stability_info'][StabilityInfo.INACTIVE][network.get_id_from_index(target.layer_idx)]
+    layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][network.get_id_from_index(target.layer_idx)] +
+                      ([index] if split == NeuronSplit.Negative else []))
 
     new_transformation = star.mask_for_inactive_neurons(layer_inactive)
 
     fixed_so_far = copy.deepcopy(star.fixed_neurons)
-    fixed_so_far[target.to_pair()] = 1
+    fixed_so_far[target.to_pair()] = split.value
 
     # Some of the neurons that were unstable at the beginning
     # could have become stable due to prior splitting.
@@ -193,11 +150,15 @@ def compute_star_after_fixing_to_positive(star: ExtendedStar, bounds: dict, targ
     # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
     ref_layer_unstable.discard(index)
 
-    # Update the predicate to include the constraint that the target neuron is active
-    upper_predicate = star.add_to_predicate_active_constraint(index)
+    if split == NeuronSplit.Negative:
+        # Update the predicate to include the constraint that the target neuron y is inactive
+        new_predicate = star.add_to_predicate_inactive_constraint(index)
+    else:
+        # Update the predicate to include the constraint that the target neuron is active
+        new_predicate = star.add_to_predicate_active_constraint(index)
 
-    upper_star = ExtendedStar(upper_predicate, new_transformation, ref_layer=target.layer_idx,
-                              ref_neuron=target.neuron_idx, ref_unstable_neurons=ref_layer_unstable,
-                              fixed_neurons=fixed_so_far)
+    star_after_split = ExtendedStar(new_predicate, new_transformation,
+                                    ref_layer=target.layer_idx, ref_neuron=target.neuron_idx,
+                                    ref_unstable_neurons=ref_layer_unstable, fixed_neurons=fixed_so_far)
 
-    return [(upper_star, bounds, bounds['stable_count'])]
+    return [(star_after_split, bounds, bounds['stable_count'])]
