@@ -104,7 +104,7 @@ def launch_instances(instances_file: str):
                     result = ver_strategy.verify(net, prop)
                     lap = time.perf_counter() - start_time
 
-                    logger_stream.info(f'{result} - {lap}')
+                    logger_stream.info(f'{result} - {lap}\n\n')
                     logger_file.info(f'{inst_name},{lap},{format_csv(result, net, p_name)}')
 
 
