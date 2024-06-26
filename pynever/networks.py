@@ -554,6 +554,16 @@ class SequentialNetwork(NeuralNetwork):
 
         raise NotInNetworkError(f'There is no layer with identifier {identifier}')
 
+    def get_previous_id(self, layer_identifier) -> str:
+        prev_layer = None
+
+        for layer in self.layers_iterator():
+            if layer.identifier == layer_identifier:
+                return prev_layer.identifier
+            prev_layer = layer
+
+        return None
+
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
         return f"{self.identifier} : {body}"

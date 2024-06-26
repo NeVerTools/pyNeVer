@@ -2,7 +2,7 @@ from pynever import networks, nodes
 
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds_manager import StabilityInfo, \
-    compute_layer_unstable_from_bounds_and_fixed_neurons
+    compute_layer_unstable_from_bounds_and_fixed_neurons, compute_layer_inactive_from_bounds_and_fixed_neurons
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
@@ -32,8 +32,15 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
     if start_layer is None:
         return star
 
-    for layer in network.layers_iterator(start_layer):
-        i = network.get_index_from_id(layer.identifier)
+    skip = True
+
+    for layer in network.layers_iterator():
+        # skip until we reach the reference layer
+        if skip:
+            if layer.identifier == star.ref_layer:
+                skip = False
+            else:
+                continue
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -43,9 +50,7 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
 
         # Propagate ReLU starting from target
         elif isinstance(layer, nodes.ReLUNode):
-            layer_bounds = bounds['numeric_pre'][layer.identifier]
-
-            star = star.approx_relu_forward(layer_bounds, layer.get_input_dim()[0], layer_index=i)
+            star = star.approx_relu_forward(bounds, layer.identifier)
 
         elif isinstance(layer, nodes.FlattenNode):
             # Do nothing
@@ -67,17 +72,15 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
     """
 
     new_star, relu_layer = propagate_until_relu(star, network, skip=skip)
-    relu_layer_n = new_star.ref_layer
+    relu_layer_id = new_star.ref_layer
 
     if relu_layer is not None:
-        layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier] +
-                          [i for (lay_n, i), value in new_star.fixed_neurons.items() if
-                           lay_n == relu_layer_n and value == 0])
-        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_n)
+        layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_id)
+        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
-        return ExtendedStar(new_star.get_transformation_equation(), new_transformation, ref_layer=relu_layer_n,
+        return ExtendedStar(new_star.get_predicate_equation(), new_transformation, ref_layer=relu_layer_id,
                             ref_unstable_neurons=layer_unstable, fixed_neurons=new_star.fixed_neurons)
 
     return new_star
@@ -106,46 +109,31 @@ def propagate_until_relu(star: ExtendedStar, network: networks.SequentialNetwork
 
     """
 
-    if not skip:
-        # not skip means we are starting from the beginning.
-        # So the stars ref_layer might not be initialised.
-        start_layer = 0
-    else:
-        start_layer = star.ref_layer
-
-    i = 0
-
     relu_layer = None
-    for layer in network.layers_iterator(start_layer):
-
-        # Propagate fully connected entirely
-        if isinstance(layer, nodes.FullyConnectedNode):
-            # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
-            bias = layer.get_layer_bias_as_two_dimensional()
-            star = star.single_fc_forward(layer.weight, bias)
-            i += 1
-
-        elif isinstance(layer, nodes.ReLUNode):
-            # If all the neurons have been processed...
-            if skip:  # star.ref_neuron == star.center.shape[0] - 1 and skip:
+    for layer in network.layers_iterator():
+        if skip:
+            if layer.identifier == star.ref_layer:
                 skip = False
-                i += 1
-                continue
 
-            # Otherwise, stay on this layer and interrupt cycle
-            else:
+        else:
+            # Propagate fully connected entirely
+            if isinstance(layer, nodes.FullyConnectedNode):
+                # Need to expand bias since they are memorized like one-dimensional vectors in FC nodes.
+                bias = layer.get_layer_bias_as_two_dimensional()
+                star = star.single_fc_forward(layer.weight, bias)
+
+            elif isinstance(layer, nodes.ReLUNode):
                 relu_layer = layer
                 break
 
-        elif isinstance(layer, nodes.FlattenNode):
-            # Do nothing
-            i += 1
-
-        else:
-            raise NotImplementedError(f'Currently supporting only FullyConnected and ReLU nodes. '
-                                      f'Unsupported layer {layer.__class__}')
+            elif isinstance(layer, nodes.FlattenNode):
+                # Do nothing
+                pass
+            else:
+                raise NotImplementedError(f'Currently supporting only FullyConnected and ReLU nodes. '
+                                          f'Unsupported layer {layer.__class__}')
 
     # Set reference layer
-    star.ref_layer = start_layer + i
+    star.ref_layer = relu_layer.identifier
 
     return star, relu_layer

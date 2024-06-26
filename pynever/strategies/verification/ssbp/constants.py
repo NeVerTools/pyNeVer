@@ -7,15 +7,15 @@ class RefinementTarget:
 
     """
 
-    def __init__(self, layer: int, neuron: int):
-        self.layer_idx = layer
-        self.neuron_idx = neuron
+    def __init__(self, layer_id: str, neuron_n: int):
+        self.layer_id = layer_id
+        self.neuron_idx = neuron_n
 
     def __repr__(self):
-        return f'({self.layer_idx}, {self.neuron_idx})'
+        return f'({self.layer_id}, {self.neuron_idx})'
 
     def to_pair(self):
-        return self.layer_idx, self.neuron_idx
+        return self.layer_id, self.neuron_idx
 
 
 class NeuronState(enum.Enum):

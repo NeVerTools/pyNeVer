@@ -12,7 +12,8 @@ import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, \
+    compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
@@ -609,18 +610,16 @@ class ExtendedStar(Star):
 
         return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center))
 
-    def approx_relu_forward(self, bounds: AbstractBounds, dim: int, layer_index: int = 1) -> ExtendedStar:
+    def approx_relu_forward(self, bounds: dict, layer_id: str) -> ExtendedStar:
         """
         Approximate abstract propagation for a ReLU layer
 
         Parameters
         ----------
-        bounds : AbstractBounds
-            The bounds of this layer
-        dim : int
-            The number of neurons in this layer
-        layer_index : int
-            The index of the layer in the network
+        bounds : dict
+            The bounds for this star
+        layer_id : int
+            The identifier of the layer to approximate
 
         Returns
         ----------
@@ -631,32 +630,25 @@ class ExtendedStar(Star):
 
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
-        inactive = (
-                [i for i in range(dim) if BoundsManager.check_stable(i, bounds) == -1] +
-                [i for (lay_n, i), value in self.fixed_neurons.items()
-                 if lay_n == layer_index and value == 0]
-        )
+        inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Compute the set of unstable neurons.
         # Neuron i has been fixed before, so we don't need to
         # approximate it (as it might still appear unstable according to the bounds)
-        unstable_neurons = [
-            i for i in range(dim)
-            if BoundsManager.check_stable(i, bounds) == 0 and not (layer_index, i) in self.fixed_neurons
-        ]
+        unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Return if there are no unstable neurons
-        if len(unstable_neurons) == 0:
+        if len(unstable) == 0:
             new_transformation = self.mask_for_inactive_neurons(inactive)
 
             return ExtendedStar(self.get_predicate_equation(), new_transformation, fixed_neurons=self.fixed_neurons)
 
         # Create the approximate matrices for the star
-        return ExtendedStar(self.create_approx_predicate(unstable_neurons, bounds),
-                            self.create_approx_transformation(unstable_neurons, inactive),
+        return ExtendedStar(self.create_approx_predicate(unstable, bounds['numeric_pre'][layer_id]),
+                            self.create_approx_transformation(unstable, inactive),
                             fixed_neurons=self.fixed_neurons)
 
-    def create_approx_predicate(self, unstable_neurons: list[int], bounds: AbstractBounds) -> LinearFunctions:
+    def create_approx_predicate(self, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
         """
         For every unstable neuron y we introduce a fresh variable z and
         relate it to the input variables x via 3 constraints.
@@ -686,8 +678,8 @@ class ExtendedStar(Star):
             return [first_row, second_row, third_row, fourth_row]
 
         unstable_count = len(unstable_neurons)
-        lower_bounds = [bounds.get_lower()[neuron_n] for neuron_n in unstable_neurons]
-        upper_bounds = [bounds.get_upper()[neuron_n] for neuron_n in unstable_neurons]
+        lower_bounds = [layer_bounds.get_lower()[neuron_n] for neuron_n in unstable_neurons]
+        upper_bounds = [layer_bounds.get_upper()[neuron_n] for neuron_n in unstable_neurons]
 
         lower_left_matrix = [
             _get_left_matrix_for_unstable_neuron(unstable_neurons[i], lower_bounds[i], upper_bounds[i])

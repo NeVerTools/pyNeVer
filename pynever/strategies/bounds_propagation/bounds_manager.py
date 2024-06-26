@@ -90,15 +90,14 @@ class BoundsManager:
         return PropertyFormatConverter(prop).get_vectors()
 
     @staticmethod
-    def get_symbolic_preact_bounds_at(bounds: dict, target: RefinementTarget,
-                                      nn: SequentialNetwork) -> SymbolicLinearBounds:
+    def get_symbolic_preact_bounds_at(bounds: dict, layer_id: str, nn: SequentialNetwork) -> SymbolicLinearBounds:
         """
         This method retrieves the preactivation symbolic bounds in the bounds
         dictionary at the specified target
 
         """
 
-        return bounds['symbolic'][nn.get_id_from_index(target.layer_idx - 1)]
+        return bounds['symbolic'][nn.get_previous_id(layer_id)]
 
     def compute_bounds_from_property(self, network: NeuralNetwork, prop: 'NeverProperty') -> dict:
         """
@@ -148,7 +147,6 @@ class BoundsManager:
         cur_layer_input_num_bounds = input_hyper_rect
 
         stable = 0
-        layer_n = 0
 
         # Iterate through the layers
         for layer in network.layers_iterator():
@@ -162,8 +160,10 @@ class BoundsManager:
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
 
+                layer_id = layer.identifier
+
                 # set the equations to zero for the neurons that have been fixed to 0
-                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_n)
+                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
                 if len(current_layer_inactive) > 0:
                     cur_layer_input_eq = SymbolicLinearBounds(
                         cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
@@ -171,28 +171,28 @@ class BoundsManager:
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
 
-                stability_info[StabilityInfo.INACTIVE][layer.identifier] = list()
-                stability_info[StabilityInfo.ACTIVE][layer.identifier] = list()
+                stability_info[StabilityInfo.INACTIVE][layer_id] = list()
+                stability_info[StabilityInfo.ACTIVE][layer_id] = list()
 
                 for neuron_n in range(cur_layer_input_num_bounds.size):
 
                     l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
 
                     if u <= 0:
-                        stability_info[StabilityInfo.INACTIVE][layer.identifier].append(neuron_n)
+                        stability_info[StabilityInfo.INACTIVE][layer_id].append(neuron_n)
                         stable += 1
 
                     elif l >= 0:
-                        stability_info[StabilityInfo.ACTIVE][layer.identifier].append(neuron_n)
+                        stability_info[StabilityInfo.ACTIVE][layer_id].append(neuron_n)
                         stable += 1
 
                     else:
-                        stability_info[StabilityInfo.UNSTABLE].append((layer_n, neuron_n))
+                        stability_info[StabilityInfo.UNSTABLE].append((layer_id, neuron_n))
 
                         # Compute approximation area
                         area = 0.5 * (u - l) * u
-                        overapprox_area['sorted'].append(((layer_n, neuron_n), area))
-                        overapprox_area['map'][(layer_n, neuron_n)] = area
+                        overapprox_area['sorted'].append(((layer_id, neuron_n), area))
+                        overapprox_area['map'][(layer_id, neuron_n)] = area
 
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 cur_layer_output_num_bounds = HyperRectangleBounds(
@@ -223,8 +223,6 @@ class BoundsManager:
             # Update the current input equation and numeric bounds
             cur_layer_input_eq = cur_layer_output_eq
             cur_layer_input_num_bounds = cur_layer_output_num_bounds
-
-            layer_n += 1
 
         # sort the overapproximation areas ascending
         overapprox_area['sorted'] = sorted(overapprox_area['sorted'], key=lambda x: x[1])
@@ -257,8 +255,8 @@ class BoundsManager:
         LOGGER.debug(f"--- Input bounds\n"
                      f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}")
 
-        negative_branch_input = BoundsManager.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
-                                                                     NeuronSplit.Negative)
+        negative_branch_input = BoundsManager.refine_input_bounds_after_split(
+            pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Negative)
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
             self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
@@ -266,8 +264,8 @@ class BoundsManager:
                      f"{negative_branch_input} --- stable count "
                      f"{None if negative_bounds is None else negative_bounds['stable_count']}")
 
-        positive_branch_input = BoundsManager.refine_input_bounds_after_split(pre_branch_bounds, nn, target, fixed_neurons,
-                                                                     NeuronSplit.Positive)
+        positive_branch_input = BoundsManager.refine_input_bounds_after_split(
+            pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Positive)
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
             self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1}))
@@ -322,7 +320,7 @@ class BoundsManager:
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_first_node().identifier]
 
         try:
-            symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, target, nn)
+            symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, target.layer_id, nn)
         except KeyError:
             LOGGER.info('KeyError in branching, no update was performed.')
             return input_bounds
@@ -356,18 +354,20 @@ class BoundsManager:
         """
 
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
+        # If value is 0, we take the upper bound.
+        # Otherwise, we take the negation of the lower bound.
         coefs = np.array(
-            [pre_branch_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]
              if value == 0 else
-             -pre_branch_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]
-             for ((layer_n, neuron_n), value) in branch.items()] + [coef]
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]
+             for ((layer_id, neuron_n), value) in branch.items()] + [coef]
         )
 
         shifts = np.array(
-            [pre_branch_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_offset()[neuron_n]
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[neuron_n]
              if value == 0 else
-             -pre_branch_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_offset()[neuron_n]
-             for ((layer_n, neuron_n), value) in branch.items()] + [shift]
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[neuron_n]
+             for ((layer_id, neuron_n), value) in branch.items()] + [shift]
         )
 
         # The rest is similar to _refine_input_bounds,
@@ -660,30 +660,31 @@ def get_lin_upper_bound_coefficients(lower, upper):
     return mult, add
 
 
-def extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_n):
+def extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id):
     # TODO make this a util method somewhere else
     return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
-            if lay_n == layer_n and value == 0]
+            if lay_n == layer_id and value == 0]
 
-def extract_layer_inactive_from_bounds(bounds, layer_n):
+
+def extract_layer_inactive_from_bounds(bounds, layer_id):
     return {neuron_n for lay_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-            if lay_n == layer_n}
+            if lay_n == layer_id}
 
-def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_n):
-    layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier] +
-                      [i for (lay_n, i), value in new_star.fixed_neurons.items() if
-                       lay_n == relu_layer_n and value == 0])
 
-    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_n)
-            if (layer_n, neuron_n) not in fixed_neurons}
+def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_id):
+    return (bounds['stability_info'][StabilityInfo.INACTIVE][layer_id] +
+            [i for (lay_id, i), value in fixed_neurons.items() if lay_id == layer_id and value == 0])
 
-def extract_layer_unstable_from_bounds(bounds, layer_n):
-    return {neuron_n for lay_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-            if lay_n == layer_n}
 
-def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_n):
-    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_n)
-            if (layer_n, neuron_n) not in fixed_neurons}
+def extract_layer_unstable_from_bounds(bounds, layer_id):
+    return {neuron_n for lay_id, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
+            if lay_id == layer_id}
+
+
+def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_id):
+    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_id)
+            if (layer_id, neuron_n) not in fixed_neurons}
+
 
 def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> list:
     """

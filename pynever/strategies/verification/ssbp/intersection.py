@@ -5,7 +5,8 @@ from pynever import utilities
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
-from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons
+from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
+    BoundsManager
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import split, propagation
@@ -234,17 +235,17 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
         for j in range(n_output_dimensions)])
 
     # The constraints from the branching
-    for (layer_n, neuron_n), value in star.fixed_neurons.items():
+    for (layer_id, neuron_n), value in star.fixed_neurons.items():
         if value == 0:
             solver.Add(
                 input_vars.dot(
-                    nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_matrix()[neuron_n]) +
-                nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_upper().get_offset()[neuron_n] <= 0)
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
+                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] <= 0)
         else:
             solver.Add(
                 input_vars.dot(
-                    nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_matrix()[neuron_n]) +
-                nn_bounds['symbolic'][nn.get_id_from_index(layer_n - 1)].get_lower().get_offset()[neuron_n] >= 0)
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
+                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
