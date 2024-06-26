@@ -127,6 +127,6 @@ def propagate_until_relu(star: ExtendedStar, network: networks.SequentialNetwork
                                           f'Unsupported layer {layer.__class__}')
 
     # Set reference layer
-    star.ref_layer = relu_layer.identifier
+    star.ref_layer = relu_layer.identifier if relu_layer is not None else None
 
     return star, relu_layer
