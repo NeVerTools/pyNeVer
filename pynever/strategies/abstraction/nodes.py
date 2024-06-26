@@ -151,7 +151,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-            parallel_results = my_pool.starmap(self._single_fc_forward, abs_input.stars)
+            parallel_results = my_pool.map(self._single_fc_forward, abs_input.stars)
 
         abs_output = StarSet()
         for star_set in parallel_results:
@@ -274,7 +274,7 @@ class AbsReLUNode(AbsLayerNode):
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-            parallel_results = my_pool.starmap(self._mixed_single_relu_forward, abs_input.stars)
+            parallel_results = my_pool.map(self._mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
         if self.parameters.neurons_to_refine is not None:
@@ -497,7 +497,7 @@ class AbsSigmoidNode(AbsLayerNode):
         abs_output = StarSet()
 
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-            parallel_results = my_pool.starmap(self._single_sigmoid_forward, abs_input.stars)
+            parallel_results = my_pool.map(self._single_sigmoid_forward, abs_input.stars)
 
         for star_set in parallel_results:
             abs_output.stars = abs_output.stars.union(star_set)
