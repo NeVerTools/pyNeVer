@@ -5,6 +5,7 @@ from pynever import utilities
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import split, propagation
@@ -80,7 +81,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
 
     """
 
-    unstable = split.get_unstable_fixed_neurons(star, nn_bounds)
+    unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) == 0:
         return intersect_bounds(star, nn, nn_bounds, prop)

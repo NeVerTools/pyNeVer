@@ -3,19 +3,12 @@ import copy
 from pynever import networks
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo, NeuronSplit
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo, NeuronSplit, \
+    compute_layer_unstable_from_bounds_and_fixed_neurons, compute_unstable_from_bounds_and_fixed_neurons
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget
 
 
-def get_unstable_fixed_neurons(star: ExtendedStar, bounds: dict) -> list:
-    """
-    Utility method
-
-    """
-
-    unstable = bounds['stability_info'][StabilityInfo.UNSTABLE]
-    return [neuron for neuron in unstable if neuron not in star.fixed_neurons]
 
 
 def get_target_sequential(star: ExtendedStar, nn_bounds: dict, network: networks.SequentialNetwork) \
@@ -25,7 +18,7 @@ def get_target_sequential(star: ExtendedStar, nn_bounds: dict, network: networks
 
     """
 
-    unstable = get_unstable_fixed_neurons(star, nn_bounds)
+    unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) > 0:
         for layer_n, neuron_n in unstable:
@@ -53,11 +46,7 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
     """
 
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = get_unstable_fixed_neurons(star, nn_bounds)
-
-    unstable_lowest_layer = sorted(list({layer_n for (layer_n, _) in unstable}))
-    if len(unstable_lowest_layer) != 0:
-        unstable_lowest_layer = unstable_lowest_layer[0]
+    unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
@@ -142,13 +131,9 @@ def compute_star_after_fixing_to_value(star: ExtendedStar, bounds: dict, target:
 
     # Some of the neurons that were unstable at the beginning
     # could have become stable due to prior splitting.
-    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds.
-    layer_unstable_per_bounds = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-                                 if layer_n == target.layer_idx}
-    ref_layer_unstable = star.ref_unstable_neurons & layer_unstable_per_bounds
-
-    # We have just fixed the target neuron, so we remove it from the set of unstable neurons.
-    ref_layer_unstable.discard(index)
+    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds and fixed_so_far.
+    ref_layer_unstable = (star.ref_unstable_neurons &
+                          compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_so_far, target.layer_idx))
 
     if split == NeuronSplit.Negative:
         # Update the predicate to include the constraint that the target neuron y is inactive

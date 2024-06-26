@@ -163,7 +163,7 @@ class BoundsManager:
                 """ ReLU layer """
 
                 # set the equations to zero for the neurons that have been fixed to 0
-                current_layer_inactive = self.extract_layer_inactive_from_branch(fixed_neurons, layer_n)
+                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_n)
                 if len(current_layer_inactive) > 0:
                     cur_layer_input_eq = SymbolicLinearBounds(
                         cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
@@ -239,12 +239,6 @@ class BoundsManager:
             'stable_count': stable,
             'overapproximation_area': overapprox_area
         }
-
-    @staticmethod
-    def extract_layer_inactive_from_branch(fixed_neurons, layer_n):
-        # TODO make this a util method somewhere else
-        return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
-                if lay_n == layer_n and value == 0]
 
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
                              fixed_neurons: dict) -> tuple[dict, dict]:
@@ -664,3 +658,37 @@ def get_lin_upper_bound_coefficients(lower, upper):
     add = -mult * lower
 
     return mult, add
+
+
+def extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_n):
+    # TODO make this a util method somewhere else
+    return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
+            if lay_n == layer_n and value == 0]
+
+def extract_layer_inactive_from_bounds(bounds, layer_n):
+    return {neuron_n for lay_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
+            if lay_n == layer_n}
+
+def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_n):
+    layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier] +
+                      [i for (lay_n, i), value in new_star.fixed_neurons.items() if
+                       lay_n == relu_layer_n and value == 0])
+
+    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_n)
+            if (layer_n, neuron_n) not in fixed_neurons}
+
+def extract_layer_unstable_from_bounds(bounds, layer_n):
+    return {neuron_n for lay_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
+            if lay_n == layer_n}
+
+def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_n):
+    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_n)
+            if (layer_n, neuron_n) not in fixed_neurons}
+
+def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> list:
+    """
+    Utility method
+
+    """
+    unstable = bounds['stability_info'][StabilityInfo.UNSTABLE]
+    return [neuron for neuron in unstable if neuron not in fixed_neurons]

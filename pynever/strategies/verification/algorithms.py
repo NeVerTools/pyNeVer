@@ -320,6 +320,7 @@ class SSBPVerification(VerificationStrategy):
 
         while len(frontier) > 0 and not stop_flag:
 
+            # import datetime
             # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
             current_star, nn_bounds = frontier.pop()
 
@@ -352,8 +353,6 @@ class SSBPVerification(VerificationStrategy):
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
                         # TODO we stopped here
-                        intersects, unsafe_stars = self.compute_intersection(current_star, nn_bounds)
-                        target, current_star = self.get_next_target(current_star, nn_bounds)
 
                         raise Exception("This point should not be reachable")
 

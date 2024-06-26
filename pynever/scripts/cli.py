@@ -320,7 +320,7 @@ def dump_results(name, net, ans, t, out, out_dir):
         # If answer is False with no counterexample -> timeout
         if ans[1] is None:
             if ans[0]:
-                csv_out.write(f'{t},Verified\n')
+                csv_out.write('{:9.4f},Verified\n'.format(t))
                 inst_out.write('unsat')
             else:
                 csv_out.write(f'-,Unknown\n')
@@ -335,7 +335,7 @@ def dump_results(name, net, ans, t, out, out_dir):
                 text += f'(Y_{j} {unsafe_out[j]})\n'
             text = text.replace('[', '').replace(']', '')[:-1]
 
-            csv_out.write(f'{t},Unsafe\n')
+            csv_out.write('{:9.4f},Unsafe\n'.format(t))
             inst_out.write(f'sat\n({text})')
 
 

@@ -1,7 +1,8 @@
 from pynever import networks, nodes
 
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds_manager import StabilityInfo
+from pynever.strategies.bounds_propagation.bounds_manager import StabilityInfo, \
+    compute_layer_unstable_from_bounds_and_fixed_neurons
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
@@ -72,8 +73,7 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
         layer_inactive = (bounds['stability_info'][StabilityInfo.INACTIVE][relu_layer.identifier] +
                           [i for (lay_n, i), value in new_star.fixed_neurons.items() if
                            lay_n == relu_layer_n and value == 0])
-        layer_unstable = {neuron_n for layer_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
-                          if layer_n == relu_layer_n and not (layer_n, neuron_n) in new_star.fixed_neurons}
+        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_n)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
