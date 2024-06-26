@@ -183,7 +183,8 @@ class AbsSeqNetwork(AbsNeuralNetwork):
             LOGGER_LAYER.info(f"Computing starset for layer {current_node.identifier}. Current starset has dimension "
                               f"{len(abs_input.stars)}. Time to compute: {time_end - time_start}s.")
 
-            current_node = self.get_abstract(self.ref_network.get_next_node(self.get_concrete(current_node)))
+            next_node = self.ref_network.get_next_node(self.get_concrete(current_node))
+            current_node = self.get_abstract(next_node) if next_node is not None else None
 
         return abs_input
 
