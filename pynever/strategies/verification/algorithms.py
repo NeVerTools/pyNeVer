@@ -1,5 +1,6 @@
 import abc
 import copy
+import datetime
 import time
 
 import numpy as np
@@ -307,7 +308,8 @@ class SSBPVerification(VerificationStrategy):
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
-        self.logger.info(f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
+        self.logger.info(f"Started {datetime.datetime.now()}\n"
+                         f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
                          f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n\n")
 
         # Frontier is a stack of tuples (ExtendedStar, dict)

@@ -608,7 +608,8 @@ class ExtendedStar(Star):
         new_basis_matrix = tensors.matmul(weight, self.basis_matrix)
         new_center = tensors.matmul(weight, self.center) + bias
 
-        return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center))
+        return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center),
+                            fixed_neurons=self.fixed_neurons)
 
     def approx_relu_forward(self, bounds: dict, layer_id: str) -> ExtendedStar:
         """

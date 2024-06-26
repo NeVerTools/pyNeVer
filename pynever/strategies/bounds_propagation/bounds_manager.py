@@ -46,16 +46,12 @@ class BoundsManager:
         return str(self.numeric_bounds)
 
     @staticmethod
-    def check_stable(var_index: int, bounds: AbstractBounds) -> NeuronState:
+    def check_stable(lb, ub) -> NeuronState:
         """
-        Static method to check whether the bounds are stable for a given neuron index
-
+        Static method, given the bounds of a neuron, whether it is stable
         """
 
         precision_guard = 10e-15
-
-        lb = bounds.get_lower()[var_index]
-        ub = bounds.get_upper()[var_index]
 
         # Positive stable
         if lb >= precision_guard:
@@ -155,7 +151,7 @@ class BoundsManager:
                 """ Fully Connected layer """
 
                 cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, cur_layer_input_eq)
-                cur_layer_output_num_bounds = (cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect))
+                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
@@ -163,11 +159,11 @@ class BoundsManager:
                 layer_id = layer.identifier
 
                 # set the equations to zero for the neurons that have been fixed to 0
-                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-                if len(current_layer_inactive) > 0:
-                    cur_layer_input_eq = SymbolicLinearBounds(
-                        cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
-                        cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
+                # current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
+                # if len(current_layer_inactive) > 0:
+                #     cur_layer_input_eq = SymbolicLinearBounds(
+                #         cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
+                #         cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
 
@@ -175,18 +171,21 @@ class BoundsManager:
                 stability_info[StabilityInfo.ACTIVE][layer_id] = list()
 
                 for neuron_n in range(cur_layer_input_num_bounds.size):
-
+                    # if neuron_n in current_layer_inactive:
+                    #     l, u = 0, 0
+                    # else:
                     l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
 
-                    if u <= 0:
+                    stable_status = BoundsManager.check_stable(l, u)
+                    if stable_status == NeuronState.NEGATIVE_STABLE:
                         stability_info[StabilityInfo.INACTIVE][layer_id].append(neuron_n)
                         stable += 1
 
-                    elif l >= 0:
+                    elif stable_status == NeuronState.POSITIVE_STABLE:
                         stability_info[StabilityInfo.ACTIVE][layer_id].append(neuron_n)
                         stable += 1
 
-                    else:
+                    else: #stable_status == NeuronState.UNSTABLE
                         stability_info[StabilityInfo.UNSTABLE].append((layer_id, neuron_n))
 
                         # Compute approximation area
@@ -247,7 +246,7 @@ class BoundsManager:
         """
 
         self.logger.debug(f"======================================================================\n"
-                          f"Target {target}\n"
+                          f"Target {target} "
                           f"Overapprox. area {pre_branch_bounds['overapproximation_area']['map'][target.to_pair()]}")
 
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
@@ -639,12 +638,14 @@ def get_lin_lower_bound_coefficients(lower, upper):
     if lower >= 0:
         return 1, 0
 
-    if upper <= 0:
-        return 0, 0
+    if upper >= - lower:
+        mult = upper / (upper - lower)
+        return mult, 0
 
-    mult = upper / (upper - lower)
-
-    return mult, 0
+    # upper <= 0:
+    # or
+    # -lower > upper, i.e., 0 is a tighter lower bound that the slope mult above
+    return 0, 0
 
 
 def get_lin_upper_bound_coefficients(lower, upper):
