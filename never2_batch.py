@@ -19,6 +19,7 @@ parser = ArgumentParser(prog='never2',
 
 # Instances
 parser.add_argument('csv', help='Collection of instances to verify')
+parser.add_argument('out_dir', help='Output directory')
 
 parser = never2_single.add_options(parser)
 
@@ -38,7 +39,7 @@ if __name__ == '__main__':
 
     # Execute
     if args['algorithm'] == 'ssbp':
-        if not cli.ssbp_verify_batch(args['csv'], logfile, args['timeout'], args['params']):
+        if not cli.ssbp_verify_batch(args['csv'], args['out_dir'], logfile, args['timeout'], args['params']):
             exit(1)
     else:
         if not cli.sslp_verify_batch(False, args['csv'], args['strategy'], logfile):

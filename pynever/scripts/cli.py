@@ -127,8 +127,8 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
                              answer, fancy_cex, fancy_out])
 
 
-def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None, timeout: int, params_file: str) \
-        -> None:
+def ssbp_verify_single(model_file: str, property_file: str, out_dir: str, logfile: str | None,
+                       timeout: int, params_file: str) -> None:
     """
     This method starts the verification procedure on the network model provided
     in the model_file path for the property specified in property_file, using
@@ -200,7 +200,7 @@ def ssbp_verify_single(model_file: str, property_file: str, logfile: str | None,
     p_name = prop_path.split('/')[-1].split('\\')[-1]
     net_name = network.identifier.split('/')[-1].split('\\')[-1]
     instance_name = f'{net_name} - {p_name}'
-    dump_results(instance_name, network, result, lap, logfile)
+    dump_results(instance_name, network, result, lap, logfile, out_dir)
 
 
 def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: str | None) -> bool:
@@ -251,7 +251,7 @@ def sslp_verify_batch(safety_prop: bool, csv_file: str, strategy: str, logfile: 
     return exec_ok
 
 
-def ssbp_verify_batch(csv_file: str, logfile: str | None, timeout: int, params_file: str) -> bool:
+def ssbp_verify_batch(csv_file: str, out_dir: str, logfile: str | None, timeout: int, params_file: str) -> bool:
     """
     This method starts the verification procedure on the batch of instances
     provided in the csv_file path, using the SSBP algorithm
@@ -260,6 +260,8 @@ def ssbp_verify_batch(csv_file: str, logfile: str | None, timeout: int, params_f
     ----------
     csv_file : str
         Path to the instances file
+    out_dir : str
+        Output directory for the experiments
     logfile : str
         Path to the CSV output file
     timeout : int
@@ -291,7 +293,7 @@ def ssbp_verify_batch(csv_file: str, logfile: str | None, timeout: int, params_f
             try:
                 net_path = f'{folder}/{row[0]}'
                 prop_path = f'{folder}/{row[1]}'
-                ssbp_verify_single(net_path, prop_path, logfile, timeout, params_file)
+                ssbp_verify_single(net_path, prop_path, out_dir, logfile, timeout, params_file)
             except Exception as e:
                 exec_ok = False
                 print(e)
@@ -299,19 +301,24 @@ def ssbp_verify_batch(csv_file: str, logfile: str | None, timeout: int, params_f
     return exec_ok
 
 
-def dump_results(name, net, ans, t, out):
+def dump_results(name, net, ans, t, out, out_dir):
     """
     This method prints the result of the verification procedure to a CSV file and to a single instance file
     as per VNN-COMP directive
 
     """
 
-    # CSV structure: name,time,result
-    with open(out, 'a', encoding='utf-8') as csv_out, open(f'{name.replace(".vnnlib", "")}.txt', 'w') as inst_out:
+    # Create output directory
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+        # CSV structure: name,time,result
+    with open(out, 'a', encoding='utf-8') as csv_out, open(f'{out_dir}/{name.replace(".vnnlib", "")}.txt',
+                                                           'w') as inst_out:
         csv_out.write(f'{name},')
 
         # If answer is False with no counterexample -> timeout
-        if len(ans) == 1:
+        if ans[1] is None:
             if ans[0]:
                 csv_out.write(f'{t},Verified\n')
                 inst_out.write('unsat')
