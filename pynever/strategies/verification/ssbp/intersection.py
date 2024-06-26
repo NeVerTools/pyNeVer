@@ -250,11 +250,11 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_upper().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_upper().get_offset()[j] - output_vars[j] >= 0)
+            input_vars.dot(nn_bounds['symbolic'][nn.get_last_node().identifier].get_upper().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn.get_last_node().identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_lower().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn.get_id_from_index(-1)].get_lower().get_offset()[j] - output_vars[j] <= 0)
+            input_vars.dot(nn_bounds['symbolic'][nn.get_last_node().identifier].get_lower().get_matrix()[j]) +
+            nn_bounds['symbolic'][nn.get_last_node().identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
