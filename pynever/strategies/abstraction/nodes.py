@@ -170,8 +170,10 @@ class AbsFullyConnectedNode(AbsLayerNode):
             raise InvalidDimensionError("The shape of the weight matrix of the concrete node is different from the "
                                         "shape of the basis matrix")
 
+        bias = self.ref_node.get_layer_bias_as_two_dimensional()
+
         new_basis_matrix = np.matmul(self.ref_node.weight, star.basis_matrix)
-        new_center = np.matmul(self.ref_node.weight, star.center) + self.ref_node.bias
+        new_center = np.matmul(self.ref_node.weight, star.center) + bias
         new_predicate_matrix = star.predicate_matrix
         new_predicate_bias = star.predicate_bias
 
@@ -277,22 +279,29 @@ class AbsReLUNode(AbsLayerNode):
             parallel_results = my_pool.map(self._mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
-        if self.parameters.neurons_to_refine is not None:
-            self.parameters.neurons_to_refine.pop(0)
+        if hasattr(self.parameters, 'neurons_to_refine'):
+            if self.parameters.neurons_to_refine is not None:
+                self.parameters.neurons_to_refine.pop(0)
+        else:
+            # TODO check exception
+            raise Exception('SSLP parameters must have "neurons_to_refine" attribute!')
 
         abs_output = StarSet()
 
-        # Perform this code only if necessary
-        if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
+        # This is used in mixed verification
+        tot_areas = np.zeros(self.ref_node.get_input_dim())
+        num_areas = 0
 
-            tot_areas = np.zeros(self.ref_node.get_input_dim())
-            num_areas = 0
-            for star_set, areas in parallel_results:
+        for star_set, areas in parallel_results:
+            abs_output.stars = abs_output.stars.union(star_set)
+
+            # Perform this code only if necessary
+            if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
                 if star_set != set():
                     num_areas = num_areas + 1
                     tot_areas = tot_areas + areas
-                abs_output.stars = abs_output.stars.union(star_set)
 
+        if num_areas > 0:
             self.n_areas = tot_areas / num_areas
 
         return abs_output
