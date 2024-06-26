@@ -1,8 +1,8 @@
 from pynever import networks, nodes
 
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds_manager import StabilityInfo, \
-    compute_layer_unstable_from_bounds_and_fixed_neurons, compute_layer_inactive_from_bounds_and_fixed_neurons
+from pynever.strategies.bounds_propagation.bounds_manager import compute_layer_unstable_from_bounds_and_fixed_neurons, \
+    compute_layer_inactive_from_bounds_and_fixed_neurons
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
@@ -27,20 +27,11 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
 
     """
 
-    start_layer = star.ref_layer
-
-    if start_layer is None:
+    if star.ref_layer is None:
         return star
 
-    skip = True
-
-    for layer in network.layers_iterator():
-        # skip until we reach the reference layer
-        if skip:
-            if layer.identifier == star.ref_layer:
-                skip = False
-            else:
-                continue
+    start_index = network.get_index_from_id(star.ref_layer)
+    for layer in network.layers_iterator(start_index):
 
         # Propagate fully connected entirely
         if isinstance(layer, nodes.FullyConnectedNode):
@@ -75,8 +66,10 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
     relu_layer_id = new_star.ref_layer
 
     if relu_layer is not None:
-        layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_id)
-        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons, relu_layer_id)
+        layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
+                                                                              relu_layer_id)
+        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
+                                                                              relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 

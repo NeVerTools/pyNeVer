@@ -543,12 +543,12 @@ class ExtendedStar(Star):
 
     """
 
-    def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: int = None,
+    def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: str = '',
                  ref_neuron: int = 0, ref_unstable_neurons: set = None, fixed_neurons: dict = None):
         super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
 
-        # Reference layer of the star (where it comes from)
-        self.ref_layer: int = ref_layer
+        # Reference layer identifier of the star (where it comes from)
+        self.ref_layer: str = ref_layer
 
         # Starting number of predicates (used in search verification)
         self.ref_neuron: int = ref_neuron
