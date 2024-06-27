@@ -564,6 +564,19 @@ class SequentialNetwork(NeuralNetwork):
 
         return None
 
+    def layer_precedes(self, layer_id1, layer_id2) -> bool:
+        found_id1 = False
+        for layer in self.layers_iterator():
+            if not found_id1:
+                if layer.identifier == layer_id1:
+                    found_id1 = True
+
+            else:
+                if layer.identifier == layer_id2:
+                    return True
+
+        return False
+
     def __repr__(self):
         body = [node.__str__() for node in self.nodes.values()]
         return f"{self.identifier} : {body}"

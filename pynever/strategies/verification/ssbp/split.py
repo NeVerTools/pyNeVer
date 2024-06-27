@@ -25,8 +25,10 @@ def get_target_sequential(star: ExtendedStar, nn_bounds: dict, network: networks
         for layer_id, neuron_n in unstable:
             if layer_id != star.ref_layer:
 
+                layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons,
+                                                                                      star.ref_layer)
                 # TODO: have the check as a method of Star? Or some other util?
-                if star.ref_unstable_neurons is not None and len(star.ref_unstable_neurons) == 0:
+                if len(layer_unstable) == 0:
                     # the current layer is complete, so we need to move to the next layer
                     # through the fully connected transformation
                     #
@@ -51,14 +53,20 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
 
     # There are still unstable neurons
     if len(unstable) > 0:
-        if star.ref_unstable_neurons is not None and len(star.ref_unstable_neurons) == 0:
+        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons, star.ref_layer)
+        if len(layer_unstable) == 0:
             # the current layer is complete, so we need to move to the next layer
             # through the fully connected transformation
             star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
 
+            if star.ref_layer == network.get_last_node().identifier:
+                return None, star
+
+            # TODO: sort using correct comparator that takes into account the NN structure
             next_layers = sorted(
                 list({layer_id for (layer_id, neuron_n) in nn_bounds['overapproximation_area']['map'].keys()
-                      if layer_id >= star.ref_layer})
+                      if layer_id == star.ref_layer or network.layer_precedes(star.ref_layer, layer_id)}),
+
             )
             if len(next_layers) == 0:
                 return None, star
@@ -127,12 +135,6 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
 
     fixed_so_far = star.fixed_neurons | {target.to_pair(): split.value}
 
-    # Some of the neurons that were unstable at the beginning
-    # could have become stable due to prior splitting.
-    # So we intersect ref_unstable_neurons with the unstable neurons according to the bounds and fixed_so_far.
-    ref_layer_unstable = (star.ref_unstable_neurons &
-                          compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_so_far, target.layer_id))
-
     if split == NeuronSplit.Negative:
         # Update the predicate to include the constraint that the target neuron y is inactive
         new_predicate = star.add_to_predicate_inactive_constraint(target.neuron_idx)
@@ -140,8 +142,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
         # Update the predicate to include the constraint that the target neuron is active
         new_predicate = star.add_to_predicate_active_constraint(target.neuron_idx)
 
-    star_after_split = ExtendedStar(new_predicate, new_transformation,
-                                    ref_layer=target.layer_id, ref_neuron=target.neuron_idx,
-                                    ref_unstable_neurons=ref_layer_unstable, fixed_neurons=fixed_so_far)
+    star_after_split = ExtendedStar(new_predicate, new_transformation, ref_layer=target.layer_id,
+                                    ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
 
     return [(star_after_split, bounds, bounds['stable_count'])]

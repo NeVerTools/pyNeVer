@@ -68,13 +68,11 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
     if relu_layer is not None:
         layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
                                                                               relu_layer_id)
-        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
-                                                                              relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
         return ExtendedStar(new_star.get_predicate_equation(), new_transformation, ref_layer=relu_layer_id,
-                            ref_unstable_neurons=layer_unstable, fixed_neurons=new_star.fixed_neurons)
+                            fixed_neurons=new_star.fixed_neurons)
 
     return new_star
 

@@ -544,7 +544,7 @@ class ExtendedStar(Star):
     """
 
     def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: str = None,
-                 ref_neuron: int = 0, ref_unstable_neurons: set = None, fixed_neurons: dict = None):
+                 ref_neuron: int = 0, fixed_neurons: dict = None):
         super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
 
         # Reference layer identifier of the star (where it comes from)
@@ -552,9 +552,6 @@ class ExtendedStar(Star):
 
         # Starting number of predicates (used in search verification)
         self.ref_neuron: int = ref_neuron
-
-        # Unstable neurons in the reference layer
-        self.ref_unstable_neurons = ref_unstable_neurons
 
         # The neurons fixed so far
         self.fixed_neurons = dict() if fixed_neurons is None else fixed_neurons
@@ -646,8 +643,7 @@ class ExtendedStar(Star):
 
         # Create the approximate matrices for the star
         return ExtendedStar(self.create_approx_predicate(unstable, bounds['numeric_pre'][layer_id]),
-                            self.create_approx_transformation(unstable, inactive),
-                            fixed_neurons=self.fixed_neurons)
+                            self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
 
     def create_approx_predicate(self, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
         """
