@@ -694,3 +694,27 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: 
     """
     unstable = bounds['stability_info'][StabilityInfo.UNSTABLE]
     return [neuron for neuron in unstable if neuron not in fixed_neurons]
+
+
+def compute_stable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> set:
+    """
+    Utility method
+
+    """
+    stable = (
+        {(layer_id, neuron_n)
+          for (layer_id, neurons) in bounds['stability_info'][StabilityInfo.INACTIVE].items()
+          for neuron_n in neurons}
+        .union(
+            {(layer_id, neuron_n)
+             for (layer_id, neurons) in bounds['stability_info'][StabilityInfo.ACTIVE].items()
+             for neuron_n in neurons}
+        ).union(
+            fixed_neurons.items())
+    )
+    return stable
+
+
+def compute_overapproximation_volume(bounds: dict) -> float:
+    import numpy
+    return numpy.prod(list(bounds['overapproximation_area']['map'].values()))

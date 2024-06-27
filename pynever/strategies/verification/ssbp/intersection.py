@@ -6,7 +6,7 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
-    BoundsManager
+    BoundsManager, compute_stable_from_bounds_and_fixed_neurons, compute_overapproximation_volume
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import split, propagation
@@ -83,18 +83,21 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
     """
 
     unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    overapprox_volume = compute_overapproximation_volume(nn_bounds)
 
     if len(unstable) == 0:
+        return intersect_exact_bounds(star, nn, nn_bounds, prop)
+    elif overapprox_volume < 10:# or overapprox_volume > 10e6:
         return intersect_bounds(star, nn, nn_bounds, prop)
 
     return intersect_light_milp(star, nn, nn_bounds, prop)
 
 
-def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_exact_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
-    This intersection method uses an LP and should be called only
-    when there are no unstable neurons
+    This intersection method should be called only when there are no unstable neurons.
+    It uses an LP only for finding a counterexample.
 
     Returns
     ----------
@@ -110,31 +113,31 @@ def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict,
     # Since all relu neurons have been fixed,
     # we assume that the basis is the linear function describing the relation
     # between the input and the output neurons.
-    # So we recompute the output bounds given the equation by the bases
+    # So we recompute the output bounds given the equation by the basis.
     output_bounds = HyperRectangleBounds(
         bounds_utils.compute_min(star.basis_matrix, input_bounds) + star.center.reshape(-1),
         bounds_utils.compute_max(star.basis_matrix, input_bounds) + star.center.reshape(-1))
 
-    n_disjunctions = len(prop.out_coef_mat)
+    return check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop)
 
-    # For each disjunction in the output property, check none is satisfied
-    for i in range(n_disjunctions):
-        # Every condition
-        conjunction_intersects = True
 
-        for j in range(len(prop.out_coef_mat[i])):
-            max_value = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
+    """
+    This intersection method should be called only when the bounds are thought to be precise enough,
+    i.e., the over-approximation volume is small enough.
+    It uses an LP only for finding a counterexample.
 
-            if max_value > 0:
-                # this conjunct is not satisfied, as it should be <= 0
-                conjunction_intersects = False
-                break
+    Returns
+    ----------
+    tuple[bool, list[float]]
+        A tuple with the result (True or False) and the counterexample, if present
 
-        if conjunction_intersects:
-            # only now use the method that calls an LP solver when we need a counter-example
-            return intersect_abstract_milp(star, nn, nn_bounds, prop)
+    """
 
-    return False, []
+    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
+
+    return check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop)
 
 
 def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
@@ -219,9 +222,9 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
 
     """
 
-    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
+    input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
     n_input_dimensions = input_bounds.get_size()
-    output_bounds = nn_bounds['numeric_post'][nn.get_id_from_index(-1)]
+    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
     n_output_dimensions = output_bounds.get_size()
 
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
@@ -304,6 +307,29 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
                 - (1 - deltas[i]) * bigM
                 - prop.out_bias_mat[i][j][0] <= 0
             ))
+
+
+def check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop):
+    n_disjunctions = len(prop.out_coef_mat)
+
+    # For each disjunction in the output property, check none is satisfied
+    # by output_bounds
+    for i in range(n_disjunctions):
+        # Every condition
+        conjunction_intersects = True
+
+        for j in range(len(prop.out_coef_mat[i])):
+            max_value = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+
+            if max_value > 0:
+                # this conjunct is not satisfied, as it should be <= 0
+                conjunction_intersects = False
+                break
+
+        if conjunction_intersects:
+            # only now use the method that calls an LP solver when we need a counter-example
+            return intersect_abstract_milp(star, nn, nn_bounds, prop)
+    return False, []
 
 
 def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, prop: NeverProperty) -> bool:

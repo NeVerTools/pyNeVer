@@ -123,18 +123,25 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
     if bounds is None:
         return []
 
-    if target.layer_id != star.ref_layer:
-        # TODO: add the symbolic equation constraint to the predicate.
-        # Could be useful when doing the intersection check with LP
-        return [(star, bounds, None)]
+    fixed_so_far = star.fixed_neurons | {target.to_pair(): split.value}
 
+    if target.layer_id != star.ref_layer:
+        # Only update fixed_neurons, as we cannot update the basis.
+        # In principle, we could update the predicate, but we do not need it
+        # as we have the information about the split in fixed_neurons,
+        # so later when doing the intersection check we can recover the required constraints.
+        star_after_split = ExtendedStar(star.get_predicate_equation(), star.get_transformation_equation(),
+                                        ref_layer=star.ref_layer, ref_neuron=star.ref_neuron,
+                                        fixed_neurons=fixed_so_far)
+        return [(star_after_split, bounds, bounds['stable_count'])]
+
+    # Compute new transformation
     layer_inactive = (compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, star.fixed_neurons, target.layer_id)
                       + ([target.neuron_idx] if split == NeuronSplit.Negative else []))
 
     new_transformation = star.mask_for_inactive_neurons(layer_inactive)
 
-    fixed_so_far = star.fixed_neurons | {target.to_pair(): split.value}
-
+    # Compute new predicate
     if split == NeuronSplit.Negative:
         # Update the predicate to include the constraint that the target neuron y is inactive
         new_predicate = star.add_to_predicate_inactive_constraint(target.neuron_idx)
