@@ -683,8 +683,8 @@ def extract_layer_unstable_from_bounds(bounds, layer_id):
 
 
 def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, fixed_neurons, layer_id):
-    return {neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_id)
-            if (layer_id, neuron_n) not in fixed_neurons}
+    return [neuron_n for neuron_n in extract_layer_unstable_from_bounds(bounds, layer_id)
+            if (layer_id, neuron_n) not in fixed_neurons]
 
 
 def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> list:

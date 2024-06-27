@@ -312,23 +312,35 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
 def check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop):
     n_disjunctions = len(prop.out_coef_mat)
 
-    # For each disjunction in the output property, check none is satisfied
-    # by output_bounds
+    # For each disjunction in the output property, check none is satisfied by output_bounds.
+    # If one disjunction is satisfied, then it represents a potential counter-example.
     for i in range(n_disjunctions):
-        # Every condition
-        conjunction_intersects = True
+        all_conjuncts_satisfied = True
+        a_conjunct_possibly_not_satisfied = False
 
+        # Check every conjunct in the disjunction i
         for j in range(len(prop.out_coef_mat[i])):
             max_value = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            min_value = bounds_utils.compute_min(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
 
-            if max_value > 0:
-                # this conjunct is not satisfied, as it should be <= 0
-                conjunction_intersects = False
+            if min_value > 0:
+                # the constraint j is definitely not satisfied, as it should be <= 0
+                all_conjuncts_satisfied = False
                 break
+            if max_value > 0:
+                # the constraint j might not be satisfied, but we are not sure
+                a_conjunct_possibly_not_satisfied = True
 
-        if conjunction_intersects:
-            # only now use the method that calls an LP solver when we need a counter-example
+        if a_conjunct_possibly_not_satisfied:
+            # We are not 100% sure there is a counter-example.
+            # Call an LP solver when we need a counter-example
             return intersect_abstract_milp(star, nn, nn_bounds, prop)
+        if all_conjuncts_satisfied:
+            # We are 100% sure there is a counter-example.
+            # It can be any point from the input space.
+            # Return anything from the input bounds
+            input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+            return True, input_bounds.get_lower()
     return False, []
 
 
