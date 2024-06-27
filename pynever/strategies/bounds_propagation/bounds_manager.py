@@ -4,6 +4,7 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, AbstractBounds
+from pynever.strategies.bounds_propagation.convfunctions import ConvFunctions
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
@@ -205,9 +206,9 @@ class BoundsManager:
                 cur_layer_output_num_bounds = cur_layer_input_num_bounds
 
             elif isinstance(layer, nodes.ConvNode):
-                """ Convolutional layer """
-
-                raise NotImplementedError('Not yet')
+                c = ConvFunctions()
+                cur_layer_output_eq = c.compute_output_equation(layer, cur_layer_input_eq)
+                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:
                 raise Exception(
