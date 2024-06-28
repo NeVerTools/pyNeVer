@@ -1,8 +1,7 @@
 from pynever import networks, nodes
 
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds_manager import compute_layer_unstable_from_bounds_and_fixed_neurons, \
-    compute_layer_inactive_from_bounds_and_fixed_neurons
+from pynever.strategies.bounds_propagation.bounds_manager import compute_layer_inactive_from_bounds_and_fixed_neurons
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
@@ -44,6 +43,16 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
             star = star.approx_relu_forward(bounds, layer.identifier)
 
         elif isinstance(layer, nodes.FlattenNode):
+            # Do nothing
+            continue
+
+        # =======================================
+        # There is a network with two useless
+        # Reshape layers that do nothing, here
+        # we filter them when this occurs
+        # =======================================
+        elif ((isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_next_node(layer), nodes.ReshapeNode)) or
+              (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_prev_node(layer), nodes.ReshapeNode))):
             # Do nothing
             continue
 
