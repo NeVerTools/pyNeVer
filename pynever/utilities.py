@@ -3,7 +3,7 @@
 This module contains utility functions which may be used throughout the code.
 
 """
-
+import numpy
 import torch
 
 import pynever.networks as networks
@@ -27,6 +27,9 @@ def execute_network(network: networks.NeuralNetwork, net_input: Tensor) -> Tenso
         The computed output
 
     """
+
+    if net_input.dtype == numpy.object_:
+        print("net_input", net_input)
 
     input_t = torch.Tensor(net_input)
 

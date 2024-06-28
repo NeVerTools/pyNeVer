@@ -89,10 +89,10 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
 
     if len(unstable) == 0:
         return intersect_exact_bounds(star, nn, nn_bounds, prop)
-    # elif overapprox_volume > 10e12:
-    #     return True, []
-    # elif overapprox_volume < 10:# or
-    #     return intersect_bounds(star, nn, nn_bounds, prop)
+    elif overapprox_volume > 10e12:
+        return True, []
+    elif overapprox_volume < 10:# or
+        return intersect_bounds(star, nn, nn_bounds, prop)
 
     return intersect_light_milp(star, nn, nn_bounds, prop)
 
@@ -188,7 +188,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     # The constraints from the predicate
     for j in range(star.predicate_matrix.shape[0]):
         solver.Add(
-            input_vars.dot(star.predicate_matrix[j]) + star.predicate_bias[j][0] <= 0)
+            input_vars.dot(star.predicate_matrix[j]) - star.predicate_bias[j][0] <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -200,8 +200,8 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
         return False, []
 
     else:
-        # TODO check
-        return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
+        # Only return the values of the original input vars
+        return True, [input_vars[i].solution_value() for i in range(input_bounds.get_size())]
 
 
 def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
