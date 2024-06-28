@@ -3,7 +3,7 @@ from enum import Enum
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
@@ -110,7 +110,8 @@ class BoundsManager:
 
         return self.compute_bounds(input_hyper_rect, network)
 
-    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork, fixed_neurons: dict = dict()) -> dict:
+    def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
+                       fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -185,7 +186,7 @@ class BoundsManager:
                         stability_info[StabilityInfo.ACTIVE][layer_id].append(neuron_n)
                         stable += 1
 
-                    else: #stable_status == NeuronState.UNSTABLE
+                    else:  # stable_status == NeuronState.UNSTABLE
                         stability_info[StabilityInfo.UNSTABLE].append((layer_id, neuron_n))
 
                         # Compute approximation area
@@ -200,6 +201,12 @@ class BoundsManager:
 
             elif isinstance(layer, nodes.FlattenNode):
                 """ Flatten layer """
+
+                cur_layer_output_eq = cur_layer_input_eq
+                cur_layer_output_num_bounds = cur_layer_input_num_bounds
+
+            elif isinstance(layer, nodes.ReshapeNode):
+                """ Reshape layer """
 
                 cur_layer_output_eq = cur_layer_input_eq
                 cur_layer_output_num_bounds = cur_layer_input_num_bounds
@@ -328,7 +335,7 @@ class BoundsManager:
             # The linear equation for the upper bound of the target neuron
             coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
             shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
-        else: # sign == NeuronSplit.Positive:
+        else:  # sign == NeuronSplit.Positive:
             # The negated linear equation for the lower bound of the target neuron
             coef = -symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
             shift = -symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
@@ -356,16 +363,20 @@ class BoundsManager:
         # If value is 0, we take the upper bound.
         # Otherwise, we take the negation of the lower bound.
         coefs = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[
+                 neuron_n]
              if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[
+                 neuron_n]
              for ((layer_id, neuron_n), value) in branch.items()] + [coef]
         )
 
         shifts = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[neuron_n]
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[
+                 neuron_n]
              if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[neuron_n]
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[
+                 neuron_n]
              for ((layer_id, neuron_n), value) in branch.items()] + [shift]
         )
 
@@ -703,8 +714,8 @@ def compute_stable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: di
     """
     stable = (
         {(layer_id, neuron_n)
-          for (layer_id, neurons) in bounds['stability_info'][StabilityInfo.INACTIVE].items()
-          for neuron_n in neurons}
+         for (layer_id, neurons) in bounds['stability_info'][StabilityInfo.INACTIVE].items()
+         for neuron_n in neurons}
         .union(
             {(layer_id, neuron_n)
              for (layer_id, neurons) in bounds['stability_info'][StabilityInfo.ACTIVE].items()
