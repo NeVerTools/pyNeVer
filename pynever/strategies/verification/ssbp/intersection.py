@@ -1,3 +1,5 @@
+from enum import Enum
+
 import numpy as np
 from ortools.linear_solver import pywraplp
 
@@ -87,8 +89,10 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
 
     if len(unstable) == 0:
         return intersect_exact_bounds(star, nn, nn_bounds, prop)
-    elif overapprox_volume < 10:# or overapprox_volume > 10e6:
-        return intersect_bounds(star, nn, nn_bounds, prop)
+    # elif overapprox_volume > 10e12:
+    #     return True, []
+    # elif overapprox_volume < 10:# or
+    #     return intersect_bounds(star, nn, nn_bounds, prop)
 
     return intersect_light_milp(star, nn, nn_bounds, prop)
 
@@ -118,7 +122,7 @@ def intersect_exact_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds:
         bounds_utils.compute_min(star.basis_matrix, input_bounds) + star.center.reshape(-1),
         bounds_utils.compute_max(star.basis_matrix, input_bounds) + star.center.reshape(-1))
 
-    return check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop)
+    return check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds)
 
 
 def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
@@ -137,7 +141,7 @@ def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict,
 
     output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
 
-    return check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop)
+    return check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds)
 
 
 def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
@@ -309,39 +313,78 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
             ))
 
 
-def check_bounds_satisfy_property(output_bounds, nn, star, nn_bounds, prop):
+def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
     n_disjunctions = len(prop.out_coef_mat)
+
+    possible_counter_example = False
 
     # For each disjunction in the output property, check none is satisfied by output_bounds.
     # If one disjunction is satisfied, then it represents a potential counter-example.
     for i in range(n_disjunctions):
-        all_conjuncts_satisfied = True
-        a_conjunct_possibly_not_satisfied = False
-
-        # Check every conjunct in the disjunction i
-        for j in range(len(prop.out_coef_mat[i])):
-            max_value = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
-            min_value = bounds_utils.compute_min(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
-
-            if min_value > 0:
-                # the constraint j is definitely not satisfied, as it should be <= 0
-                all_conjuncts_satisfied = False
-                break
-            if max_value > 0:
-                # the constraint j might not be satisfied, but we are not sure
-                a_conjunct_possibly_not_satisfied = True
-
-        if a_conjunct_possibly_not_satisfied:
-            # We are not 100% sure there is a counter-example.
-            # Call an LP solver when we need a counter-example
-            return intersect_abstract_milp(star, nn, nn_bounds, prop)
-        if all_conjuncts_satisfied:
+        disj_res = check_disjunct_satisfied(output_bounds, prop.out_coef_mat[i], prop.out_bias_mat[i])
+        if disj_res == PropertySatisfied.Yes:
             # We are 100% sure there is a counter-example.
             # It can be any point from the input space.
             # Return anything from the input bounds
             input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
             return True, input_bounds.get_lower()
+        elif disj_res == PropertySatisfied.Maybe:
+            # We are not 100% sure there is a counter-example.
+            # Call an LP solver when we need a counter-example
+            possible_counter_example = True
+        else: # disj_res == PropertySatisfied.No
+            # nothing to be done. Maybe other disjuncts will be satisfied
+            pass
+
+    # At least for one disjunct there is a possibility of a counter-example.
+    # Do a more powerful check with an LP solver
+    if possible_counter_example:
+        return intersect_abstract_milp(star, nn, nn_bounds, prop)
+
+    # Every disjunction is definitely not satisfied.
+    # So we return False.
     return False, []
+
+
+class PropertySatisfied(Enum):
+    No = 0
+    Yes = 1
+    Maybe = 2
+
+
+def check_disjunct_satisfied(bounds, matrix, bias):
+    """
+    Checks if the bounds satisfy the conjunction of constraints given by
+
+        matrix * x - bias <= 0
+
+    Returns
+    -------
+    Yes if definitely satisfied
+    No if definitely not satisfied
+    Maybe when unsure
+    """
+    a_conjunct_possibly_not_satisfied = False
+
+    # Check every conjunct in the disjunction
+    for j in range(len(matrix)):
+        max_value = bounds_utils.compute_max(matrix[j], bounds) - bias[j][0]
+        min_value = bounds_utils.compute_min(matrix[j], bounds) - bias[j][0]
+
+        if min_value > 0:
+            # the constraint j is definitely not satisfied, as it should be <= 0
+            return PropertySatisfied.No
+        if max_value > 0:
+            # the constraint j might not be satisfied, but we are not sure
+            a_conjunct_possibly_not_satisfied = True
+
+    if a_conjunct_possibly_not_satisfied:
+        return PropertySatisfied.Maybe
+
+    # if we reached here, means that all max values were below 0
+    # so we now for sure that the property was satisfied
+    # and there is a counter-example (any point from the input bounds)
+    return PropertySatisfied.Yes
 
 
 def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, prop: NeverProperty) -> bool:
@@ -349,6 +392,8 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
     This functions checks if a candidate counterexample is a true counterexample for the property
 
     """
+    if candidate_cex is None:
+        return False
 
     candidate_output = utilities.execute_network(nn, candidate_cex)
     n_disjunctions = len(prop.out_coef_mat)

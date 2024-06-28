@@ -159,11 +159,11 @@ class BoundsManager:
                 layer_id = layer.identifier
 
                 # set the equations to zero for the neurons that have been fixed to 0
-                # current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-                # if len(current_layer_inactive) > 0:
-                #     cur_layer_input_eq = SymbolicLinearBounds(
-                #         cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
-                #         cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
+                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
+                if len(current_layer_inactive) > 0:
+                    cur_layer_input_eq = SymbolicLinearBounds(
+                        cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
+                        cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
 
@@ -171,10 +171,10 @@ class BoundsManager:
                 stability_info[StabilityInfo.ACTIVE][layer_id] = list()
 
                 for neuron_n in range(cur_layer_input_num_bounds.size):
-                    # if neuron_n in current_layer_inactive:
-                    #     l, u = 0, 0
-                    # else:
-                    l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
+                    if neuron_n in current_layer_inactive:
+                        l, u = 0, 0
+                    else:
+                        l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
 
                     stable_status = BoundsManager.check_stable(l, u)
                     if stable_status == NeuronState.NEGATIVE_STABLE:
