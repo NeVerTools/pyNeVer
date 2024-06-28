@@ -344,7 +344,7 @@ class SequentialNetwork(NeuralNetwork):
 
         return first_node
 
-    def get_next_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode:
+    def get_next_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode | None:
         """
         Procedure to get the next ConcreteLayerNode of the network given an input ConcreteLayerNode.
 
@@ -368,6 +368,22 @@ class SequentialNetwork(NeuralNetwork):
             raise InvalidNodeError(f'{next_node.identifier} is not a ConcreteLayerNode with a single input!')
 
         return next_node
+
+    def get_prev_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode | None:
+        """
+        Procedure to get the previous ConcreteLayerNode of the network given an input ConcreteLayerNode.
+
+        Return
+        ----------
+        ConcreteLaterNode
+            The previous node in the network.
+
+        """
+
+        if node == self.get_first_node():
+            return None
+
+        return self.get_parents(node)[0]
 
     def get_last_node(self) -> nodes.ConcreteLayerNode:
         """
@@ -406,6 +422,7 @@ class SequentialNetwork(NeuralNetwork):
 
         last_node = self.get_last_node()
         self.remove_node(last_node)
+
         return last_node
 
     def get_input_len(self) -> int:
