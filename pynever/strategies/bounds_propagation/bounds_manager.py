@@ -36,6 +36,8 @@ class BoundsManager:
     """
 
     INPUT_DIMENSIONS_TO_REFINE = 50
+    USE_FIXED_NEURONS = True
+    PRECISION_GUARD = 10e-15
 
     def __init__(self):
         # TODO add new data structure for bounds
@@ -51,17 +53,12 @@ class BoundsManager:
         Static method, given the bounds of a neuron, whether it is stable
         """
 
-        precision_guard = 10e-15
-
         # Positive stable
-        if lb >= precision_guard:
+        if lb >= BoundsManager.PRECISION_GUARD:
             return NeuronState.POSITIVE_STABLE
 
         # Negative stable
-        elif ub <= -precision_guard:
-            return NeuronState.NEGATIVE_STABLE
-
-        elif lb == 0 and ub == 0:
+        elif ub <= -BoundsManager.PRECISION_GUARD:
             return NeuronState.NEGATIVE_STABLE
 
         # Unstable
@@ -170,12 +167,14 @@ class BoundsManager:
                 ## Not sure if there problem is with abstract propagation or here.
                 ## Could be abstract propagation as the bug I was getting was because
                 ## the counter-example after using abstract propagation was not valid.
-                # However, the bug does not appear when we don't incorportate info from the fixed neurons.
-                # current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-                # if len(current_layer_inactive) > 0:
-                #     cur_layer_input_eq = SymbolicLinearBounds(
-                #         cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
-                #         cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
+                ## However, the bug does not appear when we don't incorportate info from the fixed neurons.
+                current_layer_inactive = []
+                if BoundsManager.USE_FIXED_NEURONS:
+                    current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
+                    if len(current_layer_inactive) > 0:
+                        cur_layer_input_eq = SymbolicLinearBounds(
+                            cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
+                            cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
 
@@ -183,10 +182,10 @@ class BoundsManager:
                 stability_info[StabilityInfo.ACTIVE][layer_id] = list()
 
                 for neuron_n in range(cur_layer_input_num_bounds.size):
-                    # if neuron_n in current_layer_inactive:
-                    #     l, u = 0, 0
-                    # else:
                     l, u = cur_layer_input_num_bounds.get_dimension_bounds(neuron_n)
+                    if BoundsManager.USE_FIXED_NEURONS:
+                        if neuron_n in current_layer_inactive:
+                            l, u = -BoundsManager.PRECISION_GUARD, -BoundsManager.PRECISION_GUARD
 
                     stable_status = BoundsManager.check_stable(l, u)
                     if stable_status == NeuronState.NEGATIVE_STABLE:
@@ -511,6 +510,7 @@ class BoundsManager:
 
             else:
                 # Bounds have been refined
+                LOGGER.debug(f"?? Dim {i} bounds were refined ??")
                 if refined_input_bounds == input_bounds:
                     # Only create a new copy of the bounds if there was a change
                     refined_input_bounds = input_bounds.clone()

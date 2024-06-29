@@ -92,6 +92,35 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
     return None, star
 
 
+def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: dict,
+                                 network: networks.SequentialNetwork) \
+        -> tuple[RefinementTarget | None, ExtendedStar]:
+    """
+
+    """
+    # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
+    unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+
+    # There are still unstable neurons
+    if len(unstable) > 0:
+        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons, star.ref_layer)
+        if len(layer_unstable) == 0:
+            # the current layer is complete, so we need to move to the next layer
+            # through the fully connected transformation
+            star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
+
+            if star.ref_layer == network.get_last_node().identifier:
+                return None, star
+
+        # select candidate that has not been fixed yet
+        for (layer_id, neuron_n), _ in nn_bounds['overapproximation_area']['sorted']:
+            if not (layer_id, neuron_n) in star.fixed_neurons:
+                return RefinementTarget(layer_id, neuron_n), star
+
+    # No unstable neurons
+    return None, star
+
+
 def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networks.SequentialNetwork, nn_bounds: dict) \
         -> list[tuple[ExtendedStar, dict]]:
     """

@@ -56,6 +56,7 @@ class RefinementStrategy(enum.Enum):
 
     SEQUENTIAL = 1
     LOWEST_APPROX = 2
+    LOWEST_APPROX_CURRENT_LAYER = 3
 
 
 class PropagationStrategy(enum.Enum):

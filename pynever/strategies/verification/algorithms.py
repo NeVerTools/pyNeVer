@@ -277,6 +277,9 @@ class SSBPVerification(VerificationStrategy):
                 return ssbp_split.get_target_sequential(star, nn_bounds, self.network)
 
             case RefinementStrategy.LOWEST_APPROX:
+                return ssbp_split.get_target_lowest_overapprox(star, nn_bounds, self.network)
+
+            case RefinementStrategy.LOWEST_APPROX_CURRENT_LAYER:
                 return ssbp_split.get_target_lowest_overapprox_current_layer(star, nn_bounds, self.network)
 
             case _:
@@ -320,6 +323,8 @@ class SSBPVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
+        node_counter = 0
+
         while len(frontier) > 0 and not stop_flag:
 
             # import datetime
@@ -335,7 +340,8 @@ class SSBPVerification(VerificationStrategy):
 
                     # Found a counterexample. Can stop here
                     self.logger.info('Counterexample in branch {}.\n'
-                                     'Execution time: {:.5f} s'.format(current_star.fixed_neurons, timer))
+                                     'Explored nodes {}.\n'
+                                     'Execution time: {:.5f} s'.format(current_star.fixed_neurons, node_counter, timer))
                     return False, candidate_cex
 
                 else:
@@ -354,7 +360,6 @@ class SSBPVerification(VerificationStrategy):
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
-                        # TODO we stopped here
 
                         raise Exception("This point should not be reachable")
 
@@ -368,9 +373,13 @@ class SSBPVerification(VerificationStrategy):
             else:
                 start_time = time.perf_counter()
 
+            node_counter += 1
+
         if stop_flag:
             self.logger.info(' ----- TIMEOUT -----\nExecution time: {:.5f} s'.format(timer))
             return False, None
         else:
-            self.logger.info(' ----- SAFE -----\nExecution time: {:.5f} s'.format(timer))
+            self.logger.info(' ----- SAFE -----\n'
+                             'Explored nodes {}.\n'
+                             'Execution time: {:.5f} s'.format(node_counter, timer))
             return True, None
