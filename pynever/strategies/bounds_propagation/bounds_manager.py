@@ -162,7 +162,15 @@ class BoundsManager:
 
                 layer_id = layer.identifier
 
-                # set the equations to zero for the neurons that have been fixed to 0
+                ## Set the equations to zero for the neurons that have been fixed to 0
+                ## This does not work well, at least for acas.
+                ## It seems to mess up the equations in a strange way.
+                ## For instance, when there are no stable neurons, the equations are different from
+                ## what we get with abstract propagation.
+                ## Not sure if there problem is with abstract propagation or here.
+                ## Could be abstract propagation as the bug I was getting was because
+                ## the counter-example after using abstract propagation was not valid.
+                # However, the bug does not appear when we don't incorportate info from the fixed neurons.
                 # current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
                 # if len(current_layer_inactive) > 0:
                 #     cur_layer_input_eq = SymbolicLinearBounds(
