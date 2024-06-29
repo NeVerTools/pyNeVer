@@ -8,7 +8,7 @@ from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
-    BoundsManager, compute_stable_from_bounds_and_fixed_neurons, compute_overapproximation_volume
+    BoundsManager, compute_stable_from_bounds_and_fixed_neurons, compute_overapproximation_volume, StabilityInfo
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import split, propagation
@@ -85,44 +85,16 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
     """
 
     unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
-    overapprox_volume = compute_overapproximation_volume(nn_bounds)
+    # overapprox_volume = compute_overapproximation_volume(nn_bounds)
 
     if len(unstable) == 0:
-        return intersect_exact_bounds(star, nn, nn_bounds, prop)
-    elif overapprox_volume > 10e12:
-        return True, []
-    elif overapprox_volume < 10:# or
         return intersect_bounds(star, nn, nn_bounds, prop)
+    # elif overapprox_volume > 10e12:
+    #     return True, []
+    # elif overapprox_volume < 1:# or
+    #     return intersect_bounds(star, nn, nn_bounds, prop)
 
     return intersect_light_milp(star, nn, nn_bounds, prop)
-
-
-def intersect_exact_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
-        -> tuple[bool, list[float]]:
-    """
-    This intersection method should be called only when there are no unstable neurons.
-    It uses an LP only for finding a counterexample.
-
-    Returns
-    ----------
-    tuple[bool, list[float]]
-        A tuple with the result (True or False) and the counterexample, if present
-
-    """
-
-    star = propagation.abs_propagation(star, nn, nn_bounds)
-
-    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
-
-    # Since all relu neurons have been fixed,
-    # we assume that the basis is the linear function describing the relation
-    # between the input and the output neurons.
-    # So we recompute the output bounds given the equation by the basis.
-    output_bounds = HyperRectangleBounds(
-        bounds_utils.compute_min(star.basis_matrix, input_bounds) + star.center.reshape(-1),
-        bounds_utils.compute_max(star.basis_matrix, input_bounds) + star.center.reshape(-1))
-
-    return check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds)
 
 
 def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
@@ -241,18 +213,20 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    # The constraints from the branching
-    for (layer_id, neuron_n), value in star.fixed_neurons.items():
-        if value == 0:
-            solver.Add(
-                input_vars.dot(
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
-                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] <= 0)
-        else:
-            solver.Add(
-                input_vars.dot(
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
-                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] >= 0)
+    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
+        # The constraints from the branching only if there are unstable neurons according to the bounds,
+        # hence there was some approximation and the output equations are not exact
+        for (layer_id, neuron_n), value in star.fixed_neurons.items():
+            if value == 0:
+                solver.Add(
+                    input_vars.dot(
+                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] <= 0)
+            else:
+                solver.Add(
+                    input_vars.dot(
+                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
@@ -327,7 +301,7 @@ def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
             # It can be any point from the input space.
             # Return anything from the input bounds
             input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
-            return True, input_bounds.get_lower()
+            return True, list(input_bounds.get_lower())
         elif disj_res == PropertySatisfied.Maybe:
             # We are not 100% sure there is a counter-example.
             # Call an LP solver when we need a counter-example
@@ -339,7 +313,7 @@ def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
     # At least for one disjunct there is a possibility of a counter-example.
     # Do a more powerful check with an LP solver
     if possible_counter_example:
-        return intersect_abstract_milp(star, nn, nn_bounds, prop)
+        return intersect_light_milp(star, nn, nn_bounds, prop)
 
     # Every disjunction is definitely not satisfied.
     # So we return False.

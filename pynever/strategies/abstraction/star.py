@@ -648,7 +648,7 @@ class ExtendedStar(Star):
     def create_approx_predicate(self, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
         """
         For every unstable neuron y we introduce a fresh variable z and
-        relate it to the input variables x via 3 constraints.
+        relate it to the input variables x via 4 constraints.
         #
         (1)  z >= 0
         (2)  z >= y = eq(x)                      // eq(x) is the equation that defines y from x,
@@ -656,7 +656,7 @@ class ExtendedStar(Star):
         (3)  z <= relu_slope * y + relu_shift
         (4)  z <= ub
 
-        For every unstable neuron we add 3 rows to lower_left_matrix
+        For every unstable neuron we add 4 rows to lower_left_matrix
         that correspond to the original x variables
         #
         (1) zeros
