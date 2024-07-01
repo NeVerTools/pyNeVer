@@ -2,7 +2,7 @@ import copy
 
 from pynever import networks
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, StabilityInfo, NeuronSplit, \
     compute_layer_unstable_from_bounds_and_fixed_neurons, compute_unstable_from_bounds_and_fixed_neurons, \
     compute_layer_inactive_from_bounds_and_fixed_neurons
@@ -125,7 +125,7 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
     n_input_dimensions = input_bounds.get_size()
 
     from ortools.linear_solver import pywraplp
-    solver = pywraplp.Solver("", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
+    solver = pywraplp.Solver("", pywraplp.Solver.CLP_LINEAR_PROGRAMMING)
 
     import numpy as np
     input_vars = np.array([
@@ -133,17 +133,14 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
         for j in range(n_input_dimensions)])
 
     # The constraints from fixing the neurons
-    for (layer_id, neuron_n), value in star.fixed_neurons.items():
-        if value == 0:
-            solver.Add(
-                input_vars.dot(
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
-                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] <= 0)
-        else:
-            solver.Add(
-                input_vars.dot(
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
-                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] >= 0)
+    equations = BoundsManager._get_equations_from_fixed_neurons(star.fixed_neurons, nn_bounds, nn)
+    worker_constraints = {}
+    infinity = solver.infinity()
+    for i in range(len(equations.matrix)):
+        # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
+        worker_constraints[i] = solver.Constraint(-infinity, -equations.offset[i], 'c[%i]' % i) # -infinity <= eq <= 0
+        for j in range(n_input_dimensions):
+            worker_constraints[i].SetCoefficient(input_vars[j], equations.matrix[i][j])
 
     new_input_bounds = input_bounds.clone()
     bounds_improved = False
@@ -170,6 +167,35 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
 
         elif status == pywraplp.Solver.OPTIMAL:
             if input_vars[i_dim].solution_value() > new_lower:
+                # coefs = equations.matrix
+                # shifts = equations.offset
+                #
+                # with_i_neg_coefs = coefs[(coefs[:, i_dim] < 0)]
+                # with_i_neg_shifts = shifts[(coefs[:, i_dim] < 0)]
+                #
+                from pynever.strategies.bounds_propagation.utils.utils import compute_min
+                # lowers = []
+                # for mask in [[True, True, True], [True, True, False], [True, False, True], [False, True, True], [True, False, False], [False, True, False], [False, False, True]]:
+                #
+                #     neg_coef = with_i_neg_coefs[mask].sum(axis=0)
+                #     neg_shift = with_i_neg_shifts[mask].sum()
+                #
+                #     c = neg_coef[i_dim]
+                #     negated_rem_coef = - np.array(list(neg_coef[:i_dim]) + list(neg_coef[i_dim + 1:])) / c
+                #     shift_div_c = - neg_shift / c
+                #
+                #     rem_lower_input_bounds = np.array(
+                #         list(input_bounds.get_lower()[:i_dim]) + list(input_bounds.get_lower()[i_dim + 1:]))
+                #     rem_upper_input_bounds = np.array(
+                #         list(input_bounds.get_upper()[:i_dim]) + list(input_bounds.get_upper()[i_dim + 1:]))
+                #
+                #     new_lower_i = compute_min(negated_rem_coef, HyperRectangleBounds(rem_lower_input_bounds, rem_upper_input_bounds)) + shift_div_c
+                #     lowers.append(new_lower_i)
+
+                for i in worker_constraints:
+                    print(worker_constraints[i].dual_value())
+                print()
+
                 new_lower = input_vars[i_dim].solution_value()
                 bounds_improved = True
 

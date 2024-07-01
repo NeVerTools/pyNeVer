@@ -356,14 +356,13 @@ class BoundsManager:
         # try to use constraints from all the fixed neurons
         if refined_bounds == input_bounds and len(fixed_neurons) > 0:
             refined_bounds = BoundsManager._refine_input_bounds_for_branch(
-                fixed_neurons, coef, shift, input_bounds, nn, pre_branch_bounds
+                fixed_neurons | {target.to_pair(): status.value}, input_bounds, nn, pre_branch_bounds
             )
 
         return refined_bounds
 
     @staticmethod
-    def _refine_input_bounds_for_branch(branch: dict, coef: Tensor, shift: Tensor,
-                                        input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
+    def _refine_input_bounds_for_branch(branch: dict, input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
                                         pre_branch_bounds: dict) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
@@ -372,28 +371,14 @@ class BoundsManager:
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
-        coefs = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[
-                 neuron_n]
-             if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[
-                 neuron_n]
-             for ((layer_id, neuron_n), value) in branch.items()] + [coef]
-        )
-
-        shifts = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[
-                 neuron_n]
-             if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[
-                 neuron_n]
-             for ((layer_id, neuron_n), value) in branch.items()] + [shift]
-        )
+        equations = BoundsManager._get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
+        coefs = equations.matrix
+        shifts = equations.offset
 
         # The rest is similar to _refine_input_bounds,
         # but we get two different equations for each input dimension i,
         # obtained as the sum of the equations where i appears with the same sign
-        n_input_dimensions = len(coef)
+        n_input_dimensions = len(coefs[0])
 
         all_dimensions = np.array(range(n_input_dimensions))
         dimensions_to_consider = []
@@ -456,6 +441,41 @@ class BoundsManager:
                     refined_input_bounds.get_upper()[i] = i_bounds[1]
 
         return refined_input_bounds
+
+    @staticmethod
+    def _get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn) -> LinearFunctions:
+        """
+        Extract the constraints in the normal from
+            equation <= 0
+        imposed by fixing neurons, given their symbolic preactivation bounds.
+
+        The assumption is that if a neuron y is constrained to be negative, then
+            lower_bound <= y <= 0
+        gives as the constraint
+            lower_bound <= 0.
+        Conversely, if y is constrained to be positive, then we have that upper_bound >= y >= 0.
+        In the normal form it gives us
+            -upper_bound <= 0.
+        """
+        coefs = np.array(
+            [BoundsManager.get_symbolic_preact_bounds_at(bounds, layer_id, nn).get_lower().get_matrix()[
+                 neuron_n]
+             if value == 0 else
+             -BoundsManager.get_symbolic_preact_bounds_at(bounds, layer_id, nn).get_upper().get_matrix()[
+                 neuron_n]
+             for ((layer_id, neuron_n), value) in fixed_neurons.items()]
+        )
+
+        shifts = np.array(
+            [BoundsManager.get_symbolic_preact_bounds_at(bounds, layer_id, nn).get_lower().get_offset()[
+                 neuron_n]
+             if value == 0 else
+             -BoundsManager.get_symbolic_preact_bounds_at(bounds, layer_id, nn).get_upper().get_offset()[
+                 neuron_n]
+             for ((layer_id, neuron_n), value) in fixed_neurons.items()]
+        )
+
+        return LinearFunctions(coefs, shifts)
 
     @staticmethod
     def _refine_input_bounds_for_equation(coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds) \
