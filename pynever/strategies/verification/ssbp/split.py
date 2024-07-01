@@ -55,8 +55,15 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
     if len(unstable) > 0:
         layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons, star.ref_layer)
         if len(layer_unstable) == 0:
-            # the current layer is complete, so we need to move to the next layer
-            # through the fully connected transformation
+            # The current layer is complete, so we need to move to the next layer
+
+            # Optimise the input bounds using an LP. Recompute all the bounds
+            nn_bounds = optimise_input_bounds_before_moving_to_next_layer(star, nn_bounds, network)
+            if nn_bounds is None:
+                # Detected that the current branch is infeasible
+                return None, star
+
+            # Propagate through the fully connected transformation
             star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
 
             if star.ref_layer == network.get_last_node().identifier:
@@ -92,6 +99,89 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
     return None, star
 
 
+def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bounds: dict, nn: networks.SequentialNetwork) \
+        -> dict:
+    """
+    Checks for an intersection by building a MILP that has
+    * three kinds of variables:
+        - input variables
+        - output variables
+        - binary variables for encoding the disjunction in the output property
+    * three kinds of constraints:
+        - for each fixed neuron, a constraint using its symbolic lower or upper bound
+        - for each output variable, a lower and an upper bound constraint from the input variables
+        - the constraints involving binary variables to encode the output property
+
+    Returns
+    -------
+    a pair
+        - True if there is a solution to the above program, and
+          the values to the input variables in this solution in an array
+        - False otherwise, and empty array []
+
+    """
+
+    input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+    n_input_dimensions = input_bounds.get_size()
+
+    from ortools.linear_solver import pywraplp
+    solver = pywraplp.Solver("", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
+
+    import numpy as np
+    input_vars = np.array([
+        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+        for j in range(n_input_dimensions)])
+
+    # The constraints from fixing the neurons
+    for (layer_id, neuron_n), value in star.fixed_neurons.items():
+        if value == 0:
+            solver.Add(
+                input_vars.dot(
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
+                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] <= 0)
+        else:
+            solver.Add(
+                input_vars.dot(
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
+                BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] >= 0)
+
+    new_input_bounds = input_bounds.clone()
+    bounds_improved = False
+
+    for i_dim in range(n_input_dimensions):
+        solver.Maximize(input_vars[i_dim])
+        status = solver.Solve()
+
+        new_lower, new_upper = input_bounds.get_dimension_bounds(i_dim)
+        if status == pywraplp.Solver.INFEASIBLE:
+            return None
+
+        elif status == pywraplp.Solver.OPTIMAL:
+            if input_vars[i_dim].solution_value() < new_upper:
+                new_upper = input_vars[i_dim].solution_value()
+                bounds_improved = True
+
+
+        solver.Minimize(input_vars[i_dim])
+        status = solver.Solve()
+
+        if status == pywraplp.Solver.INFEASIBLE:
+            return None
+
+        elif status == pywraplp.Solver.OPTIMAL:
+            if input_vars[i_dim].solution_value() > new_lower:
+                new_lower = input_vars[i_dim].solution_value()
+                bounds_improved = True
+
+        new_input_bounds.get_lower()[i_dim] = new_lower
+        new_input_bounds.get_upper()[i_dim] = new_upper
+
+    if bounds_improved:
+        return BoundsManager().compute_bounds(new_input_bounds, nn, star.fixed_neurons)
+
+    return nn_bounds
+
+
 def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: dict,
                                  network: networks.SequentialNetwork) \
         -> tuple[RefinementTarget | None, ExtendedStar]:
@@ -103,16 +193,22 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: dict,
 
     # There are still unstable neurons
     if len(unstable) > 0:
-        layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons, star.ref_layer)
-        if len(layer_unstable) == 0:
-            # the current layer is complete, so we need to move to the next layer
-            # through the fully connected transformation
-            star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
-
-            if star.ref_layer == network.get_last_node().identifier:
-                return None, star
+        # layer_unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons, star.ref_layer)
+        # if len(layer_unstable) == 0:
+        #     # the current layer is complete, so we need to move to the next layer
+        #     # through the fully connected transformation
+        #     star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
+        #
+        #     if star.ref_layer == network.get_last_node().identifier:
+        #         return None, star
 
         # select candidate that has not been fixed yet
+        # candidates = [((layer_id, neuron_n), area)
+        #               for ((layer_id, neuron_n), area) in nn_bounds['overapproximation_area']['sorted']
+        #               if (layer_id, neuron_n) not in star.fixed_neurons]
+        # if len(candidates) > 0:
+        #     (layer_id, neuron_n), _ = candidates[0]
+        #     return RefinementTarget(layer_id, neuron_n), star
         for (layer_id, neuron_n), _ in nn_bounds['overapproximation_area']['sorted']:
             if not (layer_id, neuron_n) in star.fixed_neurons:
                 return RefinementTarget(layer_id, neuron_n), star
@@ -134,8 +230,8 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
     mgr = BoundsManager()
     negative_bounds, positive_bounds = mgr.branch_update_bounds(nn_bounds, network, target, star.fixed_neurons)
 
-    stars = compute_star_after_fixing_target_to_value(star, negative_bounds, target, NeuronSplit.Negative) + \
-            compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.Positive)
+    stars = (compute_star_after_fixing_target_to_value(star, negative_bounds, target, NeuronSplit.Negative) +
+             compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.Positive))
 
     stars = [(s, bounds) for (s, bounds, _) in stars]
 
@@ -161,7 +257,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
         # so later when doing the intersection check we can recover the required constraints.
         star_after_split = ExtendedStar(star.get_predicate_equation(), star.get_transformation_equation(),
                                         ref_layer=star.ref_layer, ref_neuron=star.ref_neuron,
-                                        fixed_neurons=fixed_so_far)
+                                        fixed_neurons=fixed_so_far, enforced_constraints=star.enforced_constraints)
         return [(star_after_split, bounds, bounds['stable_count'])]
 
     # Compute new transformation
@@ -178,7 +274,13 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
         # Update the predicate to include the constraint that the target neuron is active
         new_predicate = star.add_to_predicate_active_constraint(target.neuron_idx)
 
-    star_after_split = ExtendedStar(new_predicate, new_transformation, ref_layer=target.layer_id,
-                                    ref_neuron=target.neuron_idx, fixed_neurons=fixed_so_far)
+    # The constraints from splitting that have been encoded in the predicate.
+    # If we split the neuron not in the ref_layer, we do not encode them,
+    # so we need to add them during abs_propagation.
+    enforced_so_far = star.enforced_constraints | {target.to_pair(): split.value}
+
+    star_after_split = ExtendedStar(new_predicate, new_transformation,
+                                    ref_layer=target.layer_id, ref_neuron=target.neuron_idx,
+                                    fixed_neurons=fixed_so_far, enforced_constraints=enforced_so_far)
 
     return [(star_after_split, bounds, bounds['stable_count'])]

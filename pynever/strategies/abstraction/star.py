@@ -544,17 +544,21 @@ class ExtendedStar(Star):
     """
 
     def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: str = None,
-                 ref_neuron: int = 0, fixed_neurons: dict = None):
+                 ref_neuron: int = 0, fixed_neurons: dict = None, enforced_constraints: dict = None):
         super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
 
         # Reference layer identifier of the star (where it comes from)
         self.ref_layer: str = ref_layer
 
         # Starting number of predicates (used in search verification)
+        # Not really needed. TODO: remove
         self.ref_neuron: int = ref_neuron
 
         # The neurons fixed so far
         self.fixed_neurons = dict() if fixed_neurons is None else fixed_neurons
+
+        # The constraints from fixed neurons enforced in the predicate
+        self.enforced_constraints = dict() if enforced_constraints is None else enforced_constraints
 
     def get_neuron_equation(self, neuron_idx) -> LinearFunctions:
         """
@@ -606,7 +610,7 @@ class ExtendedStar(Star):
         new_center = tensors.matmul(weight, self.center) + bias
 
         return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center),
-                            fixed_neurons=self.fixed_neurons)
+                            fixed_neurons=self.fixed_neurons, enforced_constraints=self.enforced_constraints)
 
     def approx_relu_forward(self, bounds: dict, layer_id: str) -> ExtendedStar:
         """
@@ -635,17 +639,21 @@ class ExtendedStar(Star):
         # approximate it (as it might still appear unstable according to the bounds)
         unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
+        # We need to enforce the constraints from fixed neurons,
+        # in case we used a branching heuristic that does not go layer by layer
+        with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(self.fixed_neurons, self.enforced_constraints, layer_id)
+
         # Return if there are no unstable neurons
         if len(unstable) == 0:
             new_transformation = self.mask_for_inactive_neurons(inactive)
 
-            return ExtendedStar(self.get_predicate_equation(), new_transformation, fixed_neurons=self.fixed_neurons)
+            return ExtendedStar(with_fixed_predicate, new_transformation, fixed_neurons=self.fixed_neurons)
 
         # Create the approximate matrices for the star
-        return ExtendedStar(self.create_approx_predicate(unstable, bounds['numeric_pre'][layer_id]),
+        return ExtendedStar(self.create_approx_predicate(with_fixed_predicate, unstable, bounds['numeric_pre'][layer_id]),
                             self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
 
-    def create_approx_predicate(self, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
+    def create_approx_predicate(self, predicate_equation, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
         """
         For every unstable neuron y we introduce a fresh variable z and
         relate it to the input variables x via 4 constraints.
@@ -666,11 +674,14 @@ class ExtendedStar(Star):
 
         """
 
+        pred_matrix = predicate_equation.matrix
+        pred_bias = predicate_equation.offset
+
         def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub):
-            first_row = np.zeros(self.predicate_matrix.shape[1])
+            first_row = np.zeros(pred_matrix.shape[1])
             second_row = self.get_neuron_equation(neuron_n).matrix
             third_row = - ub / (ub - lb) * self.get_neuron_equation(neuron_n).matrix
-            fourth_row = np.zeros(self.predicate_matrix.shape[1])
+            fourth_row = np.zeros(pred_matrix.shape[1])
 
             return [first_row, second_row, third_row, fourth_row]
 
@@ -699,7 +710,7 @@ class ExtendedStar(Star):
         # 1 is the original predicate matrix, 2 is zeros,
         # 3 is lower_left_matrix and 4 is lower_right_matrix
         new_pred_matrix = np.block([
-            [self.predicate_matrix, np.zeros((self.predicate_matrix.shape[0], unstable_count))],
+            [pred_matrix, np.zeros((pred_matrix.shape[0], unstable_count))],
             [lower_left_matrix, lower_right_matrix]
         ])
 
@@ -718,7 +729,7 @@ class ExtendedStar(Star):
         additional_bias = np.array(additional_bias).reshape(-1, 1)
 
         # Stack the new values
-        new_pred_bias = np.vstack([self.predicate_bias, additional_bias])
+        new_pred_bias = np.vstack([pred_bias, additional_bias])
 
         return LinearFunctions(new_pred_matrix, new_pred_bias)
 
@@ -772,6 +783,23 @@ class ExtendedStar(Star):
         bias = np.vstack((self.predicate_bias, -eq.offset))
 
         return LinearFunctions(pred, bias)
+
+    def create_predicate_with_enforced_fixed_constraints(self, fixed_neurons, already_enforced, layer_id):
+        matrix = self.predicate_matrix
+        bias = self.predicate_bias
+
+        for ((lay_id, neuron_n), value) in fixed_neurons.items():
+            if lay_id == layer_id and (lay_id, neuron_n) not in already_enforced:
+                eq = self.get_neuron_equation(neuron_n)
+
+                if value == 0:
+                    matrix = np.vstack((matrix, eq.matrix))
+                    bias = np.vstack((bias, -eq.offset))
+                else:
+                    matrix = np.vstack((matrix, -eq.matrix))
+                    bias = np.vstack((bias, eq.offset))
+
+        return LinearFunctions(matrix, bias)
 
 
 class StarSet(AbsElement):

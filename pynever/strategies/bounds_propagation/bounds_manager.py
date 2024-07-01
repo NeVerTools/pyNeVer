@@ -274,7 +274,7 @@ class BoundsManager:
         negative_branch_input = BoundsManager.refine_input_bounds_after_split(
             pre_branch_bounds, nn, target, fixed_neurons, NeuronSplit.Negative)
         negative_bounds = None if negative_branch_input is None else (
-            pre_branch_bounds if negative_branch_input == input_bounds else
+            pre_branch_bounds if (negative_branch_input == input_bounds and not BoundsManager.USE_FIXED_NEURONS) else
             self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
         LOGGER.debug(f"--- Updated bounds for negative branch:\n"
                      f"{negative_branch_input} --- stable count "
@@ -301,10 +301,10 @@ class BoundsManager:
         we recompute tighter input bounds of x=(x1,...,xn)
         for the solution space induced by this split.
 
-        If y is set to be negative, we take its upper bound equation from the input variables:
-            y <= c * x + b
-        If y is set to be positive, we take its lower bound equation from the input variables:
+        If y is set to be negative, we take its lower bound equation from the input variables:
             y >= c * x + b
+        If y is set to be positive, we take its upper bound equation from the input variables:
+            y <= c * x + b
 
         for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
 
@@ -343,12 +343,12 @@ class BoundsManager:
 
         if status == NeuronSplit.Negative:
             # The linear equation for the upper bound of the target neuron
-            coef = symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
-            shift = symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
+            coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
+            shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
         else:  # sign == NeuronSplit.Positive:
             # The negated linear equation for the lower bound of the target neuron
-            coef = -symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
-            shift = -symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
+            coef = -symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
+            shift = -symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
 
         refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
 
@@ -370,22 +370,22 @@ class BoundsManager:
         """
 
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
-        # If value is 0, we take the upper bound.
-        # Otherwise, we take the negation of the lower bound.
+        # If value is 0, we take the lower bound.
+        # Otherwise, we take the negation of the upper bound.
         coefs = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[
                  neuron_n]
              if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_matrix()[
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_matrix()[
                  neuron_n]
              for ((layer_id, neuron_n), value) in branch.items()] + [coef]
         )
 
         shifts = np.array(
-            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[
+            [BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[
                  neuron_n]
              if value == 0 else
-             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_lower().get_offset()[
+             -BoundsManager.get_symbolic_preact_bounds_at(pre_branch_bounds, layer_id, nn).get_upper().get_offset()[
                  neuron_n]
              for ((layer_id, neuron_n), value) in branch.items()] + [shift]
         )
@@ -502,6 +502,12 @@ class BoundsManager:
 
             if i_bounds is None:
                 # The split is infeasible
+
+                # from pynever.strategies.verification.ssbp.intersection import \
+                #     check_input_refining_one_equation_feasible_with_lp
+                # feasible = check_input_refining_one_equation_feasible_with_lp(coef, shift, refined_input_bounds)
+                # if feasible:
+                #     print("Input refinement is infeasible but the LP is feasible")
                 return None
 
             elif i_bounds == 0:
@@ -568,6 +574,10 @@ class BoundsManager:
                 return None
 
             elif new_upper_i < input_bounds.get_upper()[i]:
+                # from pynever.strategies.verification.ssbp.intersection import compute_input_new_max
+                # new_upper = compute_input_new_max(coef, shift, input_bounds, i)
+                # if new_upper != new_upper_i:
+                #     print("Different new upper", new_upper_i, new_upper)
                 return input_bounds.get_lower()[i], new_upper_i
 
         elif c < 0:
@@ -580,6 +590,10 @@ class BoundsManager:
                 return None
 
             elif new_lower_i > input_bounds.get_lower()[i]:
+                # from pynever.strategies.verification.ssbp.intersection import compute_input_new_min
+                # new_lower = compute_input_new_min(coef, shift, input_bounds, i)
+                # if new_lower != new_lower_i:
+                #     print("Different new lower", new_lower_i, new_lower)
                 return new_lower_i, input_bounds.get_upper()[i]
 
         return 0

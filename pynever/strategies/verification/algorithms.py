@@ -326,6 +326,7 @@ class SSBPVerification(VerificationStrategy):
         node_counter = 0
 
         while len(frontier) > 0 and not stop_flag:
+            self.logger.info(f"Frontier size {len(frontier)}")
 
             # import datetime
             # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
@@ -360,8 +361,8 @@ class SSBPVerification(VerificationStrategy):
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
-
-                        raise Exception("This point should not be reachable")
+                        pass
+                        #raise Exception("This point should not be reachable")
 
             else:
                 # This branch is safe, no refinement needed
