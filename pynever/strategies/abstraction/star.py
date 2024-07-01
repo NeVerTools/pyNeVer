@@ -544,7 +544,8 @@ class ExtendedStar(Star):
     """
 
     def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: str = None,
-                 ref_neuron: int = 0, fixed_neurons: dict = None, enforced_constraints: dict = None):
+                 ref_neuron: int = 0, fixed_neurons: dict = None, enforced_constraints: dict = None,
+                 input_differences: list = None):
         super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
 
         # Reference layer identifier of the star (where it comes from)
@@ -559,6 +560,8 @@ class ExtendedStar(Star):
 
         # The constraints from fixed neurons enforced in the predicate
         self.enforced_constraints = dict() if enforced_constraints is None else enforced_constraints
+
+        self.input_differences = list() if input_differences is None else input_differences
 
     def get_neuron_equation(self, neuron_idx) -> LinearFunctions:
         """

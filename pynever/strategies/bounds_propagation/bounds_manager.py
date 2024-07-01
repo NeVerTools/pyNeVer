@@ -110,6 +110,31 @@ class BoundsManager:
 
         return self.compute_bounds(input_hyper_rect, network)
 
+    @staticmethod
+    def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
+        input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
+
+        differences = list()
+        for (layer_id, neuron_n) in unstable:
+            negative_branch_input = BoundsManager.refine_input_bounds_after_split(
+                bounds, network, RefinementTarget(layer_id, neuron_n), fixed_neurons, NeuronSplit.Negative)
+            positive_branch_input = BoundsManager.refine_input_bounds_after_split(
+                bounds, network, RefinementTarget(layer_id, neuron_n), fixed_neurons, NeuronSplit.Positive)
+
+            if negative_branch_input is not None and positive_branch_input is not None:
+                diff = \
+                    ((negative_branch_input.get_lower() - input_bounds.get_lower()).sum() +
+                     (input_bounds.get_upper() - negative_branch_input.get_upper()).sum() +
+                     (input_bounds.get_upper() - positive_branch_input.get_upper()).sum() +
+                     (positive_branch_input.get_lower() - input_bounds.get_lower()).sum())
+            else:
+                diff = 100
+
+            differences.append(((layer_id, neuron_n), diff))
+
+        differences = sorted(differences, key=lambda x: x[1], reverse=True)
+        return differences
+
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
                        fixed_neurons: dict = dict()) -> dict:
         """
@@ -350,14 +375,29 @@ class BoundsManager:
             coef = -symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
             shift = -symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
 
-        refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
+        # refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
+
+        # refined_bounds2 = BoundsManager._refine_input_bounds_for_branch(
+        #     fixed_neurons | {target.to_pair(): status.value}, input_bounds, nn, pre_branch_bounds
+        # )
+
+        if len(fixed_neurons) > 0:
+            refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
+                fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
+            )
+        else:
+            refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
+        # print(" Refined eq only", refined_bounds)
+        # print("  Refined branch", refined_bounds2)
+        # print("Optimised branch", refined_bounds3)
+        # print()
 
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
-        if refined_bounds == input_bounds and len(fixed_neurons) > 0:
-            refined_bounds = BoundsManager._refine_input_bounds_for_branch(
-                fixed_neurons | {target.to_pair(): status.value}, input_bounds, nn, pre_branch_bounds
-            )
+        # if refined_bounds == input_bounds and len(fixed_neurons) > 0:
+        #     refined_bounds = BoundsManager._refine_input_bounds_for_branch(
+        #         fixed_neurons | {target.to_pair(): status.value}, input_bounds, nn, pre_branch_bounds
+        #     )
 
         return refined_bounds
 
@@ -617,6 +657,79 @@ class BoundsManager:
                 return new_lower_i, input_bounds.get_upper()[i]
 
         return 0
+
+    @staticmethod
+    def optimise_input_bounds_for_branch(fixed_neurons: dict, bounds: dict, nn) -> dict:
+        """
+        Optimises input bounds by building a MILP that has
+        input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
+        The solves for each input variable two optimisation problems: minimising and maximising it.
+        """
+
+        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
+        n_input_dimensions = input_bounds.get_size()
+
+        from ortools.linear_solver import pywraplp
+        solver = pywraplp.Solver("", pywraplp.Solver.CLP_LINEAR_PROGRAMMING)
+
+        import numpy as np
+        input_vars = np.array([
+            solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+            for j in range(n_input_dimensions)])
+
+        # The constraints from fixing the neurons
+        equations = BoundsManager._get_equations_from_fixed_neurons(fixed_neurons, bounds, nn)
+
+        # This way of encoding allows to access the dual solution
+        worker_constraints = {}
+        infinity = solver.infinity()
+        for i in range(len(equations.matrix)):
+            # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
+            worker_constraints[i] = solver.Constraint(-infinity, -equations.offset[i],
+                                                      'c[%i]' % i)  # -infinity <= eq <= 0
+            for j in range(n_input_dimensions):
+                worker_constraints[i].SetCoefficient(input_vars[j], equations.matrix[i][j])
+
+        ## The actual optimisation part
+        new_input_bounds = input_bounds.clone()
+        bounds_improved = False
+
+        for i_dim in range(n_input_dimensions):
+            solver.Maximize(input_vars[i_dim])
+            status = solver.Solve()
+
+            new_lower, new_upper = input_bounds.get_dimension_bounds(i_dim)
+            if status == pywraplp.Solver.INFEASIBLE:
+                return None
+
+            elif status == pywraplp.Solver.OPTIMAL:
+                if input_vars[i_dim].solution_value() < new_upper:
+                    # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
+                    # print("Dual solution:", dual_sol)
+
+                    new_upper = input_vars[i_dim].solution_value()
+                    bounds_improved = True
+
+            solver.Minimize(input_vars[i_dim])
+            status = solver.Solve()
+
+            if status == pywraplp.Solver.INFEASIBLE:
+                return None
+
+            elif status == pywraplp.Solver.OPTIMAL:
+                if input_vars[i_dim].solution_value() > new_lower:
+                    # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
+                    # print("Dual solution:", dual_sol)
+
+                    new_lower = input_vars[i_dim].solution_value()
+                    bounds_improved = True
+
+            new_input_bounds.get_lower()[i_dim] = new_lower
+            new_input_bounds.get_upper()[i_dim] = new_upper
+
+        if bounds_improved:
+            return new_input_bounds
+        return input_bounds
 
     @staticmethod
     def compute_dense_output_bounds(layer, inputs):

@@ -214,6 +214,9 @@ class SSBPVerification(VerificationStrategy):
                              LinearFunctions(star0.basis_matrix, star0.center))
 
         bounds = self.get_bounds(self.parameters.bounds)
+        differences = bm.BoundsManager.compute_refines_input_by(
+            bounds['stability_info'][bm.StabilityInfo.UNSTABLE], {}, bounds, self.network)
+        star0.input_differences = differences
         star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
         return star1, bm.BoundsManager.get_input_bounds(self.prop), bounds
@@ -326,7 +329,9 @@ class SSBPVerification(VerificationStrategy):
         node_counter = 0
 
         while len(frontier) > 0 and not stop_flag:
-            self.logger.info(f"Frontier size {len(frontier)}")
+            self.logger.info(f"Node {node_counter}. Frontier size {len(frontier)}")
+            if node_counter == 18:
+                x = 5
 
             # import datetime
             # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
@@ -361,8 +366,8 @@ class SSBPVerification(VerificationStrategy):
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
-                        pass
-                        #raise Exception("This point should not be reachable")
+                        # pass
+                        raise Exception("This point should not be reachable")
 
             else:
                 # This branch is safe, no refinement needed

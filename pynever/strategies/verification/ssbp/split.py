@@ -58,10 +58,10 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
             # The current layer is complete, so we need to move to the next layer
 
             # Optimise the input bounds using an LP. Recompute all the bounds
-            nn_bounds = optimise_input_bounds_before_moving_to_next_layer(star, nn_bounds, network)
-            if nn_bounds is None:
-                # Detected that the current branch is infeasible
-                return None, star
+            # nn_bounds = optimise_input_bounds_before_moving_to_next_layer(star, nn_bounds, network)
+            # if nn_bounds is None:
+            #     # Detected that the current branch is infeasible
+            #     return None, star
 
             # Propagate through the fully connected transformation
             star = propagation.propagate_and_init_star_before_relu_layer(star, nn_bounds, network)
@@ -102,23 +102,9 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: di
 def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bounds: dict, nn: networks.SequentialNetwork) \
         -> dict:
     """
-    Checks for an intersection by building a MILP that has
-    * three kinds of variables:
-        - input variables
-        - output variables
-        - binary variables for encoding the disjunction in the output property
-    * three kinds of constraints:
-        - for each fixed neuron, a constraint using its symbolic lower or upper bound
-        - for each output variable, a lower and an upper bound constraint from the input variables
-        - the constraints involving binary variables to encode the output property
-
-    Returns
-    -------
-    a pair
-        - True if there is a solution to the above program, and
-          the values to the input variables in this solution in an array
-        - False otherwise, and empty array []
-
+    Optimises input bounds by building a MILP that has
+    input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
+    The solves for each input variable two optimisation problems: minimising and maximising it.
     """
 
     input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
@@ -167,34 +153,19 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
 
         elif status == pywraplp.Solver.OPTIMAL:
             if input_vars[i_dim].solution_value() > new_lower:
-                # coefs = equations.matrix
-                # shifts = equations.offset
-                #
-                # with_i_neg_coefs = coefs[(coefs[:, i_dim] < 0)]
-                # with_i_neg_shifts = shifts[(coefs[:, i_dim] < 0)]
-                #
-                from pynever.strategies.bounds_propagation.utils.utils import compute_min
-                # lowers = []
-                # for mask in [[True, True, True], [True, True, False], [True, False, True], [False, True, True], [True, False, False], [False, True, False], [False, False, True]]:
-                #
-                #     neg_coef = with_i_neg_coefs[mask].sum(axis=0)
-                #     neg_shift = with_i_neg_shifts[mask].sum()
-                #
-                #     c = neg_coef[i_dim]
-                #     negated_rem_coef = - np.array(list(neg_coef[:i_dim]) + list(neg_coef[i_dim + 1:])) / c
-                #     shift_div_c = - neg_shift / c
-                #
-                #     rem_lower_input_bounds = np.array(
-                #         list(input_bounds.get_lower()[:i_dim]) + list(input_bounds.get_lower()[i_dim + 1:]))
-                #     rem_upper_input_bounds = np.array(
-                #         list(input_bounds.get_upper()[:i_dim]) + list(input_bounds.get_upper()[i_dim + 1:]))
-                #
-                #     new_lower_i = compute_min(negated_rem_coef, HyperRectangleBounds(rem_lower_input_bounds, rem_upper_input_bounds)) + shift_div_c
-                #     lowers.append(new_lower_i)
+                eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
+                print("Dual solution", list(eq_mult))
 
-                for i in worker_constraints:
-                    print(worker_constraints[i].dual_value())
+                # the equation that optimises the bound found my LP
+                coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
+                shift = -(eq_mult * equations.offset).sum()
+                print("Selected equations", equations.matrix[(eq_mult!=0),:])
+                print("Equation", list(coef), shift)
+
+                new_bounds = BoundsManager._refine_input_dimension(input_bounds, coef, shift, i_dim)
+                print("New bounds", new_bounds)
                 print()
+
 
                 new_lower = input_vars[i_dim].solution_value()
                 bounds_improved = True
@@ -235,8 +206,21 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: dict,
         # if len(candidates) > 0:
         #     (layer_id, neuron_n), _ = candidates[0]
         #     return RefinementTarget(layer_id, neuron_n), star
-        for (layer_id, neuron_n), _ in nn_bounds['overapproximation_area']['sorted']:
-            if not (layer_id, neuron_n) in star.fixed_neurons:
+
+        candidates = [((layer_id, neuron_n), diff) for (layer_id, neuron_n), diff in star.input_differences
+                     if (layer_id, neuron_n) in unstable]
+
+        if len(candidates) > 0 and candidates[0][1] != 0:
+            return RefinementTarget(candidates[0][0][0], candidates[0][0][1]), star
+
+        candidates = BoundsManager.compute_refines_input_by(unstable, star.fixed_neurons, nn_bounds, network)
+        star.input_differences = candidates
+
+        if len(candidates) > 0 and candidates[0][1] != 0:
+            return RefinementTarget(candidates[0][0][0], candidates[0][0][1]), star
+
+        for (layer_id, neuron_n), area in nn_bounds['overapproximation_area']['sorted']:
+            if (layer_id, neuron_n) in unstable:
                 return RefinementTarget(layer_id, neuron_n), star
 
     # No unstable neurons
@@ -283,7 +267,8 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
         # so later when doing the intersection check we can recover the required constraints.
         star_after_split = ExtendedStar(star.get_predicate_equation(), star.get_transformation_equation(),
                                         ref_layer=star.ref_layer, ref_neuron=star.ref_neuron,
-                                        fixed_neurons=fixed_so_far, enforced_constraints=star.enforced_constraints)
+                                        fixed_neurons=fixed_so_far, enforced_constraints=star.enforced_constraints,
+                                        input_differences=star.input_differences)
         return [(star_after_split, bounds, bounds['stable_count'])]
 
     # Compute new transformation
@@ -307,6 +292,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
 
     star_after_split = ExtendedStar(new_predicate, new_transformation,
                                     ref_layer=target.layer_id, ref_neuron=target.neuron_idx,
-                                    fixed_neurons=fixed_so_far, enforced_constraints=enforced_so_far)
+                                    fixed_neurons=fixed_so_far, enforced_constraints=enforced_so_far,
+                                    input_differences=star.input_differences)
 
     return [(star_after_split, bounds, bounds['stable_count'])]

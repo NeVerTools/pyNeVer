@@ -91,8 +91,8 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
         return intersect_bounds(star, nn, nn_bounds, prop)
     # elif overapprox_volume > 10e12:
     #     return True, []
-    # elif overapprox_volume < 1:# or
-    #     return intersect_bounds(star, nn, nn_bounds, prop)
+    elif len(unstable) < 30:# or
+        return intersect_abstract_milp(star, nn, nn_bounds, prop)
 
     # return intersect_abstract_milp(star, nn, nn_bounds, prop)
     return intersect_light_milp(star, nn, nn_bounds, prop)

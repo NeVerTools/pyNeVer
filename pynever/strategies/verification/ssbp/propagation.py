@@ -81,7 +81,8 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
         return ExtendedStar(new_star.get_predicate_equation(), new_transformation, ref_layer=relu_layer_id,
-                            fixed_neurons=new_star.fixed_neurons, enforced_constraints=star.enforced_constraints)
+                            fixed_neurons=new_star.fixed_neurons, enforced_constraints=star.enforced_constraints,
+                            input_differences=star.input_differences)
 
     return new_star
 
