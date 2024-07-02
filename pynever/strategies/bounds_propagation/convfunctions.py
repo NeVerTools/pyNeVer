@@ -10,7 +10,6 @@ class ConvFunctions:
         pass
 
     def compute_output_equation(self, conv_node: ConvNode, inputs: SymbolicLinearBounds):
-
         filter_n = conv_node.weight.shape[0]
         weights_col = conv_node.weight.reshape(filter_n, -1)
         weights_plus = np.maximum(weights_col, np.zeros(weights_col.shape))
@@ -28,11 +27,15 @@ class ConvFunctions:
         input_upper_matrix = input_upper_matrix.transpose()
 
         # Do all the reshuffling once instead of each time in the loop
-        input_shape = (conv_node.get_input_dim()[1], conv_node.get_input_dim()[2], conv_node.get_input_dim()[0])
+        # input_shape = (conv_node.get_input_dim()[1], conv_node.get_input_dim()[2], conv_node.get_input_dim()[0])
+        # input_lower_matrix = input_lower_matrix.reshape((input_lower_matrix.shape[0], 1) + input_shape)
+        # input_lower_matrix = input_lower_matrix.transpose(0, 1, 4, 2, 3)
+        # input_upper_matrix = input_upper_matrix.reshape((input_upper_matrix.shape[0], 1) + input_shape)
+        # input_upper_matrix = input_upper_matrix.transpose(0, 1, 4, 2, 3)
+
+        input_shape = (conv_node.get_input_dim()[0], conv_node.get_input_dim()[1], conv_node.get_input_dim()[2])
         input_lower_matrix = input_lower_matrix.reshape((input_lower_matrix.shape[0], 1) + input_shape)
-        input_lower_matrix = input_lower_matrix.transpose(0, 1, 4, 2, 3)
         input_upper_matrix = input_upper_matrix.reshape((input_upper_matrix.shape[0], 1) + input_shape)
-        input_upper_matrix = input_upper_matrix.transpose(0, 1, 4, 2, 3)
 
         self.initialise_im2col_indices(conv_node)
 
@@ -63,7 +66,7 @@ class ConvFunctions:
                                                           conv_node.out_dim[0],
                                                           conv_node.out_dim[1],
                                                           conv_node.out_dim[2])
-        output_lower_matrix = output_lower_matrix.transpose(0, 2, 3, 1)
+        # output_lower_matrix = output_lower_matrix.transpose(0, 2, 3, 1)
         output_lower_matrix = output_lower_matrix.reshape(output_lower_matrix.shape[0], -1)
         output_lower_matrix = output_lower_matrix.transpose()
 
@@ -72,7 +75,7 @@ class ConvFunctions:
                                                           conv_node.out_dim[0],
                                                           conv_node.out_dim[1],
                                                           conv_node.out_dim[2])
-        output_upper_matrix = output_upper_matrix.transpose(0, 2, 3, 1)
+        # output_upper_matrix = output_upper_matrix.transpose(0, 2, 3, 1)
         output_upper_matrix = output_upper_matrix.reshape(output_upper_matrix.shape[0], -1)
         output_upper_matrix = output_upper_matrix.transpose()
 
@@ -85,20 +88,24 @@ class ConvFunctions:
         input_lower_offset_col = self._get_input_col(conv_node, input_lower_offset)
         input_upper_offset_col = self._get_input_col(conv_node, input_upper_offset)
 
+        bias = conv_node.bias if conv_node.bias is not None else np.zeros((weights_plus.shape[0], 1))
+
         # Second compute the output offsets
         output_lower_offset = weights_plus.dot(input_lower_offset_col) + weights_minus.dot(input_upper_offset_col) + \
-                              conv_node.bias.reshape(-1, 1)
+                              bias.reshape(-1, 1)
         output_upper_offset = weights_plus.dot(input_upper_offset_col) + weights_minus.dot(input_lower_offset_col) + \
-                              conv_node.bias.reshape(-1, 1)
+                              bias.reshape(-1, 1)
 
         # Similarly, rearrange the offsets to have channels after rows and cols
         output_lower_offset = output_lower_offset.reshape(conv_node.out_dim[1], conv_node.out_dim[2],
                                                           conv_node.out_dim[0], 1)
-        output_lower_offset = output_lower_offset.transpose(3, 1, 2, 0).reshape(-1)
+        # output_lower_offset = output_lower_offset.transpose(3, 1, 2, 0)
+        output_lower_offset = output_lower_offset.reshape(-1)
 
         output_upper_offset = output_upper_offset.reshape(conv_node.out_dim[1], conv_node.out_dim[2],
                                                           conv_node.out_dim[0], 1)
-        output_upper_offset = output_upper_offset.transpose(3, 1, 2, 0).reshape(-1)
+        # output_upper_offset = output_upper_offset.transpose(3, 1, 2, 0)
+        output_upper_offset = output_upper_offset.reshape(-1)
 
         return SymbolicLinearBounds(LinearFunctions(output_lower_matrix, output_lower_offset),
                                     LinearFunctions(output_upper_matrix, output_upper_offset))
@@ -146,7 +153,8 @@ class ConvFunctions:
         As usual all inputs are assumed to be ordered (rows, cols, channels).
         """
         # rearrange the inputs so as to have channels before rows and cols
-        inputs = inputs.reshape((inputs.shape[0],) + (conv_node.get_input_dim()[1],conv_node.get_input_dim()[2],conv_node.get_input_dim()[0]))
+        inputs = inputs.reshape((inputs.shape[0],) + (
+            conv_node.get_input_dim()[1], conv_node.get_input_dim()[2], conv_node.get_input_dim()[0]))
         inputs = inputs.transpose(0, 3, 1, 2)
 
         n_filters, d_filter, h_filter, w_filter = conv_node.weight.shape
