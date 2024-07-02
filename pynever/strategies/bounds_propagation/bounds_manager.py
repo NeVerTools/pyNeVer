@@ -369,12 +369,12 @@ class BoundsManager:
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
         if len(fixed_neurons) > 0:
-            # refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
-            #     fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
-            # )
-            refined_bounds = BoundsManager._refine_input_bounds_for_branch(
-                fixed_neurons, target, status, input_bounds, nn, pre_branch_bounds
+            refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
+                fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
             )
+            # refined_bounds = BoundsManager._refine_input_bounds_for_branch(
+            #     fixed_neurons, target, status, input_bounds, nn, pre_branch_bounds
+            # )
         else:
             coef, shift = BoundsManager._get_equation_from_fixed_neuron(target, status.value, pre_branch_bounds, nn)
             refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
