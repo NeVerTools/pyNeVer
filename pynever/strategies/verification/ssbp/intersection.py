@@ -85,13 +85,12 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
     """
 
     unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
-    # overapprox_volume = compute_overapproximation_volume(nn_bounds)
 
     if len(unstable) == 0:
         return intersect_bounds(star, nn, nn_bounds, prop)
     # elif overapprox_volume > 10e12:
     #     return True, []
-    elif len(unstable) < 30:# or
+    elif len(unstable) <= 50:# or
         return intersect_abstract_milp(star, nn, nn_bounds, prop)
 
     # return intersect_abstract_milp(star, nn, nn_bounds, prop)
