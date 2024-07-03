@@ -6,6 +6,7 @@ from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
+from pynever.strategies.bounds_propagation.convolution import ConvLinearization
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
@@ -181,6 +182,12 @@ class BoundsManager:
                 cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, cur_layer_input_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
+            elif isinstance(layer, nodes.ConvNode):
+                """ Convolutional layer """
+
+                cur_layer_output_eq = ConvLinearization().compute_output_equation(layer, cur_layer_input_eq)
+                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
+
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
 
@@ -247,11 +254,6 @@ class BoundsManager:
 
                 cur_layer_output_eq = cur_layer_input_eq
                 cur_layer_output_num_bounds = cur_layer_input_num_bounds
-
-            elif isinstance(layer, nodes.ConvNode):
-                """ Convolutional layer """
-
-                raise NotImplementedError('Not yet')
 
             else:
                 raise Exception(
