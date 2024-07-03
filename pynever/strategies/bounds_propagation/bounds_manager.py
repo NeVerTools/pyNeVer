@@ -1,7 +1,5 @@
 from enum import Enum
 
-import numpy as np
-
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
@@ -273,7 +271,6 @@ class BoundsManager:
         overapprox_area['sorted'] = sorted(overapprox_area['sorted'], key=lambda x: x[1])
         overapprox_area['volume'] = compute_overapproximation_volume(overapprox_area['map'])
 
-
         # Put all the collected bounds in a dictionary and return it
         # TODO create data structure
         return {
@@ -419,7 +416,8 @@ class BoundsManager:
 
         refined_input_bounds = input_bounds
         for i in dimensions_to_consider:
-            i_bounds = BoundsManager._refine_input_dimension_for_neuron_and_branch(input_bounds, equations, coef, shift, i)
+            i_bounds = BoundsManager._refine_input_dimension_for_neuron_and_branch(input_bounds, equations, coef, shift,
+                                                                                   i)
 
             if i_bounds is None:
                 LOGGER.info("!! Split is infeasible !!")
@@ -503,10 +501,9 @@ class BoundsManager:
             return best_i_bounds
         return 0
 
-
     @staticmethod
     def _refine_input_bounds_for_branch_naive(branch: dict, input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
-                                        pre_branch_bounds: dict) -> HyperRectangleBounds | None:
+                                              pre_branch_bounds: dict) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
         """
@@ -819,8 +816,6 @@ class BoundsManager:
             cutoff_c = np.quantile(max_coefs, percentage)
             all_dimensions = np.array(range(n_input_dimensions))
             dimensions_to_consider = all_dimensions[(max_coefs > cutoff_c)]
-
-
 
         for i_dim in dimensions_to_consider:
             solver.Maximize(input_vars[i_dim])

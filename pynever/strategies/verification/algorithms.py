@@ -326,6 +326,12 @@ class SSBPVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
+        # # Workers entry point
+        # with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+        #     # Timeout management
+        #
+        #     # Queue management
+
         node_counter = 0
 
         while len(frontier) > 0 and not stop_flag:
