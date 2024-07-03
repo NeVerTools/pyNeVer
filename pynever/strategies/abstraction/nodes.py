@@ -193,28 +193,6 @@ class AbsFullyConnectedNode(AbsLayerNode):
         raise NotImplementedError
 
 
-class AbsConvNode(AbsLayerNode):
-    def __init__(self, identifier: str, ref_node: nodes.ConvNode,
-                 parameters: VerificationParameters | None = None):
-        super().__init__(identifier, ref_node)
-        self.ref_node = ref_node
-        self.parameters = parameters
-
-    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
-        raise NotImplementedError
-
-    def backward(self, ref_state: RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError
-
-
 class AbsReLUNode(AbsLayerNode):
     """
     A class used for our internal representation of a ReLU Abstract transformer.

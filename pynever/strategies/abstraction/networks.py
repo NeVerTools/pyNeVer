@@ -46,7 +46,6 @@ class AbsNeuralNetwork(abc.ABC):
 
     corresponding_classes = {
         'FullyConnectedNode': absnodes.AbsFullyConnectedNode,
-        'ConvNode': absnodes.AbsConvNode,
         'ReLUNode': absnodes.AbsReLUNode,
         'SigmoidNode': absnodes.AbsSigmoidNode,
         'ConcatNode': absnodes.AbsConcatNode,
