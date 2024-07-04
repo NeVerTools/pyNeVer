@@ -316,7 +316,10 @@ class SSBPVerification(VerificationStrategy):
 
         self.logger.info(f"Started {datetime.datetime.now()}\n"
                          f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
-                         f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n\n")
+                         f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n"
+                         f"    Stable count: {in_bounds['stable_count']}\n"
+                         f"    Stable ratio: {in_bounds['stable_count']/(in_bounds['stable_count'] + len(in_bounds['stability_info'][bm.StabilityInfo.UNSTABLE]))}\n"
+                         f"\n")
 
         # Frontier is a stack of tuples (ExtendedStar, dict)
         frontier = [(in_star, in_bounds)]
