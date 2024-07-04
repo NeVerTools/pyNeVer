@@ -590,6 +590,7 @@ class ONNXConverter(ConversionStrategy):
 
         for node in alt_rep.onnx_network.graph.node:
 
+            """ This part of code handles the case when there is a MatMul + Add for a linear transformation """
             if matmul_found:
                 if node.op_type == "Add":
 
@@ -626,6 +627,15 @@ class ONNXConverter(ConversionStrategy):
                 out_features = weight.shape[0]
                 temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, None, False)
                 matmul_found = True
+
+                continue
+
+            elif node.op_type == 'Sub':
+                """ This node is not relevant for verification and should not appear at all in benchmarks """
+                continue
+
+            elif node.op_type == 'Div':
+                """ This node is not relevant for verification and should not appear at all in benchmarks """
                 continue
 
             elif node.op_type == "Relu":
