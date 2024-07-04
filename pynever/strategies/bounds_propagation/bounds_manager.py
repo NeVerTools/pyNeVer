@@ -138,6 +138,11 @@ class BoundsManager:
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
                        fixed_neurons: dict = dict()) -> dict:
+        return self.compute_bounds_backwards(input_hyper_rect, network, fixed_neurons)
+        # return self.compute_bounds_forwards(input_hyper_rect, network, fixed_neurons)
+
+    def compute_bounds_forwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
+                       fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -212,7 +217,7 @@ class BoundsManager:
 
                 stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
                                                                          current_layer_inactive,
-                                                                         overapprox_area, stability_info)
+                                                                         stability_info, overapprox_area)
 
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 cur_layer_output_num_bounds = HyperRectangleBounds(
@@ -261,7 +266,7 @@ class BoundsManager:
         }
 
     def compute_bounds_backwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                       fixed_neurons: dict = dict()) -> dict:
+                               fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -272,9 +277,11 @@ class BoundsManager:
 
         # We are collecting the bounds, symbolic and numeric, in these dictionaries
         symbolic_bounds = dict()
+        symbolic_preact_bounds = dict()
         num_preact_bounds = dict()
         num_postact_bounds = dict()
 
+        # Equations for each layer to do backward substitution
         layer2layer_equations = dict()
 
         # Here we save information about the stable and unstable neurons
@@ -306,35 +313,34 @@ class BoundsManager:
                 layer_equation = BoundsManager.get_layer_equation(layer)
                 layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_equation, layer_equation)
 
+                lower_eq_from_input, lower_bounds = (
+                    self._get_equation_from_input(network, layer.identifier, "lower", layer2layer_equations, input_hyper_rect))
+                upper_eq_from_input, upper_bounds = (
+                    self._get_equation_from_input(network, layer.identifier, "upper", layer2layer_equations, input_hyper_rect))
+
+                cur_layer_output_num_bounds = HyperRectangleBounds(lower_bounds, upper_bounds)
+                cur_layer_output_eq = SymbolicLinearBounds(lower_eq_from_input, upper_eq_from_input)
+
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
 
-                layer_id = layer.identifier
-                previous_layer_id = network.get_previous_id(layer_id)
+                symbolic_preact_bounds[layer.identifier] = cur_layer_input_eq
 
-                """
-                Set the preactivation bounds of the current layer
-                """
-                preact_lower_eq_from_input, preact_lower_bounds = (
-                    self._get_equation_from_input(network, previous_layer_id, "lower", layer2layer_equations, input_hyper_rect))
-                preact_upper_eq_from_input, preact_upper_bounds = (
-                    self._get_equation_from_input(network, previous_layer_id, "upper", layer2layer_equations, input_hyper_rect))
+                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer.identifier)
 
-                cur_layer_input_num_bounds = HyperRectangleBounds(preact_lower_bounds, preact_upper_bounds)
-                cur_layer_preact_eq_from_input = SymbolicLinearBounds(preact_lower_eq_from_input, preact_upper_eq_from_input)
+                (lower_relu_eq, postact_lower_bounds), (upper_relu_eq, postact_upper_bounds) = \
+                    self.compute_relu_equation(cur_layer_input_num_bounds.get_lower(),
+                                               cur_layer_input_num_bounds.get_upper(), current_layer_inactive)
 
-                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-                lower_layer_eq, upper_layer_eq = self.compute_relu_equation(preact_lower_bounds, preact_upper_bounds, current_layer_inactive)
-                layer2layer_equations[layer.identifier] = SymbolicLinearBounds(lower_layer_eq, upper_layer_eq)
+                cur_layer_output_num_bounds = HyperRectangleBounds(postact_lower_bounds, postact_upper_bounds)
+                layer2layer_equations[layer.identifier] = SymbolicLinearBounds(lower_relu_eq, upper_relu_eq)
 
-                stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
+                stable_count += self.get_layer_stability_stats(layer.identifier, cur_layer_input_num_bounds,
                                                                current_layer_inactive,
-                                                               overapprox_area, stability_info)
+                                                               stability_info, overapprox_area)
 
-                # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
-                cur_layer_output_num_bounds = HyperRectangleBounds(
-                    np.maximum(cur_layer_input_num_bounds.get_lower(), 0),
-                    np.maximum(cur_layer_input_num_bounds.get_upper(), 0))
+                # Just to set a value to cur_layer_output_eq
+                cur_layer_output_eq = cur_layer_input_eq
 
             elif isinstance(layer, nodes.FlattenNode):
                 """ Flatten layer """
@@ -375,6 +381,7 @@ class BoundsManager:
         # TODO create data structure
         return {
             'symbolic': symbolic_bounds,
+            'symbolic_pre': symbolic_preact_bounds,
             'numeric_pre': num_preact_bounds,
             'numeric_post': num_postact_bounds,
             'stability_info': stability_info,
@@ -488,7 +495,7 @@ class BoundsManager:
             current_matrix, current_offset = BoundsManager._substitute_one_step_back(
                 current_matrix, current_offset, symbolic_bounds[prev_layer_id], end
             )
-            prev_layer_id = network.get_previous_id(layer_id)
+            prev_layer_id = network.get_previous_id(prev_layer_id)
 
         equation_from_input = LinearFunctions(current_matrix, current_offset)
 

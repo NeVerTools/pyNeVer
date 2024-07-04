@@ -349,10 +349,10 @@ class SSBPVerification(VerificationStrategy):
             intersects, candidate_cex = self.compute_intersection(current_star, nn_bounds)
             # self.logger.info(f"{datetime.datetime.now()} Intersection computed")
 
-            if len(network.get_first_node().get_input_dim()) != candidate_cex.shape:
-                # Reshape counterexample
-                candidate_cex = candidate_cex.reshape((1,) + network.get_first_node().get_input_dim())
-                candidate_cex = candidate_cex.transpose((2, 3, 1, 0))
+            # if len(network.get_first_node().get_input_dim()) != candidate_cex.shape:
+            #     # Reshape counterexample
+            #     candidate_cex = candidate_cex.reshape((1,) + network.get_first_node().get_input_dim())
+            #     candidate_cex = candidate_cex.transpose((2, 3, 1, 0))
 
 
             if intersects:

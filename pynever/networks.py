@@ -576,7 +576,7 @@ class SequentialNetwork(NeuralNetwork):
 
         for layer in self.layers_iterator():
             if layer.identifier == layer_identifier:
-                return prev_layer.identifier
+                return None if prev_layer is None else prev_layer.identifier
             prev_layer = layer
 
         return None
