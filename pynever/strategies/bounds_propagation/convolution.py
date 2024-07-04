@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from pynever.nodes import ConvNode
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
@@ -13,28 +12,30 @@ class ConvLinearization:
         self.k = None
 
     def compute_output_equation(self, conv_node: ConvNode, inputs: SymbolicLinearBounds):
-        t_weight = torch.from_numpy(conv_node.weight)
-
-        filter_n = t_weight.shape[0]
-        weights_col = t_weight.reshape(filter_n, -1)
-
-        weights_plus = torch.maximum(weights_col, torch.zeros(weights_col.shape))
-        weights_minus = torch.minimum(weights_col, torch.zeros(weights_col.shape))
+        filter_n = conv_node.weight.shape[0]
+        weights_col = conv_node.weight.reshape(filter_n, -1)
+        weights_plus = np.maximum(weights_col, np.zeros(weights_col.shape))
+        weights_minus = np.minimum(weights_col, np.zeros(weights_col.shape))
 
         # First compute the output matrices
-        #
+
         # Assume that the dimensions of the inputs equation matrices are (M, N)
         #
-        # Transpose to have columns first to be able to treat every column as an inputs vector,
+        # Transpose so as to have columns first to be able to treat every column as an inputs vector,
         # and then proceed similarly to get_dot_product
-        input_lower_matrix = torch.from_numpy(inputs.get_lower().get_matrix())
-        input_lower_matrix = input_lower_matrix.numpy().transpose()
-        input_upper_matrix = torch.from_numpy(inputs.get_upper().get_matrix())
-        input_upper_matrix = input_upper_matrix.numpy().transpose()
+        input_lower_matrix = inputs.get_lower().get_matrix()
+        input_lower_matrix = input_lower_matrix.transpose()
+        input_upper_matrix = inputs.get_upper().get_matrix()
+        input_upper_matrix = input_upper_matrix.transpose()
 
-        conv_dim = conv_node.get_input_dim()
+        # Do all the reshuffling once instead of each time in the loop
+        # input_shape = (conv_node.get_input_dim()[1], conv_node.get_input_dim()[2], conv_node.get_input_dim()[0])
+        # input_lower_matrix = input_lower_matrix.reshape((input_lower_matrix.shape[0], 1) + input_shape)
+        # input_lower_matrix = input_lower_matrix.transpose(0, 1, 4, 2, 3)
+        # input_upper_matrix = input_upper_matrix.reshape((input_upper_matrix.shape[0], 1) + input_shape)
+        # input_upper_matrix = input_upper_matrix.transpose(0, 1, 4, 2, 3)
 
-        input_shape = (conv_dim[0], conv_dim[1], conv_dim[2])
+        input_shape = (conv_node.get_input_dim()[0], conv_node.get_input_dim()[1], conv_node.get_input_dim()[2])
         input_lower_matrix = input_lower_matrix.reshape((input_lower_matrix.shape[0], 1) + input_shape)
         input_upper_matrix = input_upper_matrix.reshape((input_upper_matrix.shape[0], 1) + input_shape)
 
@@ -62,23 +63,23 @@ class ConvLinearization:
         # The vectors in the matrices are of the shape (filters_n, h_out * w_out * 1)
         # Rearrange them so as to have channels after rows and cols,
         # finally transpose the matrices as they consist of columns
-        output_lower_matrix = torch.tensor(output_lower_matrix)
+        output_lower_matrix = np.array(output_lower_matrix)
         output_lower_matrix = output_lower_matrix.reshape(output_lower_matrix.shape[0],
                                                           conv_node.out_dim[0],
                                                           conv_node.out_dim[1],
                                                           conv_node.out_dim[2])
         # output_lower_matrix = output_lower_matrix.transpose(0, 2, 3, 1)
         output_lower_matrix = output_lower_matrix.reshape(output_lower_matrix.shape[0], -1)
-        output_lower_matrix = output_lower_matrix.numpy().transpose()
+        output_lower_matrix = output_lower_matrix.transpose()
 
-        output_upper_matrix = torch.tensor(output_upper_matrix)
+        output_upper_matrix = np.array(output_upper_matrix)
         output_upper_matrix = output_upper_matrix.reshape(output_upper_matrix.shape[0],
                                                           conv_node.out_dim[0],
                                                           conv_node.out_dim[1],
                                                           conv_node.out_dim[2])
         # output_upper_matrix = output_upper_matrix.transpose(0, 2, 3, 1)
         output_upper_matrix = output_upper_matrix.reshape(output_upper_matrix.shape[0], -1)
-        output_upper_matrix = output_upper_matrix.numpy().transpose()
+        output_upper_matrix = output_upper_matrix.transpose()
 
         # Second, compute the offsets
         input_lower_offset = inputs.get_lower().get_offset()
@@ -86,11 +87,10 @@ class ConvLinearization:
         input_upper_offset = inputs.get_upper().get_offset()
         input_upper_offset = input_upper_offset.reshape(1, -1)
 
-        input_lower_offset_col = self._get_input_col(conv_node, input_lower_offset)
-        input_upper_offset_col = self._get_input_col(conv_node, input_upper_offset)
+        input_lower_offset_col = ConvLinearization._get_input_col(conv_node, input_lower_offset)
+        input_upper_offset_col = ConvLinearization._get_input_col(conv_node, input_upper_offset)
 
-        bias = torch.from_numpy(conv_node.bias) if conv_node.bias is not None \
-            else torch.zeros((weights_plus.shape[0], 1))
+        bias = conv_node.bias if conv_node.bias is not None else np.zeros((weights_plus.shape[0], 1))
 
         # Second compute the output offsets
         output_lower_offset = weights_plus.dot(input_lower_offset_col) + weights_minus.dot(input_upper_offset_col) + \
@@ -124,10 +124,10 @@ class ConvLinearization:
         """
         Some black magic I found on the Internet.
         """
-
         # First figure out what the size of the output should be
         N, C, H, W = x_shape
-
+        # assert (H + 2 * padding - field_height) % stride == 0
+        # assert (W + 2 * padding - field_height) % stride == 0
         out_height = int((H + 2 * padding - field_height) / stride + 1)
         out_width = int((W + 2 * padding - field_width) / stride + 1)
 
@@ -143,7 +143,8 @@ class ConvLinearization:
 
         return k.astype(int), i.astype(int), j.astype(int)
 
-    def _get_input_col(self, conv_node: ConvNode, inputs):
+    @staticmethod
+    def _get_input_col(conv_node: ConvNode, inputs):
         """
         This method prepares inputs for a fast pass of convolution over it.
 
@@ -162,13 +163,9 @@ class ConvLinearization:
 
         n_filters, d_filter, h_filter, w_filter = conv_node.weight.shape
 
-        # input_col = ConvLinearization.im2col_indices(inputs, h_filter, w_filter,
-        #                                              padding=conv_node.padding[0],
-        #                                              stride=conv_node.stride[0])
-
-        input_col = self.im2col_indices_opt(inputs, h_filter, w_filter,
-                                            padding=conv_node.padding[0],
-                                            stride=conv_node.stride[0])
+        input_col = ConvLinearization.im2col_indices(inputs, h_filter, w_filter,
+                                                     padding=conv_node.padding[0],
+                                                     stride=conv_node.stride[0])
         return input_col
 
     @staticmethod
@@ -191,11 +188,12 @@ class ConvLinearization:
 
     def _get_input_col_opt(self, conv_node: ConvNode, inputs):
         """
-        This is a slight optimisation of the method above.
-        Works only for inputs where the first dimension is 1
-        """
-
+                This is a slight optimisation of the method above.
+                Works only for inputs where the first dimension is 1
+                """
         # The inputs are already rearranged
+        # inputs = inputs.reshape((inputs.shape[0],) + self.input_shape)
+        # inputs = inputs.transpose(0, 3, 1, 2)
 
         n_filters, d_filter, h_filter, w_filter = conv_node.weight.shape
 
@@ -212,11 +210,9 @@ class ConvLinearization:
         """
         # Zero-pad the inputs
         p = padding
-        pad4d = (0, 0, 0, 0, p, p, p, p)
-        x_padded = torch.nn.functional.pad(x, pad4d, mode='constant')
+        x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
 
         cols = x_padded[:, self.k, self.i, self.j]
         C = x.shape[1]
-        cols = cols.numpy().transpose(1, 2, 0)
-        cols = torch.from_numpy(cols).reshape(field_height * field_width * C, -1)
+        cols = cols.transpose(1, 2, 0).reshape(field_height * field_width * C, -1)
         return cols
