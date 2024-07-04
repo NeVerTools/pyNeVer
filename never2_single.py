@@ -30,7 +30,8 @@ def add_options(p: ArgumentParser):
 
     # SSBP
     ssbp = algorithm.add_parser('ssbp', description='Starset with bounds propagation')
-    ssbp.add_argument('-p', '--params', default='', metavar='FILE', help='JSON file with parameters')
+    ssbp.add_argument('-p', '--params', nargs='?', default='', metavar='FILE',
+                      help='JSON file with parameters')
 
     # SSLP
     sslp = algorithm.add_parser('sslp', description='Starset with linear programs')
@@ -66,7 +67,7 @@ if __name__ == '__main__':
 
     # Execute
     if args['algorithm'] == 'ssbp':
-        if not cli.ssbp_verify_single(args['model'], args['property'], logfile, args['timeout'], args['params']):
+        if not cli.ssbp_verify_single(args['model'], args['property'], '', logfile, args['timeout'], args['params']):
             exit(1)
     else:
         if not cli.sslp_verify_single(False, args['model'], args['property'], args['strategy'], logfile):

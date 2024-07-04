@@ -329,6 +329,12 @@ class SSBPVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
+        # # Workers entry point
+        # with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
+        #     # Timeout management
+        #
+        #     # Queue management
+
         node_counter = 0
 
         while len(frontier) > 0 and not stop_flag:
@@ -342,6 +348,12 @@ class SSBPVerification(VerificationStrategy):
 
             intersects, candidate_cex = self.compute_intersection(current_star, nn_bounds)
             # self.logger.info(f"{datetime.datetime.now()} Intersection computed")
+
+            if len(network.get_first_node().get_input_dim()) != candidate_cex.shape:
+                # Reshape counterexample
+                candidate_cex = candidate_cex.reshape((1,) + network.get_first_node().get_input_dim())
+                candidate_cex = candidate_cex.transpose((2, 3, 1, 0))
+
 
             if intersects:
                 # Check if the answer is a valid counter-example
