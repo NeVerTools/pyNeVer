@@ -277,7 +277,6 @@ class BoundsManager:
 
         # We are collecting the bounds, symbolic and numeric, in these dictionaries
         symbolic_bounds = dict()
-        symbolic_preact_bounds = dict()
         num_preact_bounds = dict()
         num_postact_bounds = dict()
 
@@ -324,8 +323,6 @@ class BoundsManager:
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
 
-                symbolic_preact_bounds[layer.identifier] = cur_layer_input_eq
-
                 current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer.identifier)
 
                 (lower_relu_eq, postact_lower_bounds), (upper_relu_eq, postact_upper_bounds) = \
@@ -345,6 +342,7 @@ class BoundsManager:
             elif isinstance(layer, nodes.FlattenNode):
                 """ Flatten layer """
 
+                layer2layer_equations[layer.identifier] = cur_layer_input_eq
                 cur_layer_output_eq = cur_layer_input_eq
                 cur_layer_output_num_bounds = cur_layer_input_num_bounds
 
@@ -381,7 +379,6 @@ class BoundsManager:
         # TODO create data structure
         return {
             'symbolic': symbolic_bounds,
-            'symbolic_pre': symbolic_preact_bounds,
             'numeric_pre': num_preact_bounds,
             'numeric_post': num_postact_bounds,
             'stability_info': stability_info,
@@ -1107,7 +1104,7 @@ class BoundsManager:
 
             # This part needs checking
             percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
-            max_coefs = abs(equations.matrix).amax(axis=0)
+            max_coefs = abs(equations.matrix).max(axis=0)
             cutoff_c = np.quantile(max_coefs, percentage)
             all_dimensions = np.array(range(n_input_dimensions))
             dimensions_to_consider = all_dimensions[(max_coefs > cutoff_c)]
