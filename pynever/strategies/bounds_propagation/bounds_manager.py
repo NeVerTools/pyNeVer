@@ -725,7 +725,7 @@ class BoundsManager:
 
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
-        # fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
+        fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
         if len(fixed_neurons) > 0:
             refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
                 fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn

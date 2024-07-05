@@ -646,8 +646,8 @@ class ExtendedStar(Star):
         # We need to enforce the constraints from fixed neurons,
         # in case we used a branching heuristic that does not go layer by layer.
         # Only do it for neurons that have been fixed but are unstable according to the bounds.
-        # fixed_but_unstable_per_bounds = bm.compute_fixed_but_unstable_wrt_bounds(bounds, self.fixed_neurons)
-        fixed_but_unstable_per_bounds = self.fixed_neurons
+        fixed_but_unstable_per_bounds = bm.compute_fixed_but_unstable_wrt_bounds(bounds, self.fixed_neurons)
+        # fixed_but_unstable_per_bounds = self.fixed_neurons
 
         with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(fixed_but_unstable_per_bounds, self.enforced_constraints, layer_id)
 

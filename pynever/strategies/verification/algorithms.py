@@ -354,8 +354,8 @@ class SSBPVerification(VerificationStrategy):
 
         while len(frontier) > 0 and not stop_flag:
             self.logger.info(f"Node {node_counter}. Frontier size {len(frontier)}")
-            if node_counter == 14:
-                x = 5
+            # if node_counter == 12:
+            #     x = 5
 
             # import datetime
             # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
