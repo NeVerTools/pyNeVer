@@ -30,7 +30,7 @@ class SSBPVerificationParameters(VerificationParameters):
                  heuristic: RefinementStrategy = RefinementStrategy.LOWEST_APPROX,
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,
                  propagation: PropagationStrategy = PropagationStrategy.ADAPTIVE,
-                 timeout: int = 600):
+                 timeout: int = 1200):
         self.heuristic = heuristic
         self.bounds = bounds
         self.propagation = propagation

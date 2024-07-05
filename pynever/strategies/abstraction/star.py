@@ -12,8 +12,9 @@ import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, \
-    compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
+import pynever.strategies.bounds_propagation.bounds_manager as bm
+# from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, \
+#     compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
@@ -635,22 +636,26 @@ class ExtendedStar(Star):
 
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
-        inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        inactive = bm.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Compute the set of unstable neurons.
         # Neuron i has been fixed before, so we don't need to
         # approximate it (as it might still appear unstable according to the bounds)
-        unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        unstable = bm.compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # We need to enforce the constraints from fixed neurons,
-        # in case we used a branching heuristic that does not go layer by layer
-        with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(self.fixed_neurons, self.enforced_constraints, layer_id)
+        # in case we used a branching heuristic that does not go layer by layer.
+        # Only do it for neurons that have been fixed but are unstable according to the bounds.
+        # fixed_but_unstable_per_bounds = bm.compute_fixed_but_unstable_wrt_bounds(bounds, self.fixed_neurons)
+        fixed_but_unstable_per_bounds = self.fixed_neurons
+
+        with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(fixed_but_unstable_per_bounds, self.enforced_constraints, layer_id)
 
         # Return if there are no unstable neurons
         if len(unstable) == 0:
             new_transformation = self.mask_for_inactive_neurons(inactive)
 
-            return ExtendedStar(with_fixed_predicate, new_transformation, fixed_neurons=self.fixed_neurons)
+            return ExtendedStar(with_fixed_predicate, new_transformation, fixed_neurons=fixed_but_unstable_per_bounds)
 
         # Create the approximate matrices for the star
         return ExtendedStar(self.create_approx_predicate(with_fixed_predicate, unstable, bounds['numeric_pre'][layer_id]),

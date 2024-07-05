@@ -219,6 +219,21 @@ class SSBPVerification(VerificationStrategy):
         star0.input_differences = differences
         star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
+        # fixed_neurons = {('ReLU1', 46): 0, ('ReLU0', 13): 0, ('ReLU2', 1): 0, ('ReLU0', 41): 1, ('ReLU0', 32): 0, ('ReLU0', 47): 1,
+        #  ('ReLU0', 44): 0, ('ReLU0', 31): 1, ('ReLU0', 24): 1, ('ReLU2', 46): 0, ('ReLU1', 47): 0, ('ReLU0', 14): 1,
+        #  ('ReLU0', 42): 1, ('ReLU1', 49): 0, ('ReLU0', 33): 1, ('ReLU0', 28): 1, ('ReLU0', 4): 1, ('ReLU0', 3): 1,
+        #  ('ReLU0', 26): 0, ('ReLU1', 9): 0, ('ReLU1', 31): 1, ('ReLU1', 34): 0, ('ReLU1', 42): 1, ('ReLU3', 6): 0,
+        #  ('ReLU4', 47): 0, ('ReLU2', 36): 0, ('ReLU2', 10): 0, ('ReLU3', 3): 0, ('ReLU3', 21): 1, ('ReLU4', 49): 0,
+        #  ('ReLU4', 32): 0, ('ReLU3', 49): 0, ('ReLU3', 12): 0, ('ReLU3', 48): 0, ('ReLU3', 25): 1, ('ReLU3', 0): 0,
+        #  ('ReLU4', 26): 0, ('ReLU3', 14): 1, ('ReLU3', 35): 0, ('ReLU3', 1): 0, ('ReLU3', 29): 1, ('ReLU2', 8): 1,
+        #  ('ReLU1', 19): 0, ('ReLU2', 39): 1, ('ReLU2', 41): 0, ('ReLU2', 47): 1, ('ReLU3', 5): 1, ('ReLU2', 44): 0,
+        #  ('ReLU2', 22): 0, ('ReLU2', 49): 1, ('ReLU4', 33): 1, ('ReLU3', 36): 1, ('ReLU3', 24): 0, ('ReLU2', 33): 0,
+        #  ('ReLU1', 30): 1, ('ReLU3', 44): 1, ('ReLU4', 21): 0, ('ReLU1', 40): 1, ('ReLU3', 41): 0, ('ReLU3', 18): 1,
+        #  ('ReLU4', 23): 1, ('ReLU4', 25): 0, ('ReLU4', 39): 1, ('ReLU4', 43): 1, ('ReLU4', 46): 0, ('ReLU5', 4): 0,
+        #  ('ReLU5', 6): 0, ('ReLU5', 25): 0, ('ReLU5', 32): 1}
+        #
+        # star1.fixed_neurons = fixed_neurons
+
         return star1, bm.BoundsManager.get_input_bounds(self.prop), bounds
 
     def get_bounds(self, strategy: BoundsBackend) -> dict:
@@ -339,7 +354,7 @@ class SSBPVerification(VerificationStrategy):
 
         while len(frontier) > 0 and not stop_flag:
             self.logger.info(f"Node {node_counter}. Frontier size {len(frontier)}")
-            if node_counter == 18:
+            if node_counter == 14:
                 x = 5
 
             # import datetime

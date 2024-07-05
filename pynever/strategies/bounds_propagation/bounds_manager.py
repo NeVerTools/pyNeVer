@@ -1,5 +1,7 @@
 from enum import Enum
 
+import numpy as np
+
 from pynever import nodes
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
@@ -27,6 +29,10 @@ class StabilityInfo(Enum):
     INACTIVE = 0
     ACTIVE = 1
     UNSTABLE = 2
+
+
+class FixedConflictWithBounds(Exception):
+    pass
 
 
 class BoundsManager:
@@ -109,7 +115,25 @@ class BoundsManager:
         if not isinstance(network, SequentialNetwork):
             raise NotImplementedError
 
+        # input_bounds = HyperRectangleBounds(np.array([0.6148781770726466, 0.012149608993802708, -0.37327005579136296, 0.45000000000000046, -0.48773750702161583]),
+        #                                     np.array([0.6189390724294357, 0.012309225600542636, -0.3701607847073792, 0.45190999224772055, -0.48739547520645965]))
+        # fixed_neurons = {('ReLU1', 46): 0, ('ReLU0', 13): 0, ('ReLU2', 1): 0, ('ReLU0', 41): 1, ('ReLU0', 32): 0, ('ReLU0', 47): 1,
+        #  ('ReLU0', 44): 0, ('ReLU0', 31): 1, ('ReLU0', 24): 1, ('ReLU2', 46): 0, ('ReLU1', 47): 0, ('ReLU0', 14): 1,
+        #  ('ReLU0', 42): 1, ('ReLU1', 49): 0, ('ReLU0', 33): 1, ('ReLU0', 28): 1, ('ReLU0', 4): 1, ('ReLU0', 3): 1,
+        #  ('ReLU0', 26): 0, ('ReLU1', 9): 0, ('ReLU1', 31): 1, ('ReLU1', 34): 0, ('ReLU1', 42): 1, ('ReLU3', 6): 0,
+        #  ('ReLU4', 47): 0, ('ReLU2', 36): 0, ('ReLU2', 10): 0, ('ReLU3', 3): 0, ('ReLU3', 21): 1, ('ReLU4', 49): 0,
+        #  ('ReLU4', 32): 0, ('ReLU3', 49): 0, ('ReLU3', 12): 0, ('ReLU3', 48): 0, ('ReLU3', 25): 1, ('ReLU3', 0): 0,
+        #  ('ReLU4', 26): 0, ('ReLU3', 14): 1, ('ReLU3', 35): 0, ('ReLU3', 1): 0, ('ReLU3', 29): 1, ('ReLU2', 8): 1,
+        #  ('ReLU1', 19): 0, ('ReLU2', 39): 1, ('ReLU2', 41): 0, ('ReLU2', 47): 1, ('ReLU3', 5): 1, ('ReLU2', 44): 0,
+        #  ('ReLU2', 22): 0, ('ReLU2', 49): 1, ('ReLU4', 33): 1, ('ReLU3', 36): 1, ('ReLU3', 24): 0, ('ReLU2', 33): 0,
+        #  ('ReLU1', 30): 1, ('ReLU3', 44): 1, ('ReLU4', 21): 0, ('ReLU1', 40): 1, ('ReLU3', 41): 0, ('ReLU3', 18): 1,
+        #  ('ReLU4', 23): 1, ('ReLU4', 25): 0, ('ReLU4', 39): 1, ('ReLU4', 43): 1, ('ReLU4', 46): 0, ('ReLU5', 4): 0,
+        #  ('ReLU5', 6): 0, ('ReLU5', 25): 0, ('ReLU5', 32): 1}
+        #
+        # bounds = self.compute_bounds_backwards(input_bounds, network, fixed_neurons)
+        # return bounds
         return self.compute_bounds(input_hyper_rect, network)
+
 
     @staticmethod
     def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
@@ -205,24 +229,21 @@ class BoundsManager:
                 ## Could be abstract propagation as the bug I was getting was because
                 ## the counter-example after using abstract propagation was not valid.
                 ## However, the bug does not appear when we don't incorportate info from the fixed neurons.
-                current_layer_inactive = []
-                if BoundsManager.USE_FIXED_NEURONS:
-                    current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-                    if len(current_layer_inactive) > 0:
-                        cur_layer_input_eq = SymbolicLinearBounds(
-                            cur_layer_input_eq.get_lower().mask_zero_outputs(current_layer_inactive),
-                            cur_layer_input_eq.get_upper().mask_zero_outputs(current_layer_inactive))
+                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
 
                 cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
-
-                stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
-                                                                         current_layer_inactive,
-                                                                         stability_info, overapprox_area)
-
-                # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
                 cur_layer_output_num_bounds = HyperRectangleBounds(
                     np.maximum(cur_layer_input_num_bounds.get_lower(), 0),
                     np.maximum(cur_layer_input_num_bounds.get_upper(), 0))
+
+                if BoundsManager.USE_FIXED_NEURONS:
+                    self.force_inactive_neurons2(cur_layer_output_eq, cur_layer_output_num_bounds,
+                                                 current_layer_inactive)
+
+                stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
+                                                                         stability_info, overapprox_area)
+
+                # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
 
             elif isinstance(layer, nodes.FlattenNode):
                 """ Flatten layer """
@@ -323,17 +344,22 @@ class BoundsManager:
             elif isinstance(layer, nodes.ReLUNode):
                 """ ReLU layer """
 
-                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer.identifier)
+                if BoundsManager.USE_FIXED_NEURONS:
+                    try:
+                        cur_layer_input_eq, cur_layer_input_num_bounds = self.check_and_enforce_fixed_constraints(
+                            cur_layer_input_eq, cur_layer_input_num_bounds, fixed_neurons, layer.identifier
+                        )
+                    except FixedConflictWithBounds:
+                        # The current branch is not feasible. Return None
+                        return None
 
-                (lower_relu_eq, postact_lower_bounds), (upper_relu_eq, postact_upper_bounds) = \
+                relu_eq, cur_layer_output_num_bounds = \
                     self.compute_relu_equation(cur_layer_input_num_bounds.get_lower(),
-                                               cur_layer_input_num_bounds.get_upper(), current_layer_inactive)
+                                               cur_layer_input_num_bounds.get_upper())
 
-                cur_layer_output_num_bounds = HyperRectangleBounds(postact_lower_bounds, postact_upper_bounds)
-                layer2layer_equations[layer.identifier] = SymbolicLinearBounds(lower_relu_eq, upper_relu_eq)
+                layer2layer_equations[layer.identifier] = relu_eq
 
                 stable_count += self.get_layer_stability_stats(layer.identifier, cur_layer_input_num_bounds,
-                                                               current_layer_inactive,
                                                                stability_info, overapprox_area)
 
                 # Just to set a value to cur_layer_output_eq
@@ -387,12 +413,61 @@ class BoundsManager:
         }
 
     @staticmethod
-    def compute_relu_equation(preact_lower_bounds, preact_upper_bounds, layer_inactive):
-        return (BoundsManager.get_relu_relax_lower_bound_equation(preact_lower_bounds, preact_upper_bounds, layer_inactive),
-                BoundsManager.get_relu_relax_upper_bound_equation(preact_lower_bounds, preact_upper_bounds, layer_inactive))
+    def force_inactive_neurons2(relu_eq, postact_bounds, current_layer_inactive):
+        for neuron_n in current_layer_inactive:
+            if postact_bounds.lower[neuron_n] > 0:
+                raise Exception("A neuron is supposed to be fixed to be negative, "
+                                "but the bounds are positive. A conflict must have been detected before.")
+            if postact_bounds.upper[neuron_n] > 0:
+                relu_eq.lower.matrix[neuron_n] = 0 * relu_eq.lower.matrix[neuron_n]
+                relu_eq.lower.offset[neuron_n] = 0
+                relu_eq.upper.matrix[neuron_n] = 0 * relu_eq.upper.matrix[neuron_n]
+                relu_eq.upper.offset[neuron_n] = 0
+                postact_bounds.lower[neuron_n] = 0
+                postact_bounds.upper[neuron_n] = 0
 
     @staticmethod
-    def get_relu_relax_lower_bound_equation(preact_lower_bounds, preact_upper_bounds, layer_inactive=None):
+    def check_and_enforce_fixed_constraints(relu_input_eq, preact_bounds, fixed_neurons, layer_id):
+        """
+        We need to check if the bounds do not conflict with the currently fixed neurons.
+        That could happen if we haven't detected that the current branch is infeasible.
+        That could happen because we are dealing with approximated bounds.
+        """
+
+        current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
+        current_layer_active = extract_layer_active_from_fixed_neurons(fixed_neurons, layer_id)
+
+        new_bounds = preact_bounds.clone()
+
+        new_eq = SymbolicLinearBounds(relu_input_eq.lower.clone(), relu_input_eq.upper.clone())
+
+        for neuron_n in current_layer_active:
+            if preact_bounds.upper[neuron_n] < 0:
+                raise FixedConflictWithBounds("A neuron has been fixed to be positive, "
+                                            "but the bounds are negative. The current branch is not viable.")
+
+        for neuron_n in current_layer_inactive:
+            if preact_bounds.lower[neuron_n] > 0:
+                raise FixedConflictWithBounds("A neuron has been fixed to be negative, "
+                                            "but the bounds are positive. The current branch is not viable.")
+            if preact_bounds.upper[neuron_n] > 0:
+                new_eq.lower.matrix[neuron_n] = 0 * new_eq.lower.matrix[neuron_n]
+                new_eq.lower.offset[neuron_n] = 0
+                new_eq.upper.matrix[neuron_n] = 0 * new_eq.upper.matrix[neuron_n]
+                new_eq.upper.offset[neuron_n] = 0
+                new_bounds.lower[neuron_n] = -BoundsManager.PRECISION_GUARD
+                new_bounds.upper[neuron_n] = -BoundsManager.PRECISION_GUARD
+
+        return new_eq, new_bounds
+
+    @staticmethod
+    def compute_relu_equation(preact_num_lower, preact_num_upper):
+        lower_relu_eq, postact_lower = BoundsManager.get_relu_relax_lower_bound_equation(preact_num_lower, preact_num_upper)
+        upper_relu_eq, postact_upper = BoundsManager.get_relu_relax_upper_bound_equation(preact_num_lower, preact_num_upper)
+        return SymbolicLinearBounds(lower_relu_eq, upper_relu_eq), HyperRectangleBounds(postact_lower, postact_upper)
+
+    @staticmethod
+    def get_relu_relax_lower_bound_equation(preact_lower_bounds, preact_upper_bounds):
         """
         The lower bound of unstable nodes is either 0, or
         the linear relaxation of the preactivation (hence, the slope).
@@ -412,10 +487,7 @@ class BoundsManager:
         postact_lower_bounds = np.array(preact_lower_bounds)
 
         for i in range(size):
-            if BoundsManager.USE_FIXED_NEURONS and layer_inactive is not None and i in layer_inactive:
-                matrix[i][i] = 0
-                postact_lower_bounds[i] = 0
-            elif preact_lower_bounds[i] >= 0:
+            if preact_lower_bounds[i] >= 0:
                 # the lower bound is exactly the preactivation
                 # it remains 1
                 pass
@@ -434,7 +506,7 @@ class BoundsManager:
         return LinearFunctions(matrix, offset), postact_lower_bounds
 
     @staticmethod
-    def get_relu_relax_upper_bound_equation(preact_lower_bounds, preact_upper_bounds, layer_inactive=None):
+    def get_relu_relax_upper_bound_equation(preact_lower_bounds, preact_upper_bounds):
         """
         Compute the resulting upper bound equation after relaxing ReLU,
         qiven a preactivation upper bound equation.
@@ -449,10 +521,7 @@ class BoundsManager:
 
         postact_upper_bounds = np.array(preact_upper_bounds)
         for i in range(size):
-            if BoundsManager.USE_FIXED_NEURONS and layer_inactive is not None and i in layer_inactive:
-                matrix[i][i] = 0
-                postact_upper_bounds[i] = 0
-            elif preact_lower_bounds[i] >= 0:
+            if preact_lower_bounds[i] >= 0:
                 # the upper bound is exactly the preactivation
                 # it remains 1
                 pass
@@ -537,7 +606,7 @@ class BoundsManager:
         return current_matrix, current_offset
 
     @staticmethod
-    def get_layer_stability_stats(layer_id, numeric_preactivation_bounds, fixed_to_negative,
+    def get_layer_stability_stats(layer_id, numeric_preactivation_bounds,
                                   stability_info, overapprox_area):
         stable_count = 0
 
@@ -547,9 +616,6 @@ class BoundsManager:
 
         for neuron_n in range(numeric_preactivation_bounds.size):
             l, u = numeric_preactivation_bounds.get_dimension_bounds(neuron_n)
-            if BoundsManager.USE_FIXED_NEURONS:
-                if neuron_n in fixed_to_negative:
-                    l, u = -BoundsManager.PRECISION_GUARD, -BoundsManager.PRECISION_GUARD
 
             stable_status = BoundsManager.check_stable(l, u)
             if stable_status == NeuronState.NEGATIVE_STABLE:
@@ -659,6 +725,7 @@ class BoundsManager:
 
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
+        # fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
         if len(fixed_neurons) > 0:
             refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
                 fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
@@ -1084,12 +1151,12 @@ class BoundsManager:
         # This way of encoding allows to access the dual solution
         worker_constraints = {}
         infinity = solver.infinity()
-        for i in range(len(equations.matrix)):
+        for constr_n in range(len(equations.matrix)):
             # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
-            worker_constraints[i] = solver.Constraint(-infinity, -equations.offset[i],
-                                                      'c[%i]' % i)  # -infinity <= eq <= 0
-            for j in range(n_input_dimensions):
-                worker_constraints[i].SetCoefficient(input_vars[j], equations.matrix[i][j])
+            # -infinity <= eq <= 0
+            worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n], 'c[%i]' % constr_n)
+            for input_var_n in range(n_input_dimensions):
+                worker_constraints[constr_n].SetCoefficient(input_vars[input_var_n], equations.matrix[constr_n][input_var_n])
 
         ## The actual optimisation part
         new_input_bounds = input_bounds.clone()
@@ -1267,6 +1334,11 @@ def extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id):
             if lay_n == layer_id and value == 0]
 
 
+def extract_layer_active_from_fixed_neurons(fixed_neurons, layer_id):
+    return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
+            if lay_n == layer_id and value == 1]
+
+
 def extract_layer_inactive_from_bounds(bounds, layer_id):
     return {neuron_n for lay_n, neuron_n in bounds['stability_info'][StabilityInfo.UNSTABLE]
             if lay_n == layer_id}
@@ -1294,6 +1366,11 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: 
     """
     unstable = bounds['stability_info'][StabilityInfo.UNSTABLE]
     return [neuron for neuron in unstable if neuron not in fixed_neurons]
+
+
+def compute_fixed_but_unstable_wrt_bounds(bounds: dict, fixed_neurons: dict) -> dict:
+    return {(layer_id, neuron_n): value for (layer_id, neuron_n), value in fixed_neurons.items()
+                                        if (layer_id, neuron_n) in bounds['stability_info'][StabilityInfo.UNSTABLE]}
 
 
 def compute_stable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> set:

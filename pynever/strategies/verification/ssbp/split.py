@@ -260,7 +260,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
 
     fixed_so_far = star.fixed_neurons | {target.to_pair(): split.value}
 
-    if target.layer_id != star.ref_layer:
+    if True or target.layer_id != star.ref_layer:
         # Only update fixed_neurons, as we cannot update the basis.
         # In principle, we could update the predicate, but we do not need it
         # as we have the information about the split in fixed_neurons,
@@ -272,9 +272,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
         return [(star_after_split, bounds, bounds['stable_count'])]
 
     # Compute new transformation
-    layer_inactive = (compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, star.fixed_neurons, target.layer_id)
-                      + ([target.neuron_idx] if split == NeuronSplit.Negative else []))
-
+    layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, fixed_so_far, target.layer_id)
     new_transformation = star.mask_for_inactive_neurons(layer_inactive)
 
     # Compute new predicate
