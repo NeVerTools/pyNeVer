@@ -648,37 +648,77 @@ class BoundsManager:
         If the input bounds have been updated, recomputes the bounds.
         """
 
-        self.logger.debug(f"======================================================================\n"
-                          f"Target {target} "
-                          f"Overapprox. area {pre_branch_bounds['overapproximation_area']['map'][target.to_pair()]}")
+        self.logger.debug("\tTarget {} "
+                          "Overapprox. area {:10.4}".format(target, pre_branch_bounds['overapproximation_area']['map'][target.to_pair()]))
 
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
 
-        LOGGER.debug(f"--- Input bounds\n"
-                     f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}"
-                     f" Volume {pre_branch_bounds['overapproximation_area']['volume']}")
+        # LOGGER.debug(f"--- Input bounds\n"
+        #              f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}"
+        #              f" Volume {pre_branch_bounds['overapproximation_area']['volume']}")
 
         negative_branch_input = BoundsManager.refine_input_bounds_after_split(
-            pre_branch_bounds, nn, target, NeuronSplit.Negative, fixed_neurons)
+            pre_branch_bounds, nn, target, NeuronSplit.Negative, fixed_neurons
+        )
+        # negative_bounds = None if negative_branch_input is None else (
+        #     pre_branch_bounds if (negative_branch_input == input_bounds and not BoundsManager.USE_FIXED_NEURONS) else
+        #     self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0})
+        # )
         negative_bounds = None if negative_branch_input is None else (
-            pre_branch_bounds if (negative_branch_input == input_bounds and not BoundsManager.USE_FIXED_NEURONS) else
-            self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0}))
-        LOGGER.debug(f"--- Updated bounds for negative branch:\n"
-                     f"{negative_branch_input} --- stable count "
-                     f"{None if negative_bounds is None else negative_bounds['stable_count']}"
-                     f" Volume {None if negative_bounds is None else negative_bounds['overapproximation_area']['volume']}")
+            pre_branch_bounds if negative_branch_input == input_bounds else
+            self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0})
+        )
+        LOGGER.debug("\tNega Stable count  {}  Volume {} --- {}".format(
+            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
+            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
+            negative_branch_input))
 
         positive_branch_input = BoundsManager.refine_input_bounds_after_split(
-            pre_branch_bounds, nn, target, NeuronSplit.Positive, fixed_neurons)
+            pre_branch_bounds, nn, target, NeuronSplit.Positive, fixed_neurons
+        )
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
-            self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1}))
-        LOGGER.debug(f"--- Updated bounds for positive branch:\n"
-                     f"{positive_branch_input} --- stable count "
-                     f"{None if positive_bounds is None else positive_bounds['stable_count']}"
-                     f" Volume {None if positive_bounds is None else positive_bounds['overapproximation_area']['volume']}\n\n")
+            self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1})
+        )
+        LOGGER.debug("\tPosi Stable count  {}  Volume {} --- {}".format(
+            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
+            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
+            positive_branch_input))
 
         return negative_bounds, positive_bounds
+
+    def branch_bisect_input(self, bounds, nn: SequentialNetwork, fixed_neurons):
+        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
+
+        lower_half, upper_half = BoundsManager.bisect_an_input_dimension(input_bounds)
+
+        negative_bounds = self.compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
+        positive_bounds = self.compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
+
+        LOGGER.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
+            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
+            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
+            lower_half))
+        LOGGER.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
+            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
+            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
+            upper_half))
+        return negative_bounds, positive_bounds
+
+    @staticmethod
+    def bisect_an_input_dimension(input_bounds):
+        diff = input_bounds.get_upper() - input_bounds.get_lower()
+        widest_dim = np.argmax(diff)
+        mid = diff[widest_dim]/2
+
+        lower_half = input_bounds.clone()
+        upper_half = input_bounds.clone()
+
+        lower_half.upper[widest_dim] = lower_half.lower[widest_dim] + mid
+        upper_half.lower[widest_dim] = lower_half.upper[widest_dim]
+
+        return lower_half, upper_half
+
 
     @staticmethod
     def refine_input_bounds_after_split(pre_branch_bounds: dict, nn: SequentialNetwork,
@@ -725,7 +765,7 @@ class BoundsManager:
 
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
-        fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
+        # fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
         if len(fixed_neurons) > 0:
             refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
                 fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
@@ -1044,7 +1084,7 @@ class BoundsManager:
 
             else:
                 # Bounds have been refined
-                LOGGER.debug(f"?? Dim {i} bounds were refined ??")
+                # LOGGER.debug(f"?? Dim {i} bounds were refined ??")
                 if refined_input_bounds == input_bounds:
                     # Only create a new copy of the bounds if there was a change
                     refined_input_bounds = input_bounds.clone()

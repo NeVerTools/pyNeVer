@@ -14,8 +14,8 @@ logger_stream = logging.getLogger("pynever.strategies.bounds_propagation")
 logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.DEBUG)
 
-property_n = 2
-network_n = '3_4'
+property_n = 1
+network_n = '1_3'
 
 prop = VnnLibProperty(f'../../examples/benchmarks/ACAS XU/Properties/prop_{property_n}.vnnlib')
 
@@ -24,7 +24,7 @@ nn = ONNXConverter().to_neural_network(onnx_nn)
 
 if __name__ == '__main__':
     print(f"Verifying Acas property {property_n} on network {network_n}")
-    print(SSBPVerification(SSBPVerificationParameters(heuristic=RefinementStrategy.LOWEST_APPROX)
+    print(SSBPVerification(SSBPVerificationParameters(heuristic=RefinementStrategy.INPUT_BOUNDS_CHANGE)
                            ).verify(nn, prop))
 
 # 12, 7, 30, 34, 15, 1, 43, 10, 49, 9, 32, 45, 26, 6, 48, 0, 33, 22, 41, 16

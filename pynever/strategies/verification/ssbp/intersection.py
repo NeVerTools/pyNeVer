@@ -171,9 +171,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
 
     solver.Maximize(0)
-    print(datetime.datetime.now(), "Before intersection LP solve")
     status = solver.Solve()
-    print(datetime.datetime.now(), "After intersection LP solve")
 
     if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
         return False, []
