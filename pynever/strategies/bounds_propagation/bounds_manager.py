@@ -132,6 +132,10 @@ class BoundsManager:
         #
         # bounds = self.compute_bounds_backwards(input_bounds, network, fixed_neurons)
         # return bounds
+        input_bounds = HyperRectangleBounds(np.array([0.6598933267500001, -0.007420995194076578, -0.07812499999999994, 0.46250000000000024, -0.4874999999999999]),
+                                            np.array([0.6798577689999997, -0.0022545296531813327, -0.06249999999999997, 0.4750000000000001, -0.47500000000000003]))
+        fixed_neurons = {('ReLU0', 21): 1, ('ReLU0', 23): 1, ('ReLU0', 45): 0, ('ReLU0', 41): 0, ('ReLU0', 19): 1, ('ReLU0', 17): 1, ('ReLU0', 15): 0, ('ReLU0', 4): 0, ('ReLU0', 47): 1, ('ReLU0', 10): 0, ('ReLU0', 2): 0, ('ReLU0', 34): 1, ('ReLU1', 46): 1, ('ReLU3', 48): 1, ('ReLU3', 9): 1, ('ReLU2', 17): 0, ('ReLU3', 12): 0, ('ReLU3', 44): 0, ('ReLU3', 42): 0, ('ReLU2', 39): 1, ('ReLU3', 13): 0, ('ReLU4', 29): 0, ('ReLU2', 8): 1, ('ReLU4', 6): 1, ('ReLU2', 46): 1, ('ReLU2', 27): 0, ('ReLU5', 3): 0, ('ReLU5', 1): 0, ('ReLU4', 41): 0}
+        bounds = self.compute_bounds_backwards(input_bounds, network, fixed_neurons)
         return self.compute_bounds(input_hyper_rect, network)
 
 

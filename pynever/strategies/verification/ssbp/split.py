@@ -280,7 +280,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: dict, 
                                     fixed_neurons=fixed_so_far, enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
-    if bounds['stable_count'] == pre_split_bounds['stable_count']:
+    if bounds['stable_count'] - pre_split_bounds['stable_count'] == 0:
         negative_bounds, positive_bounds = BoundsManager().branch_bisect_input(bounds, network, fixed_so_far)
 
         return compute_star_after_input_split(star_after_split, negative_bounds) + \

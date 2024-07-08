@@ -384,6 +384,10 @@ class SSBPVerification(VerificationStrategy):
                         # So there can be some overapproximation.
                         # We should detect and throw more exact intersection check
                         # pass
+                        input_bounds = nn_bounds['numeric_pre'][self.network.get_first_node().identifier]
+
+                        self.logger.info(f"\tBranch {current_star.fixed_neurons} is inconsistent with bounds, "
+                                         f"input {input_bounds.get_lower()} {input_bounds.get_upper()}")
                         raise Exception("This point should not be reachable")
 
             else:

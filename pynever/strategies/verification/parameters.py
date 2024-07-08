@@ -27,7 +27,7 @@ class SSLPVerificationParameters(VerificationParameters):
 
 class SSBPVerificationParameters(VerificationParameters):
     def __init__(self,
-                 heuristic: RefinementStrategy = RefinementStrategy.LOWEST_APPROX,
+                 heuristic: RefinementStrategy = RefinementStrategy.INPUT_BOUNDS_CHANGE,
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,
                  propagation: PropagationStrategy = PropagationStrategy.ADAPTIVE,
                  timeout: int = 1200):

@@ -14,8 +14,8 @@ logger_stream = logging.getLogger("pynever.strategies.bounds_propagation")
 logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.DEBUG)
 
-property_n = 1
-network_n = '1_3'
+property_n = 4
+network_n = '5_9'
 
 prop = VnnLibProperty(f'../../examples/benchmarks/ACAS XU/Properties/prop_{property_n}.vnnlib')
 
