@@ -331,6 +331,8 @@ class PropertySatisfied(Enum):
     Maybe = 2
 
 
+PRECISION_GUARD = 1e-06
+
 def check_disjunct_satisfied(bounds, matrix, bias):
     """
     Checks if the bounds satisfy the conjunction of constraints given by
@@ -350,10 +352,10 @@ def check_disjunct_satisfied(bounds, matrix, bias):
         max_value = bounds_utils.compute_max(matrix[j], bounds) - bias[j][0]
         min_value = bounds_utils.compute_min(matrix[j], bounds) - bias[j][0]
 
-        if min_value > 0:
+        if min_value > PRECISION_GUARD:
             # the constraint j is definitely not satisfied, as it should be <= 0
             return PropertySatisfied.No
-        if max_value > 0:
+        if max_value > PRECISION_GUARD:
             # the constraint j might not be satisfied, but we are not sure
             a_conjunct_possibly_not_satisfied = True
 
@@ -382,7 +384,7 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
         # Every condition
         satisfied = True
         for j in range(len(prop.out_coef_mat[i])):
-            if prop.out_coef_mat[i][j].dot(candidate_output) - prop.out_bias_mat[i][j][0] > 0:
+            if prop.out_coef_mat[i][j].dot(candidate_output) - prop.out_bias_mat[i][j][0] > PRECISION_GUARD:
                 # this conjunct is not satisfied, as it should be <= 0
                 satisfied = False
                 break

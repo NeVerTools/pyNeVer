@@ -115,27 +115,6 @@ class BoundsManager:
         if not isinstance(network, SequentialNetwork):
             raise NotImplementedError
 
-        # input_bounds = HyperRectangleBounds(np.array([0.6148781770726466, 0.012149608993802708, -0.37327005579136296, 0.45000000000000046, -0.48773750702161583]),
-        #                                     np.array([0.6189390724294357, 0.012309225600542636, -0.3701607847073792, 0.45190999224772055, -0.48739547520645965]))
-        # fixed_neurons = {('ReLU1', 46): 0, ('ReLU0', 13): 0, ('ReLU2', 1): 0, ('ReLU0', 41): 1, ('ReLU0', 32): 0, ('ReLU0', 47): 1,
-        #  ('ReLU0', 44): 0, ('ReLU0', 31): 1, ('ReLU0', 24): 1, ('ReLU2', 46): 0, ('ReLU1', 47): 0, ('ReLU0', 14): 1,
-        #  ('ReLU0', 42): 1, ('ReLU1', 49): 0, ('ReLU0', 33): 1, ('ReLU0', 28): 1, ('ReLU0', 4): 1, ('ReLU0', 3): 1,
-        #  ('ReLU0', 26): 0, ('ReLU1', 9): 0, ('ReLU1', 31): 1, ('ReLU1', 34): 0, ('ReLU1', 42): 1, ('ReLU3', 6): 0,
-        #  ('ReLU4', 47): 0, ('ReLU2', 36): 0, ('ReLU2', 10): 0, ('ReLU3', 3): 0, ('ReLU3', 21): 1, ('ReLU4', 49): 0,
-        #  ('ReLU4', 32): 0, ('ReLU3', 49): 0, ('ReLU3', 12): 0, ('ReLU3', 48): 0, ('ReLU3', 25): 1, ('ReLU3', 0): 0,
-        #  ('ReLU4', 26): 0, ('ReLU3', 14): 1, ('ReLU3', 35): 0, ('ReLU3', 1): 0, ('ReLU3', 29): 1, ('ReLU2', 8): 1,
-        #  ('ReLU1', 19): 0, ('ReLU2', 39): 1, ('ReLU2', 41): 0, ('ReLU2', 47): 1, ('ReLU3', 5): 1, ('ReLU2', 44): 0,
-        #  ('ReLU2', 22): 0, ('ReLU2', 49): 1, ('ReLU4', 33): 1, ('ReLU3', 36): 1, ('ReLU3', 24): 0, ('ReLU2', 33): 0,
-        #  ('ReLU1', 30): 1, ('ReLU3', 44): 1, ('ReLU4', 21): 0, ('ReLU1', 40): 1, ('ReLU3', 41): 0, ('ReLU3', 18): 1,
-        #  ('ReLU4', 23): 1, ('ReLU4', 25): 0, ('ReLU4', 39): 1, ('ReLU4', 43): 1, ('ReLU4', 46): 0, ('ReLU5', 4): 0,
-        #  ('ReLU5', 6): 0, ('ReLU5', 25): 0, ('ReLU5', 32): 1}
-        #
-        # bounds = self.compute_bounds_backwards(input_bounds, network, fixed_neurons)
-        # return bounds
-        input_bounds = HyperRectangleBounds(np.array([0.6598933267500001, -0.007420995194076578, -0.07812499999999994, 0.46250000000000024, -0.4874999999999999]),
-                                            np.array([0.6798577689999997, -0.0022545296531813327, -0.06249999999999997, 0.4750000000000001, -0.47500000000000003]))
-        fixed_neurons = {('ReLU0', 21): 1, ('ReLU0', 23): 1, ('ReLU0', 45): 0, ('ReLU0', 41): 0, ('ReLU0', 19): 1, ('ReLU0', 17): 1, ('ReLU0', 15): 0, ('ReLU0', 4): 0, ('ReLU0', 47): 1, ('ReLU0', 10): 0, ('ReLU0', 2): 0, ('ReLU0', 34): 1, ('ReLU1', 46): 1, ('ReLU3', 48): 1, ('ReLU3', 9): 1, ('ReLU2', 17): 0, ('ReLU3', 12): 0, ('ReLU3', 44): 0, ('ReLU3', 42): 0, ('ReLU2', 39): 1, ('ReLU3', 13): 0, ('ReLU4', 29): 0, ('ReLU2', 8): 1, ('ReLU4', 6): 1, ('ReLU2', 46): 1, ('ReLU2', 27): 0, ('ReLU5', 3): 0, ('ReLU5', 1): 0, ('ReLU4', 41): 0}
-        bounds = self.compute_bounds_backwards(input_bounds, network, fixed_neurons)
         return self.compute_bounds(input_hyper_rect, network)
 
 
