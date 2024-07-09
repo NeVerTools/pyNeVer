@@ -15,7 +15,7 @@ logger_stream.addHandler(logging.StreamHandler())
 logger_stream.setLevel(logging.DEBUG)
 
 property_n = 2
-network_n = '5_3'
+network_n = '2_8'
 
 prop = VnnLibProperty(f'../../examples/benchmarks/ACAS XU/Properties/prop_{property_n}.vnnlib')
 

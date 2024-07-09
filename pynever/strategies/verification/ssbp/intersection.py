@@ -91,6 +91,8 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
         return intersect_bounds(star, nn, nn_bounds, prop)
     # elif overapprox_volume > 10e12:
     #     return True, []
+    elif len(unstable) <= 20 or nn_bounds['overapproximation_area']['volume'] < 1:
+        return intersect_complete_milp(star, nn, nn_bounds, prop)
     elif len(unstable) <= 50:# or nn_bounds['overapproximation_area']['volume'] < 100:
         return intersect_abstract_milp(star, nn, nn_bounds, prop)
 
@@ -256,6 +258,39 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
+def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+        -> tuple[bool, list[float]]:
+    """
+    Checks for an intersection by building a complete MILP encoding
+
+    Returns
+    -------
+    a pair
+        - True if there is a solution to the above program, and
+          the values to the input variables in this solution in an array
+        - False otherwise, and empty array []
+
+    """
+
+    solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
+
+    variables = _create_variables_and_constraints(solver, nn, nn_bounds)
+
+    # The constraints for the property
+    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
+    _encode_output_property_constraints(solver, prop, output_bounds, variables[-1])
+
+    solver.Maximize(0)
+    status = solver.Solve()
+
+    if status == pywraplp.Solver.INFEASIBLE or status == pywraplp.Solver.ABNORMAL:
+        return False, []
+
+    else:
+        # TODO check
+        return True, [variables[0][i].solution_value() for i in range(len(variables[0]))]
+
+
 def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProperty,
                                         output_bounds: dict, output_vars: np.ndarray) -> None:
     """
@@ -290,6 +325,69 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
                 - (1 - deltas[i]) * bigM
                 - prop.out_bias_mat[i][j][0] <= 0
             ))
+
+
+def _create_variables_and_constraints(solver, nn, nn_bounds):
+
+    variables = []
+
+    input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+    input_vars = np.array([
+        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+        for j in range(input_bounds.get_size())])
+    variables.append(input_vars)
+
+    for layer in nn.layers_iterator():
+        from pynever import nodes
+        if isinstance(layer, nodes.ReLUNode):
+            lower_bounds = nn_bounds['numeric_pre'][layer.identifier].get_lower()
+            upper_bounds = nn_bounds['numeric_pre'][layer.identifier].get_upper()
+
+            layer_vars = np.array([
+                solver.NumVar(lower_bounds[node_n], upper_bounds[node_n], f'x_{layer.identifier}_{node_n}')
+                for node_n in range(lower_bounds.size)])
+
+            variables.append(np.array(layer_vars))
+
+            prev_layer = nn.get_prev_node(layer)
+            dot_product = [
+                prev_layer.weight[i].dot(variables[-2]) + prev_layer.bias[i]
+                for i in range(prev_layer.weight.shape[0])
+            ]
+
+            for node_n in range(lower_bounds.size):
+                node_var = layer_vars[node_n]
+
+                if lower_bounds[node_n] >= 0:
+                    solver.Add(node_var == dot_product[node_n])
+
+                elif upper_bounds[node_n] <= 0:
+                    solver.Add(node_var == 0)
+
+                else:
+                    """
+                    Add the binary variable for the BIGM encoding
+                    """
+                    delta = solver.IntVar(0, 1, f"delta{layer.identifier}_{node_n}")
+
+                    """
+                    The BIG-M constraints
+                    """
+                    solver.Add(node_var >= dot_product[node_n])
+                    solver.Add(node_var <= dot_product[node_n] - lower_bounds[node_n] * (1 - delta))
+                    solver.Add(node_var <= upper_bounds[node_n] * delta)
+
+    last_layer = nn.get_last_node()
+    output_bounds = nn_bounds['numeric_post'][last_layer.identifier]
+    output_vars = np.array([
+        solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
+        for j in range(output_bounds.get_size())])
+    variables.append(output_vars)
+
+    for node_n in range(output_bounds.size):
+        solver.Add(output_vars[node_n] == last_layer.weight[node_n].dot(variables[-2]) + last_layer.bias[node_n])
+
+    return variables
 
 
 def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
@@ -395,76 +493,76 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
     return False
 
 
-def check_input_refining_one_equation_feasible_with_lp(coef, shift, input_bounds) -> bool:
-    """
-    Check if equation <= 0 is satisfiable with respect to the input bounds using an LP
-    """
-
-    n_input_dimensions = input_bounds.get_size()
-
-    solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-
-    input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-        for j in range(n_input_dimensions)])
-
-    solver.Add(input_vars.dot(coef) + shift <= 0)
-
-    solver.Maximize(0)
-    status = solver.Solve()
-
-    if status == pywraplp.Solver.INFEASIBLE:
-        return False
-
-    elif status == pywraplp.Solver.OPTIMAL:
-        return True
-
-    raise Exception("Neither infeasible, not optimal")
-
-
-def compute_input_new_max(coef, shift, input_bounds, i) -> bool:
-    """
-    Given equation <= 0, compute the max value of the input dimension i
-    """
-
-    n_input_dimensions = input_bounds.get_size()
-
-    solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-
-    input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-        for j in range(n_input_dimensions)])
-
-    solver.Add(input_vars.dot(coef) + shift <= 0)
-
-    solver.Maximize(input_vars[i])
-    status = solver.Solve()
-
-    if status == pywraplp.Solver.OPTIMAL:
-        return input_vars[i].solution_value()
-
-    raise Exception("Cannot compute new max")
-
-
-def compute_input_new_min(coef, shift, input_bounds, i) -> bool:
-    """
-    Given equation <= 0, compute the max value of the input dimension i
-    """
-
-    n_input_dimensions = input_bounds.get_size()
-
-    solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-
-    input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-        for j in range(n_input_dimensions)])
-
-    solver.Add(input_vars.dot(coef) + shift <= 0)
-
-    solver.Minimize(input_vars[i])
-    status = solver.Solve()
-
-    if status == pywraplp.Solver.OPTIMAL:
-        return input_vars[i].solution_value()
-
-    raise Exception("Cannot compute new max")
+# def check_input_refining_one_equation_feasible_with_lp(coef, shift, input_bounds) -> bool:
+#     """
+#     Check if equation <= 0 is satisfiable with respect to the input bounds using an LP
+#     """
+#
+#     n_input_dimensions = input_bounds.get_size()
+#
+#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
+#
+#     input_vars = np.array([
+#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+#         for j in range(n_input_dimensions)])
+#
+#     solver.Add(input_vars.dot(coef) + shift <= 0)
+#
+#     solver.Maximize(0)
+#     status = solver.Solve()
+#
+#     if status == pywraplp.Solver.INFEASIBLE:
+#         return False
+#
+#     elif status == pywraplp.Solver.OPTIMAL:
+#         return True
+#
+#     raise Exception("Neither infeasible, not optimal")
+#
+#
+# def compute_input_new_max(coef, shift, input_bounds, i) -> bool:
+#     """
+#     Given equation <= 0, compute the max value of the input dimension i
+#     """
+#
+#     n_input_dimensions = input_bounds.get_size()
+#
+#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
+#
+#     input_vars = np.array([
+#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+#         for j in range(n_input_dimensions)])
+#
+#     solver.Add(input_vars.dot(coef) + shift <= 0)
+#
+#     solver.Maximize(input_vars[i])
+#     status = solver.Solve()
+#
+#     if status == pywraplp.Solver.OPTIMAL:
+#         return input_vars[i].solution_value()
+#
+#     raise Exception("Cannot compute new max")
+#
+#
+# def compute_input_new_min(coef, shift, input_bounds, i) -> bool:
+#     """
+#     Given equation <= 0, compute the max value of the input dimension i
+#     """
+#
+#     n_input_dimensions = input_bounds.get_size()
+#
+#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
+#
+#     input_vars = np.array([
+#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+#         for j in range(n_input_dimensions)])
+#
+#     solver.Add(input_vars.dot(coef) + shift <= 0)
+#
+#     solver.Minimize(input_vars[i])
+#     status = solver.Solve()
+#
+#     if status == pywraplp.Solver.OPTIMAL:
+#         return input_vars[i].solution_value()
+#
+#     raise Exception("Cannot compute new max")
