@@ -91,8 +91,8 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
         return intersect_bounds(star, nn, nn_bounds, prop)
     # elif overapprox_volume > 10e12:
     #     return True, []
-    # elif len(unstable) <= 20 or nn_bounds['overapproximation_area']['volume'] < 1:
-    #     return intersect_complete_milp(star, nn, nn_bounds, prop)
+    elif len(unstable) <= 20 or nn_bounds['overapproximation_area']['volume'] < 1:
+        return intersect_complete_milp(star, nn, nn_bounds, prop)
     elif len(unstable) <= 50:# or nn_bounds['overapproximation_area']['volume'] < 1:
         return intersect_abstract_milp(star, nn, nn_bounds, prop)
 
@@ -180,9 +180,9 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
 
     else:
         # Only return the values of the original input vars
-        cex = Tensor(np.array([input_vars[i].solution_value() for i in range(input_bounds.get_size())]))
-        if not check_valid_counterexample(cex, nn, prop):
-            return intersect_complete_milp(star, nn, nn_bounds, prop)
+        # cex = Tensor(np.array([input_vars[i].solution_value() for i in range(input_bounds.get_size())]))
+        # if not check_valid_counterexample(cex, nn, prop):
+        #     return intersect_complete_milp(star, nn, nn_bounds, prop)
         return True, [input_vars[i].solution_value() for i in range(input_bounds.get_size())]
 
 
