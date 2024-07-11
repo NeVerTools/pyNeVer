@@ -308,34 +308,44 @@ def dump_results(name, net, ans, t, out, out_dir):
 
     """
 
-    # Create output directory
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    if 'txt' in out:
+        write_instance(net, ans, out)
+
+    else:
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
         # CSV structure: name,time,result
-    with open(out, 'a', encoding='utf-8') as csv_out, open(f'{out_dir}/{name.replace(".vnnlib", "")}.txt',
-                                                           'w') as inst_out:
-        csv_out.write(f'{name},')
+        with open(out, 'a', encoding='utf-8') as csv_out:
+            csv_out.write(f'{name},')
 
-        # If answer is False with no counterexample -> timeout
-        if ans[1] is None:
-            if ans[0]:
-                csv_out.write('{:9.4f},Verified\n'.format(t))
+            # If answer is False with no counterexample -> timeout
+            if ans[1] is None:
+                if ans[0]:
+                    csv_out.write('{:9.4f},Verified\n'.format(t))
+                else:
+                    csv_out.write(f'-,Timeout\n')
+            else:
+                csv_out.write('{:9.4f},Unsafe\n'.format(t))
+
+
+def write_instance(network, answer, out_file):
+    with open(out_file, 'w', encoding='utf-8') as inst_out:
+        if answer[1] is None:
+            if answer[0]:
                 inst_out.write('unsat')
             else:
-                csv_out.write(f'-,Unknown\n')
-                inst_out.write('unknown')
+                inst_out.write('timeout')
         else:
-            unsafe_out = utilities.execute_network(net, ans[1])
+            unsafe_out = utilities.execute_network(network, answer[1])
             text = ''
-            for i in range(len(ans[1])):
-                text += f'(X_{i} {ans[1][i]})\n'
+            for i in range(len(answer[1])):
+                text += f'(X_{i} {answer[1][i]})\n'
 
             for j in range(len(unsafe_out)):
                 text += f'(Y_{j} {unsafe_out[j]})\n'
             text = text.replace('[', '').replace(']', '')[:-1]
 
-            csv_out.write('{:9.4f},Unsafe\n'.format(t))
             inst_out.write(f'sat\n({text})')
 
 
