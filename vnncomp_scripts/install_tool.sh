@@ -16,6 +16,6 @@ echo "Installing $TOOL_NAME"
 DIR=$(dirname $(dirname $(realpath $0)))
 
 apt-get update &&
-apt-get install -y cmake python3 python3-pip &&
+apt-get install -y python3 python3-pip &&
 apt-get install -y psmisc && # for killall, used in prepare_instance.sh script
 pip3 install -r "$DIR/vnncomp_scripts/requirements.txt"
