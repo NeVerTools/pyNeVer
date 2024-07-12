@@ -2,7 +2,7 @@ numpy==1.26.2
 onnx==1.15.0
 protobuf==4.25.1
 ortools==9.8.3296
-torch==2.1.1
-torchvision==0.16.1
+torch
+torchvision
 pysmt
 multipledispatch
