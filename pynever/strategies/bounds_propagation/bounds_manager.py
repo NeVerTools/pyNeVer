@@ -1,3 +1,4 @@
+import datetime
 from enum import Enum
 
 import numpy as np
@@ -120,6 +121,7 @@ class BoundsManager:
 
     @staticmethod
     def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
+        #LOGGER.debug(f"{datetime.datetime.now()} ================================= COMPUTING REFINES INPUT BY =====================================")
         input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
 
         differences = list()
@@ -138,9 +140,11 @@ class BoundsManager:
             else:
                 diff = 100
 
-            differences.append(((layer_id, neuron_n), diff))
+            if diff != 0:
+                differences.append(((layer_id, neuron_n), diff))
 
         differences = sorted(differences, key=lambda x: x[1], reverse=True)
+        #LOGGER.debug(f"{datetime.datetime.now()} ============================== FINISHED COMPUTING REFINES INPUT BY ==============================")
         return differences
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
