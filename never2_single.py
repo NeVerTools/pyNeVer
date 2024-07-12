@@ -67,10 +67,8 @@ if __name__ == '__main__':
 
     # Execute
     if args['algorithm'] == 'ssbp':
-        if not cli.ssbp_verify_single(args['model'], args['property'], '', logfile, args['timeout'], args['params']):
-            exit(1)
+        cli.ssbp_verify_single(args['model'], args['property'], '', logfile, args['timeout'], args['params'])
     else:
-        if not cli.sslp_verify_single(False, args['model'], args['property'], args['strategy'], logfile):
-            exit(1)
+        cli.sslp_verify_single(False, args['model'], args['property'], args['strategy'], logfile)
 
     exit(0)
