@@ -257,8 +257,7 @@ class PyTorchConverter(ConversionStrategy):
         if pytorch_network is None:
             raise Exception("WARNING: network to convert is not valid, the alternative representation is None")
 
-        identifier = network.identifier
-        alt_net = PyTorchNetwork(identifier=identifier, pytorch_network=pytorch_network)
+        alt_net = PyTorchNetwork(network.identifier, pytorch_network)
 
         return alt_net
 

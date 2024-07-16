@@ -4,9 +4,8 @@ import onnx.numpy_helper
 
 import pynever.networks as networks
 import pynever.nodes as nodes
-
-from pynever.strategies.conversion.representation import ConversionStrategy, ONNXNetwork
 import pynever.tensors as tensors
+from pynever.strategies.conversion.representation import ConversionStrategy, ONNXNetwork
 
 
 class ONNXConverter(ConversionStrategy):
@@ -546,7 +545,7 @@ class ONNXConverter(ConversionStrategy):
         )
 
         onnx_network = onnx.helper.make_model(graph=onnx_graph)
-        alt_net = ONNXNetwork(onnx_network, network.identifier)
+        alt_net = ONNXNetwork(network.identifier, onnx_network)
 
         return alt_net
 

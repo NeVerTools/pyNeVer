@@ -1,4 +1,5 @@
 import abc
+import copy
 import os
 from abc import abstractmethod
 from copy import deepcopy
@@ -44,34 +45,35 @@ class ONNXNetwork(AlternativeRepresentation):
     """
 
     def __init__(self, *args):
-        path = None
-        onnx_network = None
+        """
+        Two possible init methods:
+
+        1. Path-based: the network is loaded from the path (len(args) == 1)
+        2. Representation-based: the network is initialized with an identifier and a model (len(args) == 2)
+
+        """
+
+        self.onnx_network = None
+
         if len(args) == 1:
+            """ The network is loaded from a path """
             if isinstance(args[0], str):
-                path = args[0]
-                super().__init__(path, None)
-        if len(args) == 2:
-            if isinstance(args[0], str):
-                path = args[0]
-                if isinstance(args[1], str or None):
-                    identifier = args[1]
-                    super().__init__(path, identifier)
-            if isinstance(args[0], onnx.ModelProto):
-                onnx_network = args[0]
-                if isinstance(args[1], str or None):
-                    identifier = args[1]
-                    super().__init__('', identifier)
+                super().__init__(args[0])
+                self.onnx_network = onnx.load(self.path)
 
-        if path is not None:
-            try:
-                self.onnx_network = onnx.load(path)
-            except Exception:  # TODO mettere eccezione corretta
-                raise ValueError('Incorrect file format for ONNX network')
+            else:
+                raise ValueError('Incorrect path constructor')
 
-        if onnx_network is not None:
-            self.onnx_network = deepcopy(onnx_network)
+        elif len(args) == 2:
+            """ The network is loaded from a model """
+            if isinstance(args[0], str) and isinstance(args[1], onnx.ModelProto):
+                super().__init__(f'{args[0]}.onnx', args[0])
+                self.onnx_network = copy.deepcopy(args[1])
 
-        if path is None and onnx_network is None:
+            else:
+                raise ValueError('Incorrect model constructor')
+
+        else:
             raise Exception('Incorrect parameters passed to constructor')
 
     def save(self, new_path: str):
@@ -91,34 +93,35 @@ class PyTorchNetwork(AlternativeRepresentation):
     """
 
     def __init__(self, *args):
-        path = None
-        pytorch_network = None
+        """
+        Two possible init methods:
+
+        1. Path-based: the network is loaded from the path (len(args) == 1)
+        2. Representation-based: the network is initialized with an identifier and a model (len(args) == 2)
+
+        """
+
+        self.pytorch_network = None
+
         if len(args) == 1:
+            """ The network is loaded from a path """
             if isinstance(args[0], str):
-                path = args[0]
-                super().__init__(path, None)
-        if len(args) == 2:
-            if isinstance(args[0], str):
-                path = args[0]
-                if isinstance(args[1], str or None):
-                    identifier = args[1]
-                    super().__init__(path, identifier)
-            if isinstance(args[0], onnx.ModelProto):
-                pytorch_network = args[0]
-                if isinstance(args[1], str or None):
-                    identifier = args[1]
-                    super().__init__('', identifier)
+                super().__init__(args[0])
+                self.pytorch_network = torch.load(self.path, weights_only=True)
 
-        if path is not None:
-            try:
-                self.pytorch_network = torch.load(path)
-            except Exception:  # TODO mettere eccezione corretta
-                raise ValueError('Incorrect file format for PyTorch network')
+            else:
+                raise ValueError('Incorrect path constructor')
 
-        if pytorch_network is not None:
-            self.pytorch_network = deepcopy(pytorch_network)
+        elif len(args) == 2:
+            """ The network is loaded from a model """
+            if isinstance(args[0], str) and isinstance(args[1], torch.nn.Module):
+                super().__init__(f'{args[0]}.pt', args[0])
+                self.pytorch_network = copy.deepcopy(args[1])
 
-        if path is None and pytorch_network is None:
+            else:
+                raise ValueError('Incorrect model constructor')
+
+        else:
             raise Exception('Incorrect parameters passed to constructor')
 
     def save(self, new_path: str):
