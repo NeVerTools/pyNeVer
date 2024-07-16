@@ -265,9 +265,7 @@ class FullyConnectedNode(ConcreteLayerNode):
         if len(in_dim) < 1:
             raise InvalidDimensionError("FullyConnectedNode: in_dim cannot be empty")
 
-        temp = list(in_dim)
-        temp[-1] = out_features
-        out_dim = tuple(temp)
+        out_dim = in_dim[:-1] + (out_features,)
         super().__init__(identifier, [in_dim], out_dim)
 
         in_features = in_dim[-1]
@@ -481,16 +479,13 @@ class ConvNode(ConcreteLayerNode):
             raise InvalidDimensionError("in_channel should be equals to the number of channels of the input "
                                         f"(in_dim[0] = {in_dim[0]})")
 
-        temp_out_dim = [out_channels]
+        out_dim = (out_channels,)
         for i in range(1, len(in_dim)):
             aux = ((in_dim[i] + padding[i - 1] + padding[i + len(in_dim) - 2] -
                     dilation[i - 1] * (kernel_size[i - 1] - 1) - 1) / stride[i - 1]) + 1
 
             aux = math.floor(aux)
-
-            temp_out_dim.append(aux)
-
-        out_dim = tuple(temp_out_dim)
+            out_dim += (aux,)
 
         super().__init__(identifier, [in_dim], out_dim)
 
@@ -582,7 +577,7 @@ class AveragePoolNode(ConcreteLayerNode):
         if len(padding) != 2 * len(kernel_size):
             raise InvalidDimensionError("Size of padding should be equal to 2 * size of kernel_size")
 
-        temp_out_dim = [in_dim[0]]
+        out_dim = (in_dim[0],)
         for i in range(1, len(in_dim)):
 
             aux = ((in_dim[i] + padding[i - 1] + padding[i + len(in_dim) - 2] - kernel_size[i - 1]) / stride[i - 1]) + 1
@@ -591,9 +586,7 @@ class AveragePoolNode(ConcreteLayerNode):
             else:
                 aux = math.floor(aux)
 
-            temp_out_dim.append(aux)
-
-        out_dim = tuple(temp_out_dim)
+            out_dim += (aux,)
 
         super().__init__(identifier, [in_dim], out_dim)
 
@@ -662,7 +655,7 @@ class MaxPoolNode(ConcreteLayerNode):
         if len(dilation) != len(in_dim) - 1:
             raise InvalidDimensionError("Size of dilation should be equal to the size of in_dim - 1")
 
-        temp_out_dim = [in_dim[0]]
+        out_dim = (in_dim[0],)
         for i in range(1, len(in_dim)):
 
             aux = ((in_dim[i] + padding[i - 1] + padding[i + len(in_dim) - 2] -
@@ -673,9 +666,7 @@ class MaxPoolNode(ConcreteLayerNode):
             else:
                 aux = math.floor(aux)
 
-            temp_out_dim.append(aux)
-
-        out_dim = tuple(temp_out_dim)
+            out_dim += (aux,)
 
         super().__init__(identifier, [in_dim], out_dim)
 
