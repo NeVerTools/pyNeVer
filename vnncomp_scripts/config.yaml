@@ -6,6 +6,5 @@ run_installation_script_as_root: True
 run_post_installation_script_as_root: False
 run_toolkit_as_root: False
 description: >
-  A description of your tool. It will be used for the final report.
-  
-  It may even span multiple lines
+  NeVer2 is a neural network verifier developed at University of Genova that enables design, learning and verification 
+  of feed-forward neural networks with Fully Connected, Convolutional and ReLU layers

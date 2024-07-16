@@ -28,4 +28,4 @@ export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
 # run the tool to produce the results file
-python3 -m never2_single -o "$RESULTS_FILE" -t "$TIMEOUT" "$ONNX_FILE" "$VNNLIB_FILE" ssbp
+python3 -m never2_launcher -o "$RESULTS_FILE" -t "$TIMEOUT" "$ONNX_FILE" "$VNNLIB_FILE" ssbp

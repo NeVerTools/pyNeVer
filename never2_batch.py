@@ -10,10 +10,10 @@ Authors: Stefano Demarchi, Pedro Achete
 import os
 from argparse import ArgumentParser
 
-import never2_single
+import never2_launcher
 from pynever.scripts import cli
 
-parser = ArgumentParser(prog='never2',
+parser = ArgumentParser(prog='NeVer2',
                         description='Neural Network verifier',
                         epilog='Università degli Studi di Genova')
 
@@ -21,7 +21,7 @@ parser = ArgumentParser(prog='never2',
 parser.add_argument('csv', help='Collection of instances to verify')
 parser.add_argument('out_dir', help='Output directory')
 
-parser = never2_single.add_options(parser)
+parser = never2_launcher.add_options(parser)
 
 if __name__ == '__main__':
     args = vars(parser.parse_args())
@@ -39,10 +39,14 @@ if __name__ == '__main__':
 
     # Execute
     if args['algorithm'] == 'ssbp':
-        if not cli.ssbp_verify_batch(args['csv'], args['out_dir'], logfile, args['timeout'], args['params']):
+        try:
+            cli.ssbp_verify_batch(args['csv'], args['out_dir'], logfile, args['timeout'], args['params'])
+        except NotImplementedError:
             exit(1)
     else:
-        if not cli.sslp_verify_batch(False, args['csv'], args['strategy'], logfile):
+        try:
+            cli.sslp_verify_batch(False, args['csv'], args['strategy'], logfile)
+        except NotImplementedError:
             exit(1)
 
     exit(0)

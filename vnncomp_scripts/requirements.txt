@@ -1,8 +1,7 @@
 numpy
 onnx
-protobuf
-ortools==9.9.3963
 torch
 torchvision
+ortools
 pysmt
 multipledispatch

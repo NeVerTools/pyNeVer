@@ -1,5 +1,5 @@
 """
-Module never2_single.py
+Module never2_launcher.py
 
 Provides an entry point for the execution of NeVer2 on a single instance
 
@@ -72,6 +72,9 @@ if __name__ == '__main__':
         except NotImplementedError:
             exit(1)
     else:
-        cli.sslp_verify_single(False, args['model'], args['property'], args['strategy'], logfile)
+        try:
+            cli.sslp_verify_single(False, args['model'], args['property'], args['strategy'], logfile)
+        except NotImplementedError:
+            exit(1)
 
     exit(0)
