@@ -383,7 +383,12 @@ class SequentialNetwork(NeuralNetwork):
         if node == self.get_first_node():
             return None
 
-        return self.get_parents(node)[0]
+        prev_node = self.get_parents(node)[0]
+
+        if prev_node is not None and not SequentialNetwork.__is_single_concrete(prev_node):
+            raise InvalidNodeError(f'{prev_node.identifier} is not a ConcreteLayerNode with a single input!')
+
+        return prev_node
 
     def get_last_node(self) -> nodes.ConcreteLayerNode:
         """
@@ -571,7 +576,12 @@ class SequentialNetwork(NeuralNetwork):
 
         raise NotInNetworkError(f'There is no layer with identifier {identifier}')
 
-    def get_previous_id(self, layer_identifier) -> str:
+    def get_previous_id(self, layer_identifier: str) -> str | None:
+        """
+        Procedure to get the identifier of the previous layer given another layer identifier
+
+        """
+
         prev_layer = None
 
         for layer in self.layers_iterator():
@@ -581,7 +591,12 @@ class SequentialNetwork(NeuralNetwork):
 
         return None
 
-    def layer_precedes(self, layer_id1, layer_id2) -> bool:
+    def layer_precedes(self, layer_id1: str, layer_id2: str) -> bool:
+        """
+        Procedure to check whether a given layer precedes another or not
+
+        """
+
         found_id1 = False
         for layer in self.layers_iterator():
             if not found_id1:
