@@ -16,7 +16,7 @@ from pynever.strategies.conversion.representation import load_network_path, ONNX
 from pynever.tensors import Tensor
 
 # Log to stdout
-logger = logging.getLogger('pynever.strategies.verification')
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
