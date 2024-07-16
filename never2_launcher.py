@@ -68,7 +68,7 @@ if __name__ == '__main__':
     # Execute
     if args['algorithm'] == 'ssbp':
         try:
-            cli.ssbp_verify_single(args['model'], args['property'], '', logfile, args['timeout'], args['params'])
+            cli.ssbp_verify_single(args['model'], args['property'], './', logfile, args['timeout'], args['params'])
         except NotImplementedError:
             exit(1)
     else:
