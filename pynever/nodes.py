@@ -1,7 +1,11 @@
+"""Internal representation of neural network layers
+
+This module contains all the currently supported neural network layers
+
+"""
 import abc
 import copy
 import math
-from typing import Tuple, List
 
 import numpy as np
 
@@ -12,7 +16,6 @@ from pynever.tensors import Tensor
 class LayerNode(abc.ABC):
     """
     An abstract class used for our internal representation of a generic Layer of a Neural Network.
-    Its concrete children correspond to real network layers.
 
     Attributes
     ----------
@@ -33,15 +36,23 @@ class ConcreteLayerNode(LayerNode):
     Attributes
     ----------
     identifier : str
-        Identifier of the SingleInputLayerNode.
-    in_dims : List[Tuple]
+        Identifier of the ConcreteLayerNode.
+    in_dims : list[tuple]
         Dimension of the input Tensors as a tuples (ndarray.shape like).
-    out_dim : Tuple
+    out_dim : tuple
         Dimension of the output Tensor as a tuple (ndarray.shape like).
+
+    Methods
+    ----------
+    get_input_dim()
+        Abstract method that should return the input dimension or dimensions of the layer when implemented in children
+        classes.
+    get_output_dim()
+        Abstract method that should return the output dimension of the layer when implemented in children classes.
 
     """
 
-    def __init__(self, identifier: str, in_dims: List[Tuple], out_dim: Tuple):
+    def __init__(self, identifier: str, in_dims: list[tuple], out_dim: tuple):
         super().__init__(identifier)
         self.in_dims = in_dims
         self.out_dim = out_dim
@@ -53,23 +64,23 @@ class ConcreteLayerNode(LayerNode):
         return self.__repr__()
 
     @abc.abstractmethod
-    def get_input_dim(self) -> List[Tuple] | Tuple:
+    def get_input_dim(self) -> list[tuple] | tuple:
         """
         Should be implemented in children depending on whether they have one or more input dimensions.
 
         Returns
         -------
-        List[Tuple] | Tuple
+        list[tuple] | tuple
             The list of input dimensions if the layer more than one input dimension, otherwise the first element.
 
         """
         raise NotImplementedError
 
-    def get_output_dim(self) -> Tuple:
+    def get_output_dim(self) -> tuple:
         return self.out_dim
 
     @abc.abstractmethod
-    def update_input(self, in_dims: List[Tuple]):
+    def update_input(self, in_dims: list[tuple]):
         raise NotImplementedError
 
 
@@ -82,17 +93,17 @@ class ReLUNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple):
+    def __init__(self, identifier: str, in_dim: tuple):
         if len(in_dim) < 1:
             raise InvalidDimensionError("ReLUNode: in_dim cannot be empty")
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -107,7 +118,7 @@ class ELUNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, alpha: float = 1.0):
+    def __init__(self, identifier: str, in_dim: tuple, alpha: float = 1.0):
         if len(in_dim) < 1:
             raise InvalidDimensionError("ELUNode: in_dim cannot be empty")
 
@@ -118,10 +129,10 @@ class ELUNode(ConcreteLayerNode):
         self.alpha = alpha
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -136,7 +147,7 @@ class CELUNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, alpha: float = 1.0):
+    def __init__(self, identifier: str, in_dim: tuple, alpha: float = 1.0):
         if len(in_dim) < 1:
             raise InvalidDimensionError("CELUNode: in_dim cannot be empty")
 
@@ -147,10 +158,10 @@ class CELUNode(ConcreteLayerNode):
         self.alpha = alpha
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -165,7 +176,7 @@ class LeakyReLUNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, negative_slope: float = 1e-2):
+    def __init__(self, identifier: str, in_dim: tuple, negative_slope: float = 1e-2):
         if len(in_dim) < 1:
             raise InvalidDimensionError("LeakyReLUNode: in_dim cannot be empty")
 
@@ -176,10 +187,10 @@ class LeakyReLUNode(ConcreteLayerNode):
         self.negative_slope = negative_slope
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -192,17 +203,17 @@ class SigmoidNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple):
+    def __init__(self, identifier: str, in_dim: tuple):
         if len(in_dim) < 1:
             raise InvalidDimensionError("SigmoidNode: in_dim cannot be void")
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -215,17 +226,17 @@ class TanhNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple):
+    def __init__(self, identifier: str, in_dim: tuple):
         if len(in_dim) < 1:
             raise InvalidDimensionError("TanhNode: in_dim cannot be void")
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim)
 
 
@@ -248,7 +259,7 @@ class FullyConnectedNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_features: int,
+    def __init__(self, identifier: str, in_dim: tuple, out_features: int,
                  weight: Tensor = None, bias: Tensor = None, has_bias: bool = True):
 
         if len(in_dim) < 1:
@@ -297,10 +308,10 @@ class FullyConnectedNode(ConcreteLayerNode):
 
         return self.bias if self.bias.shape == (self.weight.shape[0], 1) else np.expand_dims(self.bias, 1)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.out_features, self.weight, self.bias, self.has_bias)
 
 
@@ -341,7 +352,7 @@ class BatchNormNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, weight: Tensor = None, bias: Tensor = None,
+    def __init__(self, identifier: str, in_dim: tuple, weight: Tensor = None, bias: Tensor = None,
                  running_mean: Tensor = None, running_var: Tensor = None, eps: float = 1e-5, momentum: float = 0.1,
                  affine: bool = True, track_running_stats: bool = True):
 
@@ -392,10 +403,10 @@ class BatchNormNode(ConcreteLayerNode):
         self.affine = affine
         self.track_running_stats = track_running_stats
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim,
                       self.weight, self.bias, self.running_mean, self.running_var,
                       self.eps, self.momentum, self.affine, self.track_running_stats)
@@ -417,18 +428,18 @@ class ConvNode(ConcreteLayerNode):
         Number of input channels in Conv Layer.
     out_channels : int
         Number of output channels in Conv Layer.
-    kernel_size : Tuple
+    kernel_size : tuple
         The size of the kernel. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    stride : Tuple
+    stride : tuple
         Stride along each spatial axis. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    padding : Tuple
+    padding : tuple
         Padding for the beginning and ending along each spatial axis.
         Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
-    dilation : Tuple
+    dilation : tuple
         Dilation value along each spatial axis of the filter
     groups : int
         Number of groups input channels and output channels are divided into
@@ -441,8 +452,8 @@ class ConvNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, out_channels: int,
-                 kernel_size: Tuple, stride: Tuple, padding: Tuple, dilation: Tuple, groups: int,
+    def __init__(self, identifier: str, in_dim: tuple, out_channels: int,
+                 kernel_size: tuple, stride: tuple, padding: tuple, dilation: tuple, groups: int,
                  has_bias: bool = False, bias: Tensor = None, weight: Tensor = None):
 
         if len(in_dim) < 2:
@@ -516,10 +527,10 @@ class ConvNode(ConcreteLayerNode):
         self.bias = bias
         self.weight = weight
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.out_channels,
                       self.kernel_size, self.stride, self.padding, self.dilation, self.groups,
                       self.has_bias, self.bias, self.weight)
@@ -537,13 +548,13 @@ class AveragePoolNode(ConcreteLayerNode):
 
     Attributes
     ----------
-    kernel_size : Tuple
+    kernel_size : tuple
         The size of the kernel. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    stride : Tuple
+    stride : tuple
         Stride along each spatial axis. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    padding : Tuple
+    padding : tuple
         Padding for the beginning and ending along each spatial axis.
         Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
@@ -555,8 +566,8 @@ class AveragePoolNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, kernel_size: Tuple, stride: Tuple,
-                 padding: Tuple, ceil_mode: bool = False, count_include_pad: bool = False):
+    def __init__(self, identifier: str, in_dim: tuple, kernel_size: tuple, stride: tuple,
+                 padding: tuple, ceil_mode: bool = False, count_include_pad: bool = False):
 
         if len(in_dim) < 2:
             raise InvalidDimensionError("The input dimension must be at least 2 (one for the channel and one for the "
@@ -592,10 +603,10 @@ class AveragePoolNode(ConcreteLayerNode):
         self.ceil_mode = ceil_mode
         self.count_include_pad = count_include_pad
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.kernel_size, self.stride,
                       self.padding, self.ceil_mode, self.count_include_pad)
 
@@ -612,18 +623,18 @@ class MaxPoolNode(ConcreteLayerNode):
 
     Attributes
     ----------
-    kernel_size : Tuple
+    kernel_size : tuple
         The size of the kernel. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    stride : Tuple
+    stride : tuple
         Stride along each spatial axis. Should have size equal to the number of dimension n
         (we don't count the channel dimension).
-    padding : Tuple
+    padding : tuple
         Padding for the beginning and ending along each spatial axis.
         Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
-    dilation : Tuple
+    dilation : tuple
         Dilation value along each spatial axis of the filter
     ceil_mode : bool, optional
         In order to use ceil mode. (default: False)
@@ -632,8 +643,8 @@ class MaxPoolNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, kernel_size: Tuple, stride: Tuple,
-                 padding: Tuple, dilation: Tuple, ceil_mode: bool = False, return_indices: bool = False):
+    def __init__(self, identifier: str, in_dim: tuple, kernel_size: tuple, stride: tuple,
+                 padding: tuple, dilation: tuple, ceil_mode: bool = False, return_indices: bool = False):
 
         if len(in_dim) < 2:
             raise InvalidDimensionError("The input dimension must be at least 2 (one for the channel and one for the "
@@ -675,10 +686,10 @@ class MaxPoolNode(ConcreteLayerNode):
         self.return_indices = return_indices
         self.dilation = dilation
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.kernel_size, self.stride,
                       self.padding, self.dilation, self.ceil_mode, self.return_indices)
 
@@ -700,7 +711,7 @@ class LRNNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, size: int, alpha: float = 0.0001, beta: float = 0.75,
+    def __init__(self, identifier: str, in_dim: tuple, size: int, alpha: float = 0.0001, beta: float = 0.75,
                  k: float = 1.0):
         if len(in_dim) < 2:
             raise InvalidDimensionError("The input dimension must be at least 2 (one for the channel and one for the "
@@ -713,10 +724,10 @@ class LRNNode(ConcreteLayerNode):
         self.beta = beta
         self.k = k
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.size, self.alpha, self.beta, self.k)
 
 
@@ -731,7 +742,7 @@ class SoftMaxNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, axis: int = -1):
+    def __init__(self, identifier: str, in_dim: tuple, axis: int = -1):
 
         if len(in_dim) < 1:
             raise InvalidDimensionError("in_dim cannot be void")
@@ -743,10 +754,10 @@ class SoftMaxNode(ConcreteLayerNode):
         super().__init__(identifier, [in_dim], out_dim)
         self.axis = axis
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.axis)
 
 
@@ -756,12 +767,12 @@ class UnsqueezeNode(ConcreteLayerNode):
     We follow the ONNX operator convention for attributes and definitions.
     Attributes
     ----------
-    axes : Tuple
+    axes : tuple
         List of indices at which to insert the singleton dimension.
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, axes: Tuple):
+    def __init__(self, identifier: str, in_dim: tuple, axes: tuple):
 
         if len(in_dim) < 1:
             raise InvalidDimensionError("in_dim cannot be void")
@@ -795,10 +806,10 @@ class UnsqueezeNode(ConcreteLayerNode):
 
         self.axes = axes
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.axes)
 
 
@@ -808,8 +819,8 @@ class ReshapeNode(ConcreteLayerNode):
     We follow the ONNX operator convention for attributes and definitions.
     Attributes
     ----------
-    shape : Tuple
-        Tuple which specifies the output shape
+    shape : tuple
+        tuple which specifies the output shape
     allow_zero : bool, optional
         By default, when any value in the 'shape' input is equal to zero the corresponding dimension value
         is copied from the input tensor dynamically. allowzero=1 indicates that if any value in the 'shape' input is
@@ -818,7 +829,7 @@ class ReshapeNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, shape: Tuple, allow_zero: bool = False):
+    def __init__(self, identifier: str, in_dim: tuple, shape: tuple, allow_zero: bool = False):
 
         if list(shape).count(-1) > 1:
             raise InvalidDimensionError("At most one dimension of the new shape can be -1")
@@ -846,10 +857,10 @@ class ReshapeNode(ConcreteLayerNode):
         self.shape = shape
         self.allow_zero = allow_zero
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.shape, self.allow_zero)
 
 
@@ -868,7 +879,7 @@ class FlattenNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, axis: int = 0):
+    def __init__(self, identifier: str, in_dim: tuple, axis: int = 0):
         if not (-len(in_dim) <= axis <= len(in_dim)):
             raise InvalidDimensionError(f"Axis must be in [{-len(in_dim)}, {len(in_dim)}]")
 
@@ -884,10 +895,10 @@ class FlattenNode(ConcreteLayerNode):
         super().__init__(identifier, [in_dim], out_dim)
         self.axis = axis
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.axis)
 
 
@@ -902,17 +913,17 @@ class DropoutNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, p: float = 0.5):
+    def __init__(self, identifier: str, in_dim: tuple, p: float = 0.5):
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
         if not (0 <= p <= 1):
             raise OutOfRangeError(p, 0, 1)
         self.p = p
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.p)
 
 
@@ -927,7 +938,7 @@ class TransposeNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dim: Tuple, perm: list = None):
+    def __init__(self, identifier: str, in_dim: tuple, perm: list = None):
 
         if perm is None:
             perm = [i for i in range(len(in_dim) - 1, -1, -1)]
@@ -940,10 +951,10 @@ class TransposeNode(ConcreteLayerNode):
 
         super().__init__(identifier, [in_dim], out_dim)
 
-    def get_input_dim(self) -> Tuple:
+    def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: Tuple):
+    def update_input(self, in_dim: tuple):
         self.__init__(self.identifier, in_dim, self.perm)
 
 
@@ -961,7 +972,7 @@ class ConcatNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dims: List[Tuple], axis: int = -1):
+    def __init__(self, identifier: str, in_dims: list[tuple], axis: int = -1):
 
         if axis < 0:
             jolly_dim = len(in_dims[0]) + axis
@@ -992,10 +1003,10 @@ class ConcatNode(ConcreteLayerNode):
 
         super().__init__(identifier, in_dims, out_dim)
 
-    def get_input_dim(self) -> List[Tuple]:
+    def get_input_dim(self) -> list[tuple]:
         return self.in_dims
 
-    def update_input(self, in_dims: List[Tuple]):
+    def update_input(self, in_dims: list[tuple]):
         self.__init__(self.identifier, in_dims, self.axis)
 
 
@@ -1007,7 +1018,7 @@ class SumNode(ConcreteLayerNode):
 
     """
 
-    def __init__(self, identifier: str, in_dims: List[Tuple]):
+    def __init__(self, identifier: str, in_dims: list[tuple]):
 
         for in_dim in in_dims:
 
@@ -1022,8 +1033,8 @@ class SumNode(ConcreteLayerNode):
 
         super().__init__(identifier, in_dims, out_dim)
 
-    def get_input_dim(self) -> List[Tuple]:
+    def get_input_dim(self) -> list[tuple]:
         return self.in_dims
 
-    def update_input(self, in_dims: List[Tuple]):
+    def update_input(self, in_dims: list[tuple]):
         self.__init__(self.identifier, in_dims)

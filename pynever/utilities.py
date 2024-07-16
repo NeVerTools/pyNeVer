@@ -7,6 +7,7 @@ import numpy
 import torch
 
 import pynever.networks as networks
+from pynever import tensors
 from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
 from pynever.tensors import Tensor
 
@@ -39,4 +40,4 @@ def execute_network(network: networks.NeuralNetwork, net_input: Tensor) -> Tenso
 
     output = py_net.pytorch_network(input_t.float().permute(*torch.arange(input_t.ndim - 1, -1, -1)))
 
-    return output.detach().numpy().T
+    return tensors.array(output.detach().numpy().T)

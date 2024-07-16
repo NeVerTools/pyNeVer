@@ -5,7 +5,6 @@ from copy import deepcopy
 
 import onnx
 import torch
-from multipledispatch import dispatch
 
 import pynever.networks as networks
 
@@ -44,20 +43,36 @@ class ONNXNetwork(AlternativeRepresentation):
 
     """
 
-    # @dispatch(str, str)
-    def __init__(self, path: str, identifier: str | None = None):
-        super().__init__(path, identifier)
+    def __init__(self, *args):
+        path = None
+        onnx_network = None
+        if len(args) == 1:
+            if isinstance(args[0], str):
+                path = args[0]
+                super().__init__(path, None)
+        if len(args) == 2:
+            if isinstance(args[0], str):
+                path = args[0]
+                if isinstance(args[1], str or None):
+                    identifier = args[1]
+                    super().__init__(path, identifier)
+            if isinstance(args[0], onnx.ModelProto):
+                onnx_network = args[0]
+                if isinstance(args[1], str or None):
+                    identifier = args[1]
+                    super().__init__('', identifier)
 
-        try:
-            self.onnx_network = onnx.load(path)
-        except Exception:  # TODO mettere eccezione corretta
-            raise ValueError('Incorrect file format for ONNX network')
+        if path is not None:
+            try:
+                self.onnx_network = onnx.load(path)
+            except Exception:  # TODO mettere eccezione corretta
+                raise ValueError('Incorrect file format for ONNX network')
 
-    # @dispatch(onnx.ModelProto, str)
-    # def __init__(self, onnx_network: onnx.ModelProto, identifier):
-    #     super().__init__('', identifier)
-    #
-    #     self.onnx_network = deepcopy(onnx_network)
+        if onnx_network is not None:
+            self.onnx_network = deepcopy(onnx_network)
+
+        if path is None and onnx_network is None:
+            raise Exception('Incorrect parameters passed to constructor')
 
     def save(self, new_path: str):
         onnx.save(self.onnx_network, new_path)
@@ -75,18 +90,36 @@ class PyTorchNetwork(AlternativeRepresentation):
 
     """
 
-    # @dispatch(str, str)
-    # def __init__(self, path: str, identifier: str | None = None):
-    #     super().__init__(path, identifier)
-    #     try:
-    #         self.pytorch_network = torch.load(path)
-    #     except Exception:  # TODO mettere eccezione corretta
-    #         raise ValueError('Incorrect file format for PyTorch network')
+    def __init__(self, *args):
+        path = None
+        pytorch_network = None
+        if len(args) == 1:
+            if isinstance(args[0], str):
+                path = args[0]
+                super().__init__(path, None)
+        if len(args) == 2:
+            if isinstance(args[0], str):
+                path = args[0]
+                if isinstance(args[1], str or None):
+                    identifier = args[1]
+                    super().__init__(path, identifier)
+            if isinstance(args[0], onnx.ModelProto):
+                pytorch_network = args[0]
+                if isinstance(args[1], str or None):
+                    identifier = args[1]
+                    super().__init__('', identifier)
 
-    # @dispatch(str, torch.nn.Module)
-    def __init__(self, identifier: str, pytorch_network: torch.nn.Module):
-        super().__init__('', identifier)
-        self.pytorch_network = deepcopy(pytorch_network)
+        if path is not None:
+            try:
+                self.pytorch_network = torch.load(path)
+            except Exception:  # TODO mettere eccezione corretta
+                raise ValueError('Incorrect file format for PyTorch network')
+
+        if pytorch_network is not None:
+            self.pytorch_network = deepcopy(pytorch_network)
+
+        if path is None and pytorch_network is None:
+            raise Exception('Incorrect parameters passed to constructor')
 
     def save(self, new_path: str):
         torch.save(self.pytorch_network, new_path)
