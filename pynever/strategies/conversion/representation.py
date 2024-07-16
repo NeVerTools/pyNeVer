@@ -2,10 +2,10 @@ import abc
 import copy
 import os
 from abc import abstractmethod
-from copy import deepcopy
 
 import onnx
 import torch
+from multipledispatch import dispatch
 
 import pynever.networks as networks
 
@@ -44,37 +44,20 @@ class ONNXNetwork(AlternativeRepresentation):
 
     """
 
-    def __init__(self, *args):
-        """
-        Two possible init methods:
+    @dispatch(str)
+    def __init__(self, path: str):
+        super().__init__(path)
 
-        1. Path-based: the network is loaded from the path (len(args) == 1)
-        2. Representation-based: the network is initialized with an identifier and a model (len(args) == 2)
+        try:
+            self.onnx_network = onnx.load(self.path)
+        except Exception:
+            raise ValueError('Incorrect file for ONNX network')
 
-        """
+    @dispatch(str, onnx.ModelProto)
+    def __init__(self, identifier: str, model: onnx.ModelProto):
+        super().__init__(f'{identifier}.onnx', identifier)
 
-        self.onnx_network = None
-
-        if len(args) == 1:
-            """ The network is loaded from a path """
-            if isinstance(args[0], str):
-                super().__init__(args[0])
-                self.onnx_network = onnx.load(self.path)
-
-            else:
-                raise ValueError('Incorrect path constructor')
-
-        elif len(args) == 2:
-            """ The network is loaded from a model """
-            if isinstance(args[0], str) and isinstance(args[1], onnx.ModelProto):
-                super().__init__(f'{args[0]}.onnx', args[0])
-                self.onnx_network = copy.deepcopy(args[1])
-
-            else:
-                raise ValueError('Incorrect model constructor')
-
-        else:
-            raise Exception('Incorrect parameters passed to constructor')
+        self.onnx_network = copy.deepcopy(model)
 
     def save(self, new_path: str):
         onnx.save(self.onnx_network, new_path)
@@ -92,37 +75,20 @@ class PyTorchNetwork(AlternativeRepresentation):
 
     """
 
-    def __init__(self, *args):
-        """
-        Two possible init methods:
+    @dispatch(str)
+    def __init__(self, path: str):
+        super().__init__(path)
 
-        1. Path-based: the network is loaded from the path (len(args) == 1)
-        2. Representation-based: the network is initialized with an identifier and a model (len(args) == 2)
+        try:
+            self.pytorch_network = torch.load(self.path)
+        except Exception:
+            raise ValueError('Incorrect file for ONNX network')
 
-        """
+    @dispatch(str, torch.nn.Module)
+    def __init__(self, identifier: str, model: torch.nn.Module):
+        super().__init__(f'{identifier}.pt', identifier)
 
-        self.pytorch_network = None
-
-        if len(args) == 1:
-            """ The network is loaded from a path """
-            if isinstance(args[0], str):
-                super().__init__(args[0])
-                self.pytorch_network = torch.load(self.path, weights_only=True)
-
-            else:
-                raise ValueError('Incorrect path constructor')
-
-        elif len(args) == 2:
-            """ The network is loaded from a model """
-            if isinstance(args[0], str) and isinstance(args[1], torch.nn.Module):
-                super().__init__(f'{args[0]}.pt', args[0])
-                self.pytorch_network = copy.deepcopy(args[1])
-
-            else:
-                raise ValueError('Incorrect model constructor')
-
-        else:
-            raise Exception('Incorrect parameters passed to constructor')
+        self.pytorch_network = copy.deepcopy(model)
 
     def save(self, new_path: str):
         torch.save(self.pytorch_network, new_path)
