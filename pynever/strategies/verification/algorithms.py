@@ -202,12 +202,16 @@ class SSBPVerification(VerificationStrategy):
 
         self.logger = LOGGER
 
-    def init_search(self) -> tuple[ExtendedStar, HyperRectangleBounds, dict]:
+    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
+            -> tuple[ExtendedStar, HyperRectangleBounds, dict]:
         """
         Initialize the search algorithm and compute the
         starting values for the bounds, the star and the target
 
         """
+
+        self.network = network
+        self.prop = prop
 
         star0 = self.prop.to_input_star()
         star0 = ExtendedStar(LinearFunctions(star0.predicate_matrix, star0.predicate_bias),
@@ -279,11 +283,11 @@ class SSBPVerification(VerificationStrategy):
             case RefinementStrategy.LOWEST_APPROX:
                 return ssbp_split.get_target_lowest_overapprox(star, nn_bounds, self.network)
 
-            case RefinementStrategy.INPUT_BOUNDS_CHANGE:
-                return ssbp_split.get_target_most_input_change(star, nn_bounds, self.network)
-
             case RefinementStrategy.LOWEST_APPROX_CURRENT_LAYER:
                 return ssbp_split.get_target_lowest_overapprox_current_layer(star, nn_bounds, self.network)
+
+            case RefinementStrategy.INPUT_BOUNDS_CHANGE:
+                return ssbp_split.get_target_most_input_change(star, nn_bounds, self.network)
 
             case _:
                 raise NotImplementedError('Only sequential refinement supported')
@@ -308,17 +312,16 @@ class SSBPVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork):
-            self.network = network
-            self.prop = prop
             in_star, input_bounds, in_bounds = self.init_search()
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
+        n_unstable = len(in_bounds['stability_info'][bm.StabilityInfo.UNSTABLE])
         self.logger.info(f"Started {datetime.datetime.now()}\n"
                          f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
                          f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n"
                          f"    Stable count: {in_bounds['stable_count']}\n"
-                         f"    Stable ratio: {in_bounds['stable_count']/(in_bounds['stable_count'] + len(in_bounds['stability_info'][bm.StabilityInfo.UNSTABLE]))}\n"
+                         f"    Stable ratio: {in_bounds['stable_count'] / (in_bounds['stable_count'] + n_unstable)}\n"
                          f"\n")
 
         # Frontier is a stack of tuples (ExtendedStar, dict)
@@ -329,33 +332,16 @@ class SSBPVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
-        # # Workers entry point
-        # with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-        #     # Timeout management
-        #
-        #     # Queue management
-
         node_counter = 0
 
         while len(frontier) > 0 and not stop_flag:
-            if node_counter == 1546:
-                x = 5
 
-            # import datetime
-            # self.logger.info(f"{datetime.datetime.now()} Start of the loop")
             current_star, nn_bounds = frontier.pop()
-            self.logger.info(f"Node {node_counter}. Frontier size {len(frontier)+1}. "
+            self.logger.info(f"Node {node_counter}. Frontier size {len(frontier) + 1}. "
                              f"Depth {len(current_star.fixed_neurons)}. "
                              f"Stable count {nn_bounds['stable_count']}")
 
             intersects, candidate_cex = self.compute_intersection(current_star, nn_bounds)
-            # self.logger.info(f"{datetime.datetime.now()} Intersection computed")
-
-            # if len(network.get_first_node().get_input_dim()) != candidate_cex.shape:
-            #     # Reshape counterexample
-            #     candidate_cex = candidate_cex.reshape((1,) + network.get_first_node().get_input_dim())
-            #     candidate_cex = candidate_cex.transpose((2, 3, 1, 0))
-
 
             if intersects:
                 # Check if the answer is a valid counter-example
@@ -364,7 +350,8 @@ class SSBPVerification(VerificationStrategy):
                     # Found a counterexample. Can stop here
                     self.logger.info('Counterexample in branch {}.\n'
                                      'Explored nodes {}.\n'
-                                     'Execution time: {:.5f} s'.format(current_star.fixed_neurons, node_counter, timer))
+                                     'Execution time: {:.5f} s'.format(current_star.fixed_neurons,
+                                                                       node_counter, timer))
                     return False, candidate_cex
 
                 else:
@@ -377,17 +364,18 @@ class SSBPVerification(VerificationStrategy):
                         frontier.extend(
                             ssbp_split.split_star_opt(current_star, target, self.network, nn_bounds)
                         )
-                        # self.logger.info(f"{datetime.datetime.now()} Split computed")
+
                     else:
                         # There is no more refinement to do, i.e., all neurons have been fixed.
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
-                        # So there can be some overapproximation.
+                        # So there can be some over-approximation.
                         # We should detect and throw more exact intersection check
-                        # pass
+
                         input_bounds = nn_bounds['numeric_pre'][self.network.get_first_node().identifier]
 
                         self.logger.info(f"\tBranch {current_star.fixed_neurons} is inconsistent with bounds, "
                                          f"input {input_bounds.get_lower()} {input_bounds.get_upper()}")
+
                         raise Exception("This point should not be reachable")
 
             else:
@@ -405,6 +393,7 @@ class SSBPVerification(VerificationStrategy):
         if stop_flag:
             self.logger.info(' ----- TIMEOUT -----\nExecution time: {:.5f} s'.format(timer))
             return False, None
+
         else:
             self.logger.info(' ----- SAFE -----\n'
                              'Explored nodes {}.\n'
