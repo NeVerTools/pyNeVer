@@ -51,6 +51,9 @@ class RefinementStrategy(enum.Enum):
     This class is used as an enumerator to represent different refinement strategies.
 
     - sequential refinement refines each neuron in the order they appear in the network
+    - lowest approx selects the neuron that contributes with the lowest approximation
+    - lowest approx - current layer selects the neuron that contributes with the lowest approximation in the layer
+    - input bounds change selects the neuron that contributes most to change the input bounds when refined
 
     """
 
@@ -60,12 +63,12 @@ class RefinementStrategy(enum.Enum):
     INPUT_BOUNDS_CHANGE = 4
 
 
-class PropagationStrategy(enum.Enum):
+class IntersectionStrategy(enum.Enum):
     """
-    This class is used as an enumerator to represent different propagation strategies.
+    This class is used as an enumerator to represent different intersection strategies.
 
-    - star with LP propagates the star abstraction
-    - bounds propagates the symbolic bounds
+    - star with LP propagates the star abstraction and uses an LP to check for an intersection
+    - adaptive uses different (precise or approximate) intersection checks based on the state of the search
 
     """
 

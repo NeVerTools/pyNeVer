@@ -17,7 +17,7 @@ from pynever.strategies.bounds_propagation.linearfunctions import LinearFunction
 from pynever.strategies.verification import LOGGER
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
-from pynever.strategies.verification.ssbp.constants import BoundsBackend, PropagationStrategy, RefinementTarget, \
+from pynever.strategies.verification.ssbp.constants import BoundsBackend, IntersectionStrategy, RefinementTarget, \
     RefinementStrategy
 from pynever.tensors import Tensor
 
@@ -251,11 +251,11 @@ class SSBPVerification(VerificationStrategy):
 
         """
 
-        match self.parameters.propagation:
-            case PropagationStrategy.STAR_LP:
+        match self.parameters.intersection:
+            case IntersectionStrategy.STAR_LP:
                 return ssbp_intersect.intersect_star_lp(star, self.prop, self.network, nn_bounds)
 
-            case PropagationStrategy.ADAPTIVE:
+            case IntersectionStrategy.ADAPTIVE:
                 intersects, candidate = ssbp_intersect.intersect_adaptive(star, self.network, nn_bounds, self.prop)
                 cex = None if len(candidate) == 0 else Tensor(np.array(candidate))
 

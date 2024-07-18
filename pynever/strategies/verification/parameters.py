@@ -1,6 +1,6 @@
 import abc
 
-from pynever.strategies.verification.ssbp.constants import RefinementStrategy, BoundsBackend, PropagationStrategy
+from pynever.strategies.verification.ssbp.constants import RefinementStrategy, BoundsBackend, IntersectionStrategy
 
 
 # TODO add documentation
@@ -10,7 +10,8 @@ class VerificationParameters(abc.ABC):
 
 
 class SSLPVerificationParameters(VerificationParameters):
-    def __init__(self, heuristic: str, neurons_to_refine: list | None = None,
+    def __init__(self, heuristic: str = 'complete',
+                 neurons_to_refine: list | None = None,
                  approx_levels: int | list[int] | None = None):
         if heuristic not in ['overapprox', 'complete', 'mixed']:
             raise Exception(f'Selected heuristic {heuristic} is not valid')
@@ -29,9 +30,9 @@ class SSBPVerificationParameters(VerificationParameters):
     def __init__(self,
                  heuristic: RefinementStrategy = RefinementStrategy.INPUT_BOUNDS_CHANGE,
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,
-                 propagation: PropagationStrategy = PropagationStrategy.ADAPTIVE,
+                 intersection: IntersectionStrategy = IntersectionStrategy.ADAPTIVE,
                  timeout: int = 1200):
         self.heuristic = heuristic
         self.bounds = bounds
-        self.propagation = propagation
+        self.intersection = intersection
         self.timeout = timeout
