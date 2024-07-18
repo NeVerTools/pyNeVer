@@ -41,3 +41,7 @@ class NotInNetworkError(Exception):
 class NonOptimalLPError(Exception):
     def __init__(self, message='The LP problem was not Optimal'):
         super().__init__(message)
+
+
+class FixedConflictWithBounds(Exception):
+    pass

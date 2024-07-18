@@ -1,9 +1,7 @@
-import datetime
 from enum import Enum
 
-import numpy as np
-
 from pynever import nodes
+from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
@@ -27,13 +25,9 @@ class NeuronSplit(Enum):
 
 
 class StabilityInfo(Enum):
-    INACTIVE = 0
-    ACTIVE = 1
+    ACTIVE = 0
+    INACTIVE = 1
     UNSTABLE = 2
-
-
-class FixedConflictWithBounds(Exception):
-    pass
 
 
 class BoundsManager:
@@ -118,10 +112,8 @@ class BoundsManager:
 
         return self.compute_bounds(input_hyper_rect, network)
 
-
     @staticmethod
     def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
-        #LOGGER.debug(f"{datetime.datetime.now()} ================================= COMPUTING REFINES INPUT BY =====================================")
         input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
 
         differences = list()
@@ -144,7 +136,6 @@ class BoundsManager:
                 differences.append(((layer_id, neuron_n), diff))
 
         differences = sorted(differences, key=lambda x: x[1], reverse=True)
-        #LOGGER.debug(f"{datetime.datetime.now()} ============================== FINISHED COMPUTING REFINES INPUT BY ==============================")
         return differences
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
@@ -153,7 +144,7 @@ class BoundsManager:
         # return self.compute_bounds_forwards(input_hyper_rect, network, fixed_neurons)
 
     def compute_bounds_forwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                       fixed_neurons: dict = dict()) -> dict:
+                                fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -228,7 +219,7 @@ class BoundsManager:
                                                  current_layer_inactive)
 
                 stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
-                                                                         stability_info, overapprox_area)
+                                                               stability_info, overapprox_area)
 
                 # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
 
@@ -274,7 +265,7 @@ class BoundsManager:
         }
 
     def compute_bounds_backwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                               fixed_neurons: dict = dict()) -> dict:
+                                 fixed_neurons: dict = dict()) -> dict:
         """
         Given input hyper rectangle bounds, propagates them through the NN
         using forward symbolic bound propagation and
@@ -321,9 +312,11 @@ class BoundsManager:
                 layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_equation, layer_equation)
 
                 lower_eq_from_input, lower_bounds = (
-                    self._get_equation_from_input(network, layer.identifier, "lower", layer2layer_equations, input_hyper_rect))
+                    self._get_equation_from_input(network, layer.identifier, "lower", layer2layer_equations,
+                                                  input_hyper_rect))
                 upper_eq_from_input, upper_bounds = (
-                    self._get_equation_from_input(network, layer.identifier, "upper", layer2layer_equations, input_hyper_rect))
+                    self._get_equation_from_input(network, layer.identifier, "upper", layer2layer_equations,
+                                                  input_hyper_rect))
 
                 cur_layer_output_num_bounds = HyperRectangleBounds(lower_bounds, upper_bounds)
                 cur_layer_output_eq = SymbolicLinearBounds(lower_eq_from_input, upper_eq_from_input)
@@ -431,12 +424,12 @@ class BoundsManager:
         for neuron_n in current_layer_active:
             if preact_bounds.upper[neuron_n] < 0:
                 raise FixedConflictWithBounds("A neuron has been fixed to be positive, "
-                                            "but the bounds are negative. The current branch is not viable.")
+                                              "but the bounds are negative. The current branch is not viable.")
 
         for neuron_n in current_layer_inactive:
             if preact_bounds.lower[neuron_n] > 0:
                 raise FixedConflictWithBounds("A neuron has been fixed to be negative, "
-                                            "but the bounds are positive. The current branch is not viable.")
+                                              "but the bounds are positive. The current branch is not viable.")
             if preact_bounds.upper[neuron_n] > 0:
                 new_eq.lower.matrix[neuron_n] = 0 * new_eq.lower.matrix[neuron_n]
                 new_eq.lower.offset[neuron_n] = 0
@@ -449,8 +442,10 @@ class BoundsManager:
 
     @staticmethod
     def compute_relu_equation(preact_num_lower, preact_num_upper):
-        lower_relu_eq, postact_lower = BoundsManager.get_relu_relax_lower_bound_equation(preact_num_lower, preact_num_upper)
-        upper_relu_eq, postact_upper = BoundsManager.get_relu_relax_upper_bound_equation(preact_num_lower, preact_num_upper)
+        lower_relu_eq, postact_lower = BoundsManager.get_relu_relax_lower_bound_equation(preact_num_lower,
+                                                                                         preact_num_upper)
+        upper_relu_eq, postact_upper = BoundsManager.get_relu_relax_upper_bound_equation(preact_num_lower,
+                                                                                         preact_num_upper)
         return SymbolicLinearBounds(lower_relu_eq, upper_relu_eq), HyperRectangleBounds(postact_lower, postact_upper)
 
     @staticmethod
@@ -483,12 +478,12 @@ class BoundsManager:
                 k = preact_upper_bounds[i] / (preact_upper_bounds[i] - preact_lower_bounds[i])
                 matrix[i][i] = k
                 postact_lower_bounds[i] *= k
-            else: # upper[i] <= 0 (inactive node)
-                  # or
-                  # -lower[i] > upper[i]
+            else:  # upper[i] <= 0 (inactive node)
+                # or
+                # -lower[i] > upper[i]
                 # lower bound is 0
-                  matrix[i][i] = 0
-                  postact_lower_bounds[i] = 0
+                matrix[i][i] = 0
+                postact_lower_bounds[i] = 0
 
         return LinearFunctions(matrix, offset), postact_lower_bounds
 
@@ -517,13 +512,12 @@ class BoundsManager:
                 k = preact_upper_bounds[i] / (preact_upper_bounds[i] - preact_lower_bounds[i])
                 matrix[i][i] = k
                 offset[i] = - preact_lower_bounds[i] * k
-            else: # preact_upper_bounds[i] <= 0 (inactive node)
+            else:  # preact_upper_bounds[i] <= 0 (inactive node)
                 # The upper bound is 0
                 matrix[i][i] = 0
                 postact_upper_bounds[i] = 0
 
         return LinearFunctions(matrix, offset), postact_upper_bounds
-
 
     def _get_equation_from_input(self, network, layer_id, end, symbolic_bounds, input_bounds):
         """
@@ -636,7 +630,8 @@ class BoundsManager:
         """
 
         self.logger.debug("\tTarget {} "
-                          "Overapprox. area {:10.4}".format(target, pre_branch_bounds['overapproximation_area']['map'][target.to_pair()]))
+                          "Overapprox. area {:10.4}".format(target, pre_branch_bounds['overapproximation_area']['map'][
+            target.to_pair()]))
 
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
 
@@ -696,7 +691,7 @@ class BoundsManager:
     def bisect_an_input_dimension(input_bounds):
         diff = input_bounds.get_upper() - input_bounds.get_lower()
         widest_dim = np.argmax(diff)
-        mid = diff[widest_dim]/2
+        mid = diff[widest_dim] / 2
 
         lower_half = input_bounds.clone()
         upper_half = input_bounds.clone()
@@ -705,7 +700,6 @@ class BoundsManager:
         upper_half.lower[widest_dim] = lower_half.upper[widest_dim]
 
         return lower_half, upper_half
-
 
     @staticmethod
     def refine_input_bounds_after_split(pre_branch_bounds: dict, nn: SequentialNetwork,
@@ -1183,7 +1177,8 @@ class BoundsManager:
             # -infinity <= eq <= 0
             worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n], 'c[%i]' % constr_n)
             for input_var_n in range(n_input_dimensions):
-                worker_constraints[constr_n].SetCoefficient(input_vars[input_var_n], equations.matrix[constr_n][input_var_n])
+                worker_constraints[constr_n].SetCoefficient(input_vars[input_var_n],
+                                                            equations.matrix[constr_n][input_var_n])
 
         ## The actual optimisation part
         new_input_bounds = input_bounds.clone()
@@ -1397,7 +1392,7 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: 
 
 def compute_fixed_but_unstable_wrt_bounds(bounds: dict, fixed_neurons: dict) -> dict:
     return {(layer_id, neuron_n): value for (layer_id, neuron_n), value in fixed_neurons.items()
-                                        if (layer_id, neuron_n) in bounds['stability_info'][StabilityInfo.UNSTABLE]}
+            if (layer_id, neuron_n) in bounds['stability_info'][StabilityInfo.UNSTABLE]}
 
 
 def compute_stable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: dict) -> set:
