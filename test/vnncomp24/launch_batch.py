@@ -11,7 +11,7 @@ import pynever.strategies.verification.algorithms as veralgs
 import pynever.strategies.verification.parameters as verparams
 from pynever.tensors import Tensor
 
-BENCHMARKS_PATH = '../../examples/benchmarks'
+BENCHMARKS_PATH = '../../examples'
 
 logger_stream = logging.getLogger("pynever.strategies.verification")
 logger_stream.addHandler(logging.StreamHandler())
@@ -109,4 +109,4 @@ def launch_instances(instances_file: str):
 
 
 if __name__ == '__main__':
-    launch_instances(f'{BENCHMARKS_PATH}/RL/instances.csv')
+    launch_instances(f'{BENCHMARKS_PATH}/test/instances.csv')
