@@ -7,27 +7,30 @@ import enum
 from collections.abc import Iterable
 
 import numpy
-import torch
 from numpy.typing import ArrayLike
 
 
 class BackEnd(enum.Enum):
     """Support for possible multiple backends"""
     NUMPY = 0
-    PYTORCH = 1
 
 
 class Tensor(numpy.ndarray):
-    """Our internal representation of a Tensor. It's a different type of tensor depending on the chosen backend."""
+    """Our internal representation of a Tensor. Right now it just a placeholder."""
 
-    def __new__(cls, t: numpy.ndarray | torch.Tensor):
-        match BACKEND:
-            case BACKEND.NUMPY:
-                return numpy.array(t)
-            case BACKEND.PYTORCH:
-                return torch.Tensor(t)
-            case _:
-                raise NotImplementedError
+    def __new__(cls, t: numpy.ndarray):
+        obj = numpy.asarray(t).view(cls)
+        # If attributes are added they should be added here
+        # The following is an example with an info attribute
+        # obj.info = "value"
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # If attributes are added they should be also initialized here
+        # The following is an example with an info attribute
+        # self.info = getattr(obj, 'info', None)
 
 
 # TODO move to configuration file
@@ -56,8 +59,6 @@ def random_uniform(low: float | int, high: float | int, size: int | Iterable | t
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
-        case BackEnd.PYTORCH:
-            return Tensor((high - low) * torch.rand(size=size) + low)
         case _:
             raise NotImplementedError
 
@@ -81,8 +82,6 @@ def ones(shape: tuple[int], dtype=float) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.ones(shape=shape, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.ones(size=shape))
         case _:
             raise NotImplementedError
 
@@ -106,8 +105,6 @@ def zeros(shape: tuple, dtype=float) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.zeros(shape=shape, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.zeros(size=shape))
         case _:
             raise NotImplementedError
 
@@ -136,8 +133,6 @@ def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tenso
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.prod(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
 
@@ -159,8 +154,6 @@ def sqrt(in_tensor: Tensor) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.sqrt(in_tensor))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.sqrt(in_tensor))
         case _:
             raise NotImplementedError
 
@@ -184,8 +177,6 @@ def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.reshape(a=in_tensor, newshape=new_shape))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.reshape(input=in_tensor, shape=new_shape))
         case _:
             raise NotImplementedError
 
@@ -207,8 +198,6 @@ def array(array_like: ArrayLike) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.array(array_like))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.Tensor(array_like))
         case _:
             raise NotImplementedError
 
@@ -235,8 +224,6 @@ def loadtxt(fname: str, dtype=float, delimiter: str = ' ') -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(np_a)
-        case BackEnd.PYTORCH:
-            return Tensor(torch.from_numpy(np_a))
         case _:
             raise NotImplementedError
 
@@ -263,8 +250,6 @@ def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().normal(loc=mean, scale=std, size=size))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.normal(mean=mean, std=std, size=size))
         case _:
             raise NotImplementedError
 
@@ -288,8 +273,6 @@ def identity(n: int, dtype=float) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.identity(n=n, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.eye(n=n))
         case _:
             raise NotImplementedError
 
@@ -313,8 +296,6 @@ def matmul(x1: Tensor, x2: Tensor) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.matmul(x1, x2))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.matmul(x1, x2))
         case _:
             raise NotImplementedError
 
@@ -338,8 +319,6 @@ def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = Non
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.all(a=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.all(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
 
@@ -363,8 +342,6 @@ def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Te
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().standard_normal(size=size, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.normal(mean=0, std=1, size=size))
         case _:
             raise NotImplementedError
 
@@ -415,8 +392,6 @@ def reduce_min(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdim
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.min(a=in_tensor, axis=axis, keepdims=keepdims))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.min(input=in_tensor, dim=axis, keepdim=keepdims))
         case _:
             raise NotImplementedError
 
@@ -442,8 +417,6 @@ def reduce_max(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdim
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.max(a=in_tensor, axis=axis, keepdims=keepdims))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.max(input=in_tensor, dim=axis, keepdim=keepdims))
         case _:
             raise NotImplementedError
 
@@ -467,8 +440,6 @@ def argmax(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.argmax(a=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.argmax(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
 
@@ -492,8 +463,6 @@ def argmin(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.argmin(a=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.argmin(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
 
@@ -520,8 +489,6 @@ def where(condition: Tensor | Iterable | float | int | bool,
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.where(condition, x, y))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.where(condition, x, y))
         case _:
             raise NotImplementedError
 
@@ -543,8 +510,6 @@ def vstack(tup: tuple[Tensor]) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.vstack(tup))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.vstack(tup))
         case _:
             raise NotImplementedError
 
@@ -566,8 +531,6 @@ def hstack(tup: tuple[Tensor]) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.hstack(tup))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.hstack(tup))
         case _:
             raise NotImplementedError
 
@@ -592,8 +555,6 @@ def stack(arrays: Iterable[Tensor], axis: int = 0) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.stack(arrays, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.stack(arrays, axis))
         case _:
             raise NotImplementedError
 
@@ -617,8 +578,6 @@ def flip(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> 
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.flip(m=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.flip(input=in_tensor, dims=axis))
         case _:
             raise NotImplementedError
 
@@ -642,13 +601,10 @@ def argsort(in_tensor: Tensor, axis: int = -1) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.argsort(a=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.argsort(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
 
 
-# TODO torch does not support endpoint and axis
 def linspace(start: Tensor | Iterable | int | float, stop: Tensor | Iterable | int | float,
              num: int = 50, endpoint: bool = True, axis: int = 0) -> Tensor:
     """Generates `num` evenly spaced values between `start` and `stop`.
@@ -675,8 +631,6 @@ def linspace(start: Tensor | Iterable | int | float, stop: Tensor | Iterable | i
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.linspace(start=start, end=stop, steps=num))
         case _:
             raise NotImplementedError
 
@@ -698,7 +652,5 @@ def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.expand_dims(a=in_tensor, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.expand(input=in_tensor, dim=axis))
         case _:
             raise NotImplementedError
