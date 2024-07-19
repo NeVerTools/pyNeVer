@@ -2,13 +2,11 @@ import abc
 import math
 
 import torch
-import torch.nn as nn
 
-import pynever.datasets as datasets
-import pynever.networks as networks
-import pynever.pytorch_layers as ptl
-import pynever.strategies.conversion as cv
-import pynever.strategies.training as training
+from pynever import networks, datasets
+from pynever.strategies import training
+from pynever.strategies.conversion.converters import pytorch_layers as ptl
+from pynever.strategies.conversion.representation import PyTorchNetwork
 
 
 class PruningStrategy(abc.ABC):
@@ -64,13 +62,13 @@ class WPTransform:
         self.fine_tuning = fine_tuning
         self.cuda = cuda
 
-    def __call__(self, net: cv.PyTorchNetwork):
+    def __call__(self, net: PyTorchNetwork):
 
         if self.fine_tuning:
 
             for m in net.pytorch_network.modules():
 
-                if isinstance(m, nn.Linear):
+                if isinstance(m, torch.nn.Linear):
                     weight_copy = m.weight.data.abs().clone()
                     if self.cuda:
                         mask = weight_copy.gt(0).float().cuda()
@@ -82,7 +80,7 @@ class WPTransform:
 
             for m in net.pytorch_network.modules():
 
-                if isinstance(m, nn.Linear):
+                if isinstance(m, torch.nn.Linear):
                     m.weight.grad.data.add_(self.l1_decay * torch.sign(m.weight.data))
 
 
@@ -106,11 +104,11 @@ class NSTransform:
         self.fine_tuning = fine_tuning
         self.cuda = cuda
 
-    def __call__(self, net: cv.PyTorchNetwork):
+    def __call__(self, net: PyTorchNetwork):
 
         if not self.fine_tuning:
             for m in net.pytorch_network.modules():
-                if isinstance(m, nn.BatchNorm1d):
+                if isinstance(m, torch.nn.BatchNorm1d):
                     m.weight.grad.data.add_(self.batchnorm_decay * torch.sign(m.weight.data))
 
 
@@ -118,7 +116,7 @@ class WeightPruning(PruningStrategy):
     """
     A concrete class used to represent the weight pruning strategy.
     This kind of pruning select the least important weights of the neural network
-    of interest and set them to 0. It assume vectorial input for the linear layers.
+    of interest and set them to 0. It assumes vectorial input for the linear layers.
     We refer to https://arxiv.org/abs/1506.02626 for theoretical details on the strategy.
 
     Attributes
@@ -169,26 +167,17 @@ class WeightPruning(PruningStrategy):
         """
 
         if self.training_strategy is not None and self.pre_training:
-            fine_tuning = self.training_strategy.network_transform.fine_tuning
+            fine_tuning = self.training_strategy.fine_tuning
             self.training_strategy.fine_tuning = False
             network = self.training_strategy.train(network, dataset)
             self.training_strategy.network_transform.fine_tuning = fine_tuning
-
-        pytorch_converter = cv.PyTorchConverter()
-        py_net = pytorch_converter.from_neural_network(network)
-
-        py_net = self.__pruning(py_net)
-
-        network.alt_rep_cache.clear()
-        network.alt_rep_cache.append(py_net)
-        network.up_to_date = False
 
         if self.training_strategy is not None and self.training_strategy.fine_tuning:
             network = self.training_strategy.train(network, dataset)
 
         return network
 
-    def __pruning(self, net: cv.PyTorchNetwork):
+    def __pruning(self, net: PyTorchNetwork):
         """
         Procedure for the pruning of the weights of the PyTorchNetwork passed as an argument.
 
@@ -252,7 +241,7 @@ class NetworkSlimming(PruningStrategy):
     This kind of pruning select the least important neurons of the neural network
     of interest and eliminates them. It needs a batch normalization layer following each layer
     which should be pruned. We assume that the activation function is always applied after the batch
-    normalization layer. It support only networks with linear and batchnorm layers with vectorial inputs
+    normalization layer. It supports only networks with linear and batchnorm layers with vectorial inputs
     We refer to https://arxiv.org/abs/1708.06519 for theoretical details on the strategy.
 
     Attributes
@@ -308,21 +297,12 @@ class NetworkSlimming(PruningStrategy):
             network = self.training_strategy.train(network, dataset)
             self.training_strategy.fine_tuning = fine_tuning
 
-        pytorch_converter = cv.PyTorchConverter()
-        py_net = pytorch_converter.from_neural_network(network)
-
-        py_net = self.__pruning(py_net)
-
-        network.alt_rep_cache.clear()
-        network.alt_rep_cache.append(py_net)
-        network.up_to_date = False
-
-        if self.training_strategy is not None and self.training_strategy.network_transform.fine_tuning:
+        if self.training_strategy is not None and self.training_strategy.fine_tuning:
             network = self.training_strategy.train(network, dataset)
 
         return network
 
-    def __pruning(self, net: cv.PyTorchNetwork):
+    def __pruning(self, net: PyTorchNetwork):
         """
         Procedure for the pruning of the neurons of the PyTorchNetwork passed as an argument.
 
@@ -523,4 +503,5 @@ class NetworkSlimming(PruningStrategy):
         pruned_network = ptl.Sequential(orig_seq.identifier, orig_seq.input_id, new_layers)
         net.pytorch_network = pruned_network
         net.identifier = net.identifier + '_pruned'
+
         return net

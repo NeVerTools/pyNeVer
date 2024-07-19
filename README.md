@@ -1,14 +1,20 @@
 # pyNeVer
 
-Neural networks Verifier (__NeVer 2__) is a tool for the training, pruning and verification of neural networks.
-At present it supports sequential fully connected neural networks with ReLU and Sigmoid activation functions.
-__pyNeVer__ is the corresponding python package providing all the main capabilities of the __NeVer 2__ tool
-and can be easily installed using pip. The PyPI project page can be found at <https://pypi.org/project/pyNeVer/>
-whereas the github repository can be found at <https://github.com/NeVerTools/pyNeVer>.
+[![PyPI - Version](https://img.shields.io/pypi/v/pynever.svg)](https://pypi.org/project/pynever)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pynever.svg)](https://pypi.org/project/pynever)
 
-#### REQUIREMENTS AND INSTALLATION
-__pyNeVer__ depends on several packages, which should be installed automatically. The packages required for the
-correct execution are the following:
+-----
+
+Neural networks Verifier (__NeVer 2__) is a tool for the design, training and verification of neural networks.
+It supports sequential fully connected and convolutional neural networks with ReLU and Sigmoid activation functions.
+__pyNeVer__ is the corresponding python package providing all the main capabilities of __NeVer 2__
+and can be easily installed using pip. 
+
+Installation and setup
+----------------------
+
+__pyNeVer__ depends on several packages, which are all available via pip and should be installed automatically. 
+The packages required for the correct execution are the following:
 
 * _numpy_
 * _ortools_
@@ -16,10 +22,9 @@ correct execution are the following:
 * _torch_
 * _torchvision_
 * _pysmt_
+* _multipledispatch_
 
-All the above packages are available via pip.
-
-To install __pyNeVer__, run the command:
+To install __pyNeVer__, just run the command:
 
 ```bash
 pip install pynever
@@ -28,22 +33,27 @@ pip install pynever
 To run some examples, further packages may be required. If an example requires a specific package, it will be 
 detailed in the example directory.
 
-#### DOCUMENTATION
-The documentation related to the __pyNeVer__ package can be found in the directory docs/pynever/ as html files.
+[//]: # (#### DOCUMENTATION)
 
-#### SUPPORTED INPUTS
-At present the __pyNeVer__ package supports only the abstraction and verification of fully connected neural networks 
-with ReLU and Sigmoid activation functions. The training, pruning and conversion supports also batch normalization
+[//]: # (The documentation related to the __pyNeVer__ package can be found in the directory docs/pynever/ as html files.)
+
+Supported inputs
+----------------------
+
+At present the __pyNeVer__ package supports only the abstraction and verification of fully connected and convolutional 
+neural networks with ReLU and Sigmoid activation functions. The training and conversion supports also batch normalization
 layers. A network with batchnorm layers following fully connected layers can be converted to a "pure" fully connected
 neural networks using the capabilities provided in the [utilities.py](pynever/utilities.py) module.  
-The [conversion.py](pynever/strategies/conversion.py) provides the capabilities for the conversion of PyTorch and ONNX
+The [conversion](pynever/strategies/conversion) package provides the capabilities for the conversion of PyTorch and ONNX
 networks: therefore this kind of networks can be loaded using the respective frameworks and then converted to the
-internal representation used by __pyNeVer__.
+internal representation used by __pyNeVer__.  
 The properties for the verification and abstraction of the networks must be defined either in python code following
 the specification which can be found in the documentation, or via an SMT-LIB file compliant to the 
-[VNN-LIB](http://vnnlib.org) standard.
+[VNN-LIB](http://www.vnnlib.org) standard.
 
-#### EXAMPLES
+Examples
+----------------------
+
 **NB: All the scripts should be executed INSIDE the related directory!**
 
 ***All the examples described below are guaranteed to work until [Release v0.1.1a4](https://github.com/NeVerTools/pyNeVer/releases/tag/v0.1.1a4). 
@@ -64,12 +74,49 @@ in our ATVA2021 paper. The experiments can be easily replicated by executing the
 [acas_experiment.py](examples/submissions/2021_ATVA/acas_experiments.py) from within the ATVA2021/ directory. 
 The log files will be generated and will be saved in the logs/ directory.
 
-#### CONTRIBUTORS
-The main contributors of pyNeVer are __Dario Guidotti__ and __Armando Tacchella__, further contributions are provided 
-by __Stefano Demarchi__.
+Contributors
+----------------------
 
-_Students contributions_:
+The main contributors of pyNeVer are __Dario Guidotti__ and __Stefano Demarchi__, under the supervision of Professors
+__Armando Tacchella__ and __Luca Pulina__.  
+A significant contribution for the participation in VNN-COMP 2024 was
+the help of __Elena Botoeva__.
 
-* __Alessandro Drago__ - TensorFlow conversion
+_Other contributors_:
+
 * __Andrea Gimelli__ - Bound propagation integration
-* __Pedro Henrique Simão Achete__ - Command-line interface
+* __Pedro Henrique Simão Achete__ - Command-line interface and convolutional linearization
+* __Karim Pedemonte__ - Design and refactoring
+
+Publications
+----------------------
+
+If you use __NeVer2__ or __pyNeVer__ in your work, **please kindly cite our papers**. Here you can find 
+the list of BibTeX entries.
+
+```
+@article{demarchi2024never2,
+  title={NeVer2: Learning and Verification of Neural Networks},
+  author={Demarchi, Stefano and Guidotti, Dario and Pulina, Luca and Tacchella, Armando},
+  journal={Soft Computing},
+  year={2024}
+}
+
+@inproceedings{demarchi2022formal,
+  title={Formal Verification Of Neural Networks: A Case Study About Adaptive Cruise Control.},
+  author={Demarchi, Stefano and Guidotti, Dario and Pitto, Andrea and Tacchella, Armando},
+  booktitle={ECMS},
+  pages={310--316},
+  year={2022}
+}
+
+@inproceedings{guidotti2021pynever,
+  title={pynever: A framework for learning and verification of neural networks},
+  author={Guidotti, Dario and Pulina, Luca and Tacchella, Armando},
+  booktitle={Automated Technology for Verification and Analysis: 19th International Symposium, ATVA 2021, Gold Coast, QLD, Australia, October 18--22, 2021, Proceedings 19},
+  pages={357--363},
+  year={2021},
+  organization={Springer}
+}
+
+```

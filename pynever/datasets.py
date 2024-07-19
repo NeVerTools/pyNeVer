@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, Optional, Tuple, Any
+from collections.abc import Callable
 
 import numpy as np
 import torch.utils.data as tdata
@@ -45,8 +45,8 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
 
     """
 
-    def __init__(self, data_path: str, train: bool, transform: Optional[Callable] = None,
-                 target_transform: Optional[Callable] = None, download: bool = True):
+    def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
+                 target_transform: Callable | None = None, download: bool = True):
         Dataset.__init__(self)
         tv.datasets.MNIST.__init__(self, data_path, train, transform, target_transform, download)
 
@@ -80,8 +80,8 @@ class TorchFMNIST(Dataset, tv.datasets.FashionMNIST):
 
     """
 
-    def __init__(self, data_path: str, train: bool, transform: Optional[Callable] = None,
-                 target_transform: Optional[Callable] = None, download: bool = True):
+    def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
+                 target_transform: Callable | None = None, download: bool = True):
         Dataset.__init__(self)
         tv.datasets.FashionMNIST.__init__(self, data_path, train, transform, target_transform, download)
 
@@ -122,7 +122,7 @@ class GenericFileDataset(Dataset, tdata.Dataset):
     """
 
     def __init__(self, filepath: str, target_index: int, dtype: type = float, delimiter: str = ",",
-                 transform: Callable = None, target_transform: Callable = None):
+                 transform: Callable | None = None, target_transform: Callable | None = None):
 
         self.filepath = filepath
         self.target_index = target_index
@@ -135,7 +135,7 @@ class GenericFileDataset(Dataset, tdata.Dataset):
 
         self.__data, self.__targets = (dataset[:, 0:self.target_index], dataset[:, self.target_index:])
 
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+    def __getitem__(self, index: int) -> tuple:
 
         data, target = self.__data[index], self.__targets[index]
         if self.transform is not None:
@@ -173,8 +173,8 @@ class DynamicsJamesPos(GenericFileDataset, tdata.Dataset):
 
     """
 
-    def __init__(self, data_path: str, train: bool, transform: Optional[Callable] = None,
-                 target_transform: Optional[Callable] = None):
+    def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
+                 target_transform: Callable | None = None):
 
         tdata.Dataset.__init__(self)
 

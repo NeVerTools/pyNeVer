@@ -1,0 +1,7 @@
+numpy
+onnx
+torch
+torchvision
+ortools
+pysmt
+multipledispatch
