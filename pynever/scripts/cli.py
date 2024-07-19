@@ -78,7 +78,7 @@ def sslp_verify_single(safety_prop: bool, model_file: str, property_file: str, s
         os.remove(POST_CONDITIONS_TEMP_FILE)
 
     params = verparams.SSLPVerificationParameters(strategy,
-                                                  [[1] for _ in range(network.count_relu_layers())]
+                                                  [1 for _ in range(network.count_relu_layers())]
                                                   if strategy == 'mixed' else None)
 
     ver_strategy = veralg.SSLPVerification(params)

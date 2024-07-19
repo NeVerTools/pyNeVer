@@ -24,6 +24,7 @@ class SSLPVerificationParameters(VerificationParameters):
         self.heuristic = heuristic
         self.neurons_to_refine = neurons_to_refine
         self.approx_levels = approx_levels
+        self.compute_areas = True if self.heuristic == 'mixed' else False
 
 
 class SSBPVerificationParameters(VerificationParameters):
