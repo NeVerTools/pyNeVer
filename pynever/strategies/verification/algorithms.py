@@ -312,7 +312,7 @@ class SSBPVerification(VerificationStrategy):
         """
 
         if isinstance(network, networks.SequentialNetwork):
-            in_star, input_bounds, in_bounds = self.init_search()
+            in_star, input_bounds, in_bounds = self.init_search(network, prop)
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
