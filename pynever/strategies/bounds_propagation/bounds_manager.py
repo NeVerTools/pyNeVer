@@ -28,6 +28,17 @@ class BoundsManager:
         self.numeric_bounds = None
         self.logger = LOGGER
 
+        # Here we save information about the stable and unstable neurons
+        self.stability_info = {
+            StabilityInfo.INACTIVE: dict(),
+            StabilityInfo.ACTIVE: dict(),
+            StabilityInfo.UNSTABLE: list()
+        }
+        self.overapprox_area = {
+            'sorted': list(),
+            'map': dict()
+        }
+
     def __repr__(self):
         return str(self.numeric_bounds)
 
@@ -113,17 +124,6 @@ class BoundsManager:
         # Equations for each layer to do backward substitution
         layer2layer_equations = dict()
 
-        # Here we save information about the stable and unstable neurons
-        stability_info = {
-            StabilityInfo.INACTIVE: dict(),
-            StabilityInfo.ACTIVE: dict(),
-            StabilityInfo.UNSTABLE: list()
-        }
-        overapprox_area = {
-            'sorted': list(),
-            'map': dict()
-        }
-
         # Initialising the current equations
         input_size = input_hyper_rect.get_size()
         lower_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
@@ -136,8 +136,8 @@ class BoundsManager:
         # Iterate through the layers
         for layer in network.layers_iterator():
             cur_layer_output_eq, cur_layer_output_num_bounds, stable_count = (
-                self.compute_layer_bounds(layer, cur_layer_input_eq, cur_layer_input_num_bounds,
-                                          input_hyper_rect, direction, stable_count, fixed_neurons))
+                BoundsManager.compute_layer_bounds(layer, cur_layer_input_eq, cur_layer_input_num_bounds,
+                                                   input_hyper_rect, direction, stable_count, fixed_neurons))
 
             # Store the current equations and numeric bounds
             symbolic_bounds[layer.identifier] = cur_layer_output_eq
@@ -148,9 +148,9 @@ class BoundsManager:
             cur_layer_input_eq = cur_layer_output_eq
             cur_layer_input_num_bounds = cur_layer_output_num_bounds
 
-        # sort the overapproximation areas ascending
-        overapprox_area['sorted'] = sorted(overapprox_area['sorted'], key=lambda x: x[1])
-        overapprox_area['volume'] = compute_overapproximation_volume(overapprox_area['map'])
+        # sort the over-approximation areas ascending
+        self.overapprox_area['sorted'] = sorted(self.overapprox_area['sorted'], key=lambda x: x[1])
+        self.overapprox_area['volume'] = compute_overapproximation_volume(self.overapprox_area['map'])
 
         # Put all the collected bounds in a dictionary and return it
         # TODO create data structure
@@ -158,15 +158,20 @@ class BoundsManager:
             'symbolic': symbolic_bounds,
             'numeric_pre': num_preact_bounds,
             'numeric_post': num_postact_bounds,
-            'stability_info': stability_info,
+            'stability_info': self.stability_info,
             'stable_count': stable_count,
-            'overapproximation_area': overapprox_area
+            'overapproximation_area': self.overapprox_area
         }
 
-    def compute_layer_bounds(self, layer: nodes.LayerNode, layer_in_eq: SymbolicLinearBounds,
+    @staticmethod
+    def compute_layer_bounds(layer: nodes.LayerNode, layer_in_eq: SymbolicLinearBounds,
                              layer_in_num: HyperRectangleBounds, input_hyper_rect: HyperRectangleBounds,
                              direction: str, stable_count: int, fixed_neurons: dict) \
             -> tuple[SymbolicLinearBounds, HyperRectangleBounds, int]:
+
+        # Buffer
+        cur_layer_output_eq = layer_in_eq
+        cur_layer_output_num_bounds = layer_in_num
 
         if isinstance(layer, nodes.FullyConnectedNode):
             """ Fully Connected layer """
@@ -179,7 +184,8 @@ class BoundsManager:
             """ Convolutional layer """
 
             if direction == 'forwards':
-                cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, layer_in_eq)
+                conv_lin = LinearizeConv()
+                cur_layer_output_eq = conv_lin.compute_output_equation(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
         elif isinstance(layer, nodes.ReLUNode):
@@ -188,20 +194,16 @@ class BoundsManager:
             if direction == 'forwards':
                 relu_lin = LinearizeReLU(fixed_neurons, stable_count, input_hyper_rect)
                 cur_layer_output_eq = relu_lin.compute_output_equation(layer_in_eq)
-                cur_layer_output_num_bounds, stable_count = relu_lin.compute_output_numeric(layer, layer_in_num,
-                                                                                            layer_in_eq)
+                cur_layer_output_num_bounds = relu_lin.compute_output_numeric(layer, layer_in_num, layer_in_eq)
+                stable_count = BoundsManager.get_layer_stability_stats(layer.identifier, layer_in_num)
 
         elif isinstance(layer, nodes.FlattenNode):
             """ Flatten layer """
-
-            cur_layer_output_eq = layer_in_eq
-            cur_layer_output_num_bounds = layer_in_num
+            pass
 
         elif isinstance(layer, nodes.ReshapeNode):
             """ Reshape layer """
-
-            cur_layer_output_eq = layer_in_eq
-            cur_layer_output_num_bounds = layer_in_num
+            pass
 
         else:
             raise Exception(
@@ -209,130 +211,6 @@ class BoundsManager:
                 "and Flatten layers.\n Instead got {}".format(layer.__class__))
 
         return cur_layer_output_eq, cur_layer_output_num_bounds, stable_count
-
-    def compute_bounds_forwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                                fixed_neurons: dict = None) -> dict:
-        """
-        Given input hyper rectangle bounds, propagates them through the NN
-        using forward symbolic bound propagation and
-        returns a dictionary with the symbolic and numeric bounds as well
-        as information on stability and refinement parameters
-
-        """
-
-        if fixed_neurons is None:
-            fixed_neurons = dict()
-
-        # We are collecting the bounds, symbolic and numeric, in these dictionaries
-        symbolic_bounds = dict()
-        num_preact_bounds = dict()
-        num_postact_bounds = dict()
-
-        # Here we save information about the stable and unstable neurons
-        stability_info = {
-            StabilityInfo.INACTIVE: dict(),
-            StabilityInfo.ACTIVE: dict(),
-            StabilityInfo.UNSTABLE: list()
-        }
-        overapprox_area = {
-            'sorted': list(),
-            'map': dict()
-        }
-
-        # Initialising the current equations
-        input_size = input_hyper_rect.get_size()
-        lower_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        upper_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        cur_layer_input_eq = SymbolicLinearBounds(lower_equation, upper_equation)
-        cur_layer_input_num_bounds = input_hyper_rect
-
-        stable_count = 0
-
-        # Iterate through the layers
-        for layer in network.layers_iterator():
-
-            if isinstance(layer, nodes.FullyConnectedNode):
-                """ Fully Connected layer """
-
-                cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, cur_layer_input_eq)
-                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
-
-            elif isinstance(layer, nodes.ConvNode):
-                """ Convolutional layer """
-
-                cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, cur_layer_input_eq)
-                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
-
-            elif isinstance(layer, nodes.ReLUNode):
-                """ ReLU layer """
-
-                layer_id = layer.identifier
-
-                ## Set the equations to zero for the neurons that have been fixed to 0
-                ## This does not work well, at least for acas.
-                ## It seems to mess up the equations in a strange way.
-                ## For instance, when there are no stable neurons, the equations are different from
-                ## what we get with abstract propagation.
-                ## Not sure if there problem is with abstract propagation or here.
-                ## Could be abstract propagation as the bug I was getting was because
-                ## the counter-example after using abstract propagation was not valid.
-                ## However, the bug does not appear when we don't incorportate info from the fixed neurons.
-                current_layer_inactive = extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id)
-
-                cur_layer_output_eq = self.compute_relu_output_bounds(cur_layer_input_eq, input_hyper_rect)
-                cur_layer_output_num_bounds = HyperRectangleBounds(
-                    np.maximum(cur_layer_input_num_bounds.get_lower(), 0),
-                    np.maximum(cur_layer_input_num_bounds.get_upper(), 0))
-
-                if BoundsManager.USE_FIXED_NEURONS:
-                    self.force_inactive_neurons2(cur_layer_output_eq, cur_layer_output_num_bounds,
-                                                 current_layer_inactive)
-
-                stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
-                                                               stability_info, overapprox_area)
-
-                # TODO: these bounds are somewhat useless. Perhaps copying input numeric bounds?
-
-            elif isinstance(layer, nodes.FlattenNode):
-                """ Flatten layer """
-
-                cur_layer_output_eq = cur_layer_input_eq
-                cur_layer_output_num_bounds = cur_layer_input_num_bounds
-
-            elif isinstance(layer, nodes.ReshapeNode):
-                """ Reshape layer """
-
-                cur_layer_output_eq = cur_layer_input_eq
-                cur_layer_output_num_bounds = cur_layer_input_num_bounds
-
-            else:
-                raise Exception(
-                    "Currently supporting bounds computation only for FullyConnected, Convolutional, ReLU "
-                    "and Flatten layers.\n Instead got {}".format(layer.__class__))
-
-            # Store the current equations and numeric bounds
-            symbolic_bounds[layer.identifier] = cur_layer_output_eq
-            num_preact_bounds[layer.identifier] = cur_layer_input_num_bounds
-            num_postact_bounds[layer.identifier] = cur_layer_output_num_bounds
-
-            # Update the current input equation and numeric bounds
-            cur_layer_input_eq = cur_layer_output_eq
-            cur_layer_input_num_bounds = cur_layer_output_num_bounds
-
-        # sort the overapproximation areas ascending
-        overapprox_area['sorted'] = sorted(overapprox_area['sorted'], key=lambda x: x[1])
-        overapprox_area['volume'] = compute_overapproximation_volume(overapprox_area['map'])
-
-        # Put all the collected bounds in a dictionary and return it
-        # TODO create data structure
-        return {
-            'symbolic': symbolic_bounds,
-            'numeric_pre': num_preact_bounds,
-            'numeric_post': num_postact_bounds,
-            'stability_info': stability_info,
-            'stable_count': stable_count,
-            'overapproximation_area': overapprox_area
-        }
 
     def compute_bounds_backwards(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
                                  fixed_neurons: dict = None) -> dict:
@@ -464,20 +342,6 @@ class BoundsManager:
             'stable_count': stable_count,
             'overapproximation_area': overapprox_area
         }
-
-    @staticmethod
-    def force_inactive_neurons2(relu_eq, postact_bounds, current_layer_inactive):
-        for neuron_n in current_layer_inactive:
-            if postact_bounds.lower[neuron_n] > 0:
-                raise Exception("A neuron is supposed to be fixed to be negative, "
-                                "but the bounds are positive. A conflict must have been detected before.")
-            if postact_bounds.upper[neuron_n] > 0:
-                relu_eq.lower.matrix[neuron_n] = 0 * relu_eq.lower.matrix[neuron_n]
-                relu_eq.lower.offset[neuron_n] = 0
-                relu_eq.upper.matrix[neuron_n] = 0 * relu_eq.upper.matrix[neuron_n]
-                relu_eq.upper.offset[neuron_n] = 0
-                postact_bounds.lower[neuron_n] = 0
-                postact_bounds.upper[neuron_n] = 0
 
     @staticmethod
     def check_and_enforce_fixed_constraints(relu_input_eq, preact_bounds, fixed_neurons, layer_id):
@@ -660,8 +524,7 @@ class BoundsManager:
         return current_matrix, current_offset
 
     @staticmethod
-    def get_layer_stability_stats(layer_id, numeric_preactivation_bounds,
-                                  stability_info, overapprox_area):
+    def get_layer_stability_stats(layer_id, numeric_preactivation_bounds):
         stable_count = 0
 
         inactive = list()

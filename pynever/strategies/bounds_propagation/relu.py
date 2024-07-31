@@ -14,7 +14,7 @@ class StabilityInfo(Enum):
 
 
 class LinearizeReLU:
-
+    # TODO refactor flag
     USE_FIXED_NEURONS = True
 
     def __init__(self, fixed_neurons: dict, stable_count: int, input_hyper_rect: HyperRectangleBounds):
@@ -25,7 +25,7 @@ class LinearizeReLU:
     def compute_output_equation(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
         """
         Set the equations to zero for the neurons that have been fixed to 0
-        This does not work well, at least for acas.
+        This does not work well, at least for ACAS_XU.
         It seems to mess up the equations in a strange way.
         For instance, when there are no stable neurons, the equations are different from
         what we get with abstract propagation.
@@ -36,10 +36,13 @@ class LinearizeReLU:
 
         """
 
-        return LinearizeReLU.compute_relu_output_bounds(input_eq, self.input_hyper_rect)
+        lower_l, lower_u, upper_l, upper_u = input_eq.get_all_bounds(self.input_hyper_rect)
+        lower, upper = LinearizeReLU.compute_symb_lin_bounds_equations(input_eq, lower_l, lower_u, upper_l, upper_u)
+
+        return SymbolicLinearBounds(lower, upper)
 
     def compute_output_numeric(self, relu: nodes.ReLUNode, cur_numeric_bounds: HyperRectangleBounds,
-                               cur_symbolic_bounds: SymbolicLinearBounds) -> tuple[HyperRectangleBounds, int]:
+                               cur_symbolic_bounds: SymbolicLinearBounds) -> HyperRectangleBounds:
 
         layer_id = relu.identifier
 
@@ -50,13 +53,24 @@ class LinearizeReLU:
             np.maximum(cur_numeric_bounds.get_upper(), 0))
 
         if LinearizeReLU.USE_FIXED_NEURONS:
-            self.force_inactive_neurons2(cur_symbolic_bounds, cur_layer_output_num_bounds,
-                                         current_layer_inactive)
+            LinearizeReLU.force_inactive_neurons2(cur_symbolic_bounds, cur_layer_output_num_bounds,
+                                                  current_layer_inactive)
 
-        self.stable_count += self.get_layer_stability_stats(layer_id, cur_layer_input_num_bounds,
-                                                       stability_info, overapprox_area)
+        return cur_layer_output_num_bounds
 
-        return cur_layer_output_num_bounds, self.stable_count
+    @staticmethod
+    def force_inactive_neurons2(relu_eq, postact_bounds, current_layer_inactive):
+        for neuron_n in current_layer_inactive:
+            if postact_bounds.lower[neuron_n] > 0:
+                raise Exception("A neuron is supposed to be fixed to be negative, "
+                                "but the bounds are positive. A conflict must have been detected before.")
+            if postact_bounds.upper[neuron_n] > 0:
+                relu_eq.lower.matrix[neuron_n] = 0 * relu_eq.lower.matrix[neuron_n]
+                relu_eq.lower.offset[neuron_n] = 0
+                relu_eq.upper.matrix[neuron_n] = 0 * relu_eq.upper.matrix[neuron_n]
+                relu_eq.upper.offset[neuron_n] = 0
+                postact_bounds.lower[neuron_n] = 0
+                postact_bounds.upper[neuron_n] = 0
 
     @staticmethod
     def extract_layer_inactive_from_fixed_neurons(fixed_neurons, layer_id):
@@ -68,13 +82,6 @@ class LinearizeReLU:
     def extract_layer_active_from_fixed_neurons(fixed_neurons, layer_id):
         return [neuron_n for ((lay_n, neuron_n), value) in fixed_neurons.items()
                 if lay_n == layer_id and value == 1]
-
-    @staticmethod
-    def compute_relu_output_bounds(inputs, input_hyper_rect):
-        lower_l, lower_u, upper_l, upper_u = inputs.get_all_bounds(input_hyper_rect)
-        lower, upper = LinearizeReLU.compute_symb_lin_bounds_equations(inputs, lower_l, lower_u, upper_l, upper_u)
-
-        return SymbolicLinearBounds(lower, upper)
 
     @staticmethod
     def compute_symb_lin_bounds_equations(inputs, lower_l, lower_u, upper_l, upper_u):
@@ -150,4 +157,3 @@ class LinearizeReLU:
         add = -mult * lower
 
         return mult, add
-
