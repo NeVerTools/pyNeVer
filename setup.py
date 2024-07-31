@@ -6,8 +6,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="pyNeVer",
     version="1.0.0",
-    author="Dario Guidotti, Stefano Demarchi",
-    author_email="dguidotti@uniss.it, stefano.demarchi@edu.unige.it",
+    author="Dario Guidotti, Stefano Demarchi, Elena Botoeva",
+    author_email="dguidotti@uniss.it, stefano.demarchi@edu.unige.it, e.botoeva@kent.ac.uk",
     license='GNU General Public License with Commons Clause License Condition v1.0',
     description="Package for the design, training, pruning and verification of neural networks.",
     long_description=long_description,
