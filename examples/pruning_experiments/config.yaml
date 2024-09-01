@@ -1,19 +1,19 @@
 # Neural Network Configuration
-network:
-  architecture: "Neural Network"          # Name of the network architecture
-  hidden_layer_dims:
-    - 5
-    - 15
-    - 30
-    - 45
-    - 50
-    - 70
-    - 100
-    - 200
-    - 500
-    - 700
-    - 900
-    - 1100
+
+architecture: "Neural Network"          # Name of the network architecture
+hidden_layer_dims:
+  - 5
+  - 15
+  - 30
+  - 45
+  - 50
+  - 70
+  - 100
+  - 200
+  - 500
+  - 700
+  - 900
+  - 1100
 
 # Training Configuration
 training:
@@ -22,11 +22,11 @@ training:
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64
   validation_percentage: 0.2
-  loss_type: "CrossEntropyLoss"
+  loss_name: "CrossEntropyLoss"
 
 optimizer:
   type: "Adam"
-  learning_rate: 0.01
+  lr: 0.01
   weight_decay: 0.0001
 
 scheduler_lr:
@@ -40,7 +40,7 @@ scheduler_lr:
 data:
   dataset: "MNIST"                 # Dataset name
   train_dim: 5000
-  test_dim: 10000
+  test_dim: 1000
   input_dim: 784
   output_dim: 10
 

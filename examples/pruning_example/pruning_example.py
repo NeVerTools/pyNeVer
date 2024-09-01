@@ -17,7 +17,7 @@ import torch.nn as nn
 import torch
 import copy
 
-epochs = 6000
+epochs = 1
 train_batch_size = 128
 validation_batch_size = 64
 test_batch_size = 64

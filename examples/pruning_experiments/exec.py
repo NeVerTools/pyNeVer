@@ -1,5 +1,5 @@
-from examples.pruning_experiments.networks_generation.generate_network import generate_no_batch_networks
-from networks_generation.generate_config import *
+from examples.pruning_experiments.networks_generation.generate_network import generate_no_batch_networks, \
+    load_yaml_config
 from datetime import datetime
 import csv
 
@@ -33,37 +33,11 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    generate_csv()
-    yaml_file = 'config1.yaml'  # Modifica con il percorso corretto del tuo file YAML
-
-    timestamp = datetime.now().strftime("%Y%m%d")
-    csv_file_path = f'temp/config_{timestamp}.csv'
+    yaml_file = 'config1.yaml'  # Modifica con il percorso corretto del tuo file YAML'
     config = load_yaml_config(yaml_file)
 
-    if config:
-        csv_header = write_csv_from_config(config, csv_file_path)
-    else:
-        raise FileNotFoundError
+    hdims = config['hidden_layer_dims']
 
-    while True:
-        # Opening the file without 'with' statement
-        csv_file = open(csv_file_path, mode='r', newline='')
-        try:
-            reader = list(csv.DictReader(csv_file))
-            if not reader:
-                print("No more rows to process.")
-                break
-            else:
-                data_dict = reader[0]  # Get the first row
-                generate_no_batch_networks(data_dict)
+    for hdim in hdims:
+        generate_no_batch_networks(config, hdim)
 
-                # Remove the first row and rewrite the CSV file
-                csv_file.close()  # Close the file before reopening in writing mode
-
-                # Open the file in writing mode to update it
-                csv_file = open(csv_file_path, mode='w', newline='')
-                writer = csv.DictWriter(csv_file, fieldnames=data_dict.keys())
-                writer.writeheader()
-                writer.writerows(reader[1:])  # Write all rows except the first one
-        finally:
-            csv_file.close()  # Ensure the file is closed even if an error occurs
