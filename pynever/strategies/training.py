@@ -3,7 +3,7 @@ import logging
 import math
 import os
 import shutil
-from typing import Callable, Dict
+from typing import Callable, Dict, Tuple
 
 import numpy as np
 import torch
@@ -257,25 +257,13 @@ class PytorchTraining(TrainingStrategy):
         checkpoints_path = self.checkpoints_root + net.identifier + '.pth.tar'
         best_model_path = self.checkpoints_root + net.identifier + '_best.pth.tar'
 
-        if os.path.isfile(checkpoints_path):
 
-            logger.info(f"Loading Checkpoint: '{checkpoints_path}'")
-            checkpoint = torch.load(checkpoints_path)
-            start_epoch = checkpoint['epoch']
-            net.pytorch_network.load_state_dict(checkpoint['network_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            best_loss_score = checkpoint['best_loss_score']
-            epochs_without_decrease = checkpoint['epochs_without_decrease']
-            logger.info(f"Loaded Checkpoint: '{checkpoints_path}'")
-            logger.info(f"Epoch: {start_epoch}, Best Loss Score: {best_loss_score}")
-
-        else:
-            # Otherwise we initialize the values of interest
-            logger.info(f"No Checkpoint was found at '{checkpoints_path}'")
-            # best_loss_score is set to a high number so that the first epoch will replace it
-            best_loss_score = 999999
-            epochs_without_decrease = 0
-            start_epoch = 0
+        # Otherwise we initialize the values of interest
+        logger.info(f"No Checkpoint was found at '{checkpoints_path}'")
+        # best_loss_score is set to a high number so that the first epoch will replace it
+        best_loss_score = 999999
+        epochs_without_decrease = 0
+        start_epoch = 0
 
         # history_score is used to keep track of the evolution of training loss and validation loss
         history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
@@ -284,6 +272,7 @@ class PytorchTraining(TrainingStrategy):
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
         # epochs until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
+            print("epoch")
 
             if epochs_without_decrease > self.train_patience:
                 break
@@ -373,13 +362,13 @@ class PytorchTraining(TrainingStrategy):
                 'epochs_without_decrease': epochs_without_decrease
             }
 
-            torch.save(state, checkpoints_path)
-            if is_best:
-                shutil.copyfile(checkpoints_path, best_model_path)
+            #torch.save(state, checkpoints_path)
+            #if is_best:
+             #   shutil.copyfile(checkpoints_path, best_model_path)
 
-        if os.path.isfile(best_model_path):
-            best_checkpoint = torch.load(best_model_path)
-            net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
+        #if os.path.isfile(best_model_path):
+         #   best_checkpoint = torch.load(best_model_path)
+          #  net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
 
         logger.info(f"Best Loss Score: {best_loss_score}")
 
@@ -442,40 +431,41 @@ class PytorchTesting(TestingStrategy):
 
         return measure
 
-    def pytorch_testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> float:
-
+    def pytorch_testing(self, net: cv.PyTorchNetwork, dataset: datasets.Dataset) -> Tuple[float, float]:
         net.pytorch_network.to(self.device)
-
-        # We set all the values of the network to double.
         net.pytorch_network.float()
 
-        # We instantiate the data loader
         test_loader = tdt.DataLoader(dataset, self.test_batch_size)
 
         net.pytorch_network.eval()
         test_loss = 0
+        correct = 0
+        total = 0
+
         with torch.no_grad():
-
             for batch_idx, (data, target) in enumerate(test_loader):
-
                 data = data.float()
                 if target.dtype == torch.double:
                     target = target.float()
 
                 data, target = data.to(self.device), target.to(self.device)
-                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
                 output = net.pytorch_network(data)
                 loss = self.metric(output, target, **self.metric_params)
+                test_loss += loss.item()
+
+                _, predicted = torch.max(output.data, 1)
+                total += target.size(0)
+                correct += (predicted == target).sum().item()
+
                 if self.save_results:
                     self.outputs.append(output.cpu().detach().numpy())
                     self.targets.append(target.cpu().detach().numpy())
                     self.losses.append(loss.item())
-                test_loss += loss.data.item()
 
-        # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
-        test_loss = test_loss / batch_idx
+        test_loss = test_loss / len(test_loader)
+        accuracy = 100.0 * correct / total
 
-        return test_loss
+        return test_loss, accuracy
 
 
 class PytorchMetrics:

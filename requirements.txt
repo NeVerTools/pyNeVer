@@ -1,0 +1,8 @@
+tensorflow==2.12.1
+tensorflow-datasets==4.9.6
+sympy==1.12.1
+numpy==1.24.3
+onnx==1.16.1
+torch==2.0.1+cu117
+torchaudio==2.0.2+cu117
+torchvision==0.15.2+cu117
