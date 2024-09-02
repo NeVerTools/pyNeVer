@@ -2,7 +2,7 @@
 
 architecture: "Neural Network"          # Name of the network architecture
 hidden_layer_dims:
-  - 45
+  - 80
 
 
 # Training Configuration
