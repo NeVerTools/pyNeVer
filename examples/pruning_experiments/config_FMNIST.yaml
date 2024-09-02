@@ -28,7 +28,7 @@ scheduler_lr:
 
 # Data Configuration
 data:
-  dataset: "MNIST"                 # Dataset name
+  dataset: "FMNIST"                 # Dataset name
   train_dim: 5000
   test_dim: 1000
   input_dim: 784
