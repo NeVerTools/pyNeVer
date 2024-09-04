@@ -173,6 +173,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
     return metrics
 
+
 class SimpleNN(nn.Module):
     def __init__(self, input_dim, hdim, output_dim):
         super(SimpleNN, self).__init__()
@@ -208,9 +209,6 @@ class LeakyNN(nn.Module):
             nn.LeakyReLU(leaky_slope),
             nn.Linear(hdim, output_dim)
         )
-
-    def forward(self, x):
-        return self.sequential(x)
 
     def forward(self, x):
         return self.sequential(x)

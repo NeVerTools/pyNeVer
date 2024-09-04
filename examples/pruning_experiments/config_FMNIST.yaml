@@ -28,10 +28,10 @@ scheduler_lr:
 
 # Data Configuration
 data:
-  dataset: "CIFAR10"                 # Dataset name
-  train_dim: 50000
+  dataset: "FMNIST"                 # Dataset name
+  train_dim: 20000
   test_dim: 1000
-  input_dim: 3072
+  input_dim: 784
   output_dim: 10
 
 # Weight Pruning Configuration
