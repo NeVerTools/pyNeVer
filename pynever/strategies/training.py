@@ -272,7 +272,7 @@ class PytorchTraining(TrainingStrategy):
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
         # epochs until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
-            print("epoch")
+            print(f"Epoch: {epoch + 1}")
 
             if epochs_without_decrease > self.train_patience:
                 break

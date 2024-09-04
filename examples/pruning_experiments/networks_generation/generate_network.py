@@ -69,8 +69,10 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
             outputs = model(inputs)
 
             if isinstance(criterion, nn.MSELoss):
-                targets = F.one_hot(targets, num_classes=num_classes).float()
-            loss = criterion(outputs, targets)
+                targets_hot_encoded = F.one_hot(targets, num_classes=num_classes).float()
+                loss = criterion(outputs, targets_hot_encoded)
+            else:
+                loss = criterion(outputs, targets)
 
             # Add L1 regularization if l1_lambda is provided
             if l1_lambda is not None:
@@ -101,12 +103,13 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
                 outputs = model(inputs)
 
-                if isinstance(criterion, nn.MSELoss):
-                    targets = F.one_hot(targets, num_classes=num_classes).float()
-
                 # Compute loss
-                loss = criterion(outputs, targets)
-                running_test_loss += loss.item()
+                if isinstance(criterion, nn.MSELoss):
+                    targets_hot_encoded = F.one_hot(targets, num_classes=num_classes).float()
+                    loss = criterion(outputs, targets_hot_encoded)
+                else:
+                    loss = criterion(outputs, targets)
+                    running_test_loss += loss.item()
 
                 # Calculate testing accuracy
                 _, predicted = torch.max(outputs.data, 1)
@@ -131,9 +134,10 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
                     val_outputs = model(val_inputs)
 
                     if isinstance(criterion, nn.MSELoss):
-                        val_targets = F.one_hot(val_targets, num_classes=num_classes).float()
-
-                    val_batch_loss = criterion(val_outputs, val_targets)
+                        val_targets_hot_encoded = F.one_hot(val_targets, num_classes=num_classes).float()
+                        val_batch_loss = criterion(val_outputs, val_targets_hot_encoded)
+                    else:
+                        val_batch_loss = criterion(val_outputs, val_targets)
                     val_loss += val_batch_loss.item()
 
                     _, predicted_val = torch.max(val_outputs.data, 1)
@@ -168,7 +172,6 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
             print(f'Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.2f}%')
 
     return metrics
-
 
 class SimpleNN(nn.Module):
     def __init__(self, input_dim, hdim, output_dim):
@@ -472,17 +475,17 @@ def generate_no_batch_networks(data_dict, hdim):
     small_net = create_batched_NN(input_dim, hdim, output_dim)
     baseline_net = copy.deepcopy(small_net)
     baseline_net.identifier = "Baseline"
-    baseline_net = trainer_baseline.train(baseline_net, train_set)
+    baseline_net = trainer_baseline.train(baseline_net, train_subset.dataset)
 
     # Training and pruning of the networks of interest
     baseline_net_weight_decay = copy.deepcopy(small_net)
     baseline_net_weight_decay.identifier = "Baseline_Weight_Decay"
-    baseline_net_weight_decay = trainer_baseline.train(baseline_net_weight_decay, train_dataset)
+    baseline_net_weight_decay = trainer_baseline_weight_decay.train(baseline_net_weight_decay, train_subset.dataset)
 
     sparse_net = copy.deepcopy(small_net)
     sparse_net.identifier = "Sparse"
     trainer_ns.network_transform.fine_tuning = False
-    sparse_net = trainer_ns.train(sparse_net, train_dataset)
+    sparse_net = trainer_ns.train(sparse_net, train_subset.dataset)
     trainer_ns.network_transform.fine_tuning = True
 
     wp_pruner = pruning.WeightPruning(wp_strength, trainer_wp, pre_training=True)
@@ -490,11 +493,11 @@ def generate_no_batch_networks(data_dict, hdim):
 
     wp_pruned_net = copy.deepcopy(small_net)
     wp_pruned_net.identifier = "WP_PRUNED"
-    wp_pruned_net = wp_pruner.prune(wp_pruned_net, train_dataset)
+    wp_pruned_net = wp_pruner.prune(wp_pruned_net, train_subset.dataset)
 
     ns_pruned_net = copy.deepcopy(sparse_net)
     ns_pruned_net.identifier = "NS_PRUNED"
-    ns_pruned_net = ns_pruner.prune(ns_pruned_net, train_dataset)
+    ns_pruned_net = ns_pruner.prune(ns_pruned_net, train_subset.dataset)
 
     tester = training.PytorchTesting(training.PytorchMetrics.inaccuracy, {}, test_batch_size, device_str)
 
