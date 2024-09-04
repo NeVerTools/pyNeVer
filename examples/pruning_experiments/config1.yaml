@@ -2,12 +2,12 @@
 
 architecture: "Neural Network"          # Name of the network architecture
 hidden_layer_dims:
-  - 45
+  - 1200
 
 
 # Training Configuration
 training:
-  epochs: 16                   # Number of epochs
+  epochs: 10                # Number of epochs
   train_batch_size: 128            # Batch size for training
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64
@@ -28,10 +28,10 @@ scheduler_lr:
 
 # Data Configuration
 data:
-  dataset: "MNIST"                 # Dataset name
-  train_dim: 5000
+  dataset: "CIFAR10"                 # Dataset name
+  train_dim: 50000
   test_dim: 1000
-  input_dim: 784
+  input_dim: 3072
   output_dim: 10
 
 # Weight Pruning Configuration
@@ -46,3 +46,12 @@ neuron_pruning:
 # L1 Regularization Configuration
 l1_sparse:
   l1_decay: 0.0001
+
+# Dropout Configuration
+dropout:
+  dropout_rate: 0.4
+
+# Leaky Configuration
+leaky:
+  leaky_slope: 0.01
+

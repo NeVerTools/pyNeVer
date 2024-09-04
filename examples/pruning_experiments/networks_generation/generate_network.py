@@ -33,6 +33,7 @@ def load_yaml_config(yaml_file_path):
         print(f"Errore nella lettura del file YAML: {exc}")
         return None
 
+
 def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_params, criterion_cls, num_epochs,
           num_classes, l1_lambda=None, scheduler_lr_cls=None, scheduler_lr_params=None, val_loader=None):
     # Initialize the optimizer
@@ -168,6 +169,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
     return metrics
 
+
 class SimpleNN(nn.Module):
     def __init__(self, input_dim, hdim, output_dim):
         super(SimpleNN, self).__init__()
@@ -176,6 +178,36 @@ class SimpleNN(nn.Module):
             nn.ReLU(),
             nn.Linear(hdim, output_dim)
         )
+
+    def forward(self, x):
+        return self.sequential(x)
+
+
+class DropNN(nn.Module):
+    def __init__(self, input_dim, hdim, output_dim, dropout_rate):
+        super(DropNN, self).__init__()
+        self.sequential = nn.Sequential(
+            nn.Linear(input_dim, hdim),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hdim, output_dim)
+        )
+
+    def forward(self, x):
+        return self.sequential(x)
+
+
+class LeakyNN(nn.Module):
+    def __init__(self, input_dim, hdim, output_dim, leaky_slope):
+        super(LeakyNN, self).__init__()
+        self.sequential = nn.Sequential(
+            nn.Linear(input_dim, hdim),
+            nn.LeakyReLU(leaky_slope),
+            nn.Linear(hdim, output_dim)
+        )
+
+    def forward(self, x):
+        return self.sequential(x)
 
     def forward(self, x):
         return self.sequential(x)
@@ -263,6 +295,8 @@ def generate_no_batch_networks(data_dict, hdim):
     wp_strength = float(data_dict['weight_pruning']['wp_strength'])
     np_strength = float(data_dict['neuron_pruning']['np_strength'])
     batch_norm_decay = float(data_dict['neuron_pruning']['batch_norm_decay'])
+    dropout_rate = float(data_dict['dropout']['dropout_rate'])
+    leaky_slope = float(data_dict['leaky']['leaky_slope'])
 
     # Set the device (use GPU if available, otherwise fallback to CPU)
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -275,11 +309,16 @@ def generate_no_batch_networks(data_dict, hdim):
         train_set = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
     elif dataset_name == 'FMNIST':
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: x.view(x.size(0), -1))])
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: torch.flatten(x))])
         train_set = datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform)
     elif dataset_name == 'CIFAR10':
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: x.view(x.size(0), -1))])
+        transform = transforms.Compose([
+            # transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),  # Convert images to PyTorch tensors
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Lambda(lambda x: torch.flatten(x))
+        ])
         train_set = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
     else:
@@ -349,6 +388,20 @@ def generate_no_batch_networks(data_dict, hdim):
                      l1_decay, scheduler_lr_cls, scheduler_lr_params, val_loader)
     metrics3['h_dim'] = hdim
 
+    # Train the model with Drop regularization
+    model4 = DropNN(input_dim, hdim, output_dim, dropout_rate).to(device)
+    metrics4 = train(model4, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
+                     criterion_cls, num_epochs, output_dim,
+                     None, scheduler_lr_cls, scheduler_lr_params, val_loader)
+    metrics4['h_dim'] = hdim
+
+    # Train the model with LeakyRelu
+    model5 = LeakyNN(input_dim, hdim, output_dim, leaky_slope).to(device)
+    metrics5 = train(model5, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
+                     criterion_cls, num_epochs, output_dim,
+                     None, scheduler_lr_cls, scheduler_lr_params, val_loader)
+    metrics5['h_dim'] = hdim
+
     # Trainer with Weight Pruning
     trainer_wp = training.PytorchTraining(
         optimizer_con=optimizer_cls,
@@ -384,31 +437,21 @@ def generate_no_batch_networks(data_dict, hdim):
     )
 
     # Baseline Trainer
-    # trainer_baseline = training.PytorchTraining(
-    #     optimizer_con=optimizer_cls,
-    #     opt_params=opt_params_without_weight_decay,
-    #     loss_function=criterion_callable,
-    #     n_epochs=num_epochs,
-    #     validation_percentage=validation_percentage,
-    #     train_batch_size=train_batch_size,
-    #     validation_batch_size=validation_batch_size,
-    #     r_split=True,
-    #     scheduler_con=scheduler_lr_cls,
-    #     sch_params=scheduler_lr_params,
-    #     precision_metric=training.PytorchMetrics.inaccuracy,
-    #     device=device_str
-    # )
-    opt_params_pr = {"lr": 0.01}
-    scheduler_params = {"patience": 5}
-    opt_params = {"lr": 0.002, "weight_decay": 0.0001}
+    trainer_baseline = training.PytorchTraining(
+        optimizer_con=optimizer_cls,
+        opt_params=opt_params_without_weight_decay,
+        loss_function=criterion_callable,
+        n_epochs=num_epochs,
+        validation_percentage=validation_percentage,
+        train_batch_size=train_batch_size,
+        validation_batch_size=validation_batch_size,
+        r_split=True,
+        scheduler_con=scheduler_lr_cls,
+        sch_params=scheduler_lr_params,
+        precision_metric=training.PytorchMetrics.inaccuracy,
+        device=device_str
+    )
 
-    trainer_baseline = training.PytorchTraining(optim.Adam, opt_params, nn.CrossEntropyLoss(), num_epochs,
-                                                validation_percentage,
-                                                train_batch_size, validation_batch_size,
-                                                True,
-                                                optim.lr_scheduler.ReduceLROnPlateau,
-                                                scheduler_params, training.PytorchMetrics.inaccuracy, device="cuda",
-                                                )
     # Baseline Trainer
     trainer_baseline_weight_decay = training.PytorchTraining(
         optimizer_con=optimizer_cls,
@@ -539,6 +582,8 @@ def generate_no_batch_networks(data_dict, hdim):
     write_results_on_csv('results\\accuracies_no_batch.csv', metrics1)
     write_results_on_csv('results\\accuracies_no_batch_weight_decay.csv', metrics2)
     write_results_on_csv('results\\accuracies_no_batch_sparse.csv', metrics3)
+    write_results_on_csv('results\\accuracies_no_batch_dropout.csv', metrics4)
+    write_results_on_csv('results\\accuracies_no_batch_leaky.csv', metrics4)
     write_results_on_csv('results\\accuracies_with_batch.csv', baseline_metrics)
     write_results_on_csv('results\\accuracies_with_batch_weight_decay.csv', baseline_weight_decay_metrics)
     write_results_on_csv('results\\accuracies_with_batch_sparse.csv', sparse_metrics)
@@ -575,6 +620,28 @@ def generate_no_batch_networks(data_dict, hdim):
         model3,
         dummy_input,
         f"results/no_batch_sparse/{hdim}.onnx",
+        input_names=['input'],
+        output_names=['output'],
+        export_params=True,
+        opset_version=11,
+        do_constant_folding=True,
+    )
+
+    torch.onnx.export(
+        model4,
+        dummy_input,
+        f"results/no_batch_dropout/{hdim}.onnx",
+        input_names=['input'],
+        output_names=['output'],
+        export_params=True,
+        opset_version=11,
+        do_constant_folding=True,
+    )
+
+    torch.onnx.export(
+        model5,
+        dummy_input,
+        f"results/no_batch_leaky/{hdim}.onnx",
         input_names=['input'],
         output_names=['output'],
         export_params=True,

@@ -15,7 +15,7 @@ def flatten_tensor(x):
 class FCN1(nn.Module):
     def __init__(self):
         super(FCN1, self).__init__()
-        self.fc1 = nn.Linear(32*32*3, 1024)
+        self.fc1 = nn.Linear( 32*32*3, 1024)
         self.fc2 = nn.Linear(1024, 10)
 
     def forward(self, x):

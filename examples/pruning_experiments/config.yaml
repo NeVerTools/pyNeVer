@@ -56,3 +56,11 @@ neuron_pruning:
 # L1 Regularization Configuration
 l1_sparse:
   l1_decay: 0.0001
+
+# Dropout Configuration
+dropout:
+  dropout_rate: 0.4
+
+# Leaky Configuration
+leaky:
+  leaky_slope: 0.01

@@ -7,12 +7,16 @@ import csv
 def generate_csv():
     # List of CSV files to update
     csv_files = [
-        'accuracies_no_batch.csv',
-        'accuracies_neuron_pruning.csv',
-        'accuracies_no_batch_sparse.csv',
-        'accuracies_weight_pruning.csv',
-        'accuracies_with_batch.csv',
-        'accuracies_with_batch_sparse.csv'
+        "accuracies_neuron_pruning.csv",
+        "accuracies_no_batch.csv",
+        "accuracies_no_batch_dropout.csv",
+        "accuracies_no_batch_leaky.csv",
+        "accuracies_no_batch_sparse.csv",
+        "accuracies_no_batch_weight_decay.csv",
+        "accuracies_weight_pruning.csv",
+        "accuracies_with_batch.csv",
+        "accuracies_with_batch_sparse.csv",
+        "accuracies_with_batch_weight_decay.csv"
     ]
 
     # Header to write
@@ -40,4 +44,3 @@ if __name__ == '__main__':
 
     for hdim in hdims:
         generate_no_batch_networks(config, hdim)
-
