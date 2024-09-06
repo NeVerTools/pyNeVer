@@ -487,7 +487,7 @@ def generate_no_batch_networks(data_dict, hdim):
     baseline_net_weight_decay.identifier = "Baseline_Weight_Decay"
     baseline_net_weight_decay = trainer_baseline_weight_decay.train(baseline_net_weight_decay, train_subset.dataset)
 
-    print("Model Batch with Ns Pruning")
+    print("Model Batch with Sparse")
     sparse_net = copy.deepcopy(small_net)
     sparse_net.identifier = "Sparse"
     trainer_ns.network_transform.fine_tuning = False
@@ -495,14 +495,18 @@ def generate_no_batch_networks(data_dict, hdim):
     trainer_ns.network_transform.fine_tuning = True
 
     wp_pruner = pruning.WeightPruning(wp_strength, trainer_wp, pre_training=True)
+
     ns_pruner = pruning.NetworkSlimming(np_strength, trainer_ns, pre_training=False)
 
     wp_pruned_net = copy.deepcopy(small_net)
     wp_pruned_net.identifier = "WP_PRUNED"
+    print("Model Batch with Weight Pruning")
     wp_pruned_net = wp_pruner.prune(wp_pruned_net, train_subset.dataset)
 
     ns_pruned_net = copy.deepcopy(sparse_net)
     ns_pruned_net.identifier = "NS_PRUNED"
+    print("Model Batch with Ns Pruning")
+
     ns_pruned_net = ns_pruner.prune(ns_pruned_net, train_subset.dataset)
 
     tester = training.PytorchTesting(training.PytorchMetrics.inaccuracy, {}, test_batch_size, device_str)
