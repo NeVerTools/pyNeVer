@@ -50,7 +50,7 @@ l1_sparse:
 
 # Dropout Configuration
 dropout:
-  dropout_rate: 0.4
+  dropout_rate: 0.2
 
 # Leaky Configuration
 leaky:

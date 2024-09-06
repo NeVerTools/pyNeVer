@@ -43,4 +43,5 @@ if __name__ == '__main__':
     hdims = config['hidden_layer_dims']
 
     for hdim in hdims:
+        print(f"Hidden layer dimsension: {hdim}")
         generate_no_batch_networks(config, hdim)

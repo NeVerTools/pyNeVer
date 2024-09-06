@@ -17,7 +17,7 @@ hidden_layer_dims:
 
 # Training Configuration
 training:
-  epochs: 1                     # Number of epochs
+  epochs: 6000                     # Number of epochs
   train_batch_size: 128            # Batch size for training
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64
@@ -40,7 +40,7 @@ scheduler_lr:
 data:
   dataset: "MNIST"                 # Dataset name
   train_dim: 5000
-  test_dim: 1000
+  test_dim: 10000
   input_dim: 784
   output_dim: 10
 
@@ -59,7 +59,7 @@ l1_sparse:
 
 # Dropout Configuration
 dropout:
-  dropout_rate: 0.4
+  dropout_rate: 0.2
 
 # Leaky Configuration
 leaky:

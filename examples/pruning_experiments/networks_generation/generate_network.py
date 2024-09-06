@@ -369,6 +369,7 @@ def generate_no_batch_networks(data_dict, hdim):
         scheduler_lr_cls = optim.lr_scheduler.ReduceLROnPlateau
 
     # Train the model without batch or L1 regularization
+    print("Model Simple")
     model1 = copy.deepcopy(model).to(device)
     metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
                      criterion_cls, num_epochs,
@@ -376,6 +377,7 @@ def generate_no_batch_networks(data_dict, hdim):
     metrics1['h_dim'] = hdim
 
     # Train the model with weight decay
+    print("Model Simple with Weight Decay")
     model2 = copy.deepcopy(model).to(device)
     metrics2 = train(model2, device, train_loader, test_loader, optimizer_cls, opt_params_with_weight_decay,
                      criterion_cls, num_epochs,
@@ -383,12 +385,14 @@ def generate_no_batch_networks(data_dict, hdim):
     metrics2['h_dim'] = hdim
 
     # Train the model with L1 regularization
+    print("Model Simple with L1 Regularization")
     model3 = copy.deepcopy(model).to(device)
     metrics3 = train(model3, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
                      criterion_cls, num_epochs, output_dim,
                      l1_decay, scheduler_lr_cls, scheduler_lr_params, val_loader)
     metrics3['h_dim'] = hdim
 
+    print("Model Simple with Dropout")
     # Train the model with Drop regularization
     model4 = DropNN(input_dim, hdim, output_dim, dropout_rate).to(device)
     metrics4 = train(model4, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
@@ -397,6 +401,7 @@ def generate_no_batch_networks(data_dict, hdim):
     metrics4['h_dim'] = hdim
 
     # Train the model with LeakyRelu
+    print("Model Simple with LeakyRelu")
     model5 = LeakyNN(input_dim, hdim, output_dim, leaky_slope).to(device)
     metrics5 = train(model5, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
                      criterion_cls, num_epochs, output_dim,
@@ -470,16 +475,19 @@ def generate_no_batch_networks(data_dict, hdim):
     )
 
     # Training and pruning of the networks of interest
+    print("Model Batch")
     small_net = create_batched_NN(input_dim, hdim, output_dim)
     baseline_net = copy.deepcopy(small_net)
     baseline_net.identifier = "Baseline"
     baseline_net = trainer_baseline.train(baseline_net, train_subset.dataset)
 
     # Training and pruning of the networks of interest
+    print("Model Batch with Weight Decay")
     baseline_net_weight_decay = copy.deepcopy(small_net)
     baseline_net_weight_decay.identifier = "Baseline_Weight_Decay"
     baseline_net_weight_decay = trainer_baseline_weight_decay.train(baseline_net_weight_decay, train_subset.dataset)
 
+    print("Model Batch with Ns Pruning")
     sparse_net = copy.deepcopy(small_net)
     sparse_net.identifier = "Sparse"
     trainer_ns.network_transform.fine_tuning = False
@@ -584,7 +592,7 @@ def generate_no_batch_networks(data_dict, hdim):
     write_results_on_csv('results\\accuracies_no_batch_weight_decay.csv', metrics2)
     write_results_on_csv('results\\accuracies_no_batch_sparse.csv', metrics3)
     write_results_on_csv('results\\accuracies_no_batch_dropout.csv', metrics4)
-    write_results_on_csv('results\\accuracies_no_batch_leaky.csv', metrics4)
+    write_results_on_csv('results\\accuracies_no_batch_leaky.csv', metrics5)
     write_results_on_csv('results\\accuracies_with_batch.csv', baseline_metrics)
     write_results_on_csv('results\\accuracies_with_batch_weight_decay.csv', baseline_weight_decay_metrics)
     write_results_on_csv('results\\accuracies_with_batch_sparse.csv', sparse_metrics)
