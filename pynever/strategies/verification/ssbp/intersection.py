@@ -1,4 +1,3 @@
-import datetime
 from enum import Enum
 
 import numpy as np
@@ -7,12 +6,11 @@ from ortools.linear_solver import pywraplp
 from pynever import utilities
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
-    BoundsManager, compute_stable_from_bounds_and_fixed_neurons, compute_overapproximation_volume, StabilityInfo
+    BoundsManager, StabilityInfo
 from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
 from pynever.strategies.verification.properties import NeverProperty
-from pynever.strategies.verification.ssbp import split, propagation
+from pynever.strategies.verification.ssbp import propagation
 from pynever.tensors import Tensor
 
 
@@ -93,7 +91,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
     #     return True, []
     # elif len(unstable) <= 20 or nn_bounds['overapproximation_area']['volume'] < 1:
     #     return intersect_complete_milp(star, nn, nn_bounds, prop)
-    elif len(unstable) <= 50:# or nn_bounds['overapproximation_area']['volume'] < 1:
+    elif len(unstable) <= 50:  # or nn_bounds['overapproximation_area']['volume'] < 1:
         return intersect_abstract_milp(star, nn, nn_bounds, prop)
 
     # return intersect_abstract_milp(star, nn, nn_bounds, prop)
@@ -230,13 +228,17 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
             if value == 0:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[neuron_n]) +
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[neuron_n] <= 0)
+                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[
+                            neuron_n]) +
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[
+                        neuron_n] <= 0)
             else:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[neuron_n]) +
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[neuron_n] >= 0)
+                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[
+                            neuron_n]) +
+                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[
+                        neuron_n] >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
@@ -331,7 +333,6 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
 
 
 def _create_variables_and_constraints(solver, nn, nn_bounds):
-
     variables = []
 
     input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
@@ -412,7 +413,7 @@ def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
             # We are not 100% sure there is a counter-example.
             # Call an LP solver when we need a counter-example
             possible_counter_example = True
-        else: # disj_res == PropertySatisfied.No
+        else:  # disj_res == PropertySatisfied.No
             # nothing to be done. Maybe other disjuncts will be satisfied
             pass
 
@@ -433,6 +434,7 @@ class PropertySatisfied(Enum):
 
 
 PRECISION_GUARD = 1e-06
+
 
 def check_disjunct_satisfied(bounds, matrix, bias):
     """
@@ -494,7 +496,6 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
             return True
 
     return False
-
 
 # def check_input_refining_one_equation_feasible_with_lp(coef, shift, input_bounds) -> bool:
 #     """

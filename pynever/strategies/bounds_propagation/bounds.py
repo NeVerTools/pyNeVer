@@ -1,5 +1,7 @@
 import copy
 
+PRECISION_GUARD = 10e-15
+
 
 class AbstractBounds:
     def __init__(self, lower, upper):
