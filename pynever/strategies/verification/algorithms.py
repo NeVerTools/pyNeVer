@@ -281,7 +281,7 @@ class SSBPVerification(VerificationStrategy):
                 return ssbp_split.get_target_sequential(star, nn_bounds, self.network)
 
             case RefinementStrategy.LOWEST_APPROX:
-                return ssbp_split.get_target_lowest_overapprox(star, nn_bounds, self.network)
+                return ssbp_split.get_target_lowest_overapprox(star, nn_bounds)
 
             case RefinementStrategy.LOWEST_APPROX_CURRENT_LAYER:
                 return ssbp_split.get_target_lowest_overapprox_current_layer(star, nn_bounds, self.network)

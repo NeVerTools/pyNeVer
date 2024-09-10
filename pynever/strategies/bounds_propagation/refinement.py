@@ -1,6 +1,7 @@
 from enum import Enum
 
 import numpy as np
+from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
 from pynever.strategies.bounds_propagation import LOGGER
@@ -199,7 +200,7 @@ class BoundsRefinement:
 
         for i in BoundsRefinement._choose_dimensions_to_consider(coef):
             # Refine the bounds for each input dimension
-            i_bounds = BoundsRefinement._refine_input_dimension(refined_input_bounds, coef, shift, i)
+            i_bounds = BoundsRefinement.refine_input_dimension(refined_input_bounds, coef, shift, i)
 
             if i_bounds is None:
                 self.logger.info("!! Split is infeasible !!")
@@ -234,7 +235,7 @@ class BoundsRefinement:
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
-        equations = BoundsRefinement._get_equations_from_fixed_neurons(fixed_neurons, pre_branch_bounds, nn)
+        equations = BoundsRefinement.get_equations_from_fixed_neurons(fixed_neurons, pre_branch_bounds, nn)
         coef, shift = BoundsRefinement._get_equation_from_fixed_neuron(target, value.value, pre_branch_bounds, nn)
 
         input_bounds = self._refine_input_bounds_for_equation(coef, shift, input_bounds)
@@ -282,7 +283,7 @@ class BoundsRefinement:
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
-        equations = self._get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
+        equations = self.get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
         coefs = equations.matrix
         shifts = equations.offset
 
@@ -330,7 +331,7 @@ class BoundsRefinement:
                     continue
 
                 coef_i = coef_i.sum(axis=0)
-                i_bounds = self._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
+                i_bounds = self.refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
 
                 if i_bounds is None:
                     self.logger.info(f"!! Split is infeasible !! {coef_i[i]}")
@@ -407,7 +408,7 @@ class BoundsRefinement:
                 combined_coef = coef + k * eq2_coef
                 combined_shift = shift + k * eq2_shift
 
-                i_bounds = self._refine_input_dimension(input_bounds, combined_coef, combined_shift, i)
+                i_bounds = self.refine_input_dimension(input_bounds, combined_coef, combined_shift, i)
                 if i_bounds is None:
                     # The split is infeasible
                     return None
@@ -485,7 +486,7 @@ class BoundsRefinement:
         return lower_half, upper_half
 
     @staticmethod
-    def _get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn: SequentialNetwork) -> LinearFunctions:
+    def get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn: SequentialNetwork) -> LinearFunctions:
         """
         Extract the constraints in the normal from
             equation <= 0
@@ -535,8 +536,8 @@ class BoundsRefinement:
         return coef, shift
 
     @staticmethod
-    def _refine_input_dimension(input_bounds: HyperRectangleBounds, coef: Tensor, shift: Tensor,
-                                i: int) -> tuple[float, float] | int | None:
+    def refine_input_dimension(input_bounds: HyperRectangleBounds, coef: Tensor, shift: Tensor,
+                               i: int) -> tuple[float, float] | int | None:
         """
         We are given the constraint
             coef * (x1,...,xn) + shift <= 0
@@ -618,16 +619,14 @@ class BoundsRefinement:
         input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
         n_input_dimensions = input_bounds.get_size()
 
-        from ortools.linear_solver import pywraplp
         solver = pywraplp.Solver("", pywraplp.Solver.CLP_LINEAR_PROGRAMMING)
 
-        import numpy as np
         input_vars = np.array([
             solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
             for j in range(n_input_dimensions)])
 
         # The constraints from fixing the neurons
-        equations = BoundsRefinement._get_equations_from_fixed_neurons(fixed_neurons, bounds, nn)
+        equations = BoundsRefinement.get_equations_from_fixed_neurons(fixed_neurons, bounds, nn)
 
         # This way of encoding allows to access the dual solution
         worker_constraints = {}

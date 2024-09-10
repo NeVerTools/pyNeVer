@@ -3,7 +3,7 @@ from enum import Enum
 import numpy as np
 from ortools.linear_solver import pywraplp
 
-from pynever import utilities
+from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
@@ -342,7 +342,6 @@ def _create_variables_and_constraints(solver, nn, nn_bounds):
     variables.append(input_vars)
 
     for layer in nn.layers_iterator():
-        from pynever import nodes
         if isinstance(layer, nodes.ReLUNode):
             lower_bounds = nn_bounds['numeric_pre'][layer.identifier].get_lower()
             upper_bounds = nn_bounds['numeric_pre'][layer.identifier].get_upper()
