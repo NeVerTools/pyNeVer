@@ -9,18 +9,15 @@ from pynever.strategies.bounds_propagation.relu import LinearizeReLU, StabilityI
 from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
-from pynever.strategies.verification.ssbp.constants import NeuronState, RefinementTarget
-from pynever.tensors import Tensor
+from pynever.strategies.verification.ssbp.constants import NeuronState
 
 
 class BoundsManager:
     """
-    This class handles the propagation of symbolic bounds and the refinement
-    of the input bounds after a branch split
+    This class handles the propagation of symbolic bounds with
+    both forwards and backwards propagation
 
     """
-
-    INPUT_DIMENSIONS_TO_REFINE = 50
 
     def __init__(self):
         # TODO add new data structure for bounds
@@ -413,5 +410,4 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: dict, fixed_neurons: 
 
 
 def compute_overapproximation_volume(areas_map: dict) -> float:
-    import numpy
-    return numpy.prod(list(areas_map.values()))
+    return np.prod(list(areas_map.values()))

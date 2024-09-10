@@ -1,7 +1,11 @@
 from enum import Enum
 
+import numpy as np
+
 from pynever.networks import SequentialNetwork
+from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget
 from pynever.tensors import Tensor
@@ -18,32 +22,15 @@ class RefiningBound(Enum):
 
 
 class BoundsRefinement:
+    """
+    This class handles the refinement of the input bounds after a branch split
 
-    @staticmethod
-    def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
-        input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
+    """
 
-        differences = list()
-        for (layer_id, neuron_n) in unstable:
-            negative_branch_input = BoundsRefinement.refine_input_bounds_after_split(
-                bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.NEGATIVE, fixed_neurons)
-            positive_branch_input = BoundsRefinement.refine_input_bounds_after_split(
-                bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.POSITIVE, fixed_neurons)
+    INPUT_DIMENSIONS_TO_REFINE = 50
 
-            if negative_branch_input is not None and positive_branch_input is not None:
-                diff = \
-                    ((negative_branch_input.get_lower() - input_bounds.get_lower()).sum() +
-                     (input_bounds.get_upper() - negative_branch_input.get_upper()).sum() +
-                     (input_bounds.get_upper() - positive_branch_input.get_upper()).sum() +
-                     (positive_branch_input.get_lower() - input_bounds.get_lower()).sum())
-            else:
-                diff = 100
-
-            if diff != 0:
-                differences.append(((layer_id, neuron_n), diff))
-
-        differences = sorted(differences, key=lambda x: x[1], reverse=True)
-        return differences
+    def __init__(self):
+        self.logger = LOGGER
 
     def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
                              fixed_neurons: dict) -> tuple[dict, dict]:
@@ -51,11 +38,13 @@ class BoundsRefinement:
         Update the bounds for after splitting the target neuron.
         Attempts to refine the input bounds for each of the two splits.
         If the input bounds have been updated, recomputes the bounds.
+
         """
 
         self.logger.debug("\tTarget {} "
-                          "Overapprox. area {:10.4}".format(target, pre_branch_bounds['overapproximation_area']['map'][
-            target.to_pair()]))
+                          "Overapprox. area {:10.4}".format(target,
+                                                            pre_branch_bounds['overapproximation_area']['map'][
+                                                                target.to_pair()]))
 
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
 
@@ -63,72 +52,46 @@ class BoundsRefinement:
         #              f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}"
         #              f" Volume {pre_branch_bounds['overapproximation_area']['volume']}")
 
-        negative_branch_input = BoundsManager.refine_input_bounds_after_split(
-            pre_branch_bounds, nn, target, NeuronSplit.Negative, fixed_neurons
+        """
+        NEGATIVE BRANCH
+        """
+        negative_branch_input = self.refine_input_bounds_after_split(
+            pre_branch_bounds, nn, target, NeuronSplit.NEGATIVE, fixed_neurons
         )
-        # negative_bounds = None if negative_branch_input is None else (
-        #     pre_branch_bounds if (negative_branch_input == input_bounds and not BoundsManager.USE_FIXED_NEURONS) else
-        #     self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0})
-        # )
+
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
-            self.compute_bounds(negative_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 0})
+            BoundsManager().compute_bounds(negative_branch_input, nn,
+                                           fixed_neurons=fixed_neurons | {target.to_pair(): 0})
         )
-        LOGGER.debug("\tNega Stable count  {}  Volume {} --- {}".format(
+
+        self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
             None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
             None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
             negative_branch_input))
 
-        positive_branch_input = BoundsManager.refine_input_bounds_after_split(
-            pre_branch_bounds, nn, target, NeuronSplit.Positive, fixed_neurons
+        """
+        POSITIVE BRANCH
+        """
+        positive_branch_input = self.refine_input_bounds_after_split(
+            pre_branch_bounds, nn, target, NeuronSplit.POSITIVE, fixed_neurons
         )
+
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
-            self.compute_bounds(positive_branch_input, nn, fixed_neurons=fixed_neurons | {target.to_pair(): 1})
+            BoundsManager().compute_bounds(positive_branch_input, nn,
+                                           fixed_neurons=fixed_neurons | {target.to_pair(): 1})
         )
-        LOGGER.debug("\tPosi Stable count  {}  Volume {} --- {}".format(
+
+        self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
             None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
             None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
             positive_branch_input))
 
         return negative_bounds, positive_bounds
 
-    def branch_bisect_input(self, bounds, nn: SequentialNetwork, fixed_neurons):
-        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
-
-        lower_half, upper_half = BoundsManager.bisect_an_input_dimension(input_bounds)
-
-        negative_bounds = self.compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
-        positive_bounds = self.compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
-
-        LOGGER.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
-            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
-            lower_half))
-        LOGGER.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
-            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
-            upper_half))
-        return negative_bounds, positive_bounds
-
-    @staticmethod
-    def bisect_an_input_dimension(input_bounds):
-        diff = input_bounds.get_upper() - input_bounds.get_lower()
-        widest_dim = np.argmax(diff)
-        mid = diff[widest_dim] / 2
-
-        lower_half = input_bounds.clone()
-        upper_half = input_bounds.clone()
-
-        lower_half.upper[widest_dim] = lower_half.lower[widest_dim] + mid
-        upper_half.lower[widest_dim] = lower_half.upper[widest_dim]
-
-        return lower_half, upper_half
-
-    @staticmethod
-    def refine_input_bounds_after_split(pre_branch_bounds: dict, nn: SequentialNetwork,
-                                        target: RefinementTarget, status: NeuronSplit, fixed_neurons: dict) \
-            -> HyperRectangleBounds:
+    def refine_input_bounds_after_split(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
+                                        status: NeuronSplit, fixed_neurons: dict) -> HyperRectangleBounds:
         """
         Given an unstable neuron y that we are going to constrain
         to be negative or positive according to the status,
@@ -140,7 +103,7 @@ class BoundsRefinement:
         If y is set to be positive, we take its upper bound equation from the input variables:
             y <= c * x + b
 
-        for all x coming from the hyperrectangle [l,u] (i.e., li <= xi <=ui).
+        for all x coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
 
         If we are constraining y to be negative, we have the constraint
             c * x + b <= 0.
@@ -157,6 +120,8 @@ class BoundsRefinement:
             The neural network
         target : RefinementTarget
             The neuron to be split
+        status : NeuronSplit
+            The status of the neuron
         fixed_neurons : dict
             The dictionary of fixed neurons so far
 
@@ -165,6 +130,7 @@ class BoundsRefinement:
         Tighter input bounds induced by the split
 
         """
+
         # the bounds for the input layer that we try to refine
         input_bounds = pre_branch_bounds['numeric_pre'][nn.get_first_node().identifier]
 
@@ -172,59 +138,71 @@ class BoundsRefinement:
         # try to use constraints from all the fixed neurons
         # fixed_neurons = compute_fixed_but_unstable_wrt_bounds(pre_branch_bounds, fixed_neurons)
         if len(fixed_neurons) > 0:
-            refined_bounds = BoundsManager.optimise_input_bounds_for_branch(
+            refined_bounds = BoundsRefinement.optimise_input_bounds_for_branch(
                 fixed_neurons | {target.to_pair(): status.value}, pre_branch_bounds, nn
             )
-            # refined_bounds = BoundsManager._refine_input_bounds_for_branch(
-            #     fixed_neurons, target, status, input_bounds, nn, pre_branch_bounds
-            # )
+
         else:
-            coef, shift = BoundsManager._get_equation_from_fixed_neuron(target, status.value, pre_branch_bounds, nn)
-            refined_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
+            coef, shift = BoundsRefinement._get_equation_from_fixed_neuron(target, status.value, pre_branch_bounds, nn)
+            refined_bounds = self._refine_input_bounds_for_equation(coef, shift, input_bounds)
 
         return refined_bounds
 
     @staticmethod
-    def _refine_input_bounds_for_branch(fixed_neurons: dict, target: RefinementTarget, value: NeuronSplit,
-                                        input_bounds: HyperRectangleBounds,
-                                        nn: SequentialNetwork, pre_branch_bounds: dict) -> HyperRectangleBounds | None:
+    def _choose_dimensions_to_consider(coef: np.ndarray) -> np.ndarray:
         """
-        We assume that the refinement is done when setting the equations to be <= 0
+        This method performs an optimisation for a high-dimensional input
+
         """
 
-        # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
-        # If value is 0, we take the lower bound.
-        # Otherwise, we take the negation of the upper bound.
-        equations = BoundsManager._get_equations_from_fixed_neurons(fixed_neurons, pre_branch_bounds, nn)
-        coef, shift = BoundsManager._get_equation_from_fixed_neuron(target, value.value, pre_branch_bounds, nn)
-
-        input_bounds = BoundsManager._refine_input_bounds_for_equation(coef, shift, input_bounds)
-        if input_bounds is None:
-            return None
-
-        # The rest is similar to _refine_input_bounds,
-        # but we get two different equations for each input dimension i,
-        # obtained as the sum of the equations where i appears with the same sign
         n_input_dimensions = len(coef)
 
         dimensions_to_consider = np.array(range(n_input_dimensions))
-        # An optimisation for very high-dimensional inputs
-        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
+
+        if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the coefficient that is large enough in absolute terms
-            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
-            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
+            # and at most BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE
+            percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
             cutoff_c = np.quantile(abs(coef), percentage)
             mask = (abs(coef) > cutoff_c)
             dimensions_to_consider = dimensions_to_consider[mask]
 
+        return dimensions_to_consider
+
+    def _refine_input_bounds_for_equation(self, coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds) \
+            -> HyperRectangleBounds | None:
+        """
+        We have a constraint from the input variables
+            c1 * x1 + ... + cn * xn + b <= 0
+
+        for x1,...,xn coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
+
+        We refine the bounds for x to the imposed solution space.
+        For instance, for x1 we have
+
+            x1 <= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
+            x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is negative
+
+        Thus, when c1 > 0, we can compute a new upper bound of x1,
+        and when c1 < 0, we can compute a new lower bound of x1.
+        We do it using the standard interval arithmetics.
+
+        If the new bound is inconsistent, e.g., the new upper bound is below the existing lower bound,
+        it means the corresponding split/branch is not feasible. We return None.
+
+        We only update the bound if it improves the previous one.
+
+        """
+
         refined_input_bounds = input_bounds
-        for i in dimensions_to_consider:
-            i_bounds = BoundsManager._refine_input_dimension_for_neuron_and_branch(input_bounds, equations, coef, shift,
-                                                                                   i)
+
+        for i in BoundsRefinement._choose_dimensions_to_consider(coef):
+            # Refine the bounds for each input dimension
+            i_bounds = BoundsRefinement._refine_input_dimension(refined_input_bounds, coef, shift, i)
 
             if i_bounds is None:
-                LOGGER.info("!! Split is infeasible !!")
+                self.logger.info("!! Split is infeasible !!")
                 # The split is infeasible
                 return None
 
@@ -233,8 +211,9 @@ class BoundsRefinement:
                 pass
 
             else:
-                LOGGER.info(f"!! Bounds refined for branch !!")
+                self.logger.info(f"!! Bounds refined for branch !!")
                 # Bounds have been refined
+
                 if refined_input_bounds == input_bounds:
                     # Only create a new copy of the bounds if there was a change
                     refined_input_bounds = input_bounds.clone()
@@ -244,78 +223,66 @@ class BoundsRefinement:
 
         return refined_input_bounds
 
-    @staticmethod
-    def _refine_input_dimension_for_neuron_and_branch(input_bounds, equations, coef, shift, i):
-
-        coefs = equations.matrix
-        shifts = equations.offset
-
-        # Find equations where the coefficient is the same sign as coef[i]
-        if coef[i] > 0:
-            mask = (coefs[:, i] > 0)
-        elif coef[i] < 0:
-            mask = (coefs[:, i] < 0)
-
-        coefs1 = coefs[mask, :]
-        shifts1 = shifts[mask]
-
-        # If no equations have been selected, still can try to refine for the new equation
-        if len(coefs1) == 0:
-            return 0
-
-        best_i_bounds = input_bounds.get_dimension_bounds(i)
-
-        # For every other dimension j, choose an equation eq2 where
-        # coefficient j is the opposite sign of coef[j].
-        # The idea is to combine eq1 and eq2 so that
-        # coefficient i is 1 and
-        # coefficient j is 0.
-        n_input_dimensions = len(coef)
-        for j in [h for h in range(n_input_dimensions) if h != i]:
-            if coef[j] > 0:
-                mask1 = (coefs1[:, j] < 0)
-            elif coef[j] < 0:
-                mask1 = (coefs1[:, j] > 0)
-            else:
-                # Maybe try to refine using the equation eq1?
-                continue
-
-            coefs2 = coefs1[mask1, :]
-            shifts2 = shifts1[mask1]
-
-            for n in range(len(coefs2)):
-                eq2_coef = coefs2[n]
-                eq2_shift = shifts2[n]
-
-                k = -coef[j] / eq2_coef[j]
-
-                # in this equation coefficient j is 0
-                combined_coef = coef + k * eq2_coef
-                combined_shift = shift + k * eq2_shift
-
-                i_bounds = BoundsManager._refine_input_dimension(input_bounds, combined_coef, combined_shift, i)
-                if i_bounds is None:
-                    # The split is infeasible
-                    return None
-
-                elif i_bounds != 0:
-                    best_i_bounds = max(best_i_bounds[0], i_bounds[0]), min(best_i_bounds[1], i_bounds[1])
-
-        if best_i_bounds != input_bounds.get_dimension_bounds(i):
-            return best_i_bounds
-        return 0
-
-    @staticmethod
-    def _refine_input_bounds_for_branch_naive(branch: dict, input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
-                                              pre_branch_bounds: dict) -> HyperRectangleBounds | None:
+    def _refine_input_bounds_for_branch(self, fixed_neurons: dict, target: RefinementTarget, value: NeuronSplit,
+                                        input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
+                                        pre_branch_bounds: dict) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
+
         """
 
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
-        equations = BoundsManager._get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
+        equations = BoundsRefinement._get_equations_from_fixed_neurons(fixed_neurons, pre_branch_bounds, nn)
+        coef, shift = BoundsRefinement._get_equation_from_fixed_neuron(target, value.value, pre_branch_bounds, nn)
+
+        input_bounds = self._refine_input_bounds_for_equation(coef, shift, input_bounds)
+        if input_bounds is None:
+            return None
+
+        # The rest is similar to _refine_input_bounds,
+        # but we get two different equations for each input dimension i,
+        # obtained as the sum of the equations where i appears with the same sign
+        refined_input_bounds = input_bounds
+        for i in BoundsRefinement._choose_dimensions_to_consider(coef):
+            i_bounds = self._refine_input_dimension_for_neuron_and_branch(input_bounds, equations,
+                                                                          coef, shift, i)
+
+            if i_bounds is None:
+                self.logger.info("!! Split is infeasible !!")
+                # The split is infeasible
+                return None
+
+            elif i_bounds == 0:
+                # No changes
+                pass
+
+            else:
+                self.logger.info(f"!! Bounds refined for branch !!")
+                # Bounds have been refined
+
+                if refined_input_bounds == input_bounds:
+                    # Only create a new copy of the bounds if there was a change
+                    refined_input_bounds = input_bounds.clone()
+                # Update the bounds
+                refined_input_bounds.get_lower()[i] = i_bounds[0]
+                refined_input_bounds.get_upper()[i] = i_bounds[1]
+
+        return refined_input_bounds
+
+    def _refine_input_bounds_for_branch_naive(self, branch: dict, input_bounds: HyperRectangleBounds,
+                                              nn: SequentialNetwork, pre_branch_bounds: dict) -> \
+            HyperRectangleBounds | None:
+        """
+        We assume that the refinement is done when setting the equations to be <= 0
+
+        """
+
+        # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
+        # If value is 0, we take the lower bound.
+        # Otherwise, we take the negation of the upper bound.
+        equations = self._get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
         coefs = equations.matrix
         shifts = equations.offset
 
@@ -327,11 +294,11 @@ class BoundsRefinement:
         all_dimensions = np.array(range(n_input_dimensions))
         dimensions_to_consider = []
         # An optimisation for very high-dimensional inputs
-        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
+        if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the aggregated coefficient that is large enough in absolute terms
-            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
-            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
+            # and at most BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE
+            percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
 
             filtering_pos_coefs = abs(np.array([coefs[(coefs[:, i] > 0), i].sum() for i in range(n_input_dimensions)]))
             cutoff_c = np.quantile(filtering_pos_coefs, percentage)
@@ -363,10 +330,10 @@ class BoundsRefinement:
                     continue
 
                 coef_i = coef_i.sum(axis=0)
-                i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
+                i_bounds = self._refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
 
                 if i_bounds is None:
-                    LOGGER.info(f"!! Split is infeasible !! {coef_i[i]}")
+                    self.logger.info(f"!! Split is infeasible !! {coef_i[i]}")
                     # The split is infeasible
                     return None
 
@@ -375,7 +342,7 @@ class BoundsRefinement:
                     pass
 
                 else:
-                    LOGGER.info(f"!! Bounds refined for branch !! {coef_i[i]}")
+                    self.logger.info(f"!! Bounds refined for branch !! {coef_i[i]}")
                     # Bounds have been refined
                     if refined_input_bounds == input_bounds:
                         # Only create a new copy of the bounds if there was a change
@@ -385,6 +352,131 @@ class BoundsRefinement:
                     refined_input_bounds.get_upper()[i] = i_bounds[1]
 
         return refined_input_bounds
+
+    def _refine_input_dimension_for_neuron_and_branch(self, input_bounds: HyperRectangleBounds,
+                                                      equations: LinearFunctions, coef: np.ndarray, shift: np.ndarray,
+                                                      i: int) -> tuple | int | None:
+
+        coefs = equations.matrix
+        shifts = equations.offset
+
+        # Find equations where the coefficient is the same sign as coef[i]
+        if coef[i] > 0:
+            mask = (coefs[:, i] > 0)
+        else:  # coef[i] < 0:
+            mask = (coefs[:, i] < 0)
+
+        coefs1 = coefs[mask, :]
+        shifts1 = shifts[mask]
+
+        # If no equations have been selected, still can try to refine for the new equation
+        if len(coefs1) == 0:
+            return 0
+
+        best_i_bounds = input_bounds.get_dimension_bounds(i)
+
+        # For every other dimension j, choose an equation eq2 where
+        # coefficient j is the opposite sign of coef[j].
+        # The idea is to combine eq1 and eq2 so that
+        # coefficient i is 1 and
+        # coefficient j is 0.
+
+        n_input_dimensions = len(coef)
+
+        for j in [h for h in range(n_input_dimensions) if h != i]:
+            if coef[j] > 0:
+                mask1 = (coefs1[:, j] < 0)
+
+            elif coef[j] < 0:
+                mask1 = (coefs1[:, j] > 0)
+
+            else:
+                # Maybe try to refine using the equation eq1?
+                continue
+
+            coefs2 = coefs1[mask1, :]
+            shifts2 = shifts1[mask1]
+
+            for n in range(len(coefs2)):
+                eq2_coef = coefs2[n]
+                eq2_shift = shifts2[n]
+
+                k = -coef[j] / eq2_coef[j]
+
+                # in this equation coefficient j is 0
+                combined_coef = coef + k * eq2_coef
+                combined_shift = shift + k * eq2_shift
+
+                i_bounds = self._refine_input_dimension(input_bounds, combined_coef, combined_shift, i)
+                if i_bounds is None:
+                    # The split is infeasible
+                    return None
+
+                elif i_bounds != 0:
+                    best_i_bounds = max(best_i_bounds[0], i_bounds[0]), min(best_i_bounds[1], i_bounds[1])
+
+        if best_i_bounds != input_bounds.get_dimension_bounds(i):
+            return best_i_bounds
+
+        return 0
+
+    @staticmethod
+    def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
+        input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
+
+        differences = list()
+        for (layer_id, neuron_n) in unstable:
+            negative_branch_input = BoundsRefinement.refine_input_bounds_after_split(
+                bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.NEGATIVE, fixed_neurons)
+            positive_branch_input = BoundsRefinement.refine_input_bounds_after_split(
+                bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.POSITIVE, fixed_neurons)
+
+            if negative_branch_input is not None and positive_branch_input is not None:
+                diff = \
+                    ((negative_branch_input.get_lower() - input_bounds.get_lower()).sum() +
+                     (input_bounds.get_upper() - negative_branch_input.get_upper()).sum() +
+                     (input_bounds.get_upper() - positive_branch_input.get_upper()).sum() +
+                     (positive_branch_input.get_lower() - input_bounds.get_lower()).sum())
+            else:
+                diff = 100
+
+            if diff != 0:
+                differences.append(((layer_id, neuron_n), diff))
+
+        differences = sorted(differences, key=lambda x: x[1], reverse=True)
+        return differences
+
+    def branch_bisect_input(self, bounds, nn: SequentialNetwork, fixed_neurons):
+        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
+
+        lower_half, upper_half = BoundsManager.bisect_an_input_dimension(input_bounds)
+
+        negative_bounds = self.compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
+        positive_bounds = self.compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
+
+        self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
+            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
+            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
+            lower_half))
+        self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
+            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
+            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
+            upper_half))
+        return negative_bounds, positive_bounds
+
+    @staticmethod
+    def bisect_an_input_dimension(input_bounds):
+        diff = input_bounds.get_upper() - input_bounds.get_lower()
+        widest_dim = np.argmax(diff)
+        mid = diff[widest_dim] / 2
+
+        lower_half = input_bounds.clone()
+        upper_half = input_bounds.clone()
+
+        lower_half.upper[widest_dim] = lower_half.lower[widest_dim] + mid
+        upper_half.lower[widest_dim] = lower_half.upper[widest_dim]
+
+        return lower_half, upper_half
 
     @staticmethod
     def _get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn) -> LinearFunctions:
@@ -423,81 +515,12 @@ class BoundsRefinement:
             # The linear equation for the upper bound of the target neuron
             coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
             shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
-        else:  # sign == NeuronSplit.Positive:
+        else:  # sign == NeuronSplit.POSITIVE:
             # The negated linear equation for the lower bound of the target neuron
             coef = -symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
             shift = -symbolic_preact_bounds.get_upper().get_offset()[target.neuron_idx]
 
         return coef, shift
-
-    @staticmethod
-    def _refine_input_bounds_for_equation(coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds) \
-            -> HyperRectangleBounds | None:
-        """
-        We have a constraint from the input variables
-            c1 * x1 + ... + cn * xn + b <= 0
-
-        for x1,...,xn coming from the hyper-rectangle [l,u] (i.e., li <= xi <=ui).
-
-        We refine the bounds for x to the imposed solution space.
-        For instance, for x1 we have
-
-            x1 <= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is positive
-            x1 >= (-c2 * x2 - ... -cn * xn - b)/c1 if c1 is negative
-
-        Thus, when c1 > 0, we can compute a new upper bound of x1,
-        and when c1 < 0, we can compute a new lower bound of x1.
-        We do it using the standard interval arithmetics.
-
-        If the new bound is inconsistent, e.g., the new upper bound is below the existing lower bound,
-        it means the corresponding split/branch is not feasible. We return None.
-
-        We only update the bound if it improves the previous one.
-        """
-
-        n_input_dimensions = len(coef)
-
-        dimensions_to_consider = np.array(range(n_input_dimensions))
-        # An optimisation for very high-dimensional inputs
-        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
-            # we will only consider the dimensions
-            # with the coefficient that is large enough in absolute terms
-            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
-            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
-            cutoff_c = np.quantile(abs(coef), percentage)
-            mask = (abs(coef) > cutoff_c)
-            dimensions_to_consider = dimensions_to_consider[mask]
-
-        refined_input_bounds = input_bounds
-        for i in dimensions_to_consider:
-            # Refine the bounds for each input dimension
-            i_bounds = BoundsManager._refine_input_dimension(refined_input_bounds, coef, shift, i)
-
-            if i_bounds is None:
-                # The split is infeasible
-
-                # from pynever.strategies.verification.ssbp.intersection import \
-                #     check_input_refining_one_equation_feasible_with_lp
-                # feasible = check_input_refining_one_equation_feasible_with_lp(coef, shift, refined_input_bounds)
-                # if feasible:
-                #     print("Input refinement is infeasible but the LP is feasible")
-                return None
-
-            elif i_bounds == 0:
-                # No changes
-                pass
-
-            else:
-                # Bounds have been refined
-                # LOGGER.debug(f"?? Dim {i} bounds were refined ??")
-                if refined_input_bounds == input_bounds:
-                    # Only create a new copy of the bounds if there was a change
-                    refined_input_bounds = input_bounds.clone()
-                # Update the bounds
-                refined_input_bounds.get_lower()[i] = i_bounds[0]
-                refined_input_bounds.get_upper()[i] = i_bounds[1]
-
-        return refined_input_bounds
 
     @staticmethod
     def _refine_input_dimension(input_bounds: HyperRectangleBounds, coef: Tensor, shift: Tensor,
@@ -610,13 +633,13 @@ class BoundsRefinement:
 
         dimensions_to_consider = np.array(range(n_input_dimensions))
         # An optimisation for very high-dimensional inputs
-        if n_input_dimensions > BoundsManager.INPUT_DIMENSIONS_TO_REFINE:
+        if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the coefficient that is large enough in absolute terms
-            # and at most BoundsManager.INPUT_DIMENSIONS_TO_REFINE
+            # and at most BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE
 
             # This part needs checking
-            percentage = 1 - BoundsManager.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
+            percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
             max_coefs = abs(equations.matrix).max(axis=0)
             cutoff_c = np.quantile(max_coefs, percentage)
             all_dimensions = np.array(range(n_input_dimensions))
@@ -633,7 +656,7 @@ class BoundsRefinement:
             elif status == pywraplp.Solver.OPTIMAL:
                 if input_vars[i_dim].solution_value() < new_upper:
                     # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
-                    # LOGGER.debug(f"Dual solution: {dual_sol}")
+                    # self.logger.debug(f"Dual solution: {dual_sol}")
 
                     # eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
                     # coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
@@ -652,7 +675,7 @@ class BoundsRefinement:
             elif status == pywraplp.Solver.OPTIMAL:
                 if input_vars[i_dim].solution_value() > new_lower:
                     # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
-                    # LOGGER.debug(f"Dual solution: {dual_sol}")
+                    # self.logger.debug(f"Dual solution: {dual_sol}")
 
                     # eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
                     # coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
