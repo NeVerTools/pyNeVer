@@ -23,8 +23,13 @@ class BoundsManager:
         # TODO add new data structure for bounds
         self.numeric_bounds = None
         self.logger = LOGGER
+
+        # Equations for each layer to do backward substitution
+        self.layer2layer_equations = {}
+
         self.stability_info = {}
         self.overapprox_area = {}
+
         self.reset_info()
 
     def __repr__(self):
@@ -121,6 +126,9 @@ class BoundsManager:
 
         stable_count = 0
 
+        # Reset equations
+        self.layer2layer_equations = dict()
+
         # Iterate through the layers
         for layer in network.layers_iterator():
             cur_layer_output_eq, cur_layer_output_num_bounds, stable_count = (
@@ -157,9 +165,6 @@ class BoundsManager:
                              direction: str, stable_count: int, fixed_neurons: dict) \
             -> tuple[SymbolicLinearBounds, HyperRectangleBounds, int] | None:
 
-        # Equations for each layer to do backward substitution
-        layer2layer_equations = dict()
-
         if isinstance(layer, nodes.FullyConnectedNode):
             """ Fully Connected layer """
 
@@ -169,14 +174,14 @@ class BoundsManager:
 
             else:
                 layer_eq = BoundsManager.get_linear_layer_equation(layer)
-                layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_eq, layer_eq)
+                self.layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_eq, layer_eq)
 
                 lower_eq_from_input, lower_bounds = (
                     BoundsManager._get_equation_from_input(network, layer.identifier, "lower",
-                                                           layer2layer_equations, input_hyper_rect))
+                                                           self.layer2layer_equations, input_hyper_rect))
                 upper_eq_from_input, upper_bounds = (
                     BoundsManager._get_equation_from_input(network, layer.identifier, "upper",
-                                                           layer2layer_equations, input_hyper_rect))
+                                                           self.layer2layer_equations, input_hyper_rect))
 
                 cur_layer_output_num_bounds = HyperRectangleBounds(lower_bounds, upper_bounds)
                 cur_layer_output_eq = SymbolicLinearBounds(lower_eq_from_input, upper_eq_from_input)
@@ -216,7 +221,7 @@ class BoundsManager:
 
                 relu_eq, cur_layer_output_num_bounds = relu_lin.compute_relu_equation(layer_in_num.get_lower(),
                                                                                       layer_in_num.get_upper())
-                layer2layer_equations[layer.identifier] = relu_eq
+                self.layer2layer_equations[layer.identifier] = relu_eq
 
             stable_count += self.get_layer_stability_stats(layer.identifier, layer_in_num)
 
@@ -224,14 +229,14 @@ class BoundsManager:
         elif isinstance(layer, nodes.FlattenNode):
             """ Flatten layer """
 
-            layer2layer_equations[layer.identifier] = layer_in_eq
+            self.layer2layer_equations[layer.identifier] = layer_in_eq
             cur_layer_output_eq = layer_in_eq
             cur_layer_output_num_bounds = layer_in_num
 
         elif isinstance(layer, nodes.ReshapeNode):
             """ Reshape layer """
 
-            layer2layer_equations[layer.identifier] = layer_in_eq
+            self.layer2layer_equations[layer.identifier] = layer_in_eq
             cur_layer_output_eq = layer_in_eq
             cur_layer_output_num_bounds = layer_in_num
 
