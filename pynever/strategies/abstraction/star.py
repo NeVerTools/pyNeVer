@@ -8,13 +8,11 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
+import pynever.strategies.bounds_propagation.bounds_manager as bm
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-import pynever.strategies.bounds_propagation.bounds_manager as bm
-# from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager, \
-#     compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
@@ -649,7 +647,9 @@ class ExtendedStar(Star):
         # fixed_but_unstable_per_bounds = bm.compute_fixed_but_unstable_wrt_bounds(bounds, self.fixed_neurons)
         fixed_but_unstable_per_bounds = self.fixed_neurons
 
-        with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(fixed_but_unstable_per_bounds, self.enforced_constraints, layer_id)
+        with_fixed_predicate = self.create_predicate_with_enforced_fixed_constraints(fixed_but_unstable_per_bounds,
+                                                                                     self.enforced_constraints,
+                                                                                     layer_id)
 
         # Return if there are no unstable neurons
         if len(unstable) == 0:
@@ -658,10 +658,12 @@ class ExtendedStar(Star):
             return ExtendedStar(with_fixed_predicate, new_transformation, fixed_neurons=fixed_but_unstable_per_bounds)
 
         # Create the approximate matrices for the star
-        return ExtendedStar(self.create_approx_predicate(with_fixed_predicate, unstable, bounds['numeric_pre'][layer_id]),
-                            self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
+        return ExtendedStar(
+            self.create_approx_predicate(with_fixed_predicate, unstable, bounds['numeric_pre'][layer_id]),
+            self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
 
-    def create_approx_predicate(self, predicate_equation, unstable_neurons: list[int], layer_bounds: AbstractBounds) -> LinearFunctions:
+    def create_approx_predicate(self, predicate_equation, unstable_neurons: list[int],
+                                layer_bounds: AbstractBounds) -> LinearFunctions:
         """
         For every unstable neuron y we introduce a fresh variable z and
         relate it to the input variables x via 4 constraints.

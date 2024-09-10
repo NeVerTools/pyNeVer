@@ -420,15 +420,15 @@ class BoundsRefinement:
 
         return 0
 
-    @staticmethod
-    def compute_refines_input_by(unstable, fixed_neurons, bounds, network):
+    def compute_refines_input_by(self, unstable, fixed_neurons, bounds, network) -> list[tuple[tuple[str, int], int]]:
+
         input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
 
         differences = list()
         for (layer_id, neuron_n) in unstable:
-            negative_branch_input = BoundsRefinement.refine_input_bounds_after_split(
+            negative_branch_input = self.refine_input_bounds_after_split(
                 bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.NEGATIVE, fixed_neurons)
-            positive_branch_input = BoundsRefinement.refine_input_bounds_after_split(
+            positive_branch_input = self.refine_input_bounds_after_split(
                 bounds, network, RefinementTarget(layer_id, neuron_n), NeuronSplit.POSITIVE, fixed_neurons)
 
             if negative_branch_input is not None and positive_branch_input is not None:
@@ -444,28 +444,34 @@ class BoundsRefinement:
                 differences.append(((layer_id, neuron_n), diff))
 
         differences = sorted(differences, key=lambda x: x[1], reverse=True)
+
         return differences
 
-    def branch_bisect_input(self, bounds, nn: SequentialNetwork, fixed_neurons):
+    def branch_bisect_input(self, bounds: dict, nn: SequentialNetwork, fixed_neurons: dict) -> tuple[dict, dict]:
+
         input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
 
-        lower_half, upper_half = BoundsManager.bisect_an_input_dimension(input_bounds)
+        lower_half, upper_half = BoundsRefinement.bisect_an_input_dimension(input_bounds)
 
-        negative_bounds = self.compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
-        positive_bounds = self.compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
+        negative_bounds = BoundsManager().compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
+        positive_bounds = BoundsManager().compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
 
         self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
             None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
             None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
             lower_half))
+
         self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
             None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
             None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
             upper_half))
+
         return negative_bounds, positive_bounds
 
     @staticmethod
-    def bisect_an_input_dimension(input_bounds):
+    def bisect_an_input_dimension(input_bounds: HyperRectangleBounds) -> tuple[
+        HyperRectangleBounds, HyperRectangleBounds]:
+
         diff = input_bounds.get_upper() - input_bounds.get_lower()
         widest_dim = np.argmax(diff)
         mid = diff[widest_dim] / 2
@@ -479,7 +485,7 @@ class BoundsRefinement:
         return lower_half, upper_half
 
     @staticmethod
-    def _get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn) -> LinearFunctions:
+    def _get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn: SequentialNetwork) -> LinearFunctions:
         """
         Extract the constraints in the normal from
             equation <= 0
@@ -492,11 +498,13 @@ class BoundsRefinement:
         Conversely, if y is constrained to be positive, then we have that upper_bound >= y >= 0.
         In the normal form it gives us
             -upper_bound <= 0.
+
         """
+
         coefs = []
         shifts = []
         for ((layer_id, neuron_n), value) in fixed_neurons.items():
-            coef, shift = BoundsManager._get_equation_from_fixed_neuron(
+            coef, shift = BoundsRefinement._get_equation_from_fixed_neuron(
                 RefinementTarget(layer_id, neuron_n), value, bounds, nn
             )
             coefs.append(coef)
@@ -505,16 +513,20 @@ class BoundsRefinement:
         return LinearFunctions(np.array(coefs), np.array(shifts))
 
     @staticmethod
-    def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: dict, nn):
+    def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: dict, nn) -> tuple[
+        np.ndarray, np.ndarray]:
         """
         See _get_equations_from_fixed_neurons
+
         """
+
         symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(bounds, target.layer_id, nn)
 
         if value == 0:
             # The linear equation for the upper bound of the target neuron
             coef = symbolic_preact_bounds.get_lower().get_matrix()[target.neuron_idx]
             shift = symbolic_preact_bounds.get_lower().get_offset()[target.neuron_idx]
+
         else:  # sign == NeuronSplit.POSITIVE:
             # The negated linear equation for the lower bound of the target neuron
             coef = -symbolic_preact_bounds.get_upper().get_matrix()[target.neuron_idx]
@@ -595,11 +607,12 @@ class BoundsRefinement:
         return 0
 
     @staticmethod
-    def optimise_input_bounds_for_branch(fixed_neurons: dict, bounds: dict, nn) -> dict:
+    def optimise_input_bounds_for_branch(fixed_neurons: dict, bounds: dict, nn) -> dict | None:
         """
         Optimises input bounds by building a MILP that has
         input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
         The solves for each input variable two optimisation problems: minimising and maximising it.
+
         """
 
         input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
@@ -614,7 +627,7 @@ class BoundsRefinement:
             for j in range(n_input_dimensions)])
 
         # The constraints from fixing the neurons
-        equations = BoundsManager._get_equations_from_fixed_neurons(fixed_neurons, bounds, nn)
+        equations = BoundsRefinement._get_equations_from_fixed_neurons(fixed_neurons, bounds, nn)
 
         # This way of encoding allows to access the dual solution
         worker_constraints = {}
@@ -622,7 +635,8 @@ class BoundsRefinement:
         for constr_n in range(len(equations.matrix)):
             # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
             # -infinity <= eq <= 0
-            worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n], 'c[%i]' % constr_n)
+            worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n],
+                                                             'c[%i]' % constr_n)
             for input_var_n in range(n_input_dimensions):
                 worker_constraints[constr_n].SetCoefficient(input_vars[input_var_n],
                                                             equations.matrix[constr_n][input_var_n])
@@ -690,4 +704,5 @@ class BoundsRefinement:
 
         if bounds_improved:
             return new_input_bounds
+
         return input_bounds
