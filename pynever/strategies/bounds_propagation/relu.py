@@ -27,7 +27,7 @@ class LinearizeReLU:
         self.fixed_neurons = fixed_neurons
         self.input_hyper_rect = input_hyper_rect
 
-    def compute_output_equation(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
         """
         Set the equations to zero for the neurons that have been fixed to 0
         This does not work well, at least for ACAS_XU.
@@ -46,8 +46,8 @@ class LinearizeReLU:
 
         return SymbolicLinearBounds(lower, upper)
 
-    def compute_output_numeric(self, relu: nodes.ReLUNode, cur_numeric_bounds: HyperRectangleBounds,
-                               cur_symbolic_bounds: SymbolicLinearBounds) -> HyperRectangleBounds:
+    def compute_output_numeric_bounds(self, relu: nodes.ReLUNode, cur_numeric_bounds: HyperRectangleBounds,
+                                      cur_symbolic_bounds: SymbolicLinearBounds) -> HyperRectangleBounds:
         """
         Compute the numeric post-activation bounds of the linearized ReLU function
         using the information about currently inactive neurons

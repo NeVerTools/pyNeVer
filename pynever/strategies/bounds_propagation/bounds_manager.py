@@ -1,3 +1,5 @@
+from enum import Enum
+
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
@@ -10,6 +12,11 @@ from pynever.strategies.bounds_propagation.utils.property_converter import *
 from pynever.strategies.bounds_propagation.utils.utils import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.verification.ssbp.constants import NeuronState
+
+
+class BoundsDirection(Enum):
+    FORWARDS = 0
+    BACKWARDS = 1
 
 
 class BoundsManager:
@@ -99,7 +106,7 @@ class BoundsManager:
         return self.compute_bounds(input_hyper_rect, network)
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                       fixed_neurons: dict = None, direction: str = 'backwards') -> dict:
+                       fixed_neurons: dict = None, direction: BoundsDirection = BoundsDirection.BACKWARDS) -> dict:
         """
         This method computes the bounds for the neural network given the property,
         either using forwards propagation or backwards propagation
@@ -162,13 +169,13 @@ class BoundsManager:
     def compute_layer_bounds(self, network: SequentialNetwork, layer: nodes.LayerNode,
                              layer_in_eq: SymbolicLinearBounds,
                              layer_in_num: HyperRectangleBounds, input_hyper_rect: HyperRectangleBounds,
-                             direction: str, stable_count: int, fixed_neurons: dict) \
+                             direction: BoundsDirection, stable_count: int, fixed_neurons: dict) \
             -> tuple[SymbolicLinearBounds, HyperRectangleBounds, int] | None:
 
         if isinstance(layer, nodes.FullyConnectedNode):
             """ Fully Connected layer """
 
-            if direction == 'forwards':
+            if direction == BoundsDirection.FORWARDS:
                 cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
@@ -189,7 +196,7 @@ class BoundsManager:
         elif isinstance(layer, nodes.ConvNode):
             """ Convolutional layer """
 
-            if direction == 'forwards':
+            if direction == BoundsDirection.FORWARDS:
                 cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
@@ -201,14 +208,14 @@ class BoundsManager:
 
             relu_lin = LinearizeReLU(fixed_neurons, input_hyper_rect)
 
-            if direction == 'forwards':
-                cur_layer_output_eq = relu_lin.compute_output_equation(layer_in_eq)
-                cur_layer_output_num_bounds = relu_lin.compute_output_numeric(layer, layer_in_num, layer_in_eq)
+            if direction == BoundsDirection.FORWARDS:
+                cur_layer_output_eq = relu_lin.compute_output_linear_bounds(layer_in_eq)
+                cur_layer_output_num_bounds = relu_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
 
             else:
                 if relu_lin.USE_FIXED_NEURONS:
                     try:
-                        layer_in_eq, layer_in_num = relu_lin.check_and_enforce_fixed_constraints(
+                        layer_in_eq, layer_in_num = LinearizeReLU.check_and_enforce_fixed_constraints(
                             layer_in_eq, layer_in_num, fixed_neurons, layer.identifier
                         )
 
@@ -219,10 +226,11 @@ class BoundsManager:
                 # Just to set a value to cur_layer_output_eq
                 cur_layer_output_eq = layer_in_eq
 
-                relu_eq, cur_layer_output_num_bounds = relu_lin.compute_relu_equation(layer_in_num.get_lower(),
-                                                                                      layer_in_num.get_upper())
+                relu_eq, cur_layer_output_num_bounds = LinearizeReLU.compute_relu_equation(layer_in_num.get_lower(),
+                                                                                           layer_in_num.get_upper())
                 self.layer2layer_equations[layer.identifier] = relu_eq
 
+            # Update stable count
             stable_count += self.get_layer_stability_stats(layer.identifier, layer_in_num)
 
 

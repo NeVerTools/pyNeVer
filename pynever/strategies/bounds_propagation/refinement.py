@@ -18,8 +18,8 @@ class NeuronSplit(Enum):
 
 
 class RefiningBound(Enum):
-    LOWER = 1
-    UPPER = -1
+    LOWER = -1
+    UPPER = 1
 
 
 class BoundsRefinement:
