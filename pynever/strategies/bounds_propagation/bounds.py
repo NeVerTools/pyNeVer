@@ -1,3 +1,9 @@
+"""
+This file contains the different representations of symbolic
+and numeric bounds for the verification of neural networks
+
+"""
+
 import copy
 
 PRECISION_GUARD = 10e-15
@@ -70,3 +76,32 @@ class SymbolicLinearBounds(AbstractBounds):
     def to_hyper_rectangle_bounds(self, input_bounds):
         return HyperRectangleBounds(self.lower.compute_min_values(input_bounds),
                                     self.upper.compute_max_values(input_bounds))
+
+
+class VerboseBounds:
+    """
+    This class is a complete collection of different bounds and information
+    about them, used in the bounds propagation loop
+
+    Attributes
+    ----------
+    symbolic_bounds : dict[layer_id: str, bounds: SymbolicLinearBounds]
+        The dictionary of the symbolic bounds for the network
+    numeric_pre_bounds : dict[layer_id: str, bounds: HyperRectangleBounds]
+        The dictionary of the numeric pre-activation bounds for the network
+    numeric_post_bounds : dict[layer_id: str, bounds: HyperRectangleBounds]
+        The dictionary of the numeric post-activation bounds for the network
+    stable_count : int
+        The (cumulative) number of stable neurons in the network
+
+    """
+
+    def __init__(self, symbolic: dict = None,
+                 numeric_pre: dict = None,
+                 numeric_post: dict = None,
+                 stable_count: int = 0):
+
+        self.symbolic_bounds = symbolic if symbolic is not None else dict()
+        self.numeric_pre_bounds = numeric_pre if numeric_pre is not None else dict()
+        self.numeric_post_bounds = numeric_post if numeric_post is not None else dict()
+        self.stable_count = stable_count

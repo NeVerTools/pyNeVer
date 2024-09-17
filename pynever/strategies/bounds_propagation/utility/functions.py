@@ -33,3 +33,6 @@ def compute_lin_lower_and_upper(weights_minus, weights_plus, bias, lower_matrix,
         compute_lower(weights_minus, weights_plus, lower_offset, upper_offset) + bias, \
         compute_upper(weights_minus, weights_plus, lower_matrix, upper_matrix), \
         compute_upper(weights_minus, weights_plus, lower_offset, upper_offset) + bias
+
+def compute_overapproximation_volume(areas_map: dict) -> float:
+    return np.prod(list(areas_map.values()))
