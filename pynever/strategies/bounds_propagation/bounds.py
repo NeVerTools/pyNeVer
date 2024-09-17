@@ -78,6 +78,18 @@ class SymbolicLinearBounds(AbstractBounds):
                                     self.upper.compute_max_values(input_bounds))
 
 
+class BoundsStats:
+    """
+    This class contains the statistics about stability and
+    approximation obtained through Bounds Propagation
+
+    """
+
+    def __init__(self, stability_info: dict, overapprox_area: dict):
+        self.stability_info = stability_info
+        self.overapprox_area = overapprox_area
+
+
 class VerboseBounds:
     """
     This class is a complete collection of different bounds and information
@@ -93,6 +105,8 @@ class VerboseBounds:
         The dictionary of the numeric post-activation bounds for the network
     stable_count : int
         The (cumulative) number of stable neurons in the network
+    statistics : BoundsStats
+        The data structure of stability and approximation statistics
 
     """
 
@@ -100,8 +114,8 @@ class VerboseBounds:
                  numeric_pre: dict = None,
                  numeric_post: dict = None,
                  stable_count: int = 0):
-
         self.symbolic_bounds = symbolic if symbolic is not None else dict()
         self.numeric_pre_bounds = numeric_pre if numeric_pre is not None else dict()
         self.numeric_post_bounds = numeric_post if numeric_post is not None else dict()
         self.stable_count = stable_count
+        self.statistics = None

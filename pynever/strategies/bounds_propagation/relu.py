@@ -1,4 +1,8 @@
-from enum import Enum
+"""
+This file contains specialized methods that provide
+the linearization of ReLU activation functions
+
+"""
 
 import numpy as np
 
@@ -6,12 +10,6 @@ from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-
-
-class StabilityInfo(Enum):
-    ACTIVE = 0
-    INACTIVE = 1
-    UNSTABLE = 2
 
 
 class LinearizeReLU:

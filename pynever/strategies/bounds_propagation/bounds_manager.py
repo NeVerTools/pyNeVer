@@ -14,10 +14,10 @@ from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
-    VerboseBounds
+    VerboseBounds, BoundsStats
 from pynever.strategies.bounds_propagation.convolution import LinearizeConv
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.relu import LinearizeReLU, StabilityInfo
+from pynever.strategies.bounds_propagation.relu import LinearizeReLU
 from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.bounds_propagation.utility.property_converter import PropertyFormatConverter
@@ -113,11 +113,11 @@ class BoundsManager:
         if not isinstance(network, SequentialNetwork):
             raise NotImplementedError
 
-        return self.compute_bounds(input_hyper_rect, network)[0]
+        return self.compute_bounds(input_hyper_rect, network)
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                       fixed_neurons: dict = None, direction: BoundsDirection = BoundsDirection.BACKWARDS) -> tuple[
-        VerboseBounds, dict, dict]:
+                       fixed_neurons: dict = None,
+                       direction: BoundsDirection = BoundsDirection.BACKWARDS) -> VerboseBounds:
         """
         This method computes the bounds for the neural network given the property,
         either using forwards propagation or backwards propagation
@@ -127,11 +127,11 @@ class BoundsManager:
         if fixed_neurons is None:
             fixed_neurons = dict()
 
-        # We are collecting the bounds, symbolic and numeric, in this data structure
-        all_bounds = VerboseBounds()
-
         # Reset to default the stability info and overapprox area dictionaries
         self.reset_info()
+
+        # We are collecting the bounds, symbolic and numeric, in this data structure
+        all_bounds = VerboseBounds()
 
         # Initialising the current equations
         input_size = input_hyper_rect.get_size()
@@ -165,7 +165,8 @@ class BoundsManager:
         self.overapprox_area['volume'] = utilf.compute_overapproximation_volume(self.overapprox_area['map'])
 
         # Return all the computed bounds along to the statistics
-        return all_bounds, self.stability_info, self.overapprox_area
+        all_bounds.statistics = BoundsStats(self.stability_info, self.overapprox_area)
+        return all_bounds
 
     def compute_layer_bounds(self, network: SequentialNetwork, layer: nodes.LayerNode,
                              layer_in_eq: SymbolicLinearBounds,
@@ -283,39 +284,18 @@ class BoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[StabilityInfo.INACTIVE][layer_id] = inactive
-        self.stability_info[StabilityInfo.ACTIVE][layer_id] = active
-        self.stability_info[StabilityInfo.UNSTABLE].extend(unstable)
+        self.stability_info[utilf.StabilityInfo.INACTIVE][layer_id] = inactive
+        self.stability_info[utilf.StabilityInfo.ACTIVE][layer_id] = active
+        self.stability_info[utilf.StabilityInfo.UNSTABLE].extend(unstable)
 
         return stable_count
-
-    def compute_layer_inactive_from_bounds_and_fixed_neurons(self, fixed_neurons, layer_id):
-        return (self.stability_info[StabilityInfo.INACTIVE][layer_id] +
-                [i for (lay_id, i), value in fixed_neurons.items() if lay_id == layer_id and value == 0])
-
-    def extract_layer_unstable_from_bounds(self, layer_id):
-        return {neuron_n for lay_id, neuron_n in self.stability_info[StabilityInfo.UNSTABLE]
-                if lay_id == layer_id}
-
-    def compute_layer_unstable_from_bounds_and_fixed_neurons(self, fixed_neurons, layer_id):
-        return [neuron_n for neuron_n in self.extract_layer_unstable_from_bounds(layer_id)
-                if (layer_id, neuron_n) not in fixed_neurons]
-
-    def compute_unstable_from_bounds_and_fixed_neurons(self, fixed_neurons: dict) -> list:
-        """
-        Utility method
-
-        """
-
-        unstable = self.stability_info[StabilityInfo.UNSTABLE]
-        return [neuron for neuron in unstable if neuron not in fixed_neurons]
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            StabilityInfo.INACTIVE: dict(),
-            StabilityInfo.ACTIVE: dict(),
-            StabilityInfo.UNSTABLE: list()
+            utilf.StabilityInfo.INACTIVE: dict(),
+            utilf.StabilityInfo.ACTIVE: dict(),
+            utilf.StabilityInfo.UNSTABLE: list()
         }
 
         self.overapprox_area = {
