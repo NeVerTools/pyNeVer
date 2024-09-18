@@ -204,6 +204,7 @@ class LinearizeReLU:
             if postact_bounds.lower[neuron_n] > 0:
                 raise Exception("A neuron is supposed to be fixed to be negative, "
                                 "but the bounds are positive. A conflict must have been detected before.")
+
             if postact_bounds.upper[neuron_n] > 0:
                 relu_eq.lower.matrix[neuron_n] = 0 * relu_eq.lower.matrix[neuron_n]
                 relu_eq.lower.offset[neuron_n] = 0

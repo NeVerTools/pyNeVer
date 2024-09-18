@@ -452,8 +452,8 @@ def check_disjunct_satisfied(bounds, matrix, bias):
 
     # Check every conjunct in the disjunction
     for j in range(len(matrix)):
-        max_value = bounds_utils.compute_max(matrix[j], bounds) - bias[j][0]
-        min_value = bounds_utils.compute_min(matrix[j], bounds) - bias[j][0]
+        max_value = utilf.compute_max(matrix[j], bounds) - bias[j][0]
+        min_value = utilf.compute_min(matrix[j], bounds) - bias[j][0]
 
         if min_value > PRECISION_GUARD:
             # the constraint j is definitely not satisfied, as it should be <= 0
