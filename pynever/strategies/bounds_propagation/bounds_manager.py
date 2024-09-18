@@ -100,7 +100,7 @@ class BoundsManager:
 
         return bounds.symbolic_bounds[nn.get_previous_id(layer_id)]
 
-    def compute_bounds_from_property(self, network: NeuralNetwork, prop: 'NeverProperty') -> VerboseBounds:
+    def compute_bounds_from_property(self, network: NeuralNetwork, prop: 'NeverProperty') -> VerboseBounds | None:
         """
         Precomputes bounds for all nodes using symbolic linear propagation
 
@@ -117,7 +117,7 @@ class BoundsManager:
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
                        fixed_neurons: dict = None,
-                       direction: BoundsDirection = BoundsDirection.BACKWARDS) -> VerboseBounds:
+                       direction: BoundsDirection = BoundsDirection.BACKWARDS) -> VerboseBounds | None:
         """
         This method computes the bounds for the neural network given the property,
         either using forwards propagation or backwards propagation
@@ -147,9 +147,13 @@ class BoundsManager:
 
         # Iterate through the layers
         for layer in network.layers_iterator():
-            cur_layer_output_eq, cur_layer_output_num_bounds, stable_count = (
+            bounds_pack = (
                 self.compute_layer_bounds(network, layer, cur_layer_input_eq, cur_layer_input_num_bounds,
                                           input_hyper_rect, direction, stable_count, fixed_neurons))
+            if bounds_pack is None:
+                return None
+            else:
+                cur_layer_output_eq, cur_layer_output_num_bounds, stable_count = bounds_pack
 
             # Store the current equations and numeric bounds
             all_bounds.symbolic_bounds[layer.identifier] = cur_layer_output_eq
@@ -166,6 +170,7 @@ class BoundsManager:
 
         # Return all the computed bounds along to the statistics
         all_bounds.statistics = BoundsStats(self.stability_info, self.overapprox_area)
+
         return all_bounds
 
     def compute_layer_bounds(self, network: SequentialNetwork, layer: nodes.LayerNode,
