@@ -6,15 +6,16 @@ from ortools.linear_solver import pywraplp
 from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds_manager import compute_unstable_from_bounds_and_fixed_neurons, \
-    BoundsManager, StabilityInfo
-from pynever.strategies.bounds_propagation.utils import utils as bounds_utils
+from pynever.strategies.bounds_propagation.bounds import VerboseBounds
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.bounds_propagation.utility import functions as utilf
+from pynever.strategies.bounds_propagation.utility.functions import StabilityInfo
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation
 from pynever.tensors import Tensor
 
 
-def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: SequentialNetwork, nn_bounds: dict) \
+def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: SequentialNetwork, nn_bounds: VerboseBounds) \
         -> tuple[bool, Tensor | None]:
     """
     This method computes the intersection between a star and one or
@@ -71,7 +72,7 @@ def check_star_intersection(star: ExtendedStar, prop: NeverProperty) -> tuple[bo
     return intersects, unsafe_stars
 
 
-def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Control the intersection method based on the unstable neurons
@@ -83,7 +84,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
 
     """
 
-    unstable = compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) == 0:
         return intersect_bounds(star, nn, nn_bounds, prop)
@@ -102,7 +103,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dic
     # return light
 
 
-def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     This intersection method should be called only when the bounds are thought to be precise enough,
@@ -116,12 +117,12 @@ def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict,
 
     """
 
-    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
+    output_bounds = nn_bounds.numeric_post_bounds[nn.get_last_node().identifier]
 
     return check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds)
 
 
-def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     This intersection method uses a MILP to retrieve a counterexample
@@ -135,13 +136,13 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
 
     star = propagation.abs_propagation(star, nn, nn_bounds)
 
-    input_bounds = nn_bounds['numeric_pre'][nn.get_id_from_index(0)]
+    input_bounds = nn_bounds.numeric_pre_bounds[nn.get_id_from_index(0)]
 
     # there could be new input dimensions introduced
     # comparing to the original network inputs
     n_input_dimensions = star.basis_matrix.shape[1]
 
-    output_bounds = nn_bounds['numeric_post'][nn.get_id_from_index(-1)]
+    output_bounds = nn_bounds.numeric_post_bounds[nn.get_id_from_index(-1)]
     n_output_dimensions = output_bounds.get_size()
 
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
@@ -184,7 +185,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
         return True, [input_vars[i].solution_value() for i in range(input_bounds.get_size())]
 
 
-def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Checks for an intersection by building a MILP that has
@@ -206,9 +207,9 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
 
     """
 
-    input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+    input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     n_input_dimensions = input_bounds.get_size()
-    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
+    output_bounds = nn_bounds.numeric_post_bounds[nn.get_last_node().identifier]
     n_output_dimensions = output_bounds.get_size()
 
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
@@ -221,7 +222,7 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    if len(nn_bounds['stability_info'][StabilityInfo.UNSTABLE]) > 0:
+    if len(nn_bounds.statistics.stability_info[StabilityInfo.UNSTABLE]) > 0:
         # The constraints from the branching only if there are unstable neurons according to the bounds,
         # hence there was some approximation and the output equations are not exact
         for (layer_id, neuron_n), value in star.fixed_neurons.items():
@@ -243,11 +244,11 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn.get_last_node().identifier].get_upper().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn.get_last_node().identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
+            input_vars.dot(nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_matrix()[j]) +
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
         solver.Add(
-            input_vars.dot(nn_bounds['symbolic'][nn.get_last_node().identifier].get_lower().get_matrix()[j]) +
-            nn_bounds['symbolic'][nn.get_last_node().identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
+            input_vars.dot(nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_matrix()[j]) +
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -263,7 +264,7 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: d
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
-def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: dict, prop: NeverProperty) \
+def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Checks for an intersection by building a complete MILP encoding
@@ -282,7 +283,7 @@ def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     variables = _create_variables_and_constraints(solver, nn, nn_bounds)
 
     # The constraints for the property
-    output_bounds = nn_bounds['numeric_post'][nn.get_last_node().identifier]
+    output_bounds = nn_bounds.numeric_post_bounds[nn.get_last_node().identifier]
     _encode_output_property_constraints(solver, prop, output_bounds, variables[-1])
 
     solver.Maximize(0)
@@ -322,7 +323,7 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
         conjunction = []
         for j in range(len(prop.out_coef_mat[i])):
             # the big M constant as not clear how to do indicator constraints
-            bigM = bounds_utils.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            bigM = utilf.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
@@ -332,10 +333,10 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
             ))
 
 
-def _create_variables_and_constraints(solver, nn, nn_bounds):
+def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
     variables = []
 
-    input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+    input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     input_vars = np.array([
         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
         for j in range(input_bounds.get_size())])
@@ -343,8 +344,8 @@ def _create_variables_and_constraints(solver, nn, nn_bounds):
 
     for layer in nn.layers_iterator():
         if isinstance(layer, nodes.ReLUNode):
-            lower_bounds = nn_bounds['numeric_pre'][layer.identifier].get_lower()
-            upper_bounds = nn_bounds['numeric_pre'][layer.identifier].get_upper()
+            lower_bounds = nn_bounds.numeric_pre_bounds[layer.identifier].get_lower()
+            upper_bounds = nn_bounds.numeric_pre_bounds[layer.identifier].get_upper()
 
             layer_vars = np.array([
                 solver.NumVar(lower_bounds[node_n], upper_bounds[node_n], f'x_{layer.identifier}_{node_n}')
@@ -381,7 +382,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds):
                     solver.Add(node_var <= upper_bounds[node_n] * delta)
 
     last_layer = nn.get_last_node()
-    output_bounds = nn_bounds['numeric_post'][last_layer.identifier]
+    output_bounds = nn_bounds.numeric_post_bounds[last_layer.identifier]
     output_vars = np.array([
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(output_bounds.get_size())])
@@ -393,7 +394,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds):
     return variables
 
 
-def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
+def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds: VerboseBounds):
     n_disjunctions = len(prop.out_coef_mat)
 
     possible_counter_example = False
@@ -406,7 +407,7 @@ def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds):
             # We are 100% sure there is a counter-example.
             # It can be any point from the input space.
             # Return anything from the input bounds
-            input_bounds = nn_bounds['numeric_pre'][nn.get_first_node().identifier]
+            input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
             return True, list(input_bounds.get_lower())
         elif disj_res == PropertySatisfied.Maybe:
             # We are not 100% sure there is a counter-example.

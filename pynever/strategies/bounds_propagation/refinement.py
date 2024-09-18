@@ -1,3 +1,9 @@
+"""
+This file contains the branching refinement algorithms for the
+bounds propagation over ReLU layers
+
+"""
+
 from enum import Enum
 
 import numpy as np
@@ -5,7 +11,7 @@ from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
 from pynever.strategies.bounds_propagation import LOGGER
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget
@@ -33,8 +39,8 @@ class BoundsRefinement:
     def __init__(self):
         self.logger = LOGGER
 
-    def branch_update_bounds(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
-                             fixed_neurons: dict) -> tuple[dict, dict]:
+    def branch_update_bounds(self, pre_branch_bounds: VerboseBounds, nn: SequentialNetwork, target: RefinementTarget,
+                             fixed_neurons: dict) -> tuple[VerboseBounds, VerboseBounds]:
         """
         Update the bounds for after splitting the target neuron.
         Attempts to refine the input bounds for each of the two splits.
@@ -44,14 +50,14 @@ class BoundsRefinement:
 
         self.logger.debug("\tTarget {} "
                           "Overapprox. area {:10.4}".format(target,
-                                                            pre_branch_bounds['overapproximation_area']['map'][
+                                                            pre_branch_bounds.statistics.overapprox_area['map'][
                                                                 target.to_pair()]))
 
-        input_bounds = pre_branch_bounds['numeric_pre'][nn.get_id_from_index(0)]
+        input_bounds = pre_branch_bounds.numeric_pre_bounds[nn.get_id_from_index(0)]
 
-        # LOGGER.debug(f"--- Input bounds\n"
-        #              f"{input_bounds} --- stable count {pre_branch_bounds['stable_count']}"
-        #              f" Volume {pre_branch_bounds['overapproximation_area']['volume']}")
+        # self.logger.debug(f"--- Input bounds\n"
+        #              f"{input_bounds} --- stable count {pre_branch_bounds.stable_count}"
+        #              f" Volume {pre_branch_bounds.statistics.overapprox_area['volume']}")
 
         """
         NEGATIVE BRANCH
@@ -67,8 +73,8 @@ class BoundsRefinement:
         )
 
         self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
-            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
+            None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
+            None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
             negative_branch_input))
 
         """
@@ -85,14 +91,15 @@ class BoundsRefinement:
         )
 
         self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
-            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
+            None if positive_bounds is None else "{:4}".format(positive_bounds.stable_count),
+            None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
             positive_branch_input))
 
         return negative_bounds, positive_bounds
 
-    def refine_input_bounds_after_split(self, pre_branch_bounds: dict, nn: SequentialNetwork, target: RefinementTarget,
-                                        status: NeuronSplit, fixed_neurons: dict) -> HyperRectangleBounds:
+    def refine_input_bounds_after_split(self, pre_branch_bounds: VerboseBounds, nn: SequentialNetwork,
+                                        target: RefinementTarget, status: NeuronSplit, fixed_neurons: dict) \
+            -> HyperRectangleBounds:
         """
         Given an unstable neuron y that we are going to constrain
         to be negative or positive according to the status,
@@ -115,7 +122,7 @@ class BoundsRefinement:
 
         Parameters
         ----------
-        pre_branch_bounds : dict
+        pre_branch_bounds : VerboseBounds
             The bounds before the split
         nn : SequentialNetwork
             The neural network
@@ -133,7 +140,7 @@ class BoundsRefinement:
         """
 
         # the bounds for the input layer that we try to refine
-        input_bounds = pre_branch_bounds['numeric_pre'][nn.get_first_node().identifier]
+        input_bounds = pre_branch_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
 
         # If the bounds have not been refined,
         # try to use constraints from all the fixed neurons
@@ -150,7 +157,7 @@ class BoundsRefinement:
         return refined_bounds
 
     @staticmethod
-    def _choose_dimensions_to_consider(coef: np.ndarray) -> np.ndarray:
+    def _choose_dimensions_to_consider(coef: Tensor) -> Tensor:
         """
         This method performs an optimisation for a high-dimensional input
 
@@ -167,7 +174,7 @@ class BoundsRefinement:
             percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
             cutoff_c = np.quantile(abs(coef), percentage)
             mask = (abs(coef) > cutoff_c)
-            dimensions_to_consider = dimensions_to_consider[mask]
+            dimensions_to_consider = Tensor(dimensions_to_consider[mask])
 
         return dimensions_to_consider
 
@@ -226,7 +233,7 @@ class BoundsRefinement:
 
     def _refine_input_bounds_for_branch(self, fixed_neurons: dict, target: RefinementTarget, value: NeuronSplit,
                                         input_bounds: HyperRectangleBounds, nn: SequentialNetwork,
-                                        pre_branch_bounds: dict) -> HyperRectangleBounds | None:
+                                        pre_branch_bounds: VerboseBounds) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
 
@@ -273,8 +280,8 @@ class BoundsRefinement:
         return refined_input_bounds
 
     def _refine_input_bounds_for_branch_naive(self, branch: dict, input_bounds: HyperRectangleBounds,
-                                              nn: SequentialNetwork, pre_branch_bounds: dict) -> \
-            HyperRectangleBounds | None:
+                                              nn: SequentialNetwork, pre_branch_bounds: VerboseBounds) \
+            -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
 
@@ -355,7 +362,7 @@ class BoundsRefinement:
         return refined_input_bounds
 
     def _refine_input_dimension_for_neuron_and_branch(self, input_bounds: HyperRectangleBounds,
-                                                      equations: LinearFunctions, coef: np.ndarray, shift: np.ndarray,
+                                                      equations: LinearFunctions, coef: Tensor, shift: Tensor,
                                                       i: int) -> tuple | int | None:
 
         coefs = equations.matrix
@@ -421,9 +428,10 @@ class BoundsRefinement:
 
         return 0
 
-    def compute_refines_input_by(self, unstable, fixed_neurons, bounds, network) -> list[tuple[tuple[str, int], int]]:
+    def compute_refines_input_by(self, unstable: list, fixed_neurons: dict, bounds: VerboseBounds, network) \
+            -> list[tuple[tuple[str, int], int]]:
 
-        input_bounds = bounds['numeric_pre'][network.get_first_node().identifier]
+        input_bounds = bounds.numeric_pre_bounds[network.get_first_node().identifier]
 
         differences = list()
         for (layer_id, neuron_n) in unstable:
@@ -448,9 +456,10 @@ class BoundsRefinement:
 
         return differences
 
-    def branch_bisect_input(self, bounds: dict, nn: SequentialNetwork, fixed_neurons: dict) -> tuple[dict, dict]:
+    def branch_bisect_input(self, bounds: VerboseBounds, nn: SequentialNetwork, fixed_neurons: dict) \
+            -> tuple[VerboseBounds, VerboseBounds]:
 
-        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
+        input_bounds = bounds.numeric_pre_bounds[nn.get_first_node().identifier]
 
         lower_half, upper_half = BoundsRefinement.bisect_an_input_dimension(input_bounds)
 
@@ -458,13 +467,13 @@ class BoundsRefinement:
         positive_bounds = BoundsManager().compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
 
         self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds['stable_count']),
-            None if negative_bounds is None else "{:10.4}".format(negative_bounds['overapproximation_area']['volume']),
+            None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
+            None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
             lower_half))
 
         self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds['stable_count']),
-            None if positive_bounds is None else "{:10.4}".format(positive_bounds['overapproximation_area']['volume']),
+            None if positive_bounds is None else "{:4}".format(positive_bounds.stable_count),
+            None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
             upper_half))
 
         return negative_bounds, positive_bounds
@@ -486,7 +495,8 @@ class BoundsRefinement:
         return lower_half, upper_half
 
     @staticmethod
-    def get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: dict, nn: SequentialNetwork) -> LinearFunctions:
+    def get_equations_from_fixed_neurons(fixed_neurons: dict, bounds: VerboseBounds,
+                                         nn: SequentialNetwork) -> LinearFunctions:
         """
         Extract the constraints in the normal from
             equation <= 0
@@ -514,8 +524,8 @@ class BoundsRefinement:
         return LinearFunctions(np.array(coefs), np.array(shifts))
 
     @staticmethod
-    def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: dict, nn) -> tuple[
-        np.ndarray, np.ndarray]:
+    def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: VerboseBounds, nn) \
+            -> tuple[Tensor, Tensor]:
         """
         See _get_equations_from_fixed_neurons
 
@@ -608,7 +618,7 @@ class BoundsRefinement:
         return 0
 
     @staticmethod
-    def optimise_input_bounds_for_branch(fixed_neurons: dict, bounds: dict, nn) -> dict | None:
+    def optimise_input_bounds_for_branch(fixed_neurons: dict, bounds: VerboseBounds, nn) -> VerboseBounds | None:
         """
         Optimises input bounds by building a MILP that has
         input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
@@ -616,7 +626,7 @@ class BoundsRefinement:
 
         """
 
-        input_bounds = bounds['numeric_pre'][nn.get_first_node().identifier]
+        input_bounds = bounds.numeric_pre_bounds[nn.get_first_node().identifier]
         n_input_dimensions = input_bounds.get_size()
 
         solver = pywraplp.Solver("", pywraplp.Solver.CLP_LINEAR_PROGRAMMING)

@@ -8,12 +8,13 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.bounds_propagation.bounds_manager as bm
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds, VerboseBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.bounds_propagation.utility.functions import \
+    compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
 from pynever.tensors import Tensor
 
 
@@ -614,7 +615,7 @@ class ExtendedStar(Star):
         return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center),
                             fixed_neurons=self.fixed_neurons, enforced_constraints=self.enforced_constraints)
 
-    def approx_relu_forward(self, bounds: dict, layer_id: str) -> ExtendedStar:
+    def approx_relu_forward(self, bounds: VerboseBounds, layer_id: str) -> ExtendedStar:
         """
         Approximate abstract propagation for a ReLU layer
 
@@ -634,12 +635,12 @@ class ExtendedStar(Star):
 
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
-        inactive = bm.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Compute the set of unstable neurons.
         # Neuron i has been fixed before, so we don't need to
         # approximate it (as it might still appear unstable according to the bounds)
-        unstable = bm.compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # We need to enforce the constraints from fixed neurons,
         # in case we used a branching heuristic that does not go layer by layer.
