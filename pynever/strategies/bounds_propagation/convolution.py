@@ -5,13 +5,13 @@ from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 
 
-class ConvLinearization:
+class LinearizeConv:
     def __init__(self):
         self.i = None
         self.j = None
         self.k = None
 
-    def compute_output_equation(self, conv_node: ConvNode, inputs: SymbolicLinearBounds):
+    def compute_output_equation(self, conv_node: ConvNode, inputs: SymbolicLinearBounds) -> SymbolicLinearBounds:
         filter_n = conv_node.weight.shape[0]
         weights_col = conv_node.weight.reshape(filter_n, -1)
         weights_plus = np.maximum(weights_col, np.zeros(weights_col.shape))
@@ -87,8 +87,8 @@ class ConvLinearization:
         input_upper_offset = inputs.get_upper().get_offset()
         input_upper_offset = input_upper_offset.reshape(1, -1)
 
-        input_lower_offset_col = ConvLinearization._get_input_col(conv_node, input_lower_offset)
-        input_upper_offset_col = ConvLinearization._get_input_col(conv_node, input_upper_offset)
+        input_lower_offset_col = LinearizeConv._get_input_col(conv_node, input_lower_offset)
+        input_upper_offset_col = LinearizeConv._get_input_col(conv_node, input_upper_offset)
 
         bias = conv_node.bias if conv_node.bias is not None else np.zeros((weights_plus.shape[0], 1))
 
@@ -116,7 +116,7 @@ class ConvLinearization:
         input_shape = (1, conv_node.get_input_dim()[0], conv_node.get_input_dim()[1], conv_node.get_input_dim()[2])
         n_filters, d_filter, h_filter, w_filter = conv_node.weight.shape
 
-        self.k, self.i, self.j = ConvLinearization.get_im2col_indices(
+        self.k, self.i, self.j = LinearizeConv.get_im2col_indices(
             input_shape, h_filter, w_filter, conv_node.padding[0], conv_node.stride[0])
 
     @staticmethod
@@ -163,9 +163,9 @@ class ConvLinearization:
 
         n_filters, d_filter, h_filter, w_filter = conv_node.weight.shape
 
-        input_col = ConvLinearization.im2col_indices(inputs, h_filter, w_filter,
-                                                     padding=conv_node.padding[0],
-                                                     stride=conv_node.stride[0])
+        input_col = LinearizeConv.im2col_indices(inputs, h_filter, w_filter,
+                                                 padding=conv_node.padding[0],
+                                                 stride=conv_node.stride[0])
         return input_col
 
     @staticmethod
@@ -179,7 +179,7 @@ class ConvLinearization:
         p = padding
         x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
 
-        k, i, j = ConvLinearization.get_im2col_indices(x.shape, field_height, field_width, padding, stride)
+        k, i, j = LinearizeConv.get_im2col_indices(x.shape, field_height, field_width, padding, stride)
 
         cols = x_padded[:, k, i, j]
         C = x.shape[1]
