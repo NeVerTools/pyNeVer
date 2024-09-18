@@ -255,7 +255,7 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
             compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.POSITIVE, nn_bounds,
                                                       network)
 
-    stars = sorted(stars, key=lambda x: x[2])
+    stars = sorted(stars, key=lambda x: x[1].stable_count)
 
     return stars
 
@@ -280,8 +280,8 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
     # as we have the information about the split in fixed_neurons,
     # so later when doing the intersection check we can recover the required constraints.
     star_after_split = ExtendedStar(star.get_predicate_equation(), star.get_transformation_equation(),
-                                    ref_layer=star.ref_layer, ref_neuron=star.ref_neuron,
-                                    fixed_neurons=fixed_so_far, enforced_constraints=star.enforced_constraints,
+                                    ref_layer=star.ref_layer, fixed_neurons=fixed_so_far,
+                                    enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
     if bounds.stable_count - pre_split_bounds.stable_count <= 2:
@@ -304,8 +304,8 @@ def compute_star_after_input_split(star: ExtendedStar, bounds: VerboseBounds) \
         return []
 
     star_after_split = ExtendedStar(star.get_predicate_equation(), star.get_transformation_equation(),
-                                    ref_layer=star.ref_layer, ref_neuron=star.ref_neuron,
-                                    fixed_neurons=star.fixed_neurons, enforced_constraints=star.enforced_constraints,
+                                    ref_layer=star.ref_layer, fixed_neurons=star.fixed_neurons,
+                                    enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
     return [(star_after_split, bounds)]

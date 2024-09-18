@@ -9,12 +9,11 @@ import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
 import pynever.tensors as tensors
+import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds, VerboseBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.utility.functions import \
-    compute_layer_inactive_from_bounds_and_fixed_neurons, compute_layer_unstable_from_bounds_and_fixed_neurons
 from pynever.tensors import Tensor
 
 
@@ -544,16 +543,12 @@ class ExtendedStar(Star):
     """
 
     def __init__(self, predicate: LinearFunctions, transformation: LinearFunctions, ref_layer: str = None,
-                 ref_neuron: int = 0, fixed_neurons: dict = None, enforced_constraints: dict = None,
+                 fixed_neurons: dict = None, enforced_constraints: dict = None,
                  input_differences: list = None):
         super().__init__(predicate.matrix, predicate.offset, transformation.offset, transformation.matrix)
 
         # Reference layer identifier of the star (where it comes from)
         self.ref_layer: str = ref_layer
-
-        # Starting number of predicates (used in search verification)
-        # Not really needed. TODO: remove
-        self.ref_neuron: int = ref_neuron
 
         # The neurons fixed so far
         self.fixed_neurons = dict() if fixed_neurons is None else fixed_neurons
@@ -563,7 +558,7 @@ class ExtendedStar(Star):
 
         self.input_differences = input_differences
 
-    def get_neuron_equation(self, neuron_idx) -> LinearFunctions:
+    def get_neuron_equation(self, neuron_idx: int) -> LinearFunctions:
         """
         This method creates the linear function for a neuron
 
@@ -635,12 +630,12 @@ class ExtendedStar(Star):
 
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
-        inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        inactive = utilf.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Compute the set of unstable neurons.
         # Neuron i has been fixed before, so we don't need to
         # approximate it (as it might still appear unstable according to the bounds)
-        unstable = compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # We need to enforce the constraints from fixed neurons,
         # in case we used a branching heuristic that does not go layer by layer.
@@ -660,7 +655,7 @@ class ExtendedStar(Star):
 
         # Create the approximate matrices for the star
         return ExtendedStar(
-            self.create_approx_predicate(with_fixed_predicate, unstable, bounds['numeric_pre'][layer_id]),
+            self.create_approx_predicate(with_fixed_predicate, unstable, bounds.numeric_pre_bounds[layer_id]),
             self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
 
     def create_approx_predicate(self, predicate_equation, unstable_neurons: list[int],
