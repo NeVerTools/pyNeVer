@@ -312,6 +312,9 @@ class SSBPVerification(VerificationStrategy):
             search is complete it also returns a counterexample
 
         """
+        # Start timer
+        timer = 0
+        start_time = time.perf_counter()
 
         if isinstance(network, networks.SequentialNetwork):
             in_star, input_num_bounds, input_symb_bounds = self.init_search(network, prop)
@@ -330,10 +333,6 @@ class SSBPVerification(VerificationStrategy):
         # Frontier is a stack of tuples (ExtendedStar, dict)
         frontier = [(in_star, input_symb_bounds)]
         stop_flag = False
-
-        # Start timer
-        timer = 0
-        start_time = time.perf_counter()
 
         node_counter = 0
 
