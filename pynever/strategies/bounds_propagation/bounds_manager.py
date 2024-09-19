@@ -4,8 +4,6 @@ the different layers of a neural network
 
 """
 
-from enum import Enum
-
 import numpy as np
 
 import pynever.strategies.bounds_propagation.utility.functions as utilf
@@ -21,12 +19,7 @@ from pynever.strategies.bounds_propagation.relu import LinearizeReLU
 from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.bounds_propagation.utility.property_converter import PropertyFormatConverter
-from pynever.strategies.verification.ssbp.constants import NeuronState
-
-
-class BoundsDirection(Enum):
-    FORWARDS = 0
-    BACKWARDS = 1
+from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection
 
 
 class BoundsManager:
@@ -36,9 +29,8 @@ class BoundsManager:
 
     """
 
-    def __init__(self):
-        self.numeric_bounds = None
-        self.logger = LOGGER
+    def __init__(self, direction: BoundsDirection = BoundsDirection.BACKWARDS):
+        self.direction = direction
 
         # Equations for each layer to do backward substitution
         self.layer2layer_equations = {}
@@ -46,10 +38,9 @@ class BoundsManager:
         self.stability_info = {}
         self.overapprox_area = {}
 
-        self.reset_info()
+        self.logger = LOGGER
 
-    def __repr__(self):
-        return str(self.numeric_bounds)
+        self.reset_info()
 
     @staticmethod
     def check_stable(lb, ub) -> NeuronState:
@@ -116,8 +107,7 @@ class BoundsManager:
         return self.compute_bounds(input_hyper_rect, network)
 
     def compute_bounds(self, input_hyper_rect: HyperRectangleBounds, network: SequentialNetwork,
-                       fixed_neurons: dict = None,
-                       direction: BoundsDirection = BoundsDirection.BACKWARDS) -> VerboseBounds | None:
+                       fixed_neurons: dict = None) -> VerboseBounds | None:
         """
         This method computes the bounds for the neural network given the property,
         either using forwards propagation or backwards propagation
@@ -149,7 +139,7 @@ class BoundsManager:
         for layer in network.layers_iterator():
             bounds_pack = (
                 self.compute_layer_bounds(network, layer, cur_layer_input_eq, cur_layer_input_num_bounds,
-                                          input_hyper_rect, direction, stable_count, fixed_neurons))
+                                          input_hyper_rect, stable_count, fixed_neurons))
             if bounds_pack is None:
                 return None
             else:
@@ -176,13 +166,13 @@ class BoundsManager:
     def compute_layer_bounds(self, network: SequentialNetwork, layer: nodes.LayerNode,
                              layer_in_eq: SymbolicLinearBounds,
                              layer_in_num: HyperRectangleBounds, input_hyper_rect: HyperRectangleBounds,
-                             direction: BoundsDirection, stable_count: int, fixed_neurons: dict) \
+                             stable_count: int, fixed_neurons: dict) \
             -> tuple[SymbolicLinearBounds, HyperRectangleBounds, int] | None:
 
         if isinstance(layer, nodes.FullyConnectedNode):
             """ Fully Connected layer """
 
-            if direction == BoundsDirection.FORWARDS:
+            if self.direction == BoundsDirection.FORWARDS:
                 cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
@@ -203,7 +193,7 @@ class BoundsManager:
         elif isinstance(layer, nodes.ConvNode):
             """ Convolutional layer """
 
-            if direction == BoundsDirection.FORWARDS:
+            if self.direction == BoundsDirection.FORWARDS:
                 cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
@@ -215,7 +205,7 @@ class BoundsManager:
 
             relu_lin = LinearizeReLU(fixed_neurons, input_hyper_rect)
 
-            if direction == BoundsDirection.FORWARDS:
+            if self.direction == BoundsDirection.FORWARDS:
                 cur_layer_output_eq = relu_lin.compute_output_linear_bounds(layer_in_eq)
                 cur_layer_output_num_bounds = relu_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
 

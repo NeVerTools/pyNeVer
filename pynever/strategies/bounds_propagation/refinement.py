@@ -4,8 +4,6 @@ bounds propagation over ReLU layers
 
 """
 
-from enum import Enum
-
 import numpy as np
 from ortools.linear_solver import pywraplp
 
@@ -14,18 +12,8 @@ from pynever.strategies.bounds_propagation import LOGGER
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.verification.ssbp.constants import RefinementTarget
+from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit, BoundsDirection
 from pynever.tensors import Tensor
-
-
-class NeuronSplit(Enum):
-    NEGATIVE = 0
-    POSITIVE = 1
-
-
-class RefiningBound(Enum):
-    LOWER = -1
-    UPPER = 1
 
 
 class BoundsRefinement:
@@ -36,7 +24,8 @@ class BoundsRefinement:
 
     INPUT_DIMENSIONS_TO_REFINE = 50
 
-    def __init__(self):
+    def __init__(self, direction: BoundsDirection):
+        self.direction = direction
         self.logger = LOGGER
 
     def branch_update_bounds(self, pre_branch_bounds: VerboseBounds, nn: SequentialNetwork, target: RefinementTarget,
@@ -68,8 +57,8 @@ class BoundsRefinement:
 
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
-            BoundsManager().compute_bounds(negative_branch_input, nn,
-                                           fixed_neurons=fixed_neurons | {target.to_pair(): 0})
+            BoundsManager(self.direction).compute_bounds(negative_branch_input, nn,
+                                                         fixed_neurons=fixed_neurons | {target.to_pair(): 0})
         )
 
         self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
@@ -86,8 +75,8 @@ class BoundsRefinement:
 
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
-            BoundsManager().compute_bounds(positive_branch_input, nn,
-                                           fixed_neurons=fixed_neurons | {target.to_pair(): 1})
+            BoundsManager(self.direction).compute_bounds(positive_branch_input, nn,
+                                                         fixed_neurons=fixed_neurons | {target.to_pair(): 1})
         )
 
         self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
@@ -463,8 +452,8 @@ class BoundsRefinement:
 
         lower_half, upper_half = BoundsRefinement.bisect_an_input_dimension(input_bounds)
 
-        negative_bounds = BoundsManager().compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
-        positive_bounds = BoundsManager().compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
+        negative_bounds = BoundsManager(self.direction).compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
+        positive_bounds = BoundsManager(self.direction).compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
 
         self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
             None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
