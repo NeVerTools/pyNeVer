@@ -1,3 +1,4 @@
+# Required to make a Star method return a Star object
 from __future__ import annotations
 
 import abc
