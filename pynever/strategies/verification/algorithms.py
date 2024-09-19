@@ -15,7 +15,7 @@ from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, V
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.bounds_propagation.utility.functions import StabilityInfo
-from pynever.strategies.verification import LOGGER
+from pynever.strategies.verification import VERIFICATION_LOGGER
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsBackend, IntersectionStrategy, RefinementTarget, \
@@ -75,7 +75,7 @@ class SSLPVerification(VerificationStrategy):
     def __init__(self, params: SSLPVerificationParameters):
 
         self.params = params
-        self.logger = LOGGER
+        self.logger = VERIFICATION_LOGGER
 
         self.counterexample_stars = None
         self.layers_bounds = {}
@@ -201,7 +201,7 @@ class SSBPVerification(VerificationStrategy):
         self.network = None
         self.prop = None
 
-        self.logger = LOGGER
+        self.logger = VERIFICATION_LOGGER
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
             -> tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]:

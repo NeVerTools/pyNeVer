@@ -8,7 +8,7 @@ import numpy as np
 from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
-from pynever.strategies.bounds_propagation import LOGGER
+from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
@@ -26,7 +26,7 @@ class BoundsRefinement:
 
     def __init__(self, direction: BoundsDirection):
         self.direction = direction
-        self.logger = LOGGER
+        self.logger = BOUNDS_LOGGER
 
     def branch_update_bounds(self, pre_branch_bounds: VerboseBounds, nn: SequentialNetwork, target: RefinementTarget,
                              fixed_neurons: dict) -> tuple[VerboseBounds, VerboseBounds]:

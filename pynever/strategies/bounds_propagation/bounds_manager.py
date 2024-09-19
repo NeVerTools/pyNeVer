@@ -10,7 +10,7 @@ import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.bounds_propagation import LOGGER
+from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
     VerboseBounds, BoundsStats
 from pynever.strategies.bounds_propagation.convolution import LinearizeConv
@@ -38,7 +38,7 @@ class BoundsManager:
         self.stability_info = {}
         self.overapprox_area = {}
 
-        self.logger = LOGGER
+        self.logger = BOUNDS_LOGGER
 
         self.reset_info()
 
