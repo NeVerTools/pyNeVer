@@ -553,7 +553,7 @@ def generate_no_batch_networks(data_dict, hdim):
     baseline_weight_decay_metrics = {
         'h_dim': hdim,  # Define the value of hdim based on your configuration
         'train_loss': train_com_baseline_weight_loss,
-        'test_loss': train_com_baseline_weight_loss,
+        'test_loss': test_com_baseline_weight_loss,
         'train_accuracy': train_com_baseline_weight_accuracy,
         'test_accuracy': train_com_baseline_weight_accuracy
     }
