@@ -15,11 +15,11 @@ training:
   validation_batch_size: 64
   validation_percentage: 0.2
   loss_name: "CrossEntropyLoss"
-  further_training: True
+  further_training: False
 
 optimizer:
   type: "Adam"
-  lr: 0.001
+  lr: 0.01
   weight_decay: 0.0001
 
 scheduler_lr:

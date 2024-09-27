@@ -1,5 +1,6 @@
 import copy
 import csv
+import os.path
 
 import onnx
 import torch
@@ -329,12 +330,17 @@ def generate_no_batch_networks(data_dict, hdim):
         scheduler_lr_cls = optim.lr_scheduler.ReduceLROnPlateau
 
     # Train the model without batch or L1 regularization
+    generate_bool = data_dict['training']['further_training']
+
     print("Model Simple with ReduceLROnPlateau")
-    model1 = copy.deepcopy(model).to(device)
-    metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
-                     criterion_cls, num_epochs,
-                     output_dim, None, scheduler_lr_cls, scheduler_lr_params, val_loader)
-    metrics1['h_dim'] = hdim
+    if generate_bool:
+        model1 = copy.deepcopy(model).to(device)
+        optimizer_learning_rate =opt_params_without_weight_decay.copy()
+        optimizer_learning_rate["lr"] = 0.1
+        metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, optimizer_learning_rate,
+                         criterion_cls, num_epochs,
+                         output_dim, None, scheduler_lr_cls, scheduler_lr_params, val_loader)
+        metrics1['h_dim'] = hdim
 
     print("Model Simple without ReduceLROnPlateau")
     model2 = copy.deepcopy(model).to(device)
@@ -344,29 +350,34 @@ def generate_no_batch_networks(data_dict, hdim):
     metrics2['h_dim'] = hdim
 
     # Write results and save networks on file
-    write_results_on_csv('results\\accuracies_no_batch_with_reducelr.csv', metrics1)
-    write_results_on_csv('results\\accuracies_no_batch.csv', metrics2)
+    write_results_on_csv('results\\accuracies_no_batch_with_reduce_lr.csv', metrics2)
+
+    if generate_bool:
+        write_results_on_csv('results\\accuracies_no_batch.csv', metrics1)
 
 
     # Export the models to ONNX format
     # A dummy input (ensure it is on the same device as the model)
     dummy_input = torch.randn(1, input_dim).to(device)
 
-    torch.onnx.export(
-        model1,
-        dummy_input,
-        f"results/no_batch/{hdim}_lr.onnx",
-        input_names=['input'],
-        output_names=['output'],
-        export_params=True,
-        opset_version=11,
-        do_constant_folding=True,
-    )
+    lr = optimizer_dict["lr"]
+
+    if generate_bool:
+        torch.onnx.export(
+            model1,
+            dummy_input,
+            f"results/no_batch/{hdim}.onnx",
+            input_names=['input'],
+            output_names=['output'],
+            export_params=True,
+            opset_version=11,
+            do_constant_folding=True,
+        )
 
     torch.onnx.export(
         model2,
         dummy_input,
-        f"results/no_batch/{hdim}.onnx",
+        f"results/no_batch/{hdim}_lr_{lr}.onnx",
         input_names=['input'],
         output_names=['output'],
         export_params=True,

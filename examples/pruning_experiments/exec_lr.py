@@ -10,10 +10,8 @@ parent_directory = os.path.dirname(os.path.dirname(current_directory))
 # Add the parent directory to the Python path
 sys.path.insert(0, parent_directory)
 
-
-from examples.pruning_experiments.networks_generation.generate_network import generate_no_batch_networks, \
+from examples.pruning_experiments.networks_generation.generate_network_focus_lr import generate_no_batch_networks, \
     load_yaml_config
-
 from datetime import datetime
 import csv
 
@@ -51,7 +49,7 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    yaml_file = 'config_MNIST.yaml'  # Modifica con il percorso corretto del tuo file YAML'
+    yaml_file = 'config_MNIST_lr.yaml'  # Modifica con il percorso corretto del tuo file YAML'
     config = load_yaml_config(yaml_file)
 
     hdims = config['hidden_layer_dims']
