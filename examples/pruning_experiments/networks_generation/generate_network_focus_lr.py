@@ -360,7 +360,7 @@ def generate_no_batch_networks(data_dict, hdim):
     # A dummy input (ensure it is on the same device as the model)
     dummy_input = torch.randn(1, input_dim).to(device)
 
-    lr = optimizer_dict["lr"]
+    lr = opt_params_without_weight_decay["lr"]
 
     if generate_bool:
         torch.onnx.export(
