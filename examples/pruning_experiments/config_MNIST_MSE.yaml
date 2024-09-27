@@ -2,8 +2,17 @@
 
 architecture: "Neural Network"          # Name of the network architecture
 hidden_layer_dims:
+  - 5
+  - 15
+  - 30
+  - 45
+  - 50
+  - 70
+  - 100
   - 200
-  - 600
+  - 500
+  - 700
+  - 900
   - 1100
 
 
@@ -14,8 +23,7 @@ training:
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64
   validation_percentage: 0.2
-  loss_name: "CrossEntropyLoss"
-  further_training: False
+  loss_name: "MSE"
 
 optimizer:
   type: "Adam"
