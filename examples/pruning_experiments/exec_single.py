@@ -11,7 +11,7 @@ parent_directory = os.path.dirname(os.path.dirname(current_directory))
 sys.path.insert(0, parent_directory)
 
 
-from examples.pruning_experiments.networks_generation.generate_network import generate_no_batch_networks, \
+from examples.pruning_experiments.networks_generation.generate_network_single import generate_no_batch_networks, \
     load_yaml_config
 
 from datetime import datetime
@@ -51,7 +51,7 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    yaml_file = 'config_MNIST_MSE.yaml'
+    yaml_file = 'config_MNIST_single_wdecay.yaml'
     config = load_yaml_config(yaml_file)
 
     hdims = config['hidden_layer_dims']
