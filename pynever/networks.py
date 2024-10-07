@@ -267,16 +267,19 @@ class SequentialNetwork(NeuralNetwork):
     def __is_single_concrete(node: nodes.LayerNode) -> bool:
         """
         Procedure to check whether the LayerNode given as a parameter is a ConcreteLayerNode with a single input.
+
         Parameters
         ----------
         node: LayerNode
             The node to be checked.
+
         Returns
         -------
         bool
             True if the LayerNode is a ConcreteLayerNode with a single input, False otherwise.
 
         """
+
         return ((node is not None) and
                 isinstance(node, nodes.ConcreteLayerNode) and
                 isinstance(node.get_input_dim(), tuple))
@@ -284,12 +287,28 @@ class SequentialNetwork(NeuralNetwork):
     def get_input_id(self) -> str:
         """
         Procedure to return the input_id of the network.
+
         Returns
         -------
         str
             The input_id of the network.
+
         """
+
         return list(self.input_ids.keys())[0]
+
+    def set_input_id(self, new_input_id: str) -> None:
+        """
+        Procedure to assign a new input_id to the network
+
+        Parameters
+        ----------
+        new_input_id : str
+            The new input_id
+
+        """
+
+        self.input_ids = {new_input_id: self.get_first_node().identifier}
 
     def is_empty(self) -> bool:
         """
@@ -315,6 +334,7 @@ class SequentialNetwork(NeuralNetwork):
             New node to add to the Sequential network.
 
         """
+
         if not SequentialNetwork.__is_single_concrete(node):
             raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
 
