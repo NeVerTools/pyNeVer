@@ -1,5 +1,5 @@
 from pynever import tensors
-from pynever.strategies.bounds_propagation.utils.utils import *
+from pynever.strategies.bounds_propagation.utility.functions import *
 
 
 class LinearFunctions:

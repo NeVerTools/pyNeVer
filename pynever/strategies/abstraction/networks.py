@@ -7,7 +7,7 @@ import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction import LOGGER_LAYER
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
 from pynever.strategies.verification.parameters import SSLPVerificationParameters
 
 
@@ -148,7 +148,7 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         self.ref_network = ref_network
         self.bounds = None
 
-    def set_bounds(self, layers_bounds):
+    def set_bounds(self, layers_bounds: dict[str, HyperRectangleBounds]):
         self.bounds = layers_bounds
 
     def forward(self, abs_input: AbsElement) -> AbsElement:

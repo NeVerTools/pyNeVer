@@ -1,11 +1,11 @@
+import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import networks, nodes, tensors
-
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds_manager import compute_layer_inactive_from_bounds_and_fixed_neurons
+from pynever.strategies.bounds_propagation.bounds import VerboseBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 
 
-def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: dict) -> ExtendedStar:
+def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: VerboseBounds) -> ExtendedStar:
     """
     This method performs the abstract propagation of a single star starting
     from a specific layer and neuron. The output is a single star that uses
@@ -17,7 +17,7 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
         The star to process
     network : networks.SequentialNetwork
         The neural network to propagate through
-    bounds : dict
+    bounds : VerboseBounds
         The bounds of the network layers
 
     Returns
@@ -68,8 +68,8 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
     return star
 
 
-def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, network: networks.SequentialNetwork,
-                                              skip: bool = True) -> ExtendedStar:
+def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: VerboseBounds,
+                                              network: networks.SequentialNetwork, skip: bool = True) -> ExtendedStar:
     """
     Compute the initial star which will always start from the first layer and
     where we will use the bounds to determine the inactive nodes,
@@ -81,8 +81,8 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
     relu_layer_id = new_star.ref_layer
 
     if relu_layer is not None:
-        layer_inactive = compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
-                                                                              relu_layer_id)
+        layer_inactive = utilf.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
+                                                                                    relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
@@ -93,7 +93,7 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: dict, 
     return new_star
 
 
-def propagate_until_relu(star: ExtendedStar, bounds: dict, network: networks.SequentialNetwork, skip: bool) \
+def propagate_until_relu(star: ExtendedStar, bounds: VerboseBounds, network: networks.SequentialNetwork, skip: bool) \
         -> tuple[ExtendedStar, nodes.ReLUNode | None]:
     """
     This function performs the star propagation throughout Fully Connected layers
@@ -104,8 +104,8 @@ def propagate_until_relu(star: ExtendedStar, bounds: dict, network: networks.Seq
     ----------
     star : ExtendedStar
         The star to process
-    bounds : dict
-        The bounds dictionary
+    bounds : VerboseBounds
+        The bounds collection
     network : networks.SequentialNetwork
         The neural network
     skip : bool
@@ -169,15 +169,15 @@ def propagate_until_relu(star: ExtendedStar, bounds: dict, network: networks.Seq
     return star, relu_layer
 
 
-def make_star_from_bounds(bounds: dict, layer_id: str) -> ExtendedStar:
+def make_star_from_bounds(bounds: VerboseBounds, layer_id: str) -> ExtendedStar:
     """
     This function creates an ExtendedStar from the symbolic equations of the bounds at the
     layer specified by layer_id
 
     Parameters
     ----------
-    bounds : dict
-        The dictionary of the symbolic and concrete bounds
+    bounds : VerboseBounds
+        The collection of the symbolic and concrete bounds
     layer_id : str
         The identifier of the current layer
 
@@ -188,8 +188,8 @@ def make_star_from_bounds(bounds: dict, layer_id: str) -> ExtendedStar:
 
     """
 
-    symbolic_bounds = bounds['symbolic'][layer_id]
-    numeric_bounds = bounds['numeric_post'][layer_id]
+    symbolic_bounds = bounds.symbolic_bounds[layer_id]
+    numeric_bounds = bounds.numeric_post_bounds[layer_id]
 
     layer_size = symbolic_bounds.lower.matrix.shape[0]
     input_size = symbolic_bounds.lower.matrix.shape[1]

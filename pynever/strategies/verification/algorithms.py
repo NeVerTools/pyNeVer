@@ -6,19 +6,20 @@ import time
 import numpy as np
 
 import pynever.networks as networks
-import pynever.strategies.bounds_propagation.bounds_manager as bm
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.verification import LOGGER
+from pynever.strategies.bounds_propagation.utility.functions import StabilityInfo
+from pynever.strategies.verification import VERIFICATION_LOGGER
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsBackend, IntersectionStrategy, RefinementTarget, \
-    RefinementStrategy
+    RefinementStrategy, BoundsDirection
 from pynever.tensors import Tensor
 
 
@@ -74,7 +75,7 @@ class SSLPVerification(VerificationStrategy):
     def __init__(self, params: SSLPVerificationParameters):
 
         self.params = params
-        self.logger = LOGGER
+        self.logger = VERIFICATION_LOGGER
 
         self.counterexample_stars = None
         self.layers_bounds = {}
@@ -110,14 +111,14 @@ class SSLPVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         # TODO remove assert in bound propagation
         try:
-            manager = bm.BoundsManager()
+            manager = BoundsManager()
             self.layers_bounds = manager.compute_bounds_from_property(network, prop)
 
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
             self.layers_bounds = {}
 
-        abst_network.set_bounds(self.layers_bounds['numeric_pre'])
+        abst_network.set_bounds(self.layers_bounds.numeric_pre_bounds)
 
         input_star = Star(prop.in_coef_mat, prop.in_bias_mat)
         input_starset = StarSet({input_star})
@@ -200,10 +201,10 @@ class SSBPVerification(VerificationStrategy):
         self.network = None
         self.prop = None
 
-        self.logger = LOGGER
+        self.logger = VERIFICATION_LOGGER
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
-            -> tuple[ExtendedStar, HyperRectangleBounds, dict]:
+            -> tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]:
         """
         Initialize the search algorithm and compute the
         starting values for the bounds, the star and the target
@@ -217,12 +218,12 @@ class SSBPVerification(VerificationStrategy):
         star0 = ExtendedStar(LinearFunctions(star0.predicate_matrix, star0.predicate_bias),
                              LinearFunctions(star0.basis_matrix, star0.center))
 
-        bounds = self.get_bounds(self.parameters.bounds)
+        bounds = self.get_bounds(self.parameters.bounds, self.parameters.bounds_direction)
         star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
-        return star1, bm.BoundsManager.get_input_bounds(self.prop), bounds
+        return star1, BoundsManager.get_input_bounds(self.prop), bounds
 
-    def get_bounds(self, strategy: BoundsBackend) -> dict:
+    def get_bounds(self, strategy: BoundsBackend, direction: BoundsDirection) -> VerboseBounds:
         """
         This method gets the bounds of the neural network for the given property
         of interest. The bounds are computed based on a strategy that allows to
@@ -232,23 +233,25 @@ class SSBPVerification(VerificationStrategy):
         ----------
         strategy : BoundsBackend
             The strategy to use for computing the bounds
+        direction : BoundsDirection
+            The direction to compute the bounds (forwards or backwards)
 
         Returns
         ----------
-        dict
-            The dictionary of the bounds computed by the Bounds Manager
+        VerboseBounds
+            The collection of the bounds computed by the Bounds Manager
 
         """
 
         match strategy:
             case BoundsBackend.SYMBOLIC:
-                return bm.BoundsManager().compute_bounds_from_property(self.network, self.prop)
+                return BoundsManager(direction).compute_bounds_from_property(self.network, self.prop)
 
             case _:
                 # TODO add more strategies
                 raise NotImplementedError
 
-    def compute_intersection(self, star: ExtendedStar, nn_bounds: dict) -> tuple[bool, Tensor]:
+    def compute_intersection(self, star: ExtendedStar, nn_bounds: VerboseBounds) -> tuple[bool, Tensor]:
         """
         This method computes the intersection between a star and the output property
         using the intersection algorithm specified by the parameters
@@ -268,7 +271,8 @@ class SSBPVerification(VerificationStrategy):
             case _:
                 raise NotImplementedError('Intersection strategy not supported')
 
-    def get_next_target(self, star: ExtendedStar, nn_bounds: dict) -> tuple[RefinementTarget | None, ExtendedStar]:
+    def get_next_target(self, star: ExtendedStar, nn_bounds: VerboseBounds) \
+            -> tuple[RefinementTarget | None, ExtendedStar]:
         """
         This method computes the next refinement target for the verification algorithm
         based on the strategy specified by the parameters
@@ -281,13 +285,13 @@ class SSBPVerification(VerificationStrategy):
                 return ssbp_split.get_target_sequential(star, nn_bounds, self.network)
 
             case RefinementStrategy.LOWEST_APPROX:
-                return ssbp_split.get_target_lowest_overapprox(star, nn_bounds, self.network)
+                return ssbp_split.get_target_lowest_overapprox(star, nn_bounds)
 
             case RefinementStrategy.LOWEST_APPROX_CURRENT_LAYER:
                 return ssbp_split.get_target_lowest_overapprox_current_layer(star, nn_bounds, self.network)
 
             case RefinementStrategy.INPUT_BOUNDS_CHANGE:
-                return ssbp_split.get_target_most_input_change(star, nn_bounds, self.network)
+                return ssbp_split.get_target_most_input_change(star, nn_bounds, self.network, self.parameters)
 
             case _:
                 raise NotImplementedError('Only sequential refinement supported')
@@ -310,27 +314,27 @@ class SSBPVerification(VerificationStrategy):
             search is complete it also returns a counterexample
 
         """
-
-        if isinstance(network, networks.SequentialNetwork):
-            in_star, input_bounds, in_bounds = self.init_search(network, prop)
-        else:
-            raise NotImplementedError('Only SequentialNetwork objects are supported at present')
-
-        n_unstable = len(in_bounds['stability_info'][bm.StabilityInfo.UNSTABLE])
-        self.logger.info(f"Started {datetime.datetime.now()}\n"
-                         f"Inactive neurons: {in_bounds['stability_info'][bm.StabilityInfo.INACTIVE]}\n"
-                         f"  Active neurons: {in_bounds['stability_info'][bm.StabilityInfo.ACTIVE]}\n"
-                         f"    Stable count: {in_bounds['stable_count']}\n"
-                         f"    Stable ratio: {in_bounds['stable_count'] / (in_bounds['stable_count'] + n_unstable)}\n"
-                         f"\n")
-
-        # Frontier is a stack of tuples (ExtendedStar, dict)
-        frontier = [(in_star, in_bounds)]
-        stop_flag = False
-
         # Start timer
         timer = 0
         start_time = time.perf_counter()
+
+        if isinstance(network, networks.SequentialNetwork):
+            in_star, input_num_bounds, input_symb_bounds = self.init_search(network, prop)
+        else:
+            raise NotImplementedError('Only SequentialNetwork objects are supported at present')
+
+        n_unstable = len(input_symb_bounds.statistics.stability_info[StabilityInfo.UNSTABLE])
+        self.logger.info(f"Started {datetime.datetime.now()}\n"
+                         f"Inactive neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.INACTIVE]}\n"
+                         f"  Active neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.ACTIVE]}\n"
+                         f"    Stable count: {input_symb_bounds.stable_count}\n"
+                         f"    Stable ratio: {input_symb_bounds.stable_count /
+                                              (input_symb_bounds.stable_count + n_unstable)}\n"
+                         f"\n")
+
+        # Frontier is a stack of tuples (ExtendedStar, dict)
+        frontier = [(in_star, input_symb_bounds)]
+        stop_flag = False
 
         node_counter = 0
 
@@ -339,7 +343,7 @@ class SSBPVerification(VerificationStrategy):
             current_star, nn_bounds = frontier.pop()
             self.logger.info(f"Node {node_counter}. Frontier size {len(frontier) + 1}. "
                              f"Depth {len(current_star.fixed_neurons)}. "
-                             f"Stable count {nn_bounds['stable_count']}")
+                             f"Stable count {nn_bounds.stable_count}")
 
             intersects, candidate_cex = self.compute_intersection(current_star, nn_bounds)
 
@@ -362,7 +366,7 @@ class SSBPVerification(VerificationStrategy):
                     if target is not None:
                         # Split the current branch according to the target
                         frontier.extend(
-                            ssbp_split.split_star_opt(current_star, target, self.network, nn_bounds)
+                            ssbp_split.split_star_opt(current_star, target, self.network, nn_bounds, self.parameters)
                         )
 
                     else:
@@ -371,10 +375,10 @@ class SSBPVerification(VerificationStrategy):
                         # So there can be some over-approximation.
                         # We should detect and throw more exact intersection check
 
-                        input_bounds = nn_bounds['numeric_pre'][self.network.get_first_node().identifier]
+                        input_num_bounds = nn_bounds.numeric_pre_bounds[self.network.get_first_node().identifier]
 
                         self.logger.info(f"\tBranch {current_star.fixed_neurons} is inconsistent with bounds, "
-                                         f"input {input_bounds.get_lower()} {input_bounds.get_upper()}")
+                                         f"input {input_num_bounds.get_lower()} {input_num_bounds.get_upper()}")
 
                         raise Exception("This point should not be reachable")
 
