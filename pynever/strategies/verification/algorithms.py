@@ -324,12 +324,12 @@ class SSBPVerification(VerificationStrategy):
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
         n_unstable = len(input_symb_bounds.statistics.stability_info[StabilityInfo.UNSTABLE])
+        stable_ratio = input_symb_bounds.stable_count / (input_symb_bounds.stable_count + n_unstable)
         self.logger.info(f"Started {datetime.datetime.now()}\n"
                          f"Inactive neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.INACTIVE]}\n"
                          f"  Active neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.ACTIVE]}\n"
                          f"    Stable count: {input_symb_bounds.stable_count}\n"
-                         f"    Stable ratio: {input_symb_bounds.stable_count /
-                                              (input_symb_bounds.stable_count + n_unstable)}\n"
+                         f"    Stable ratio: {stable_ratio}\n"
                          f"\n")
 
         # Frontier is a stack of tuples (ExtendedStar, dict)

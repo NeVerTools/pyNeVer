@@ -230,7 +230,6 @@ class BoundsManager:
             # Update stable count
             stable_count += self.get_layer_stability_stats(layer.identifier, layer_in_num)
 
-
         elif isinstance(layer, nodes.FlattenNode):
             """ Flatten layer """
 
