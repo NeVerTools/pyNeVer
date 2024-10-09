@@ -264,8 +264,8 @@ def generate_no_batch_networks(data_dict, hdim):
     optimizer_name = opt_params_with_weight_decay['type']
     del opt_params_with_weight_decay['type']
 
-    opt_params_without_weight_decay = opt_params_with_weight_decay.copy()
-    del opt_params_without_weight_decay['weight_decay']
+    opt_params = opt_params_with_weight_decay.copy()
+    del opt_params['weight_decay']
 
     # Create scheduler_lr_dict params dict
     scheduler_lr_params = scheduler_lr_dict.copy()
@@ -291,18 +291,9 @@ def generate_no_batch_networks(data_dict, hdim):
     validation_percentage = float(data_dict['training']['validation_percentage'])
     loss_name = data_dict['training']['loss_name']
 
-    # Other parameters for setting up the different pruning strategies
-    l1_decay = float(data_dict['l1_sparse']['l1_decay'])
-    wp_strength = float(data_dict['weight_pruning']['wp_strength'])
-    np_strength = float(data_dict['neuron_pruning']['np_strength'])
-    batch_norm_decay = float(data_dict['neuron_pruning']['batch_norm_decay'])
-    dropout_rate = float(data_dict['dropout']['dropout_rate'])
-    leaky_slope = float(data_dict['leaky']['leaky_slope'])
-
     # Set the device (use GPU if available, otherwise fallback to CPU)
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     device = torch.device(device_str)
-    cuda = True if device_str == 'cuda' else False
 
     # Dataset loading and transformation
     if dataset_name == 'MNIST':
@@ -373,7 +364,7 @@ def generate_no_batch_networks(data_dict, hdim):
     # Train the model without batch or L1 regularization
     print("Model Simple")
     model1 = copy.deepcopy(model).to(device)
-    metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params_with_weight_decay,
+    metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params,
                      criterion_cls, num_epochs,
                      output_dim, None, scheduler_lr_cls, scheduler_lr_params, val_loader)
     metrics1['h_dim'] = hdim
