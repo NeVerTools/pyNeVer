@@ -18,6 +18,28 @@ class RefinementTarget:
         return self.layer_id, self.neuron_idx
 
 
+class NeuronSplit(enum.Enum):
+    """
+    This class is used as an enumerator to distinguish the two outputs
+    of a neuron split (positive or negative)
+
+    """
+
+    NEGATIVE = 0
+    POSITIVE = 1
+
+
+class BoundsDirection(enum.Enum):
+    """
+    This class is used as an enumerator to choose the direction of
+    the bounds computation (forwards or backwards)
+
+    """
+
+    FORWARDS = 0
+    BACKWARDS = 1
+
+
 class NeuronState(enum.Enum):
     """
     This class is used as an enumerator to represent the state of a neuron.

@@ -3,12 +3,14 @@ from ortools.linear_solver import pywraplp
 
 import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import networks
+from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.bounds_propagation.bounds import VerboseBounds
 from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.bounds_propagation.refinement import BoundsRefinement, NeuronSplit
+from pynever.strategies.bounds_propagation.refinement import BoundsRefinement
+from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.ssbp import propagation
-from pynever.strategies.verification.ssbp.constants import RefinementTarget
+from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit
 
 
 def get_target_sequential(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork) \
@@ -199,8 +201,8 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: VerboseBounds) \
     return None, star
 
 
-def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork) \
-        -> tuple[RefinementTarget | None, ExtendedStar]:
+def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork,
+                                 params: SSBPVerificationParameters) -> tuple[RefinementTarget | None, ExtendedStar]:
     """
 
     """
@@ -212,8 +214,10 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
     if len(unstable) > 0:
         # initialise input_differences.
         if star.input_differences is None:
-            star.input_differences = BoundsRefinement().compute_refines_input_by(unstable, star.fixed_neurons,
-                                                                                 nn_bounds, network)
+            star.input_differences = BoundsRefinement(params.bounds_direction).compute_refines_input_by(unstable,
+                                                                                                        star.fixed_neurons,
+                                                                                                        nn_bounds,
+                                                                                                        network)
 
         candidates = [((layer_id, neuron_n), diff) for (layer_id, neuron_n), diff in star.input_differences
                       if (layer_id, neuron_n) in unstable]
@@ -222,7 +226,10 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
             return RefinementTarget(candidates[0][0][0], candidates[0][0][1]), star
 
         # No candidates. Recompute input_differences again for all unstable neurons
-        candidates = BoundsRefinement().compute_refines_input_by(unstable, star.fixed_neurons, nn_bounds, network)
+        candidates = BoundsRefinement(params.bounds_direction).compute_refines_input_by(unstable,
+                                                                                        star.fixed_neurons,
+                                                                                        nn_bounds,
+                                                                                        network)
         star.input_differences = candidates
 
         if len(candidates) > 0 and candidates[0][1] != 0:
@@ -238,7 +245,8 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
 
 
 def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networks.SequentialNetwork,
-                   nn_bounds: VerboseBounds) -> list[tuple[ExtendedStar, VerboseBounds]]:
+                   nn_bounds: VerboseBounds, params: SSBPVerificationParameters) \
+        -> list[tuple[ExtendedStar, VerboseBounds]]:
     """
     Optimized split method
 
@@ -247,13 +255,14 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
     """
 
     # Update the bounds after the split
-    negative_bounds, positive_bounds = BoundsRefinement().branch_update_bounds(nn_bounds, network, target,
-                                                                               star.fixed_neurons)
+    negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_update_bounds(nn_bounds,
+                                                                                                      network, target,
+                                                                                                      star.fixed_neurons)
 
     stars = compute_star_after_fixing_target_to_value(star, negative_bounds, target, NeuronSplit.NEGATIVE, nn_bounds,
-                                                      network) + \
+                                                      network, params) + \
             compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.POSITIVE, nn_bounds,
-                                                      network)
+                                                      network, params)
 
     stars = sorted(stars, key=lambda x: x[1].stable_count)
 
@@ -261,7 +270,8 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
 
 
 def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: VerboseBounds, target: RefinementTarget,
-                                              split: NeuronSplit, pre_split_bounds: VerboseBounds, network) \
+                                              split: NeuronSplit, pre_split_bounds: VerboseBounds,
+                                              network: SequentialNetwork, params: SSBPVerificationParameters) \
         -> list[tuple[ExtendedStar, VerboseBounds]]:
     """
     This function creates the star after fixing target according to the split
@@ -285,7 +295,9 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
                                     input_differences=star.input_differences)
 
     if bounds.stable_count - pre_split_bounds.stable_count <= 2:
-        negative_bounds, positive_bounds = BoundsRefinement().branch_bisect_input(bounds, network, fixed_so_far)
+        negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_bisect_input(bounds,
+                                                                                                         network,
+                                                                                                         fixed_so_far)
 
         return compute_star_after_input_split(star_after_split, negative_bounds) + \
             compute_star_after_input_split(star_after_split, positive_bounds)

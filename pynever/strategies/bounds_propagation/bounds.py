@@ -86,8 +86,8 @@ class BoundsStats:
     """
 
     def __init__(self, stability_info: dict, overapprox_area: dict):
-        self.stability_info = stability_info
-        self.overapprox_area = overapprox_area
+        self.stability_info = copy.deepcopy(stability_info)
+        self.overapprox_area = copy.deepcopy(overapprox_area)
 
 
 class VerboseBounds:
@@ -114,8 +114,8 @@ class VerboseBounds:
                  numeric_pre: dict = None,
                  numeric_post: dict = None,
                  stable_count: int = 0):
-        self.symbolic_bounds = symbolic if symbolic is not None else dict()
-        self.numeric_pre_bounds = numeric_pre if numeric_pre is not None else dict()
-        self.numeric_post_bounds = numeric_post if numeric_post is not None else dict()
+        self.symbolic_bounds = copy.deepcopy(symbolic) if symbolic is not None else dict()
+        self.numeric_pre_bounds = copy.deepcopy(numeric_pre) if numeric_pre is not None else dict()
+        self.numeric_post_bounds = copy.deepcopy(numeric_post) if numeric_post is not None else dict()
         self.stable_count = stable_count
         self.statistics = None

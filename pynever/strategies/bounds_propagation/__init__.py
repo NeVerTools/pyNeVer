@@ -1,3 +1,3 @@
 import logging
 
-LOGGER = logging.getLogger("pynever.strategies.bounds_propagation")
+BOUNDS_LOGGER = logging.getLogger("pynever.strategies.bounds_propagation")
