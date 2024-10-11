@@ -5,10 +5,12 @@ import multiprocessing
 import numpy as np
 
 import pynever.nodes as nodes
+from pynever import tensors
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds
-from pynever.strategies.verification.parameters import VerificationParameters
+from pynever.strategies.verification.parameters import VerificationParameters, SSLPVerificationParameters
+from pynever.tensors import Tensor
 
 
 # TODO update method documentation
@@ -233,10 +235,12 @@ class AbsReLUNode(AbsLayerNode):
 
         super().__init__(identifier, ref_node)
 
-        if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'neurons_to_refine'):
-            raise Exception('Verification parameters must include attributes "heuristic" and "neurons_to_refine"')
+        if not isinstance(parameters, SSLPVerificationParameters):
+            raise Exception(f'Verification parameters mismatch: expected {SSLPVerificationParameters.__class__} '
+                            f'but got {parameters.__class__!r} instead.')
+        else:
+            self.parameters = parameters
 
-        self.parameters = parameters
         self.layer_bounds = None
         self.n_areas = None
 
@@ -278,25 +282,17 @@ class AbsReLUNode(AbsLayerNode):
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
             parallel_results = my_pool.map(self._mixed_single_relu_forward, abs_input.stars)
 
-        # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
-        if hasattr(self.parameters, 'neurons_to_refine'):
-            if self.parameters.neurons_to_refine is not None:
-                self.parameters.neurons_to_refine.pop(0)
-        else:
-            # TODO check exception
-            raise Exception('SSLP parameters must have "neurons_to_refine" attribute!')
-
         abs_output = StarSet()
 
-        # This is used in mixed verification
-        tot_areas = np.zeros(self.ref_node.get_input_dim())
+        # This is used in the mixed verification
+        tot_areas = tensors.zeros(self.ref_node.get_input_dim())
         num_areas = 0
 
         for star_set, areas in parallel_results:
             abs_output.stars = abs_output.stars.union(star_set)
 
             # Perform this code only if necessary
-            if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
+            if self.parameters.compute_areas:
                 if star_set != set():
                     num_areas = num_areas + 1
                     tot_areas = tot_areas + areas
@@ -306,7 +302,7 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    def _mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], np.ndarray | None]:
+    def _mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], Tensor | None]:
         """
         Utility function for the management of the forward for AbsReLUNode. It is outside
         the class scope since multiprocessing does not support parallelization with
@@ -321,17 +317,18 @@ class AbsReLUNode(AbsLayerNode):
         n_areas = []
 
         # Perform this code only if necessary
-        if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
+        if self.parameters.compute_areas:
 
             for i in range(star.n_neurons):
-                if (self.layer_bounds is not None
-                        and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
+                if (self.layer_bounds is not None and (
+                        self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)):
                     n_areas.append(0)
+
                 else:
                     lb, ub = star.get_bounds(i)
                     n_areas.append(-lb * ub / 2.0)
 
-            n_areas = np.array(n_areas)
+            n_areas = Tensor(np.array(n_areas))
 
         refinement_flags = []
 
@@ -343,6 +340,13 @@ class AbsReLUNode(AbsLayerNode):
                 refinement_flags = [False for _ in range(star.n_neurons)]
 
             case 'mixed':
+                # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
+                if self.parameters.neurons_to_refine is not None:
+                    self.parameters.neurons_to_refine.pop(0)
+
+                else:
+                    raise Exception('Mixed verification must have a valid positive "neurons_to_refine" attribute!')
+
                 # The first element corresponds to the current layer
                 n_neurons = self.parameters.neurons_to_refine[0]
 
@@ -365,25 +369,25 @@ class AbsReLUNode(AbsLayerNode):
         return temp_abs_input, n_areas
 
     def __mixed_step_relu(self, abs_input: set[Star], var_index: int, refinement_flag: bool) -> set[Star]:
-        symb_lb = None
-        symb_ub = None
+        symbolic_lb = None
+        symbolic_ub = None
+
         if self.layer_bounds is not None:
-            symb_lb = self.layer_bounds.get_lower()[var_index]
-            symb_ub = self.layer_bounds.get_upper()[var_index]
+            symbolic_lb = self.layer_bounds.get_lower()[var_index]
+            symbolic_ub = self.layer_bounds.get_upper()[var_index]
 
         abs_input = list(abs_input)
         abs_output = set()
 
         guard = 10e-15
 
-        if symb_lb is None:
-            symb_lb = -100
+        if symbolic_lb is None:
+            symbolic_lb = -100
 
-        if symb_ub is None:
-            symb_ub = 100
+        if symbolic_ub is None:
+            symbolic_ub = 100
 
         for i in range(len(abs_input)):
-
             is_pos_stable = False
             is_neg_stable = False
             lb, ub = None, None
@@ -391,15 +395,16 @@ class AbsReLUNode(AbsLayerNode):
             star = abs_input[i]
 
             # Check abstract bounds for stability
-            if symb_lb >= guard:
+            if symbolic_lb >= guard:
                 is_pos_stable = True
-            elif symb_ub <= -guard:
+
+            elif symbolic_ub <= -guard:
                 is_neg_stable = True
+
             else:
                 lb, ub = star.get_bounds(var_index)
 
             if not star.check_if_empty():
-
                 if is_pos_stable or (lb is not None and lb >= 0):
                     abs_output = abs_output.union({star})
 
@@ -407,14 +412,11 @@ class AbsReLUNode(AbsLayerNode):
                     abs_output = abs_output.union({star.create_negative_stable(var_index)})
 
                 else:
-
                     if refinement_flag:
-
                         lower_star, upper_star = star.split(var_index)
                         abs_output = abs_output.union({lower_star, upper_star})
 
                     else:
-
                         abs_output = abs_output.union({star.create_approx(var_index, lb, ub)})
 
         return abs_output
@@ -464,7 +466,7 @@ class AbsSigmoidNode(AbsLayerNode):
     def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
 
-        approx_levels = parameters.sigmoid_params.approx_levels
+        approx_levels = parameters.approx_levels
 
         if approx_levels is None:
             approx_levels = [0 for _ in range(ref_node.get_input_dim()[-1])]
