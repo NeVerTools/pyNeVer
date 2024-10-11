@@ -11,6 +11,29 @@ class VerificationParameters(abc.ABC):
 
 
 class SSLPVerificationParameters(VerificationParameters):
+    """
+    A class to hold the parameters for the SSLP verification.
+
+    Attributes
+    ----------
+    heuristic : str
+        Heuristic used to control the refinement level of the abstraction.
+        It can be one of the following:
+        - complete: all the neurons are processed with a precise abstraction
+        - mixed: a given number of neurons is processed with a precise abstraction
+        - overapprox: all the neurons are processed with a coarse abstraction
+
+    neurons_to_refine : list[int], optional
+        List of the neurons to process with a precise abstraction when using the
+        mixed heuristic
+
+    approx_levels : int | list[int], optional
+        Refinement level for the s-shaped functions (a bigger level is more accurate).
+        If it is a single int then that refinement level is applied to all the layers,
+        otherwise it is a list containing the refinement levels for each layer
+
+    """
+
     def __init__(self, heuristic: str = 'complete',
                  neurons_to_refine: list | None = None,
                  approx_levels: int | list[int] | None = None):

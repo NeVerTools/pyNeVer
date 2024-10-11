@@ -203,20 +203,10 @@ class AbsReLUNode(AbsLayerNode):
     ----------
     identifier : str
         Identifier of the SingleInputLayerNode.
-
     ref_node : ReLUNode
         Reference SingleInputLayerNode for the abstract transformer.
-
-    heuristic : str
-        Heuristic used to decide the refinement level of the abstraction.
-        At present can be only one of the following:
-        - complete: for each star all the neurons are processed with a precise abstraction
-        - mixed: for each star a given number of neurons is processed with a precise abstraction
-        - overapprox: for each star all the neurons are processed with a coarse abstraction
-
-    params : List
-        Parameters for the heuristic of interest.
-        It is a List with the number of neurons to process with a precise abstraction in this layer.
+    parameters : VerificationParameters
+        Parameters for guiding the verification strategy.
 
     Methods
     ----------
@@ -253,7 +243,6 @@ class AbsReLUNode(AbsLayerNode):
         ----------
         abs_input : AbsElement
             The input abstract element.
-
         bounds : dict
             Optional bounds for this layer as computed by the previous
 
@@ -443,13 +432,10 @@ class AbsSigmoidNode(AbsLayerNode):
     ----------
     identifier : str
         Identifier of the SingleInputLayerNode.
-
     ref_node : SigmoidNode
         Reference SingleInputLayerNode for the abstract transformer.
-
-    refinement_level : Union[int, List[int]]
-        Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
-        the neurons of the layers, otherwise it is a list containing the refinement levels for each layers.
+    parameters : VerificationParameters
+        Parameters for guiding the verification strategy.
 
     Methods
     ----------
@@ -461,10 +447,17 @@ class AbsSigmoidNode(AbsLayerNode):
         Function which takes a reference to the refinement state and update both it and the state of the abstract
         transformer to control the refinement component of the abstraction. At present the function is just a
         placeholder for future implementations.
+
     """
 
     def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
+
+        if not isinstance(parameters, SSLPVerificationParameters):
+            raise Exception(f'Verification parameters mismatch: expected {SSLPVerificationParameters.__class__} '
+                            f'but got {parameters.__class__!r} instead.')
+        else:
+            self.parameters = parameters
 
         approx_levels = parameters.approx_levels
 
