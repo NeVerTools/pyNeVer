@@ -6,7 +6,7 @@ the linearization of non-linear activation functions
 
 import numpy as np
 
-from pynever import nodes
+from pynever import nodes, tensors
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
@@ -326,7 +326,7 @@ class LinearizeSLikeActivation:
         lower_bounds = self.input_bounds.get_lower_bounds()
         upper_bounds = self.input_bounds.get_upper_bounds()
 
-        # Try 1:
+        # Try 1: the line that intercepts both endpoints
 
     def activation(self, x: Tensor) -> Tensor:
         """

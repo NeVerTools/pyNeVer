@@ -3,6 +3,8 @@
 This module contains out internal representation of a tensor and some relevant tensor operations.
 
 """
+from __future__ import annotations
+
 import enum
 from collections.abc import Iterable
 
@@ -54,6 +56,21 @@ class Tensor:
                 return PtTensor(t)
             case _:
                 raise NotImplementedError
+
+    def __neg__(self) -> Tensor:
+        pass
+
+    def __add__(self, other) -> Tensor:
+        pass
+
+    def __rsub__(self, other) -> Tensor:
+        pass
+
+    def __rmul__(self, other) -> Tensor:
+        pass
+
+    def __pow__(self, other) -> Tensor:
+        pass
 
 
 # TODO move to configuration file
@@ -108,7 +125,7 @@ def ones(shape: tuple[int], dtype=float) -> Tensor:
         case BackEnd.NUMPY:
             return Tensor(numpy.ones(shape=shape, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.ones(size=shape, dtype=dtype))
+            return Tensor(torch.ones(size=shape, dtype=torch.float if dtype == float else None))
         case _:
             raise NotImplementedError
 
@@ -133,7 +150,7 @@ def zeros(shape: tuple, dtype=float) -> Tensor:
         case BackEnd.NUMPY:
             return Tensor(numpy.zeros(shape=shape, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.zeros(size=shape, dtype=dtype))
+            return Tensor(torch.zeros(size=shape, dtype=torch.float if dtype == float else None))
         case _:
             raise NotImplementedError
 
@@ -163,7 +180,7 @@ def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tenso
         case BackEnd.NUMPY:
             return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.prod(input=in_tensor, dim=axis, dtype=dtype))
+            return Tensor(torch.prod(input=in_tensor, dim=axis, dtype=torch.float if dtype == float else None))
         case _:
             raise NotImplementedError
 
@@ -315,7 +332,7 @@ def identity(n: int, dtype=float) -> Tensor:
         case BackEnd.NUMPY:
             return Tensor(numpy.identity(n=n, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.eye(n=n, dtype=dtype))
+            return Tensor(torch.eye(n=n, dtype=torch.float if dtype == float else None))
         case _:
             raise NotImplementedError
 
@@ -390,7 +407,7 @@ def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Te
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().standard_normal(size=size, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.normal(mean=0, std=1, size=size, dtype=dtype))
+            return Tensor(torch.normal(mean=0, std=1, size=size, dtype=torch.float if dtype == float else None))
         case _:
             raise NotImplementedError
 
@@ -598,13 +615,12 @@ def hstack(tup: tuple[Tensor]) -> Tensor:
             raise NotImplementedError
 
 
-# TODO Iterable incorrect but concrete data structures correct?
-def stack(arrays: Iterable[Tensor], axis: int = 0) -> Tensor:
+def stack(arrays: list[Tensor] | tuple[Tensor], axis: int = 0) -> Tensor:
     """Stacks tensors along specified axis.
 
     Parameters
     ----------
-    arrays : Iterable[Tensor]
+    arrays : list[Tensor] | tuple[Tensor]
         The sequence of tensors to stack
     axis : int
         The axis along which we want to stack
@@ -624,14 +640,14 @@ def stack(arrays: Iterable[Tensor], axis: int = 0) -> Tensor:
             raise NotImplementedError
 
 
-def flip(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
+def flip(in_tensor: Tensor, axis: int | list[int] | tuple[int] | None = None) -> Tensor:
     """Reverses the order of elements of a Tensor.
 
     Parameters
     ----------
     in_tensor : Tensor
         The Tensor to reverse
-    axis : int | Iterable | tuple[int] | None
+    axis : int | list[int] | tuple[int] | None
         The axis along which we want to reverse
 
     Returns
