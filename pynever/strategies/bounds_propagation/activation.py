@@ -1,6 +1,6 @@
 """
 This file contains specialized methods that provide
-the linearization of ReLU and Leaky ReLU activation functions
+the linearization of non-linear activation functions
 
 """
 
@@ -9,19 +9,28 @@ import numpy as np
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions, LinearizeActivation
+from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.verification.ssbp.constants import NeuronSplit
+from pynever.tensors import Tensor
 
 
-class LinearizeReLU(LinearizeActivation):
+class LinearizeReLU:
     """
     This class provides the linearization for the ReLU function enhanced by information
     about currently active and inactive neurons
+
+    Attributes
+    ----------
+    fixed_neurons : dict[tuple[int, int], NeuronSplit]
+        The fixed neurons for this layer, active or inactive
+    input_hyper_rect : HyperRectangleBounds
+        The input numeric bounds for this layer
 
     """
 
     USE_FIXED_NEURONS = True
 
-    def __init__(self, fixed_neurons: dict, input_hyper_rect: HyperRectangleBounds):
+    def __init__(self, fixed_neurons: dict[tuple[int, int], NeuronSplit], input_hyper_rect: HyperRectangleBounds):
         self.fixed_neurons = fixed_neurons
         self.input_hyper_rect = input_hyper_rect
 
@@ -284,6 +293,91 @@ class LinearizeReLU(LinearizeActivation):
         return mult, add
 
 
-class LinearizeLeakyReLU(LinearizeActivation):
+class LinearizeLeakyReLU:
     def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        pass
+
+
+class LinearizeSLikeActivation:
+    """
+    This class factorizes common initializations and procedures to compute
+    a linearization of s-like functions such as sigmoid and tanh.
+    Specialized, activation-specific components are implemented in the
+    corresponding child classes
+
+    Attributes
+    ----------
+    input_bounds : HyperRectangleBounds
+        The input numeric bounds for this layer
+    num_iterations : int
+        The number of iterations for the search of the optimal midpoint
+
+    """
+
+    def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
+        self.input_bounds = input_hyper_rect
+        self.num_iterations = num_iterations
+
+    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        pass
+
+    def __compute_linear_bound(self, upper: bool):
+        layer_size = self.input_bounds.size
+        lower_bounds = self.input_bounds.get_lower_bounds()
+        upper_bounds = self.input_bounds.get_upper_bounds()
+
+        # Try 1:
+
+    def activation(self, x: Tensor) -> Tensor:
+        """
+        Compute the activation function for the input x
+
+        """
+
+        raise NotImplementedError
+
+    def derivative(self, x: Tensor) -> Tensor:
+        """
+        Compute the first order derivative for the input x
+
+        """
+
+        raise NotImplementedError
+
+    def compute_split_point(self, lower: float, upper: float) -> float:
+        """
+        Compute the optimal split point for the linearization
+
+        """
+
+        raise NotImplementedError
+
+
+class LinearizeSigmoid(LinearizeSLikeActivation):
+    def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
+        super().__init__(input_hyper_rect, num_iterations)
+
+    def activation(self, x: Tensor) -> Tensor:
+        return 1 / (1 + np.exp(-x))
+
+    def derivative(self, x: Tensor) -> Tensor:
+        sig = self.activation(x)
+        return sig * (1 - sig)
+
+    def compute_split_point(self, lower: float, upper: float) -> float:
+        pass
+
+
+class LinearizeTanh(LinearizeSLikeActivation):
+    def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
+        super().__init__(input_hyper_rect, num_iterations)
+
+    def activation(self, x: Tensor) -> Tensor:
+        return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
+
+    def derivative(self, x: Tensor) -> Tensor:
+        tanh = self.activation(x)
+        return 1 - tanh ** 2
+
+    def compute_split_point(self, lower: float, upper: float) -> float:
         pass

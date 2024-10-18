@@ -1,10 +1,7 @@
-import abc
-
 import numpy as np
 
 import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import tensors
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
 
 
 class LinearFunctions:
@@ -67,16 +64,3 @@ class LinearFunctions:
         return utilf.get_positive_part(self.matrix).dot(input_bounds.get_lower()) + \
             utilf.get_negative_part(self.matrix).dot(input_bounds.get_upper()) + \
             self.offset
-
-
-class LinearizeActivation(abc.ABC):
-    """
-    Base class for the linearization of activation functions. It exposes a
-    method to compute the linearized lower and upper bounds for the bounds
-    propagation process
-
-    """
-
-    @abc.abstractmethod
-    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
-        raise NotImplementedError
