@@ -1,6 +1,6 @@
 """
 This file contains specialized methods that provide
-the linearization of ReLU activation functions
+the linearization of ReLU and Leaky ReLU activation functions
 
 """
 
@@ -9,10 +9,10 @@ import numpy as np
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions, LinearizeActivation
 
 
-class LinearizeReLU:
+class LinearizeReLU(LinearizeActivation):
     """
     This class provides the linearization for the ReLU function enhanced by information
     about currently active and inactive neurons
@@ -40,7 +40,18 @@ class LinearizeReLU:
         """
 
         lower_l, lower_u, upper_l, upper_u = input_eq.get_all_bounds(self.input_hyper_rect)
-        lower, upper = LinearizeReLU.compute_symb_lin_bounds_equations(input_eq, lower_l, lower_u, upper_l, upper_u)
+
+        k_lower, b_lower = LinearizeReLU.get_array_lin_lower_bound_coefficients(lower_l, lower_u)
+        k_upper, b_upper = LinearizeReLU.get_array_lin_upper_bound_coefficients(upper_l, upper_u)
+
+        lower_matrix = LinearizeReLU.get_transformed_matrix(input_eq.get_lower().get_matrix(), k_lower)
+        upper_matrix = LinearizeReLU.get_transformed_matrix(input_eq.get_upper().get_matrix(), k_upper)
+
+        lower_offset = LinearizeReLU.get_transformed_offset(input_eq.get_lower().get_offset(), k_lower, b_lower)
+        upper_offset = LinearizeReLU.get_transformed_offset(input_eq.get_upper().get_offset(), k_upper, b_upper)
+
+        lower = LinearFunctions(lower_matrix, lower_offset)
+        upper = LinearFunctions(upper_matrix, upper_offset)
 
         return SymbolicLinearBounds(lower, upper)
 
@@ -214,22 +225,6 @@ class LinearizeReLU:
                 postact_bounds.upper[neuron_n] = 0
 
     @staticmethod
-    def compute_symb_lin_bounds_equations(inputs, lower_l, lower_u, upper_l, upper_u):
-        k_lower, b_lower = LinearizeReLU.get_array_lin_lower_bound_coefficients(lower_l, lower_u)
-        k_upper, b_upper = LinearizeReLU.get_array_lin_upper_bound_coefficients(upper_l, upper_u)
-
-        lower_matrix = LinearizeReLU.get_transformed_matrix(inputs.get_lower().get_matrix(), k_lower)
-        upper_matrix = LinearizeReLU.get_transformed_matrix(inputs.get_upper().get_matrix(), k_upper)
-
-        lower_offset = LinearizeReLU.get_transformed_offset(inputs.get_lower().get_offset(), k_lower, b_lower)
-        upper_offset = LinearizeReLU.get_transformed_offset(inputs.get_upper().get_offset(), k_upper, b_upper)
-
-        lower = LinearFunctions(lower_matrix, lower_offset)
-        upper = LinearFunctions(upper_matrix, upper_offset)
-
-        return lower, upper
-
-    @staticmethod
     def get_transformed_matrix(matrix, k):
         return matrix * k[:, None]
 
@@ -287,3 +282,8 @@ class LinearizeReLU:
         add = -mult * lower
 
         return mult, add
+
+
+class LinearizeLeakyReLU(LinearizeActivation):
+    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        pass

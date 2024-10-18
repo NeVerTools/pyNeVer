@@ -1,5 +1,10 @@
+import abc
+
+import numpy as np
+
+import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import tensors
-from pynever.strategies.bounds_propagation.utility.functions import *
+from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
 
 
 class LinearFunctions:
@@ -22,9 +27,9 @@ class LinearFunctions:
         return LinearFunctions(self.matrix.copy(), self.offset.copy())
 
     def mask_zero_outputs(self, zero_outputs):
-        mask = np.diag(
+        mask = tensors.Tensor(np.diag(
             [0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)]
-        )
+        ))
 
         return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
 
@@ -45,20 +50,33 @@ class LinearFunctions:
 
     def compute_max_value(self, row_number, input_bounds):
         row_coeff = self.matrix[row_number]
-        return get_positive_part(row_coeff).dot(input_bounds.get_upper()) + \
-            get_negative_part(row_coeff).dot(input_bounds.get_lower()) + self.offset[row_number]
+        return utilf.get_positive_part(row_coeff).dot(input_bounds.get_upper()) + \
+            utilf.get_negative_part(row_coeff).dot(input_bounds.get_lower()) + self.offset[row_number]
 
     def compute_min_value(self, row_number, input_bounds):
         row_coeff = self.matrix[row_number]
-        return get_positive_part(row_coeff).dot(input_bounds.get_lower()) + \
-            get_negative_part(row_coeff).dot(input_bounds.get_upper()) + self.offset[row_number]
+        return utilf.get_positive_part(row_coeff).dot(input_bounds.get_lower()) + \
+            utilf.get_negative_part(row_coeff).dot(input_bounds.get_upper()) + self.offset[row_number]
 
     def compute_max_values(self, input_bounds):
-        return get_positive_part(self.matrix).dot(input_bounds.get_upper()) + \
-            get_negative_part(self.matrix).dot(input_bounds.get_lower()) + \
+        return utilf.get_positive_part(self.matrix).dot(input_bounds.get_upper()) + \
+            utilf.get_negative_part(self.matrix).dot(input_bounds.get_lower()) + \
             self.offset
 
     def compute_min_values(self, input_bounds):
-        return get_positive_part(self.matrix).dot(input_bounds.get_lower()) + \
-            get_negative_part(self.matrix).dot(input_bounds.get_upper()) + \
+        return utilf.get_positive_part(self.matrix).dot(input_bounds.get_lower()) + \
+            utilf.get_negative_part(self.matrix).dot(input_bounds.get_upper()) + \
             self.offset
+
+
+class LinearizeActivation(abc.ABC):
+    """
+    Base class for the linearization of activation functions. It exposes a
+    method to compute the linearized lower and upper bounds for the bounds
+    propagation process
+
+    """
+
+    @abc.abstractmethod
+    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        raise NotImplementedError
