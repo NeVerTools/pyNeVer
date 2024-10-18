@@ -100,7 +100,6 @@ class AbsFullyConnectedNode(AbsLayerNode):
     ----------
     identifier : str
         Identifier of the LayerNode.
-
     ref_node : FullyConnectedNode
         Reference LayerNode for the abstract transformer.
 
@@ -114,12 +113,16 @@ class AbsFullyConnectedNode(AbsLayerNode):
         Function which takes a reference to the refinement state and update both it and the state of the abstract
         transformer to control the refinement component of the abstraction. At present the function is just a
         placeholder for future implementations.
+
     """
 
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode,
                  parameters: VerificationParameters | None = None):
         super().__init__(identifier, ref_node)
         self.ref_node = ref_node
+
+        if parameters is not None:
+            raise NotImplementedError
 
     def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
@@ -168,6 +171,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
         function internal to classes.
 
         """
+
         if self.ref_node.weight.shape[1] != star.basis_matrix.shape[0]:
             raise InvalidDimensionError("The shape of the weight matrix of the concrete node is different from the "
                                         "shape of the basis matrix")
@@ -191,7 +195,9 @@ class AbsFullyConnectedNode(AbsLayerNode):
         ----------
         ref_state: RefinementState
             The RefinementState to update.
+
         """
+
         raise NotImplementedError
 
 
@@ -256,6 +262,7 @@ class AbsReLUNode(AbsLayerNode):
         if isinstance(abs_input, list):
             if len(abs_input) != 1:
                 raise Exception('There should only be one input element for this abstract node.')
+
             abs_input = abs_input[0]
 
         if bounds is not None:
@@ -263,6 +270,7 @@ class AbsReLUNode(AbsLayerNode):
 
         if isinstance(abs_input, StarSet):
             return self.__starset_forward(abs_input)
+
         else:
             raise NotImplementedError
 
@@ -459,14 +467,16 @@ class AbsSigmoidNode(AbsLayerNode):
         else:
             self.parameters = parameters
 
-        approx_levels = parameters.approx_levels
+        approx_levels = self.parameters.approx_levels
 
         if approx_levels is None:
             approx_levels = [0 for _ in range(ref_node.get_input_dim()[-1])]
+
         elif isinstance(approx_levels, int):
             approx_levels = [approx_levels for _ in range(ref_node.get_input_dim()[-1])]
 
         self.approx_levels = approx_levels
+        self.layer_bounds = None
 
     def forward(self, abs_input: AbsElement, bounds: AbstractBounds | None = None) -> AbsElement:
         """
@@ -489,10 +499,15 @@ class AbsSigmoidNode(AbsLayerNode):
         if isinstance(abs_input, list):
             if len(abs_input) != 1:
                 raise Exception('There should only be one input element for this abstract node.')
+
             abs_input = abs_input[0]
+
+        if bounds is not None:
+            self.layer_bounds = bounds
 
         if isinstance(abs_input, StarSet):
             return self.__starset_forward(abs_input)
+
         else:
             raise NotImplementedError
 
@@ -510,40 +525,48 @@ class AbsSigmoidNode(AbsLayerNode):
 
     def _single_sigmoid_forward(self, star: Star) -> set[Star]:
         """
-        Utility function for the management of the forward for AbsSigmoidNode. It is outside
-        the class scope since multiprocessing does not support parallelization with
-        function internal to classes.
+        Utility function for the management of the forward for AbsSigmoidNode.
 
         """
 
         tolerance = 0.01
         temp_abs_input = {star}
+
         for i in range(star.n_neurons):
-            temp_abs_input = AbsSigmoidNode.__approx_step_sigmoid(temp_abs_input, i, self.approx_levels[i], tolerance)
-            print(f"Index {i}, NumStar: {len(temp_abs_input)}")
+            temp_abs_input = self.__approx_step_sigmoid(temp_abs_input, i, tolerance)
+
         return temp_abs_input
 
-    @staticmethod
-    def __approx_step_sigmoid(abs_input: set[Star], var_index: int, approx_level: int, tolerance: float) -> set[Star]:
+    def __approx_step_sigmoid(self, abs_input: set[Star], var_index: int, tolerance: float) -> set[Star]:
+        lb = None
+        ub = None
+
+        if self.layer_bounds is not None:
+            lb = self.layer_bounds.get_lower()[var_index]
+            ub = self.layer_bounds.get_upper()[var_index]
+
         abs_output = set()
+
         for star in abs_input:
 
-            if not star.check_if_empty():
+            if (lb is None or ub is None) and not star.check_if_empty():
                 lb, ub = star.get_bounds(var_index)
 
-                if (lb < 0) and (ub > 0):
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
-                                                                                          lb, 0, tolerance))
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
-                                                                                          0, ub, tolerance))
-                else:
-                    abs_output = abs_output.union(AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level,
-                                                                                          lb, ub, tolerance))
+            # Need to set it here due to recursion
+            approx_level = self.approx_levels[var_index]
+
+            if (lb < 0) and (ub > 0):
+                abs_output = abs_output.union(
+                    self.__recursive_step_sigmoid(star, var_index, approx_level, lb, 0, tolerance))
+                abs_output = abs_output.union(
+                    self.__recursive_step_sigmoid(star, var_index, approx_level, 0, ub, tolerance))
+            else:
+                abs_output = abs_output.union(
+                    self.__recursive_step_sigmoid(star, var_index, approx_level, lb, ub, tolerance))
 
         return abs_output
 
-    @staticmethod
-    def __recursive_step_sigmoid(star: Star, var_index: int, approx_level: int, lb: float, ub: float,
+    def __recursive_step_sigmoid(self, star: Star, var_index: int, approx_level: int, lb: float, ub: float,
                                  tolerance: float) -> set[Star]:
         sig_fod = AbsSigmoidNode.sig_fod
         sig = AbsSigmoidNode.sig
@@ -567,9 +590,10 @@ class AbsSigmoidNode(AbsLayerNode):
                 ub = ub + tolerance
 
         if not ((lb <= 0 and ub <= 0) or (lb >= 0 and ub >= 0)):
-            raise Exception
+            raise Exception(f'Inconsistent values for lower and upper bounds of neuron {var_index}\n'
+                            f'lb = {lb} and ub = {ub}')
 
-        mask = np.identity(star.n_neurons)
+        mask = tensors.identity(star.n_neurons)
         mask[var_index, var_index] = 0
 
         if approx_level == 0:
@@ -647,11 +671,11 @@ class AbsSigmoidNode(AbsLayerNode):
 
             star_set = set()
             star_set = star_set.union(
-                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary,
-                                                        tolerance))
+                self.__recursive_step_sigmoid(star, var_index, approx_level - 1, lb, best_boundary,
+                                              tolerance))
             star_set = star_set.union(
-                AbsSigmoidNode.__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub,
-                                                        tolerance))
+                self.__recursive_step_sigmoid(star, var_index, approx_level - 1, best_boundary, ub,
+                                              tolerance))
 
             return star_set
 
