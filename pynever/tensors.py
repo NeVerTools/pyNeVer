@@ -57,21 +57,6 @@ class Tensor:
             case _:
                 raise NotImplementedError
 
-    def __neg__(self) -> Tensor:
-        pass
-
-    def __add__(self, other) -> Tensor:
-        pass
-
-    def __rsub__(self, other) -> Tensor:
-        pass
-
-    def __rmul__(self, other) -> Tensor:
-        pass
-
-    def __pow__(self, other) -> Tensor:
-        pass
-
 
 # TODO move to configuration file
 BACKEND = BackEnd.NUMPY
@@ -742,5 +727,29 @@ def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable
             return Tensor(numpy.expand_dims(a=in_tensor, axis=axis))
         case BackEnd.PYTORCH:
             return Tensor(torch.expand(input=in_tensor, dim=axis))
+        case _:
+            raise NotImplementedError
+
+
+def nonzero(a, as_tuple: bool = False) -> Tensor:
+    """Finds the elements which are not zero in a tensor,
+    and returns a new tensor storing the indices.
+
+    Parameters
+    ----------
+    a : array-like
+        The Tensor to evaluate
+    as_tuple : bool
+        Flag for torch implementation
+
+    Returns
+    -------
+        The Tensor of indices
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.nonzero(a))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.nonzero(a, as_tuple=as_tuple))
         case _:
             raise NotImplementedError

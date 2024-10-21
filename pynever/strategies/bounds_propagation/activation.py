@@ -328,6 +328,27 @@ class LinearizeSLikeActivation:
 
         # Try 1: the line that intercepts both endpoints
 
+    # noinspection PyUnresolvedReferences
+    def __init_relaxation(self) -> Tensor:
+        """
+        Relaxation that identifies whether there are some bounds with lb = ub.
+        In that case, uses the linear relaxation y = ax + b where a = 0 and
+        b = activation(lb) = activation(ub), otherwise sets the relaxation to zero.
+
+        Returns
+        -------
+            The relaxations tensor initialized
+
+        """
+
+        # See https://github.com/vas-group-imperial/VeriNet/blob/main/verinet/sip_torch/operations/abstract_operation.py
+        relaxation = tensors.zeros((self.input_bounds.size, 2))
+        equal_bounds_idx = tensors.nonzero(self.input_bounds.get_lower_bounds() == self.input_bounds.get_upper_bounds())
+
+        relaxation[equal_bounds_idx, 2] = self.activation(self.input_bounds.get_lower_bounds()[equal_bounds_idx])
+
+        return relaxation
+
     def activation(self, x: Tensor) -> Tensor:
         """
         Compute the activation function for the input x
@@ -357,9 +378,11 @@ class LinearizeSigmoid(LinearizeSLikeActivation):
     def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
         super().__init__(input_hyper_rect, num_iterations)
 
+    # noinspection PyTypeChecker, PyUnresolvedReferences
     def activation(self, x: Tensor) -> Tensor:
         return 1 / (1 + np.exp(-x))
 
+    # noinspection PyTypeChecker
     def derivative(self, x: Tensor) -> Tensor:
         sig = self.activation(x)
         return sig * (1 - sig)
@@ -372,9 +395,11 @@ class LinearizeTanh(LinearizeSLikeActivation):
     def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
         super().__init__(input_hyper_rect, num_iterations)
 
+    # noinspection PyTypeChecker, PyUnresolvedReferences
     def activation(self, x: Tensor) -> Tensor:
         return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
 
+    # noinspection PyTypeChecker
     def derivative(self, x: Tensor) -> Tensor:
         tanh = self.activation(x)
         return 1 - tanh ** 2
