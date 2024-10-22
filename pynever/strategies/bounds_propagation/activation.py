@@ -318,37 +318,6 @@ class LinearizeSLikeActivation:
         self.input_bounds = input_hyper_rect
         self.num_iterations = num_iterations
 
-    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
-        pass
-
-    def __compute_linear_bound(self, upper: bool):
-        layer_size = self.input_bounds.size
-        lower_bounds = self.input_bounds.get_lower_bounds()
-        upper_bounds = self.input_bounds.get_upper_bounds()
-
-        # Try 1: the line that intercepts both endpoints
-
-    # noinspection PyUnresolvedReferences
-    def __init_relaxation(self) -> Tensor:
-        """
-        Relaxation that identifies whether there are some bounds with lb = ub.
-        In that case, uses the linear relaxation y = ax + b where a = 0 and
-        b = activation(lb) = activation(ub), otherwise sets the relaxation to zero.
-
-        Returns
-        -------
-            The relaxations tensor initialized
-
-        """
-
-        # See https://github.com/vas-group-imperial/VeriNet/blob/main/verinet/sip_torch/operations/abstract_operation.py
-        relaxation = tensors.zeros((self.input_bounds.size, 2))
-        equal_bounds_idx = tensors.nonzero(self.input_bounds.get_lower_bounds() == self.input_bounds.get_upper_bounds())
-
-        relaxation[equal_bounds_idx, 2] = self.activation(self.input_bounds.get_lower_bounds()[equal_bounds_idx])
-
-        return relaxation
-
     def activation(self, x: Tensor) -> Tensor:
         """
         Compute the activation function for the input x
@@ -372,6 +341,107 @@ class LinearizeSLikeActivation:
         """
 
         raise NotImplementedError
+
+    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        pass
+
+    def compute_linear_relaxation(self) -> tuple[Tensor, Tensor]:
+        """
+        This method computes the linear relaxation of the s-like activation function
+        and returns the lower and upper linearization
+
+        """
+
+        # Return the lower and upper relaxations
+        return self.__single_linear_relaxation(upper=False), self.__single_linear_relaxation(upper=True)
+
+    # noinspection PyTypeChecker, PyUnresolvedReferences
+    def __single_linear_relaxation(self, upper: bool) -> Tensor:
+        """
+        This method computes the actual linear relaxation for both the lower
+        and upper bound
+
+        Parameters
+        ----------
+        upper : bool
+            Flag to signal the upper or lower relaxation
+
+        Returns
+        -------
+            The relaxation as a 2xN Tensor
+
+        """
+
+        layer_size = self.input_bounds.get_size()
+        lower_bounds = self.input_bounds.get_lower_bounds()
+        upper_bounds = self.input_bounds.get_upper_bounds()
+
+        # Initialize the relaxation matrix and the unstable bounds
+        relaxation = self.__init_relaxation()
+        solved = tensors.zeros((layer_size,))
+
+        unstable_idx = tensors.nonzero(lower_bounds != upper_bounds).squeeze()
+        if tensors.dim(unstable_idx) == 0:
+            unstable_idx.reshape(1)
+
+        unstable_lbs = lower_bounds[unstable_idx]
+        unstable_ubs = upper_bounds[unstable_idx]
+
+        if upper:
+            activation = self.activation(unstable_lbs).squeeze()
+            derivative = self.derivative(unstable_ubs).squeeze()
+
+        else:
+            activation = self.activation(unstable_ubs).squeeze()
+            derivative = self.derivative(unstable_lbs).squeeze()
+
+        # Try 1: the line that intercepts both endpoints
+        lines = self.get_intercepting_lines(unstable_lbs, unstable_ubs)
+        valid = tensors.nonzero(lines[:, 0] <= derivative)
+
+        # Save the valid lines
+        relaxation[unstable_idx[valid]] = lines[valid]
+        solved[valid] = 1
+
+        if not all(solved):
+            # Try 2: the optimal tangent line
+            lines = self._get_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1])
+
+            if upper:
+                valid = tensors.nonzero(lines[:, 0] * unstable_lbs + lines[:, 1] >= activation)
+            else:
+                valid = tensors.nonzero(lines[:, 0] * unstable_ubs + lines[:, 1] <= activation)
+
+            relaxation[unstable_idx[valid]] = lines[valid]
+            solved[valid] = 1
+
+            if not all(solved):
+                # Try 3: iterative method
+                lines = self._get_iterative_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1], upper)
+                relaxation[unstable_idx[solved != 1]] = lines  # this method is always valid
+
+        return relaxation
+
+    # noinspection PyUnresolvedReferences
+    def __init_relaxation(self) -> Tensor:
+        """
+        Relaxation that identifies whether there are some bounds with lb = ub.
+        In that case, uses the linear relaxation y = ax + b where a = 0 and
+        b = activation(lb) = activation(ub), otherwise sets the relaxation to zero.
+
+        Returns
+        -------
+            The relaxations tensor initialized
+
+        """
+
+        # See https://github.com/vas-group-imperial/VeriNet/blob/main/verinet/sip_torch/operations/abstract_operation.py
+        relaxation = tensors.zeros((self.input_bounds.size, 2))
+        equal_bounds_idx = tensors.nonzero(self.input_bounds.get_lower_bounds() == self.input_bounds.get_upper_bounds())
+
+        relaxation[equal_bounds_idx, 2] = self.activation(self.input_bounds.get_lower_bounds()[equal_bounds_idx])
+
+        return relaxation
 
 
 class LinearizeSigmoid(LinearizeSLikeActivation):

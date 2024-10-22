@@ -753,3 +753,24 @@ def nonzero(a, as_tuple: bool = False) -> Tensor:
             return Tensor(torch.nonzero(a, as_tuple=as_tuple))
         case _:
             raise NotImplementedError
+
+
+def dim(a: Tensor) -> int:
+    """Gets the first dimension of the shape of the tensor
+
+    Parameters
+    ----------
+    a : Tensor
+        The tensor to evaluate
+
+    Returns
+    -------
+        The size of the first dimension
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return a.shape[0]
+        case BackEnd.PYTORCH:
+            return a.dim()
+        case _:
+            raise NotImplementedError
