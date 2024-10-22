@@ -1,15 +1,19 @@
 # Neural Network Configuration
 
 architecture: "Neural Network"          # Name of the network architecture
-
 hidden_layer_dims:
-
-  - 200
+  - 5
+  - 15
+  - 30
+  - 45
+  - 50
+  - 70
+  - 100
 
 
 # Training Configuration
 training:
-  epochs: 6000                # Number of epochs
+  epochs: 10                  # Number of epochs
   train_batch_size: 128            # Batch size for training
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64
@@ -30,8 +34,8 @@ scheduler_lr:
 
 # Data Configuration
 data:
-  dataset: "FMNIST"                 # Dataset name
-  train_dim: 25000
+  dataset: "MNIST"                 # Dataset name
+  train_dim: 5000
   test_dim: 10000
   input_dim: 784
   output_dim: 10
@@ -56,4 +60,3 @@ dropout:
 # Leaky Configuration
 leaky:
   leaky_slope: 0.01
-

@@ -107,6 +107,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
                 if isinstance(criterion, nn.MSELoss):
                     targets_hot_encoded = F.one_hot(targets, num_classes=num_classes).float()
                     loss = criterion(outputs, targets_hot_encoded)
+                    running_test_loss += loss.item()
                 else:
                     loss = criterion(outputs, targets)
                     running_test_loss += loss.item()

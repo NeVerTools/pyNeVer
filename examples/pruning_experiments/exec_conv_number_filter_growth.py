@@ -10,8 +10,10 @@ parent_directory = os.path.dirname(os.path.dirname(current_directory))
 # Add the parent directory to the Python path
 sys.path.insert(0, parent_directory)
 
-from examples.pruning_experiments.networks_generation.generate_network_focus_lr import generate_no_batch_networks, \
+
+from examples.pruning_experiments.networks_generation.generate_network_number_filter_growth import generate_no_batch_networks, \
     load_yaml_config
+
 from datetime import datetime
 import csv
 
@@ -32,7 +34,7 @@ def generate_csv():
     ]
 
     # Header to write
-    header = ['h_dim', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
+    header = ['filters_number', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
 
     # Iterate over each file and update the header
     for file_name in csv_files:
@@ -49,11 +51,13 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    yaml_file = 'config_MNIST_lr.yaml'
+    yaml_file = 'config_MNIST_filter_growth.yaml'
     config = load_yaml_config(yaml_file)
 
-    hdims = config['hidden_layer_dims']
+    mul_factors = [1,2,3,4,5,6]
 
-    for hdim in hdims:
-        print(f"Hidden layer dimsension: {hdim}")
-        generate_no_batch_networks(config, hdim)
+    for mul_factor in mul_factors:
+        print(f"Number of filters {mul_factor} * 8: {mul_factor * 8}")
+        generate_no_batch_networks(config, mul_factor)
+
+
