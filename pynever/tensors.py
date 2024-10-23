@@ -774,3 +774,33 @@ def dim(a: Tensor) -> int:
             return a.dim()
         case _:
             raise NotImplementedError
+
+
+def log(a: Tensor) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.log(a))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.log(a))
+        case _:
+            raise NotImplementedError
+
+
+def isnan(a: Tensor) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.isnan(a))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.isnan(a))
+        case _:
+            raise NotImplementedError
+
+
+def isinf(a: Tensor) -> Tensor:
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.isinf(a))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.isinf(a))
+        case _:
+            raise NotImplementedError

@@ -14,6 +14,11 @@ from pynever.strategies.verification.ssbp.constants import NeuronSplit
 from pynever.tensors import Tensor
 
 
+# noinspection PyUnresolvedReferences
+def atleast1d(x: Tensor) -> Tensor:
+    return x.reshape(1) if tensors.dim(x) == 0 else x
+
+
 class LinearizeReLU:
     """
     This class provides the linearization for the ReLU function enhanced by information
@@ -342,13 +347,137 @@ class LinearizeSLikeActivation:
 
         raise NotImplementedError
 
+    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+        """
+        Calculates the new xi for the iterative tangent method as described in the
+        paper 'Efficient Neural Network Verification via Adaptive Refinement and
+        Adversarial Search'.
+
+        Parameters
+        ----------
+        xi : Tensor
+            The last tangent point calculated.
+        x_bound : Tensor
+            The lower/upper input bound for calculating upper/lower relaxation
+            respectively.
+        upper : bool
+            If true the upper tangent is calculated, else the lower tangent is
+            calculated.
+
+        Returns
+        -------
+            The new xi
+
+        """
+
+        raise NotImplementedError
+
+    # noinspection PyUnresolvedReferences
+    def get_intercepting_lines(self, lower_bounds: Tensor, upper_bounds: Tensor) -> Tensor:
+        """
+        This method computes the lines intercepting the activation function in all the
+        lower and upper bounds, and builds a Nx2 tensor with the a and b coefficients
+        of the lines equation y = ax + b
+
+        Parameters
+        ----------
+        lower_bounds : Tensor
+            The concrete lower bounds
+        upper_bounds : Tensor
+            The concrete upper bounds
+
+        Returns
+        -------
+            The tensor of the lines coefficients
+
+        """
+
+        xl = atleast1d(lower_bounds)
+        xu = atleast1d(upper_bounds)
+
+        a = (self.activation(xu) - self.activation(xl)) / xu - xl
+        b = self.activation(xu) - a * xu
+
+        return tensors.stack([a, b], axis=1)
+
+    # noinspection PyTypeChecker, PyUnresolvedReferences
+    def get_tangent_lines(self, lower_bounds: Tensor, upper_bounds: Tensor, tg_x: Tensor = None) -> Tensor:
+        """
+        This method computes the lines tangent to the activation function in all the
+        lower and upper bounds, and builds a Nx2 tensor with the a and b coefficients
+        of the lines equation y = ax + b
+
+        Parameters
+        ----------
+        lower_bounds : Tensor
+            The concrete lower bounds
+        upper_bounds : Tensor
+            The concrete upper bounds
+        tg_x : Tensor, optional
+            The tangent point. If None, it is computed by the function
+
+        Returns
+        -------
+            The tensor of the lines coefficients
+
+        """
+
+        xl = atleast1d(lower_bounds)
+        xu = atleast1d(upper_bounds)
+
+        if tg_x is None:
+            tg_x = (xu + xl) / 2
+
+        a = self.derivative(tg_x)
+        b = self.activation(tg_x) - a * tg_x
+
+        return tensors.stack([a, b], axis=1)
+
+    def get_iterative_tangent_lines(self, lower_bounds: Tensor, upper_bounds: Tensor, upper: bool) -> Tensor:
+        """
+        This method computes the lines tangent to the activation function in all the
+        lower and upper bounds, using the iterative search of the tangent point
+        and builds a Nx2 tensor with the a and b coefficients of the lines equation y = ax + b
+
+        Parameters
+        ----------
+        lower_bounds : Tensor
+            The concrete lower bounds
+        upper_bounds : Tensor
+            The concrete upper bounds
+        upper : bool
+            Flag for the upper or lower bound
+
+        Returns
+        -------
+            The tensor of the lines coefficients
+
+        """
+
+        if upper:
+            x_bound = lower_bounds
+            xi = upper_bounds
+        else:
+            x_bound = upper_bounds
+            xi = lower_bounds
+
+        for i in range(self.num_iterations):
+            xi = self.__update_xi(xi, x_bound, upper)
+
+        return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
+
     def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
+        # TODO
         pass
 
     def compute_linear_relaxation(self) -> tuple[Tensor, Tensor]:
         """
         This method computes the linear relaxation of the s-like activation function
         and returns the lower and upper linearization
+
+        Returns
+        -------
+            The two relaxation tensors, lower and upper
 
         """
 
@@ -381,8 +510,7 @@ class LinearizeSLikeActivation:
         solved = tensors.zeros((layer_size,))
 
         unstable_idx = tensors.nonzero(lower_bounds != upper_bounds).squeeze()
-        if tensors.dim(unstable_idx) == 0:
-            unstable_idx.reshape(1)
+        unstable_idx = atleast1d(unstable_idx)
 
         unstable_lbs = lower_bounds[unstable_idx]
         unstable_ubs = upper_bounds[unstable_idx]
@@ -405,7 +533,7 @@ class LinearizeSLikeActivation:
 
         if not all(solved):
             # Try 2: the optimal tangent line
-            lines = self._get_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1])
+            lines = self.get_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1])
 
             if upper:
                 valid = tensors.nonzero(lines[:, 0] * unstable_lbs + lines[:, 1] >= activation)
@@ -417,7 +545,8 @@ class LinearizeSLikeActivation:
 
             if not all(solved):
                 # Try 3: iterative method
-                lines = self._get_iterative_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1], upper)
+                lines = self.get_iterative_tangent_lines(unstable_lbs[solved != 1],
+                                                         unstable_ubs[solved != 1], upper)
                 relaxation[unstable_idx[solved != 1]] = lines  # this method is always valid
 
         return relaxation
@@ -460,6 +589,22 @@ class LinearizeSigmoid(LinearizeSLikeActivation):
     def compute_split_point(self, lower: float, upper: float) -> float:
         pass
 
+    # noinspection PyTypeChecker, PyUnresolvedReferences
+    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+        inner = 1 - 4 * (self.activation(xi) - self.activation(x_bound)) / (xi - x_bound)
+        root = tensors.sqrt(inner) / 2.
+
+        if upper:
+            sxi = 0.5 + root
+        else:
+            sxi = 0.5 - root
+        new_xi = -tensors.log(1 / sxi - 1)
+
+        non_valid = tensors.isnan(new_xi) + tensors.isinf(new_xi)
+        new_xi[non_valid] = xi[non_valid]  # Rounding error, use last valid relaxation.
+
+        return new_xi
+
 
 class LinearizeTanh(LinearizeSLikeActivation):
     def __init__(self, input_hyper_rect: HyperRectangleBounds, num_iterations: int = 2):
@@ -476,3 +621,18 @@ class LinearizeTanh(LinearizeSLikeActivation):
 
     def compute_split_point(self, lower: float, upper: float) -> float:
         pass
+
+    # noinspection PyTypeChecker, PyUnresolvedReferences
+    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+        inner = 1 - (self.activation(xi) - self.activation(x_bound)) / (xi - x_bound)
+        root = tensors.sqrt(inner)
+        root[inner < 0] = xi[inner < 0]  # Rounding error, use last valid upper relaxation.
+
+        if upper:
+            sxi = root
+        else:
+            sxi = - root
+        new_xi = 0.5 * tensors.log((1 + sxi) / (1 - sxi))
+        new_xi[tensors.isnan(new_xi)] = xi[tensors.isnan(new_xi)]  # Rounding error, use last valid relaxation.
+
+        return new_xi
