@@ -3,6 +3,7 @@ This file contains specialized methods that provide
 the linearization of non-linear activation functions
 
 """
+import copy
 
 import numpy as np
 
@@ -339,7 +340,7 @@ class LinearizeSLikeActivation:
 
         raise NotImplementedError
 
-    def compute_split_point(self, lower: float, upper: float) -> float:
+    def compute_split_point(self, lower: Tensor, upper: Tensor) -> Tensor:
         """
         Compute the optimal split point for the linearization
 
@@ -466,9 +467,36 @@ class LinearizeSLikeActivation:
 
         return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
 
-    def compute_output_linear_bounds(self, input_eq: SymbolicLinearBounds) -> SymbolicLinearBounds:
-        # TODO
-        pass
+    @staticmethod
+    def compute_output_linear_bounds(input_eq: SymbolicLinearBounds, lower_relax: Tensor,
+                                     upper_relax: Tensor) -> SymbolicLinearBounds:
+        """
+        Propagates the given symbolic equations through the linear relaxations.
+
+        Parameters
+        ----------
+        input_eq : SymbolicLinearBounds
+            The input bounds to this layer
+        lower_relax : Tensor
+            The lower bound relaxations
+        upper_relax : Tensor
+            The upper bound relaxations
+
+        Returns
+        -------
+            The symbolic bounds after the layer
+
+        """
+
+        out_symbolic = copy.deepcopy(input_eq)
+
+        out_symbolic.lower *= lower_relax[:, 0:1]
+        out_symbolic.upper *= upper_relax[:, 0:1]
+
+        out_symbolic.lower[:, -1] += lower_relax[:, 1]
+        out_symbolic.upper[:, -1] += upper_relax[:, 1]
+
+        return out_symbolic
 
     def compute_linear_relaxation(self) -> tuple[Tensor, Tensor]:
         """
@@ -586,8 +614,10 @@ class LinearizeSigmoid(LinearizeSLikeActivation):
         sig = self.activation(x)
         return sig * (1 - sig)
 
-    def compute_split_point(self, lower: float, upper: float) -> float:
-        pass
+    # noinspection PyUnresolvedReferences
+    def compute_split_point(self, lower: Tensor, upper: Tensor) -> Tensor:
+        mid = (self.activation(lower) + self.activation(upper)) / 2
+        return -tensors.log((1 / mid) - 1)
 
     # noinspection PyTypeChecker, PyUnresolvedReferences
     def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
@@ -619,8 +649,10 @@ class LinearizeTanh(LinearizeSLikeActivation):
         tanh = self.activation(x)
         return 1 - tanh ** 2
 
-    def compute_split_point(self, lower: float, upper: float) -> float:
-        pass
+    # noinspection PyTypeChecker, PyUnresolvedReferences
+    def compute_split_point(self, lower: Tensor, upper: Tensor) -> Tensor:
+        mid = (self.activation(lower) + self.activation(upper)) / 2
+        return 0.5 * tensors.log((1 + mid) / (1 - mid))
 
     # noinspection PyTypeChecker, PyUnresolvedReferences
     def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
