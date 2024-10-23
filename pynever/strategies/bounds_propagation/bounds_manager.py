@@ -11,11 +11,11 @@ from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
+from pynever.strategies.bounds_propagation.activation import LinearizeReLU, LinearizeSigmoid, LinearizeTanh
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
     VerboseBounds, BoundsStats
 from pynever.strategies.bounds_propagation.convolution import LinearizeConv
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.activation import LinearizeReLU
 from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.bounds_propagation.utility.property_converter import PropertyFormatConverter
@@ -243,6 +243,34 @@ class BoundsManager:
             self.layer2layer_equations[layer.identifier] = layer_in_eq
             cur_layer_output_eq = layer_in_eq
             cur_layer_output_num_bounds = layer_in_num
+
+        elif isinstance(layer, nodes.SigmoidNode):
+            """ Sigmoid layer """
+
+            sig_lin = LinearizeSigmoid(input_hyper_rect)
+
+            if self.direction == BoundsDirection.FORWARDS:
+                lower_relax, upper_relax = sig_lin.compute_linear_relaxation()
+                cur_layer_output_eq = sig_lin.compute_output_linear_bounds(layer_in_eq, lower_relax, upper_relax)
+
+                cur_layer_output_num_bounds = layer_in_num  # sig_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
+
+            else:
+                raise NotImplementedError('Backwards bounds propagation not yet implemented for sigmoid layers')
+
+        elif isinstance(layer, nodes.TanhNode):
+            """ Tanh layer """
+
+            tanh_lin = LinearizeTanh(input_hyper_rect)
+
+            if self.direction == BoundsDirection.FORWARDS:
+                lower_relax, upper_relax = tanh_lin.compute_linear_relaxation()
+                cur_layer_output_eq = tanh_lin.compute_output_linear_bounds(layer_in_eq, lower_relax, upper_relax)
+
+                cur_layer_output_num_bounds = layer_in_num  # tanh_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
+
+            else:
+                raise NotImplementedError('Backwards bounds propagation not yet implemented for sigmoid layers')
 
         else:
             raise Exception(
