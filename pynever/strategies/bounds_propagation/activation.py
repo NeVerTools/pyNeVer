@@ -467,6 +467,12 @@ class LinearizeSLikeActivation:
 
         return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
 
+    def compute_output_numeric_bounds(self, cur_numeric_bounds: HyperRectangleBounds) -> HyperRectangleBounds:
+        return HyperRectangleBounds(
+            self.activation(cur_numeric_bounds.get_lower()),
+            self.activation(cur_numeric_bounds.get_upper())
+        )
+
     @staticmethod
     def compute_output_linear_bounds(input_eq: SymbolicLinearBounds, lower_relax: Tensor,
                                      upper_relax: Tensor) -> SymbolicLinearBounds:

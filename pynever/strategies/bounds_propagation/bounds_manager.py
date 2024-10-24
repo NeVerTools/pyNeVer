@@ -251,9 +251,10 @@ class BoundsManager:
 
             if self.direction == BoundsDirection.FORWARDS:
                 lower_relax, upper_relax = sig_lin.compute_linear_relaxation()
-                cur_layer_output_eq = sig_lin.compute_output_linear_bounds(layer_in_eq, lower_relax, upper_relax)
+                cur_layer_output_eq = LinearizeSigmoid.compute_output_linear_bounds(layer_in_eq, lower_relax,
+                                                                                    upper_relax)
 
-                cur_layer_output_num_bounds = layer_in_num  # sig_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
+                cur_layer_output_num_bounds = sig_lin.compute_output_numeric_bounds(layer_in_num)
 
             else:
                 raise NotImplementedError('Backwards bounds propagation not yet implemented for sigmoid layers')
@@ -265,9 +266,10 @@ class BoundsManager:
 
             if self.direction == BoundsDirection.FORWARDS:
                 lower_relax, upper_relax = tanh_lin.compute_linear_relaxation()
-                cur_layer_output_eq = tanh_lin.compute_output_linear_bounds(layer_in_eq, lower_relax, upper_relax)
+                cur_layer_output_eq = LinearizeTanh.compute_output_linear_bounds(layer_in_eq, lower_relax,
+                                                                                    upper_relax)
 
-                cur_layer_output_num_bounds = layer_in_num  # tanh_lin.compute_output_numeric_bounds(layer, layer_in_num, layer_in_eq)
+                cur_layer_output_num_bounds = tanh_lin.compute_output_numeric_bounds(layer_in_num)
 
             else:
                 raise NotImplementedError('Backwards bounds propagation not yet implemented for sigmoid layers')
