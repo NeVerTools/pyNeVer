@@ -144,6 +144,59 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.Seq
     return combined_network
 
 
+def combine_batchnorm1d_pytorch(network: networks.SequentialNetwork):
+    """
+    Utilities function to combine all the FullyConnectedNodes followed by BatchNorm1DNodes in corresponding
+    FullyConnectedNodes.
+    Parameters
+    ----------
+    network : SequentialNetwork
+        Sequential Network of interest of which we want to combine the nodes.
+    Return
+    ----------
+    SequentialNetwork
+        Corresponding Sequential Network with the combined nodes.
+
+    """
+
+    py_net = cv.PyTorchConverter().from_neural_network(network)
+
+    modules = [m for m in py_net.pytorch_network.modules()]
+    modules = modules[1:]
+    num_modules = len(modules)
+    current_index = 0
+
+    new_modules = []
+
+    while current_index + 1 < num_modules:
+
+        current_node = modules[current_index]
+        next_node = modules[current_index + 1]
+
+        if isinstance(current_node, ptl.Linear) and isinstance(next_node, ptl.BatchNorm1d):
+            combined_node = combine_batchnorm1d(current_node, next_node)
+            new_modules.append(combined_node)
+            current_index = current_index + 1
+
+        elif isinstance(current_node, ptl.Linear):
+            new_modules.append(copy.deepcopy(current_node))
+
+        elif isinstance(current_node, ptl.ReLU):
+            new_modules.append(copy.deepcopy(current_node))
+
+        else:
+            raise Exception("Combine Batchnorm supports only ReLU, Linear and BatchNorm1D layers.")
+
+        current_index = current_index + 1
+
+    if not isinstance(modules[current_index], ptl.BatchNorm1d):
+        new_modules.append(copy.deepcopy(modules[current_index]))
+
+    temp_pynet = ptl.Sequential(py_net.pytorch_network.identifier, py_net.pytorch_network.input_id, new_modules)
+    combined_pynet = cv.PyTorchNetwork(py_net.identifier, temp_pynet)
+
+    return combined_pynet
+
 def generate_linf_robustness_query(data: Tensor, adv_target: int, bounds: tuple,
                                    num_classes: int, epsilon: float, filepath: str, targeted: bool):
     """

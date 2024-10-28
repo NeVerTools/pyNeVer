@@ -15,7 +15,7 @@ n_of_layers:
 
 # Training Configuration
 training:
-  epochs: 6000                  # Number of epochs
+  epochs: 6000                 # Number of epochs
   train_batch_size: 128            # Batch size for training
   test_batch_size: 64             # Batch size for training
   validation_batch_size: 64

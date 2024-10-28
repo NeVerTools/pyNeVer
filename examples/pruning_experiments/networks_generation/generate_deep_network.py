@@ -233,6 +233,7 @@ def create_batched_NN(input_dim, hdim, n_hidden_layer, output_dim):
 def write_results_on_csv(file_path, dict_to_write):
     last_metrics = {
         'h_dim': dict_to_write['h_dim'],
+        'n_of_layer':dict_to_write['n_of_layer'],
         'train_loss': dict_to_write['train_loss'],
         'test_loss': dict_to_write['test_loss'],
         'train_accuracy': dict_to_write['train_accuracy'],
@@ -240,7 +241,7 @@ def write_results_on_csv(file_path, dict_to_write):
     }
 
     # Define the header
-    header = ['h_dim', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
+    header = ['h_dim','n_of_layer', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
 
     # Write the last metrics to the CSV file in append mode
     with open(file_path, mode='a', newline='') as file:
@@ -475,6 +476,10 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     com_wp_pruned_net = util.combine_batchnorm1d_net(wp_pruned_net)
     com_ns_pruned_net = util.combine_batchnorm1d_net(ns_pruned_net)
 
+    com_baseline_net_weight_decay_torch_model = util.combine_batchnorm1d_pytorch(baseline_net_weight_decay)
+    com_wp_pruned_net_torch_model_torch_model = util.combine_batchnorm1d_pytorch(wp_pruned_net)
+    com_ns_pruned_net_torch_model_torch_model = util.combine_batchnorm1d_pytorch(ns_pruned_net)
+
     # Calcolo delle metriche per i vari modelli
     train_com_baseline_weight_loss, train_com_baseline_weight_accuracy = tester.test(com_baseline_net_weight_decay,
                                                                                      train_subset.dataset)
@@ -490,6 +495,7 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     # Registrazione delle metriche per il modello di base
     baseline_weight_decay_metrics = {
         'h_dim': hdim,  # Define the value of hdim based on your configuration
+        'n_of_layer': n_hidden_layer,
         'train_loss': train_com_baseline_weight_loss,
         'test_loss': test_com_baseline_weight_loss,
         'train_accuracy': train_com_baseline_weight_accuracy,
@@ -499,6 +505,7 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     # Metrics for the pruned model with normal pruning (NS)
     ns_metrics = {
         'h_dim': hdim,  # Insert hdim here
+        'n_of_layer': n_hidden_layer,
         'train_loss': train_com_ns_loss,
         'test_loss': test_com_ns_loss,
         'train_accuracy': train_com_ns_accuracy,
@@ -508,11 +515,14 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     # Metrics for the pruned model with weight pruning (WP)
     wp_metrics = {
         'h_dim': hdim,  # Insert hdim here
+        'n_of_layer': n_hidden_layer,
         'train_loss': train_com_wp_loss,
         'test_loss': test_com_wp_loss,
         'train_accuracy': train_com_wp_accuracy,
         'test_accuracy': test_com_wp_accuracy
     }
+
+    metrics1['n_of_layer'] = n_hidden_layer
 
     onnx_baseline_weight_decay = conv.ONNXConverter().from_neural_network(com_baseline_net_weight_decay)
     onnx_wp = conv.ONNXConverter().from_neural_network(com_wp_pruned_net)
@@ -525,13 +535,12 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     write_results_on_csv('results\\accuracies_weight_pruning.csv', wp_metrics)
 
     # Export the models to ONNX format
-    # A dummy input (ensure it is on the same device as the model)
     dummy_input = torch.randn(1, input_dim).to(device)
 
     torch.onnx.export(
         model1,
         dummy_input,
-        f"results/no_batch/{hdim}.onnx",
+        f"results/no_batch/{hdim}_{n_hidden_layer}.onnx",
         input_names=['input'],
         output_names=['output'],
         export_params=True,
@@ -540,6 +549,13 @@ def generate_no_batch_networks(data_dict, hdim, n_hidden_layer):
     )
 
     onnx.save(onnx_baseline_weight_decay.onnx_network,
-              "results/batch_weight_decay" + f"/baseline_weight_{hdim}.onnx")
-    onnx.save(onnx_wp.onnx_network, "results/weight_pruning" + f"/wp_pruned_{hdim}.onnx")
-    onnx.save(onnx_ns.onnx_network, "results/neuron_pruning" + f"/ns_pruned_{hdim}.onnx")
+              "results/batch_weight_decay" + f"/baseline_weight_{hdim}_{n_hidden_layer}.onnx")
+    onnx.save(onnx_wp.onnx_network, "results/weight_pruning" + f"/wp_pruned_{hdim}_{n_hidden_layer}.onnx")
+    onnx.save(onnx_ns.onnx_network, "results/weight_pruning" + f"/wp_pruned_{hdim}_{n_hidden_layer}.onnx")
+
+    # Export the pth
+    torch.save(model, f"results/no_batch/{hdim}_{n_hidden_layer}.pth")
+    torch.save(com_baseline_net_weight_decay_torch_model, "results/batch_weight_decay" + f"/baseline_weight_{hdim}_{n_hidden_layer}.pth")
+    torch.save(com_wp_pruned_net_torch_model_torch_model, "results/weight_pruning" + f"/wp_pruned_{hdim}_{n_hidden_layer}.pth")
+    torch.save(com_ns_pruned_net_torch_model_torch_model, "results/weight_pruning" + f"/wp_pruned_{hdim}_{n_hidden_layer}.pth")
+
