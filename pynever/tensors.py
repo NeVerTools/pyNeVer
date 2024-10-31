@@ -115,12 +115,12 @@ def ones(shape: tuple[int], dtype=float) -> Tensor:
             raise NotImplementedError
 
 
-def zeros(shape: tuple, dtype=float) -> Tensor:
+def zeros(shape: int | tuple, dtype=float) -> Tensor:
     """Returns a Tensor filled with zeroes.
 
     Parameters
     ----------
-    shape : tuple
+    shape : int or tuple
         The shape of the tensor to return
     dtype : type
         The type of its elements

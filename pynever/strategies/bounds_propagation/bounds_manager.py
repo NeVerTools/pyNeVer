@@ -8,6 +8,7 @@ import numpy as np
 
 import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import nodes
+from pynever import tensors
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
@@ -125,8 +126,8 @@ class BoundsManager:
 
         # Initialising the current equations
         input_size = input_hyper_rect.get_size()
-        lower_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
-        upper_equation = LinearFunctions(np.identity(input_size), np.zeros(input_size))
+        lower_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
+        upper_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
         cur_layer_input_eq = SymbolicLinearBounds(lower_equation, upper_equation)
         cur_layer_input_num_bounds = input_hyper_rect
 
@@ -267,7 +268,7 @@ class BoundsManager:
             if self.direction == BoundsDirection.FORWARDS:
                 lower_relax, upper_relax = tanh_lin.compute_linear_relaxation()
                 cur_layer_output_eq = LinearizeTanh.compute_output_linear_bounds(layer_in_eq, lower_relax,
-                                                                                    upper_relax)
+                                                                                 upper_relax)
 
                 cur_layer_output_num_bounds = tanh_lin.compute_output_numeric_bounds(layer_in_num)
 
@@ -378,8 +379,8 @@ class BoundsManager:
         prev_lower_eq = prev_equations.get_lower()
         prev_upper_eq = prev_equations.get_upper()
 
-        matrix_pos = np.maximum(current_matrix, np.zeros(current_matrix.shape))
-        matrix_neg = np.minimum(current_matrix, np.zeros(current_matrix.shape))
+        matrix_pos = np.maximum(current_matrix, tensors.zeros(current_matrix.shape))
+        matrix_neg = np.minimum(current_matrix, tensors.zeros(current_matrix.shape))
 
         if end == "lower":
             current_matrix = matrix_pos.dot(prev_lower_eq.get_matrix()) + matrix_neg.dot(prev_upper_eq.get_matrix())
@@ -401,7 +402,7 @@ class BoundsManager:
     @staticmethod
     def get_linear_layer_equation(layer):
         if layer.bias is None:
-            layer.bias = np.zeros(layer.weight.shape[0])
+            layer.bias = tensors.zeros(layer.weight.shape[0])
         return LinearFunctions(layer.weight, layer.bias)
 
     @staticmethod
@@ -410,7 +411,7 @@ class BoundsManager:
         weights_minus = get_negative_part(layer.weight)
 
         if layer.bias is None:
-            layer.bias = np.zeros(layer.weight.shape[0])
+            layer.bias = tensors.zeros(layer.weight.shape[0])
 
         lower_matrix, lower_offset, upper_matrix, upper_offset = \
             compute_lin_lower_and_upper(weights_minus, weights_plus, layer.bias,
