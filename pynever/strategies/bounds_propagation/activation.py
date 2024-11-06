@@ -348,7 +348,7 @@ class LinearizeSLikeActivation:
 
         raise NotImplementedError
 
-    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+    def _update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
         """
         Calculates the new xi for the iterative tangent method as described in the
         paper 'Efficient Neural Network Verification via Adaptive Refinement and
@@ -463,7 +463,7 @@ class LinearizeSLikeActivation:
             xi = lower_bounds
 
         for i in range(self.num_iterations):
-            xi = self.__update_xi(xi, x_bound, upper)
+            xi = self._update_xi(xi, x_bound, upper)
 
         return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
 
@@ -496,11 +496,16 @@ class LinearizeSLikeActivation:
 
         out_symbolic = copy.deepcopy(input_eq)
 
-        out_symbolic.lower *= lower_relax[:, 0:1]
-        out_symbolic.upper *= upper_relax[:, 0:1]
+        # relaxations:
+        # A 2xNx2 tensor where the first dimension indicates the lower and upper
+        # relaxation, the second dimension contains the neurons in the current
+        # node and the last dimension contains the parameters
+        # [a, b] in l(const_terms) = ax + b.
+        out_symbolic.lower.matrix *= lower_relax[:, 0:1]
+        out_symbolic.upper.matrix *= upper_relax[:, 0:1]
 
-        out_symbolic.lower[:, -1] += lower_relax[:, 1]
-        out_symbolic.upper[:, -1] += upper_relax[:, 1]
+        out_symbolic.lower.offset += lower_relax[:, 1]
+        out_symbolic.upper.offset += upper_relax[:, 1]
 
         return out_symbolic
 
@@ -602,7 +607,7 @@ class LinearizeSLikeActivation:
         relaxation = tensors.zeros((self.input_bounds.size, 2))
         equal_bounds_idx = tensors.nonzero(self.input_bounds.get_lower_bounds() == self.input_bounds.get_upper_bounds())
 
-        relaxation[equal_bounds_idx, 2] = self.activation(self.input_bounds.get_lower_bounds()[equal_bounds_idx])
+        relaxation[equal_bounds_idx, 1] = self.activation(self.input_bounds.get_lower_bounds()[equal_bounds_idx])
 
         return relaxation
 
@@ -626,7 +631,7 @@ class LinearizeSigmoid(LinearizeSLikeActivation):
         return -tensors.log((1 / mid) - 1)
 
     # noinspection PyTypeChecker, PyUnresolvedReferences
-    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+    def _update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
         inner = 1 - 4 * (self.activation(xi) - self.activation(x_bound)) / (xi - x_bound)
         root = tensors.sqrt(inner) / 2.
 
@@ -661,7 +666,7 @@ class LinearizeTanh(LinearizeSLikeActivation):
         return 0.5 * tensors.log((1 + mid) / (1 - mid))
 
     # noinspection PyTypeChecker, PyUnresolvedReferences
-    def __update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
+    def _update_xi(self, xi: Tensor, x_bound: Tensor, upper: bool) -> Tensor:
         inner = 1 - (self.activation(xi) - self.activation(x_bound)) / (xi - x_bound)
         root = tensors.sqrt(inner)
         root[inner < 0] = xi[inner < 0]  # Rounding error, use last valid upper relaxation.
