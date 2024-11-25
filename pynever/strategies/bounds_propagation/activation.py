@@ -17,7 +17,7 @@ from pynever.tensors import Tensor
 
 # noinspection PyUnresolvedReferences
 def atleast1d(x: Tensor) -> Tensor:
-    return x.reshape(1) if tensors.dim(x) == 0 else x
+    return x.reshape((1,)) if tensors.dim(x) == 0 else x
 
 
 class LinearizeReLU:
@@ -468,6 +468,20 @@ class LinearizeSLikeActivation:
         return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
 
     def compute_output_numeric_bounds(self, cur_numeric_bounds: HyperRectangleBounds) -> HyperRectangleBounds:
+        """
+        Computes the concrete output bounds for this layer given the input concrete bounds
+
+        Parameters
+        ----------
+        cur_numeric_bounds : HyperRectangleBounds
+            The input numeric bounds
+
+        Returns
+        -------
+            The output numeric bounds
+
+        """
+
         return HyperRectangleBounds(
             self.activation(cur_numeric_bounds.get_lower()),
             self.activation(cur_numeric_bounds.get_upper())
@@ -540,16 +554,15 @@ class LinearizeSLikeActivation:
 
         """
 
-        layer_size = self.input_bounds.get_size()
         lower_bounds = self.input_bounds.get_lower_bounds()
         upper_bounds = self.input_bounds.get_upper_bounds()
 
         # Initialize the relaxation matrix and the unstable bounds
         relaxation = self.__init_relaxation()
-        solved = tensors.zeros((layer_size,))
 
         unstable_idx = tensors.nonzero(lower_bounds != upper_bounds).squeeze()
         unstable_idx = atleast1d(unstable_idx)
+        solved = tensors.zeros(unstable_idx.shape)
 
         unstable_lbs = lower_bounds[unstable_idx]
         unstable_ubs = upper_bounds[unstable_idx]

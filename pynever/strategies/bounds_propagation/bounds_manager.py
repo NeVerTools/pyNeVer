@@ -248,7 +248,7 @@ class BoundsManager:
         elif isinstance(layer, nodes.SigmoidNode):
             """ Sigmoid layer """
 
-            sig_lin = LinearizeSigmoid(input_hyper_rect)
+            sig_lin = LinearizeSigmoid(layer_in_num)
 
             if self.direction == BoundsDirection.FORWARDS:
                 lower_relax, upper_relax = sig_lin.compute_linear_relaxation()
@@ -263,7 +263,7 @@ class BoundsManager:
         elif isinstance(layer, nodes.TanhNode):
             """ Tanh layer """
 
-            tanh_lin = LinearizeTanh(input_hyper_rect)
+            tanh_lin = LinearizeTanh(layer_in_num)
 
             if self.direction == BoundsDirection.FORWARDS:
                 lower_relax, upper_relax = tanh_lin.compute_linear_relaxation()
