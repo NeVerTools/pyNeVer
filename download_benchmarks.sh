@@ -12,4 +12,4 @@ DIRECTORY=$1
 
 echo "Downloading $CATEGORY VNN-LIB benchmarks in ./$DIRECTORY/..."
 
-git clone https://github.com/AndyVale/benchmarks_vnncomp "$DIRECTORY"
+git clone --recursive https://github.com/AndyVale/benchmarks_vnncomp "$DIRECTORY"
