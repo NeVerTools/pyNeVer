@@ -58,7 +58,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
     }
 
     for epoch in range(num_epochs):
-        model.train()
+        model.train(,
         running_train_loss = 0.0
         correct_train = 0
         total_train = 0

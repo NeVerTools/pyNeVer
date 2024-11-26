@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import yaml
+from sympy import false
 from torch.utils.data import DataLoader, Subset, random_split
 from torchvision import datasets, transforms
 
@@ -16,6 +17,8 @@ import pynever.strategies.conversion as conv
 import pynever.strategies.pruning as pruning
 import pynever.strategies.training as training
 import pynever.utilities as util
+
+DEBUG = false
 
 
 def load_yaml_config(yaml_file_path):
@@ -58,14 +61,13 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
     }
 
     for epoch in range(num_epochs):
-        model.train(,
+        model.train()
         running_train_loss = 0.0
         correct_train = 0
         total_train = 0
 
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
-            inputs = inputs.view(inputs.size(0), -1)  # Flatten the images
             outputs = model(inputs)
 
             if isinstance(criterion, nn.MSELoss):
@@ -99,8 +101,6 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         with torch.no_grad():
             for inputs, targets in test_loader:
                 inputs, targets = inputs.to(device), targets.to(device)
-                inputs = inputs.view(inputs.size(0), -1)
-
                 outputs = model(inputs)
 
                 # Compute loss
@@ -129,7 +129,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
             with torch.no_grad():
                 for val_inputs, val_targets in val_loader:
-                    val_inputs = val_inputs.view(val_inputs.size(0), -1).to(device)
+                    val_inputs = val_inputs.to(device)
                     val_targets = val_targets.to(device)
 
                     val_outputs = model(val_inputs)
@@ -175,44 +175,122 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
     return metrics
 
 
-class SimpleNN(nn.Module):
-    def __init__(self, input_dim, hdim, output_dim):
-        super(SimpleNN, self).__init__()
-        self.sequential = nn.Sequential(
-            nn.Linear(input_dim, hdim),
-            nn.ReLU(),
-            nn.Linear(hdim, output_dim)
-        )
+# Custom neural network class
+class CustomNN(nn.Module):
+    def __init__(self, mul_factor, input_dim: int, kernel_size=3, old_weights = None):
+        super(CustomNN, self).__init__()
+        filters_number = 8 * mul_factor
+        if old_weights is None:
+            self.conv1 = nn.Conv2d(1, filters_number, kernel_size=kernel_size)
+        else:
+            self.conv1 = CustomConv(1, filters_number, kernel_size=kernel_size, padding=0, weights=old_weights)
+
+        output_dim =(input_dim - kernel_size) + 1
+        in_fc1_features = (output_dim * output_dim) *  filters_number
+
+        if old_weights is None:
+            self.fc1 = nn.Linear(in_fc1_features, 100)
+        else:
+            self.fc1 = CustomLinear(in_fc1_features, 100, weights=old_weights)
+        self.fc1_dropout = nn.Dropout(p=0.5)
+        self.fc2 = nn.Linear(100, 10)
 
     def forward(self, x):
-        return self.sequential(x)
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = torch.flatten(x, start_dim=1)  # Flattening the tensor
+        x = self.fc1(x)
+        x = self.fc1_dropout(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        return x
+
+class CustomLinear(nn.Linear):
+    def __init__(self, in_features, out_features, weights, **kwargs):
+        super(CustomLinear, self).__init__(in_features, out_features, **kwargs)
+
+        if weights is not None:
+            old_weights = weights[2]
+            old_bias = weights[3]
+            num_pretrained_units, num_pretrained_inputs = old_weights.shape
+
+            # Verifica che le dimensioni siano compatibili
+            if num_pretrained_units != out_features:
+                raise ValueError(
+                    f"Il numero di unità di output pre-addestrate ({old_weights}) deve coincidere con out_features ({out_features})."
+                )
+
+            # Copia i pesi pre-addestrati per le colonne coincidenti
+            with torch.no_grad():
+                self.weight[:, :num_pretrained_inputs] = old_weights.clone().detach().requires_grad_(True)
+                self.bias[:num_pretrained_units] = old_bias[:num_pretrained_units].clone().detach().requires_grad_(True)
 
 
-class DropNN(nn.Module):
-    def __init__(self, input_dim, hdim, output_dim, dropout_rate):
-        super(DropNN, self).__init__()
-        self.sequential = nn.Sequential(
-            nn.Linear(input_dim, hdim),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hdim, output_dim)
-        )
+                if DEBUG:
+                    # Check weight reusing
+                    print(
+                        f"self.weight[:, :num_pretrained_inputs]: {self.weight[:, :num_pretrained_inputs].shape} pretrained_weights: {old_weights.shape}")
+
+                    # Porta weights[1] sullo stesso dispositivo di self.weight[:num_pretrained_inputs]
+                    weights_on_same_device = old_weights.to(self.weight[:num_pretrained_inputs].device)
+
+                    print(
+                        f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_inputs].device}")
+
+                    # Usa torch.equal per confrontare i tensor
+                    assert torch.equal(self.weight[:, :num_pretrained_inputs],
+                                       weights_on_same_device), "Weight reusing wrong"
+
+            # Inizializza le colonne rimanenti con Xavier
+            if num_pretrained_inputs < in_features:
+                nn.init.xavier_uniform_(self.weight[:, num_pretrained_inputs:])
+
+
+class CustomConv(nn.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, weights, **kwargs):
+        super(CustomConv, self).__init__(in_channels, out_channels, kernel_size, **kwargs)
+        old_weights = weights[0]
+        old_bias = weights[1]
+
+        if weights is not None:
+            num_pretrained_filters = old_weights.shape[0]
+
+            # Controlla che il numero di filtri pre-addestrati non superi out_channels
+            if num_pretrained_filters > out_channels:
+                raise ValueError(
+                    f"Il numero di filtri pre-addestrati ({num_pretrained_filters}) non può superare il numero di filtri richiesti ({out_channels}).")
+
+            # Copia i pesi pre-addestrati nei filtri corrispondenti
+            with torch.no_grad():
+                self.weight[:num_pretrained_filters] = old_weights.clone().detach().requires_grad_(True)
+                self.bias[:num_pretrained_filters] = old_bias[:num_pretrained_filters].clone().detach().requires_grad_(True)
+
+            if DEBUG:
+                # Check weight reusing
+                print(
+                    f"self.weight: {self.weight.shape} self.weight[:num_pretrained_filters]: {self.weight[:num_pretrained_filters].shape}")
+                print(f"weights[0]: {old_weights.shape}")
+
+                # Porta weights[0] sullo stesso dispositivo di self.weight[:num_pretrained_filters]
+                weights_on_same_device = old_weights.to(self.weight[:num_pretrained_filters].device)
+
+                print(
+                    f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_filters].device}")
+
+                # Usa torch.equal per confrontare i tensor
+                assert torch.equal(self.weight[:num_pretrained_filters], weights_on_same_device), "Weight reusing wrong"
+
+            # Inizializza i filtri rimanenti
+            self._initialize_weights(num_pretrained_filters)
+
+    def _initialize_weights(self, num_pretrained_filters):
+        # Inizializza i pesi rimanenti con Kaiming uniform
+        nn.init.xavier_uniform_(self.weight[num_pretrained_filters:])
+        nn.init.constant_(self.bias, 0)  # Se hai bias, inizializzali a zero
 
     def forward(self, x):
-        return self.sequential(x)
-
-
-class LeakyNN(nn.Module):
-    def __init__(self, input_dim, hdim, output_dim, leaky_slope):
-        super(LeakyNN, self).__init__()
-        self.sequential = nn.Sequential(
-            nn.Linear(input_dim, hdim),
-            nn.LeakyReLU(leaky_slope),
-            nn.Linear(hdim, output_dim)
-        )
-
-    def forward(self, x):
-        return self.sequential(x)
+        x = super(CustomConv, self).forward(x)
+        return x
 
 
 def create_batched_NN(input_dim, hdim, output_dim):
@@ -231,7 +309,7 @@ def create_batched_NN(input_dim, hdim, output_dim):
 
 def write_results_on_csv(file_path, dict_to_write):
     last_metrics = {
-        'h_dim': dict_to_write['h_dim'],
+        'filters_number': dict_to_write['filters_number'],
         'train_loss': dict_to_write['train_loss'],
         'test_loss': dict_to_write['test_loss'],
         'train_accuracy': dict_to_write['train_accuracy'],
@@ -239,7 +317,7 @@ def write_results_on_csv(file_path, dict_to_write):
     }
 
     # Define the header
-    header = ['h_dim', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
+    header = ['filters_number', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy']
 
     # Write the last metrics to the CSV file in append mode
     with open(file_path, mode='a', newline='') as file:
@@ -255,7 +333,7 @@ def write_results_on_csv(file_path, dict_to_write):
     print(f"Results appended to {file_path} successfully.")
 
 
-def generate_no_batch_networks(data_dict, hdim):
+def generate_no_batch_networks(data_dict, mul_factor, old_weights):
     # Unpack data_dict
     optimizer_dict = data_dict['optimizer']
     scheduler_lr_dict = data_dict['scheduler_lr']
@@ -298,22 +376,25 @@ def generate_no_batch_networks(data_dict, hdim):
 
     # Dataset loading and transformation
     if dataset_name == 'MNIST':
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: torch.flatten(x))])
+        transform = transforms.Compose([transforms.ToTensor()])
         train_set = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+        input_shape = (28, 28)
     elif dataset_name == 'FMNIST':
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: torch.flatten(x))])
+        transform = transforms.Compose([transforms.ToTensor()])
         train_set = datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform)
+        input_shape = (28, 28)
     elif dataset_name == 'CIFAR10':
         transform = transforms.Compose([
             # transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),  # Convert images to PyTorch tensors
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.Lambda(lambda x: torch.flatten(x))
         ])
         train_set = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+        input_shape = (3, 32, 32)
+
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
@@ -331,13 +412,16 @@ def generate_no_batch_networks(data_dict, hdim):
         val_loader = DataLoader(val_dataset, batch_size=validation_batch_size, shuffle=True)
     else:
         val_loader = None
+        train_dataset = train_subset
 
     train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
     test_loader = DataLoader(test_subset, batch_size=test_batch_size, shuffle=False)
 
     # Initialize the model and move to the correct device
-    model = SimpleNN(input_dim, hdim, output_dim).to(device)
-
+    if old_weights is None:
+        model = CustomNN(mul_factor, input_shape[0], kernel_size=3, old_weights = None).to(device)
+    else:
+        model = CustomNN(mul_factor, input_shape[0], kernel_size=3, old_weights = old_weights).to(device)
     # Define the optimizer
     if optimizer_name == 'Adam':
         optimizer_cls = optim.Adam
@@ -368,24 +452,29 @@ def generate_no_batch_networks(data_dict, hdim):
     metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params,
                      criterion_cls, num_epochs,
                      output_dim, None, scheduler_lr_cls, scheduler_lr_params, val_loader)
-    metrics1['h_dim'] = hdim
+    metrics1['filters_number'] = mul_factor * 8
 
     # Write results and save networks on file
     write_results_on_csv('results\\accuracies_no_batch.csv', metrics1)
 
     # Export the models to ONNX format
     # A dummy input (ensure it is on the same device as the model)
-    dummy_input = torch.randn(1, input_dim).to(device)
+    dummy_input =  torch.rand(1, 1, 28, 28).to(device)
 
     torch.onnx.export(
         model1,
         dummy_input,
-        f"results/no_batch/{hdim}.onnx",
+        f"results/no_batch/{mul_factor * 8}.onnx",
         input_names=['input'],
         output_names=['output'],
         export_params=True,
         opset_version=11,
         do_constant_folding=True,
     )
+
+    torch.save(model, f"results/no_batch/{mul_factor * 8}.pth")
+
+
+    return (model1.conv1.weight, model1.conv1.bias,  model1.fc1.weight, model1.fc1.bias)
 
 
