@@ -1,0 +1,62 @@
+# Neural Network Configuration
+
+architecture: "Neural Network"          # Name of the network architecture
+hidden_layer_dims:
+  - 5
+  - 15
+  - 30
+  - 45
+  - 50
+  - 70
+  - 100
+
+
+# Training Configuration
+training:
+  epochs: 10                  # Number of epochs
+  train_batch_size: 128            # Batch size for training
+  test_batch_size: 64             # Batch size for training
+  validation_batch_size: 64
+  validation_percentage: 0.2
+  loss_name: "CrossEntropyLoss"
+
+optimizer:
+  type: "Adam"
+  lr: 0.01
+  weight_decay: 0.0001
+
+scheduler_lr:
+  type: "ReduceLROnPlateau"
+  mode: 'min'
+  factor: 0.1
+  patience: 10
+  verbose: False
+
+# Data Configuration
+data:
+  dataset: "MNIST"                 # Dataset name
+  train_dim: 5000
+  test_dim: 10000
+  input_dim: 784
+  output_dim: 10
+
+# Weight Pruning Configuration
+weight_pruning:
+  wp_strength: 0.4
+
+# Neuron Pruning Configuration
+neuron_pruning:
+  np_strength: 0.5
+  batch_norm_decay: 0.001
+
+# L1 Regularization Configuration
+l1_sparse:
+  l1_decay: 0.0001
+
+# Dropout Configuration
+dropout:
+  dropout_rate: 0.2
+
+# Leaky Configuration
+leaky:
+  leaky_slope: 0.01

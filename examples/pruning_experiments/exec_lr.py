@@ -49,7 +49,7 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    yaml_file = 'config_MNIST_lr.yaml'
+    yaml_file = 'configs/config_MNIST_lr.yaml'
     config = load_yaml_config(yaml_file)
 
     hdims = config['hidden_layer_dims']

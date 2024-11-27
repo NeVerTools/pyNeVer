@@ -51,7 +51,7 @@ def generate_csv():
 
 
 if __name__ == '__main__':
-    yaml_file = 'config_MNIST_filter_growth.yaml'
+    yaml_file = 'configs/config_MNIST_filter_growth.yaml'
     config = load_yaml_config(yaml_file)
 
     mul_factors = [1,2,3,4,5,6]
