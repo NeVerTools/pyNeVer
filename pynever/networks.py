@@ -229,6 +229,32 @@ class NeuralNetwork(abc.ABC):
 
         return not has_edges
 
+    def get_topological_order(self) -> list:
+        """
+        Procedure to walk the network with a DFS and build the
+        topological sort.
+
+        Returns
+        -------
+        list
+            The topological sort of the network as a stack.
+        """
+
+        def recursive_dfs(node_id: str, visited: set[str], order: list[str]) -> None:
+
+            for child in self.get_children(self.nodes[node_id]):
+                if child.identifier not in visited:
+                    visited.add(child.identifier)
+                    recursive_dfs(child.identifier, visited, order)
+
+            order.insert(0, node_id)
+
+        result = []
+        seen = set()
+        recursive_dfs(self.get_roots()[0].identifier, seen, result)
+
+        return result
+
 
 class SequentialNetwork(NeuralNetwork):
     """
