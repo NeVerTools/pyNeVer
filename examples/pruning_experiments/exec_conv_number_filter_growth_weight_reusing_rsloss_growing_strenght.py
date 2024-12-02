@@ -24,8 +24,9 @@ if __name__ == '__main__':
     yaml_file = 'configs/config_MNIST_filter_growth.yaml'
     config = load_yaml_config(yaml_file)
 
-    filters_numbers = [4,6,8,10,12,24,48,96,124]
-    hidden_layer_dims = [30, 33, 36, 39, 42, 56, 64, 80]
+
+    filters_numbers = [4, 4, 8, 12, 24, 48, 64, 96, 124]
+    hidden_layer_dims = [20,33, 39, 45, 48, 51, 53, 54, 57]
     #increment_list = [0.5, 0.5, 0.5, 0.5, 0.5, 1 , 2]
     #increment_list = [0.5, 0, 0.5, 0.5, 1, 2, 3, 5]
 
@@ -37,11 +38,12 @@ if __name__ == '__main__':
 
     for idx, filters in enumerate(filters_numbers):
         print(f"Number of filters {filters}")
-        metrics, old_model = generate_no_batch_networks(config, filters_number=filters, old_weights = old_weights, RS_FACTOR=rs_factor, HIDDEN_LAYER_DIM=HIDDEN_LAYER_DIM)
+        metrics, _= generate_no_batch_networks(config, filters_number=filters, old_weights=old_weights,
+                                               RS_FACTOR=rs_factor, HIDDEN_LAYER_DIM=hidden_layer_dims[idx], save_bool=True)
 
         if old_model is not None:
             old_weights = (old_model.fcLikeConv.weight, old_model.fcLikeConv.bias,  old_model.fc1.weight, old_model.fc1.bias, old_model.fc2.weight, old_model.fc2.bias)
-        HIDDEN_LAYER_DIM += 3
+
 
 
 

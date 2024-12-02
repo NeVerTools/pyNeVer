@@ -1,6 +1,5 @@
 import copy
 import csv
-import os
 
 import onnx
 import torch
@@ -45,16 +44,8 @@ def load_yaml_config(yaml_file_path):
 
 #######################################################################################################################
 # Definiamo il custom regularizer
-def calculate_rs_loss_regularizer(model, filters_number, inputs, lb, ub, normalized):
+def calculate_rs_loss_regularizer(model, hidden_layer_dim, lb, ub, normalized):
     params = list(model.parameters())
-    kernel_param_size = kernel_size*kernel_size*1
-
-    patches_lb = F.unfold(lb, kernel_size=3, stride=1)
-    lb = patches_lb.transpose(1, 2).reshape(-1, kernel_param_size)
-
-    # Transform the inputs to make them like a conv
-    patches_ub = F.unfold(ub, kernel_size=3, stride=1)
-    ub = patches_ub.transpose(1, 2).reshape(-1, kernel_param_size)
 
     # Conv like a fully connected layer Fc1
     W1 = params[0]
@@ -62,39 +53,14 @@ def calculate_rs_loss_regularizer(model, filters_number, inputs, lb, ub, normali
     #print(f"lb0: {lb.shape}, ub0: {ub.shape}, W1: {W1.shape}, b1: {b1.shape}")
     lb_1, ub_1 = interval_arithmetic_fc(lb, ub, W1, b1)
 
-    def reshape(bounds):
-        # Reshape per ottenere l'output con la struttura di una convoluzione
-        batch_size, _, height, width =inputs.size(0), inputs.size(1), inputs.size(2), inputs.size(3)
-        out_height = (height - kernel_size) // stride + 1
-        out_width = (width - kernel_size) // stride + 1
-        bounds = bounds.view(batch_size, out_height, out_width, filters_number).permute(0, 3, 1, 2)
-        return bounds
-
-    lb_1 = reshape(lb_1).flatten(start_dim=1)
-    ub_1 = reshape(ub_1).flatten(start_dim=1)
-
-    lbh_1 = torch.relu(lb_1)
-    ubh_1 = torch.relu(ub_1)
-
-    # Fc2
-    W2 = params[2]
-    b2 = params[3]
-    lb_2, ub_2 = interval_arithmetic_fc(lbh_1, ubh_1, W2, b2)
-    #print(f"lb1: {lb_1.shape}, ub1: {ub_1.shape}, W2: {W2.shape}, b2: {b2.shape}")
+    rs_loss = _l_relu_stable(lb_1, ub_1)
 
 
-    rsloss1 = _l_relu_stable(lb_1, ub_1)
-    rsloss2 = _l_relu_stable(lb_2, ub_2)
-
-
-
-    rs_loss = rsloss1 + rsloss2
-    total_neurons_number = lb_1.shape[1] + lb_2.shape[1]
     if DEBUG:
-        print(f"{total_neurons_number=}")
+        print(f"{hidden_layer_dim=}")
 
     if normalized:
-        rs_loss = rs_loss / total_neurons_number
+        rs_loss = rs_loss / hidden_layer_dim
 
         rs_loss = (rs_loss + 1)/2
         assert 0 <= rs_loss <= 1, "RS LOSS not in 0, 1 range"
@@ -136,8 +102,8 @@ def _compute_bounds_n_layers(lb, ub, W, b):
 
 
 ########################################################################################################################
-def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_params, criterion_cls, num_epochs,
-          filters_number, num_classes, rs_loss_regularizer=None, noise=0.1,
+def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_params, criterion_cls, num_epochs, hidden_layer_dim,
+          num_classes, rs_loss_regularizer=None, noise=0.1,
           scheduler_lr_cls=None, scheduler_lr_params=None, val_loader=None):
     # Initialize the optimizer
     optimizer = optimizer_cls(model.parameters(), **optimizer_params)
@@ -167,11 +133,11 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         'lambda': None         # Value of the RS regularizer, if applicable
     }
 
-    def compute_rs_loss(inputs, model, filters_number, noise):
+    def compute_rs_loss(inputs, model, hidden_layer_dim, noise):
         """Helper function to compute RS loss."""
         ubs = inputs + noise
         lbs = inputs - noise
-        return calculate_rs_loss_regularizer(model, filters_number, inputs, lbs, ubs, normalized=True)
+        return calculate_rs_loss_regularizer(model, hidden_layer_dim, lbs, ubs, normalized=True)
 
     for epoch in range(num_epochs):
         model.train()
@@ -197,7 +163,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
             # Compute RS loss if applicable
             if rs_loss_regularizer is not None:
-                rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                rs_loss = compute_rs_loss(inputs, model, hidden_layer_dim, noise)
                 loss += rs_loss_regularizer * rs_loss
                 partial_loss_2 = rs_loss.item()
             else:
@@ -256,7 +222,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
                 # Compute RS loss if applicable
                 if rs_loss_regularizer is not None:
-                    rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                    rs_loss = compute_rs_loss(inputs, model, hidden_layer_dim, noise)
                     loss += rs_loss_regularizer * rs_loss
                     partial_loss_2 = rs_loss.item()
                 else:
@@ -308,7 +274,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
                     partial_loss_1 = loss.item()
 
                     if rs_loss_regularizer is not None:
-                        rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                        rs_loss = compute_rs_loss(inputs, model, hidden_layer_dim, noise)
                         loss += rs_loss_regularizer * rs_loss
                         partial_loss_2 = rs_loss.item()
                     else:
@@ -352,204 +318,60 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
     return metrics
 
 
+import torch
+import torch.nn as nn
+
+
 class CustomNN(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, filters_number, kernel_size, stride, padding, hidden_layer_dim, weights=None):
+    def __init__(self, input_dim: int, hidden_layer_dim: int, output_dim: int):
         super(CustomNN, self).__init__()
-        self.fcLikeConv = FcLikeConvLayer(1, filters_number, kernel_size=kernel_size, stride=stride, padding=padding, weights=weights)
-        self.flatten = nn.Flatten()
 
-        # Calculate input size for fc1 dynamically
-        dummy_input = torch.zeros(1, 1, input_dim, input_dim)
-        conv_output = self.fcLikeConv(dummy_input)
-        conv_output_flatten = self.flatten(conv_output)
-        fc1_in_features = conv_output_flatten.numel()
+        # Definizione del primo livello fully connected
+        self.fc1 = nn.Linear(input_dim, hidden_layer_dim)
+        self.relu = nn.ReLU()
 
-        # Define fully connected layers
-        self.fc1 = CustomLinear(fc1_in_features, hidden_layer_dim, weights=weights)
-        self.fc1_dropout = nn.Dropout(p=0.5)
-        self.fc2 = CustomOutput(hidden_layer_dim, output_dim, weights=weights)
+        # Definizione del secondo livello fully connected (output layer)
+        self.fc2 = nn.Linear(hidden_layer_dim, output_dim)
 
     def forward(self, x):
-        # Apply FcLikeConv and ReLU
-        x = self.fcLikeConv(x)
-        x = F.relu(x)
-
-        # Fully connected layers
-        x = self.flatten(x)
-        x = self.fc1_dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
+        # Flatten del tensore di input se non è già piatto
+        x = self.fc1(x)  # Primo livello fc
+        x = self.relu(x)  # Attivazione ReLU
+        x = self.fc2(x)  # Secondo livello fc (output)
         return x
 
 
-class FcLikeConvLayer(nn.Linear):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, weights=None):
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
+def write_results_on_csv(file_path, dict_to_write):
+    last_metrics = {
+        'filters_number': dict_to_write['filters_number'],
+        'train_loss': dict_to_write['train_loss'],
+        'test_loss': dict_to_write['test_loss'],
+        'train_accuracy': dict_to_write['train_accuracy'],
+        'test_accuracy': dict_to_write['test_accuracy'],
+        'loss_1': dict_to_write['loss_1'],
+        'loss_2': dict_to_write['loss_2']
+    }
 
-        # Number of parameters in a single kernel
-        self.kernel_param_size = in_channels * kernel_size * kernel_size
+    # Define the header
+    header = ['filters_number', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy', 'loss_1', 'loss_2']
 
-        super(FcLikeConvLayer, self).__init__(self.kernel_param_size, self.out_channels, bias=True)
+    # Write the last metrics to the CSV file in append mode
+    with open(file_path, mode='a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=header)
 
-        with torch.no_grad():
-            # Initialize remaining weights
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
+        # Check if the file is empty to write header
+        file_empty = file.tell() == 0
+        if file_empty:
+            writer.writeheader()
 
-        if weights is not None:
-            pretrained_weights = weights[0]
-            pretrained_bias = weights[1]
-            num_pretrained_outputs, num_pretrained_features = pretrained_weights.shape
+        writer.writerow(last_metrics)
 
-            # Copy the pretrained weights for the overlapping input-output dimensions
-            with torch.no_grad():
-                self.weight[:num_pretrained_outputs, :num_pretrained_features] = pretrained_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_outputs] = pretrained_bias[:num_pretrained_outputs].clone().detach().requires_grad_(True)
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:num_pretrained_outputs, :num_pretrained_features]: {self.weight[:num_pretrained_outputs, :num_pretrained_features].shape}, "
-                        f"pretrained_weights: {pretrained_weights.shape}"
-                    )
-
-                    # Ensure weights are on the same device
-                    weights_on_same_device = pretrained_weights.to(self.weight.device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}, self.weight.device: {self.weight.device}"
-                    )
-
-                    # Check if weights match as expected
-                    assert torch.equal(self.weight[:num_pretrained_outputs, :num_pretrained_features],
-                                       weights_on_same_device), "Weight reusing is incorrect"
+    print(f"Results appended to {file_path} successfully.")
 
 
+def generate_no_batch_networks(data_dict, hidden_dim, old_weights, RS_FACTOR):
 
-    def forward(self, x):
-        # Applica padding all'input
-        x = F.pad(x, (self.padding, self.padding, self.padding, self.padding))
-
-        #print(x.shape)
-        # Usa Unfold per estrarre le patch, dimensione di uscita: (batch, kernel_param_size, num_patches)
-        patches = F.unfold(x, kernel_size=self.kernel_size, stride=self.stride)
-
-        # Trasponi patches per avere ogni patch come input separato (batch_size * num_patches, kernel_param_size)
-        patches = patches.transpose(1, 2).reshape(-1, self.kernel_param_size)
-
-        # Applica il livello fully connected a ciascuna patch
-        #out = self.fc(patches)
-        out = super(FcLikeConvLayer, self).forward(patches)
-
-        # Reshape per ottenere l'output con la struttura di una convoluzione
-        batch_size, _, height, width = x.size(0), x.size(1), x.size(2), x.size(3)
-        out_height = (height - self.kernel_size) // self.stride + 1
-        out_width = (width - self.kernel_size) // self.stride + 1
-        out = out.view(batch_size, out_height, out_width, self.out_channels).permute(0, 3, 1, 2)
-
-        # It has an output like a conv2d network
-        return out
-
-
-
-class CustomLinear(nn.Linear):
-    def __init__(self, in_features, out_features, weights, **kwargs):
-        super(CustomLinear, self).__init__(in_features, out_features, **kwargs)
-
-        with torch.no_grad():
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
-
-        if weights is not None:
-            old_weights = weights[2]
-            old_bias = weights[3]
-            num_pretrained_units, num_pretrained_inputs = old_weights.shape
-
-            # Verifica che le dimensioni siano compatibili
-            if num_pretrained_units != out_features:
-                raise ValueError(
-                    f"Il numero di unità di output pre-addestrate ({old_weights}) deve coincidere con out_features ({out_features})."
-                )
-
-            # Copia i pesi pre-addestrati per le colonne coincidenti
-            with torch.no_grad():
-                self.weight[:, :num_pretrained_inputs] = old_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_units] = old_bias[:num_pretrained_units].clone().detach().requires_grad_(True)
-
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:, :num_pretrained_inputs]: {self.weight[:, :num_pretrained_inputs].shape} pretrained_weights: {old_weights.shape}")
-
-                    # Porta weights[1] sullo stesso dispositivo di self.weight[:num_pretrained_inputs]
-                    weights_on_same_device = old_weights.to(self.weight[:num_pretrained_inputs].device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_inputs].device}")
-
-                    # Usa torch.equal per confrontare i tensor
-                    assert torch.equal(self.weight[:, :num_pretrained_inputs],
-                                       weights_on_same_device), "Weight reusing wrong"
-
-class CustomOutput(nn.Linear):
-    def __init__(self, in_features, out_features, weights, **kwargs):
-        super(CustomOutput, self).__init__(in_features, out_features, **kwargs)
-
-        with torch.no_grad():
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
-
-        if weights is not None:
-            old_weights = weights[4]
-            old_bias = weights[5]
-            num_pretrained_units, num_pretrained_inputs = old_weights.shape
-
-            # Verifica che le dimensioni siano compatibili
-            if num_pretrained_units != out_features:
-                raise ValueError(
-                    f"Il numero di unità di output pre-addestrate ({old_weights}) deve coincidere con out_features ({out_features})."
-                )
-
-            # Copia i pesi pre-addestrati per le colonne coincidenti
-            with torch.no_grad():
-                self.weight[:, :num_pretrained_inputs] = old_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_units] = old_bias[:num_pretrained_units].clone().detach().requires_grad_(True)
-
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:, :num_pretrained_inputs]: {self.weight[:, :num_pretrained_inputs].shape} pretrained_weights: {old_weights.shape}")
-
-                    # Porta weights[1] sullo stesso dispositivo di self.weight[:num_pretrained_inputs]
-                    weights_on_same_device = old_weights.to(self.weight[:num_pretrained_inputs].device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_inputs].device}")
-
-                    # Usa torch.equal per confrontare i tensor
-                    assert torch.equal(self.weight[:, :num_pretrained_inputs],
-                                       weights_on_same_device), "Weight reusing wrong"
-
-def save_metrics_to_csv(metrics, csv_file):
-    headers = list(metrics.keys())
-    data = list(metrics.values())
-
-    file_exists = os.path.exists(csv_file)
-    with open(csv_file, mode='a', newline='') as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(headers)  # Write headers if file is new
-        writer.writerow(data)  # Write metrics data
-
-
-def generate_no_batch_networks(data_dict, filters_number, old_weights, RS_FACTOR, HIDDEN_LAYER_DIM, save_bool=False):
-
-    print(f"{filters_number=}")
+    print(f"{hidden_dim=}")
 
     # Unpack data_dict
     optimizer_dict = data_dict['optimizer']
@@ -580,13 +402,7 @@ def generate_no_batch_networks(data_dict, filters_number, old_weights, RS_FACTOR
     output_dim = int(data_dict['data']['output_dim'])
 
     # Training parameters
-    #num_epochs = int(data_dict['training']['epochs'])
-
-    if filters_number <= 90:
-        num_epochs = 600
-    else:
-        num_epochs = 1200
-
+    num_epochs = int(data_dict['training']['epochs'])
     train_batch_size = int(data_dict['training']['train_batch_size'])
     test_batch_size = int(data_dict['training']['test_batch_size'])
     validation_batch_size = int(data_dict['training']['validation_batch_size'])
@@ -599,7 +415,7 @@ def generate_no_batch_networks(data_dict, filters_number, old_weights, RS_FACTOR
 
     # Dataset loading and transformation
     if dataset_name == 'MNIST':
-        transform = transforms.Compose([transforms.ToTensor()])
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Lambda(lambda x: x.view(-1))])
         train_set = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         test_set = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
         input_shape = (28, 28)
@@ -640,12 +456,6 @@ def generate_no_batch_networks(data_dict, filters_number, old_weights, RS_FACTOR
     train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
     test_loader = DataLoader(test_subset, batch_size=test_batch_size, shuffle=False)
 
-    # Initialize the model and move to the correct device
-    if old_weights is None:
-        model = CustomNN(input_shape[0], output_dim, filters_number=filters_number, kernel_size=3, stride=stride, padding=padding, hidden_layer_dim=HIDDEN_LAYER_DIM, weights = None).to(device)
-    else:
-        model = CustomNN(input_shape[0], output_dim, filters_number=filters_number, kernel_size=3, stride=stride, padding=padding, hidden_layer_dim=HIDDEN_LAYER_DIM, weights = old_weights).to(device)
-    # Define the optimizer
     if optimizer_name == 'Adam':
         optimizer_cls = optim.Adam
     elif optimizer_name == 'SGD':
@@ -669,17 +479,18 @@ def generate_no_batch_networks(data_dict, filters_number, old_weights, RS_FACTOR
     else:
         scheduler_lr_params = None
 
+    model = CustomNN(784, hidden_dim, 10)
     # Train the model without batch or L1 regularization
     print("Model Simple")
     model1 = copy.deepcopy(model).to(device)
     metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params, criterion_cls, num_epochs,
-                     filters_number=filters_number, num_classes=output_dim, rs_loss_regularizer=RS_FACTOR,
+                     hidden_layer_dim=hidden_dim, num_classes=output_dim, rs_loss_regularizer=RS_FACTOR,
                      scheduler_lr_cls=scheduler_lr_cls, scheduler_lr_params=scheduler_lr_params, val_loader=val_loader)
-    metrics1['filters_number'] = filters_number
+    metrics1['h_dim'] = hidden_dim
 
-    if save_bool:
+    if False:
         # Write results and save networks on file
-        save_metrics_to_csv(metrics1, 'results\\accuracies_no_batch.csv')
+        write_results_on_csv('results\\accuracies_no_batch.csv', metrics1)
 
         # Export the models to ONNX format
         # A dummy input (ensure it is on the same device as the model)

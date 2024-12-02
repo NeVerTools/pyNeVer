@@ -28,7 +28,8 @@ if __name__ == '__main__':
 
     for mul_factor in mul_factors:
         print(f"Number of filters {mul_factor} * 8: {mul_factor * 2}")
-        old_weights = generate_no_batch_networks(config, mul_factor, old_weights = old_weights, RS_FACTOR=20)
+        old_weights = generate_no_batch_networks(config, mul_factor, old_weights=old_weights, RS_FACTOR=20,
+                                                 HIDDEN_LAYER_DIM=)
 
 
 
