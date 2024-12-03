@@ -13,7 +13,7 @@ current_directory = os.getcwd()
 parent_directory = os.path.dirname(os.path.dirname(current_directory))
 sys.path.insert(0, parent_directory)
 
-from examples.pruning_experiments.networks_generation.generate_network_number_filter_growth_wr_rsloss import generate_no_batch_networks, \
+from examples.pruning_experiments.networks_generation.generate_network_convolution_improved import generate_no_batch_networks, \
     load_yaml_config
 
 def save_model(model, filters_number, folder, device):
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     rs_factor = 3
 
     # Best accuracy for the smallest netowork. That value is gonna be the value to improve with over-parametrization
-    metrics, model = generate_no_batch_networks(config, filters_number=filters_numbers.pop(0), old_weights=old_weights,
+    metrics, model = generate_no_batch_networks(config, filters_number=filters_numbers.pop(0),
                                                 rs_factor=rs_factor, hidden_layer_dim=hidden_layer_dims.pop(0))
     save_model(model, 4, OUTPUT_FOLDER, device)
     save_metrics_to_csv(metrics, CSV_FILE)

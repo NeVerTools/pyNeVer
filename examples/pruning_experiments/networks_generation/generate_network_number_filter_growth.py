@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import yaml
-from tensorflow.python.ops.numpy_ops import shape
 from torch.utils.data import DataLoader, Subset, random_split
 from torchvision import datasets, transforms
 

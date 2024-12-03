@@ -45,15 +45,54 @@ def load_yaml_config(yaml_file_path):
 
 #######################################################################################################################
 # Definiamo il custom regularizer
-def calculate_rs_loss_regularizer(model, filters_number, inputs, lb, ub, normalized):
+def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_number, inputs, lb, ub, normalized):
     params = list(model.parameters())
-    kernel_param_size = kernel_size*kernel_size*1
+    kernel_param_size = kernel_size * kernel_size * 1
 
-    patches_lb = F.unfold(lb, kernel_size=3, stride=1)
-    lb = patches_lb.transpose(1, 2).reshape(-1, kernel_param_size)
+    filter_weights = params[0].squeeze().reshape(filters_number, -1)
+    filter_bias = params[1].squeeze()
 
-    # Transform the inputs to make them like a conv
-    patches_ub = F.unfold(ub, kernel_size=3, stride=1)
+    input_shape = inputs.shape
+    batch_size = input_shape[0]
+    image_shape = (input_shape[1], input_shape[2], input_shape[3])
+    image_flattened_dim = image_shape[1] * image_shape[2]
+
+    assert image_shape[1] == input_shape[2] and image_shape[0] == 1, "The image must be squared, 1 channel till now"
+
+    # Calcolare la dimensione dell'output dell'immagine a cui è stato applicato il filtro
+    output_conv_dim = ((image_shape[1] - kernel_size + 2 * padding) / stride) + 1
+    output_conv_shape = (output_conv_dim, output_conv_dim)
+    output_conv_shape_flatten = int(output_conv_dim * output_conv_dim)
+
+    # Array contenente gli indici
+    matrix_index = torch.arange(0, image_flattened_dim, dtype=torch.float64, device="cuda").reshape(image_shape[1], image_shape[1]).unsqueeze(0)
+
+    assert padding == 0, "Padding diverso da 0 non è supportato!"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Unfold per generare la matrice delle patch
+    patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
+    patch_matrix = patch_matrix.transpose(0, 1).to(torch.int64)
+
+    patch_number = patch_matrix.shape[0]  # Numero delle patch
+
+    # Crea la matrice di zeri (aggiungiamo la dimensione per i filtri)
+    zero_matrix = torch.zeros(patch_number, image_flattened_dim, filters_number, device=device)
+
+    filter_weights = filter_weights.to(device)
+
+    # Ciclo sui filtri
+    for f_idx, filter in enumerate(filter_weights):
+        filter = filter.reshape(-1)
+        for i in range(patch_number):
+            temp = torch.zeros(image_flattened_dim, device=device)
+            indices = patch_matrix[i, :].long()  #
+            temp[indices] = filter
+            zero_matrix[i, :, f_idx] = temp
+
+
+
+            # Transform the inputs to make them like a conv
+    patches_ub = F.unfold(ub, kernel_size=kernel_size, stride=stride)
     ub = patches_ub.transpose(1, 2).reshape(-1, kernel_param_size)
 
     # Conv like a fully connected layer Fc1
@@ -167,11 +206,11 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         'lambda': None         # Value of the RS regularizer, if applicable
     }
 
-    def compute_rs_loss(inputs, model, filters_number, noise):
+    def compute_rs_loss(inputs, model, kernel, padding, stride, filters_number, noise):
         """Helper function to compute RS loss."""
         ubs = inputs + noise
         lbs = inputs - noise
-        return calculate_rs_loss_regularizer(model, filters_number, inputs, lbs, ubs, normalized=True)
+        return calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, inputs, lbs, ubs, normalized=True)
 
     for epoch in range(num_epochs):
         model.train()
@@ -197,7 +236,8 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
             # Compute RS loss if applicable
             if rs_loss_regularizer is not None:
-                rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                rs_loss = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
+                                          filters_number=filters_number, noise=noise)
                 loss += rs_loss_regularizer * rs_loss
                 partial_loss_2 = rs_loss.item()
             else:
@@ -256,7 +296,8 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
                 # Compute RS loss if applicable
                 if rs_loss_regularizer is not None:
-                    rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                    rs_loss = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
+                                          filters_number=filters_number, noise=noise)
                     loss += rs_loss_regularizer * rs_loss
                     partial_loss_2 = rs_loss.item()
                 else:
@@ -308,7 +349,8 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
                     partial_loss_1 = loss.item()
 
                     if rs_loss_regularizer is not None:
-                        rs_loss = compute_rs_loss(inputs, model, filters_number, noise)
+                        rs_loss = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
+                                          filters_number=filters_number, noise=noise)
                         loss += rs_loss_regularizer * rs_loss
                         partial_loss_2 = rs_loss.item()
                     else:
@@ -353,25 +395,25 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
 
 class CustomNN(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, filters_number, kernel_size, stride, padding, hidden_layer_dim, weights=None):
+    def __init__(self, input_dim: int, output_dim: int, filters_number, kernel_size, stride, padding, hidden_layer_dim):
         super(CustomNN, self).__init__()
-        self.fcLikeConv = FcLikeConvLayer(1, filters_number, kernel_size=kernel_size, stride=stride, padding=padding, weights=weights)
+        self.conv = nn.Conv2d(1, filters_number, kernel_size=kernel_size, stride=stride, padding=padding)
         self.flatten = nn.Flatten()
 
         # Calculate input size for fc1 dynamically
         dummy_input = torch.zeros(1, 1, input_dim, input_dim)
-        conv_output = self.fcLikeConv(dummy_input)
+        conv_output = self.conv(dummy_input)
         conv_output_flatten = self.flatten(conv_output)
         fc1_in_features = conv_output_flatten.numel()
 
         # Define fully connected layers
-        self.fc1 = CustomLinear(fc1_in_features, hidden_layer_dim, weights=weights)
+        self.fc1 = nn.Linear(fc1_in_features, hidden_layer_dim)
         self.fc1_dropout = nn.Dropout(p=0.5)
-        self.fc2 = CustomOutput(hidden_layer_dim, output_dim, weights=weights)
+        self.fc2 = nn.Linear(hidden_layer_dim, output_dim)
 
     def forward(self, x):
         # Apply FcLikeConv and ReLU
-        x = self.fcLikeConv(x)
+        x = self.conv(x)
         x = F.relu(x)
 
         # Fully connected layers
@@ -381,159 +423,6 @@ class CustomNN(nn.Module):
         return x
 
 
-class FcLikeConvLayer(nn.Linear):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, weights=None):
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-
-        # Number of parameters in a single kernel
-        self.kernel_param_size = in_channels * kernel_size * kernel_size
-
-        super(FcLikeConvLayer, self).__init__(self.kernel_param_size, self.out_channels, bias=True)
-
-        with torch.no_grad():
-            # Initialize remaining weights
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
-
-        if weights is not None:
-            pretrained_weights = weights[0]
-            pretrained_bias = weights[1]
-            num_pretrained_outputs, num_pretrained_features = pretrained_weights.shape
-
-            # Copy the pretrained weights for the overlapping input-output dimensions
-            with torch.no_grad():
-                self.weight[:num_pretrained_outputs, :num_pretrained_features] = pretrained_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_outputs] = pretrained_bias[:num_pretrained_outputs].clone().detach().requires_grad_(True)
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:num_pretrained_outputs, :num_pretrained_features]: {self.weight[:num_pretrained_outputs, :num_pretrained_features].shape}, "
-                        f"pretrained_weights: {pretrained_weights.shape}"
-                    )
-
-                    # Ensure weights are on the same device
-                    weights_on_same_device = pretrained_weights.to(self.weight.device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}, self.weight.device: {self.weight.device}"
-                    )
-
-                    # Check if weights match as expected
-                    assert torch.equal(self.weight[:num_pretrained_outputs, :num_pretrained_features],
-                                       weights_on_same_device), "Weight reusing is incorrect"
-
-
-
-    def forward(self, x):
-        # Applica padding all'input
-        x = F.pad(x, (self.padding, self.padding, self.padding, self.padding))
-
-        #print(x.shape)
-        # Usa Unfold per estrarre le patch, dimensione di uscita: (batch, kernel_param_size, num_patches)
-        patches = F.unfold(x, kernel_size=self.kernel_size, stride=self.stride)
-
-        # Trasponi patches per avere ogni patch come input separato (batch_size * num_patches, kernel_param_size)
-        patches = patches.transpose(1, 2).reshape(-1, self.kernel_param_size)
-
-        # Applica il livello fully connected a ciascuna patch
-        #out = self.fc(patches)
-        out = super(FcLikeConvLayer, self).forward(patches)
-
-        # Reshape per ottenere l'output con la struttura di una convoluzione
-        batch_size, _, height, width = x.size(0), x.size(1), x.size(2), x.size(3)
-        out_height = (height - self.kernel_size) // self.stride + 1
-        out_width = (width - self.kernel_size) // self.stride + 1
-        out = out.view(batch_size, out_height, out_width, self.out_channels).permute(0, 3, 1, 2)
-
-        # It has an output like a conv2d network
-        return out
-
-
-
-class CustomLinear(nn.Linear):
-    def __init__(self, in_features, out_features, weights, **kwargs):
-        super(CustomLinear, self).__init__(in_features, out_features, **kwargs)
-
-        with torch.no_grad():
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
-
-        if weights is not None:
-            old_weights = weights[2]
-            old_bias = weights[3]
-            num_pretrained_units, num_pretrained_inputs = old_weights.shape
-
-            # Verifica che le dimensioni siano compatibili
-            if num_pretrained_units != out_features:
-                raise ValueError(
-                    f"Il numero di unità di output pre-addestrate ({old_weights}) deve coincidere con out_features ({out_features})."
-                )
-
-            # Copia i pesi pre-addestrati per le colonne coincidenti
-            with torch.no_grad():
-                self.weight[:, :num_pretrained_inputs] = old_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_units] = old_bias[:num_pretrained_units].clone().detach().requires_grad_(True)
-
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:, :num_pretrained_inputs]: {self.weight[:, :num_pretrained_inputs].shape} pretrained_weights: {old_weights.shape}")
-
-                    # Porta weights[1] sullo stesso dispositivo di self.weight[:num_pretrained_inputs]
-                    weights_on_same_device = old_weights.to(self.weight[:num_pretrained_inputs].device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_inputs].device}")
-
-                    # Usa torch.equal per confrontare i tensor
-                    assert torch.equal(self.weight[:, :num_pretrained_inputs],
-                                       weights_on_same_device), "Weight reusing wrong"
-
-class CustomOutput(nn.Linear):
-    def __init__(self, in_features, out_features, weights, **kwargs):
-        super(CustomOutput, self).__init__(in_features, out_features, **kwargs)
-
-        with torch.no_grad():
-            nn.init.xavier_uniform_(self.weight)
-            nn.init.zeros_(self.bias)
-
-        if weights is not None:
-            old_weights = weights[4]
-            old_bias = weights[5]
-            num_pretrained_units, num_pretrained_inputs = old_weights.shape
-
-            # Verifica che le dimensioni siano compatibili
-            if num_pretrained_units != out_features:
-                raise ValueError(
-                    f"Il numero di unità di output pre-addestrate ({old_weights}) deve coincidere con out_features ({out_features})."
-                )
-
-            # Copia i pesi pre-addestrati per le colonne coincidenti
-            with torch.no_grad():
-                self.weight[:, :num_pretrained_inputs] = old_weights.clone().detach().requires_grad_(True)
-                self.bias[:num_pretrained_units] = old_bias[:num_pretrained_units].clone().detach().requires_grad_(True)
-
-
-                if DEBUG:
-                    # Check weight reusing
-                    print(
-                        f"self.weight[:, :num_pretrained_inputs]: {self.weight[:, :num_pretrained_inputs].shape} pretrained_weights: {old_weights.shape}")
-
-                    # Porta weights[1] sullo stesso dispositivo di self.weight[:num_pretrained_inputs]
-                    weights_on_same_device = old_weights.to(self.weight[:num_pretrained_inputs].device)
-
-                    print(
-                        f"device weights: {weights_on_same_device.device}  self.weight.device: {self.weight[:num_pretrained_inputs].device}")
-
-                    # Usa torch.equal per confrontare i tensor
-                    assert torch.equal(self.weight[:, :num_pretrained_inputs],
-                                       weights_on_same_device), "Weight reusing wrong"
 
 def save_metrics_to_csv(metrics, csv_file):
     headers = list(metrics.keys())
@@ -547,7 +436,7 @@ def save_metrics_to_csv(metrics, csv_file):
         writer.writerow(data)  # Write metrics data
 
 
-def generate_no_batch_networks(data_dict, filters_number, old_weights, rs_factor, hidden_layer_dim, save_bool=False):
+def generate_no_batch_networks(data_dict, filters_number, rs_factor, hidden_layer_dim, save_bool=False):
 
     print(f"{filters_number=}")
 
@@ -641,10 +530,9 @@ def generate_no_batch_networks(data_dict, filters_number, old_weights, rs_factor
     test_loader = DataLoader(test_subset, batch_size=test_batch_size, shuffle=False)
 
     # Initialize the model and move to the correct device
-    if old_weights is None:
-        model = CustomNN(input_shape[0], output_dim, filters_number=filters_number, kernel_size=3, stride=stride, padding=padding, hidden_layer_dim=hidden_layer_dim, weights = None).to(device)
-    else:
-        model = CustomNN(input_shape[0], output_dim, filters_number=filters_number, kernel_size=3, stride=stride, padding=padding, hidden_layer_dim=hidden_layer_dim, weights = old_weights).to(device)
+
+    model = CustomNN(input_shape[0], output_dim, filters_number=filters_number, kernel_size=3, stride=stride, padding=padding, hidden_layer_dim=hidden_layer_dim).to(device)
+
     # Define the optimizer
     if optimizer_name == 'Adam':
         optimizer_cls = optim.Adam

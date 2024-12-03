@@ -39,7 +39,8 @@ if __name__ == '__main__':
     for idx, filters in enumerate(filters_numbers):
         print(f"Number of filters {filters}")
         metrics, _= generate_no_batch_networks(config, filters_number=filters, old_weights=old_weights,
-                                               RS_FACTOR=rs_factor, HIDDEN_LAYER_DIM=hidden_layer_dims[idx], save_bool=True)
+                                               rs_factor=rs_factor, hidden_layer_dim=hidden_layer_dims[idx],
+                                               save_bool=True)
 
         if old_model is not None:
             old_weights = (old_model.fcLikeConv.weight, old_model.fcLikeConv.bias,  old_model.fc1.weight, old_model.fc1.bias, old_model.fc2.weight, old_model.fc2.bias)
