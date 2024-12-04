@@ -54,6 +54,9 @@ def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_n
 
     input_shape = inputs.shape
     batch_size = input_shape[0]
+    
+    input_flattened = inputs.reshape(batch_size, -1)
+    
     image_shape = (input_shape[1], input_shape[2], input_shape[3])
     image_flattened_dim = image_shape[1] * image_shape[2]
 
@@ -77,8 +80,7 @@ def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_n
 
     # Crea la matrice di zeri (aggiungiamo la dimensione per i filtri)
     zero_matrix = torch.zeros(patch_number, image_flattened_dim, filters_number, device=device)
-
-    filter_weights = filter_weights.to(device)
+    reshaped_matrix = zero_matrix.permute(0, 2, 1).reshape(-1, 784)
 
     # Ciclo sui filtri
     for f_idx, filter in enumerate(filter_weights):
@@ -89,11 +91,9 @@ def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_n
             temp[indices] = filter
             zero_matrix[i, :, f_idx] = temp
 
+    filter_weights = filter_weights.to(device)
+    output_tensor = torch.matmul(input_flattened, reshaped_matrix.T)
 
-
-            # Transform the inputs to make them like a conv
-    patches_ub = F.unfold(ub, kernel_size=kernel_size, stride=stride)
-    ub = patches_ub.transpose(1, 2).reshape(-1, kernel_param_size)
 
     # Conv like a fully connected layer Fc1
     W1 = params[0]
