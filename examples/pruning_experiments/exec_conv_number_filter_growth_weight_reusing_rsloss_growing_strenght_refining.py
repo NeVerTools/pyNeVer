@@ -106,7 +106,7 @@ if __name__ == '__main__':
                                                         hidden_layer_dim=hidden_layer_dims[idx])
 
 
-            if metrics['test_accuracy'] + 0.001 >= previous_accuracy:
+            if metrics['test_accuracy'] + 0.003 >= previous_accuracy:
                 target_rs_loss = rs_factor + increment
                 target_model = model
                 target_metrics = metrics

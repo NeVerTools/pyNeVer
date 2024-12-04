@@ -1,6 +1,7 @@
 import copy
 import csv
 import os
+from logging import exception
 
 import onnx
 import torch
@@ -46,100 +47,174 @@ def load_yaml_config(yaml_file_path):
 #######################################################################################################################
 # Definiamo il custom regularizer
 def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_number, inputs, lb, ub, normalized):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Checking that the lb an ub dims are equal
+    assert lb.shape == ub.shape, "The dims of the ub and lb inputs do not match."
+    batch_dim = lb.shape[0]
+
+    # Checking that the input haas 4 dims
+    assert lb.dim() == 4, "Input must be shaped as n_batch, n_channels, n_height, n_width."
+
+    # Getting the information of the input images like number of input channels, height, width
+    n_input_channels = inputs.shape[1]
+
+    lb = lb.to(torch.float32).to(device)
+    ub = ub.to(torch.float32).to(device)
+
+    # lb_flattened has shape (batch_dim, n_input_channels, -1)
+    lb_flatted = lb.reshape(batch_dim, n_input_channels, -1).to(torch.float32).to(device)
+    ub_flatted = ub.reshape(batch_dim, n_input_channels, -1).to(torch.float32).to(device)
+
+
+    # Getting the filters weights and biases
     params = list(model.parameters())
-    kernel_param_size = kernel_size * kernel_size * 1
+    assert n_input_channels == n_input_channels, "The number of input channels does not match with the filters channels."
+    filter_weights = params[0].reshape(filters_number, n_input_channels, -1).to(torch.float32).to(device)
+    filter_biases = params[1].to(torch.float32).to(device)
 
-    filter_weights = params[0].squeeze().reshape(filters_number, -1)
-    filter_bias = params[1].squeeze()
+    kernel_param_size = kernel_size * kernel_size
 
-    input_shape = inputs.shape
-    batch_size = input_shape[0]
-    
-    input_flattened = inputs.reshape(batch_size, -1)
-    
-    image_shape = (input_shape[1], input_shape[2], input_shape[3])
-    image_flattened_dim = image_shape[1] * image_shape[2]
+    image_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
+    image_flattened_dim = lb.shape[2] * lb.shape[3]
 
-    assert image_shape[1] == input_shape[2] and image_shape[0] == 1, "The image must be squared, 1 channel till now"
+    assert image_shape[1] == image_shape[2] , "The image must be squared"
 
-    # Calcolare la dimensione dell'output dell'immagine a cui è stato applicato il filtro
-    output_conv_dim = ((image_shape[1] - kernel_size + 2 * padding) / stride) + 1
+    # Getting output convolution shape, excluding the number of channels in output
+    output_conv_dim = int(((image_shape[1] - kernel_size + 2 * padding) / stride) + 1)
     output_conv_shape = (output_conv_dim, output_conv_dim)
     output_conv_shape_flatten = int(output_conv_dim * output_conv_dim)
 
-    # Array contenente gli indici
-    matrix_index = torch.arange(0, image_flattened_dim, dtype=torch.float64, device="cuda").reshape(image_shape[1], image_shape[1]).unsqueeze(0)
 
-    assert padding == 0, "Padding diverso da 0 non è supportato!"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # Unfold per generare la matrice delle patch
+    # Setting a matrix to handle the indexes
+    matrix_index = torch.arange(0, image_flattened_dim, dtype=torch.float32, device=device).reshape(1, image_shape[1],
+                                                                                                    image_shape[2])
+    # No padding supported till now //TODO                                                                                2]).unsqueeze(0)
+    assert padding == 0, "No padding supported"
+
+    # Using Unfold torch function to handles the indexes correctly
     patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
-    patch_matrix = patch_matrix.transpose(0, 1).to(torch.int64)
+    patch_matrix = patch_matrix.transpose(0, 1).to(torch.int32)
 
-    patch_number = patch_matrix.shape[0]  # Numero delle patch
+    n_patches = patch_matrix.shape[0]
 
-    # Crea la matrice di zeri (aggiungiamo la dimensione per i filtri)
-    zero_matrix = torch.zeros(patch_number, image_flattened_dim, filters_number, device=device)
-    reshaped_matrix = zero_matrix.permute(0, 2, 1).reshape(-1, 784)
+
+
+    # Instantiating the matrix that will simulate the conv behaviour through a fc operation
+    convolution_expanded_matrix = torch.zeros(n_patches, n_input_channels, image_flattened_dim, filters_number, device=device)
 
     # Ciclo sui filtri
-    for f_idx, filter in enumerate(filter_weights):
-        filter = filter.reshape(-1)
-        for i in range(patch_number):
-            temp = torch.zeros(image_flattened_dim, device=device)
-            indices = patch_matrix[i, :].long()  #
-            temp[indices] = filter
-            zero_matrix[i, :, f_idx] = temp
+    for f_idx in range(filters_number):
+        filter = filter_weights[f_idx, :, :]
+        for i in range(n_patches):
+            temp = torch.zeros(n_input_channels, image_flattened_dim, dtype=torch.float32, device=device)
+            indices = patch_matrix[i, :]
+            # the n_input_channels dim must be dona automatically
+            temp[:, indices] = filter
+            convolution_expanded_matrix[i,:, :, f_idx] = temp
 
-    filter_weights = filter_weights.to(device)
-    output_tensor = torch.matmul(input_flattened, reshaped_matrix.T)
+    summed_matrix = convolution_expanded_matrix.sum(dim=1)
+    reshaped_matrix = summed_matrix.permute(0, 2, 1, 3).reshape(-1, kernel_size * kernel_size)
 
-
-    # Conv like a fully connected layer Fc1
-    W1 = params[0]
-    b1 = params[1]
-    #print(f"lb0: {lb.shape}, ub0: {ub.shape}, W1: {W1.shape}, b1: {b1.shape}")
-    lb_1, ub_1 = interval_arithmetic_fc(lb, ub, W1, b1)
-
-    def reshape(bounds):
-        # Reshape per ottenere l'output con la struttura di una convoluzione
-        batch_size, _, height, width =inputs.size(0), inputs.size(1), inputs.size(2), inputs.size(3)
-        out_height = (height - kernel_size) // stride + 1
-        out_width = (width - kernel_size) // stride + 1
-        bounds = bounds.view(batch_size, out_height, out_width, filters_number).permute(0, 3, 1, 2)
-        return bounds
-
-    lb_1 = reshape(lb_1).flatten(start_dim=1)
-    ub_1 = reshape(ub_1).flatten(start_dim=1)
-
-    lbh_1 = torch.relu(lb_1)
-    ubh_1 = torch.relu(ub_1)
-
-    # Fc2
-    W2 = params[2]
-    b2 = params[3]
-    lb_2, ub_2 = interval_arithmetic_fc(lbh_1, ubh_1, W2, b2)
-    #print(f"lb1: {lb_1.shape}, ub1: {ub_1.shape}, W2: {W2.shape}, b2: {b2.shape}")
+    # filter_weights = filter_weights.to(device)
+    # output_tensor = torch.matmul(input_flattened, reshaped_matrix.T)  # (128, 2704)
+    # pass
 
 
-    rsloss1 = _l_relu_stable(lb_1, ub_1)
-    rsloss2 = _l_relu_stable(lb_2, ub_2)
+    # params = list(model.parameters())
+    # kernel_param_size = kernel_size * kernel_size * 1
+    #
+    # filter_weights = params[0].squeeze().reshape(filters_number, -1)
+    # filter_bias = params[1].squeeze()
+    #
+    # input_shape = inputs.shape
+    # batch_size = input_shape[0]
+    #
+    # input_flattened = inputs.reshape(batch_size, -1)
+    #
+    # image_shape = (input_shape[1], input_shape[2], input_shape[3])
+    # image_flattened_dim = image_shape[1] * image_shape[2]
+    #
+    # assert image_shape[1] == input_shape[2] and image_shape[0] == 1, "The image must be squared, 1 channel till now"
+    #
+    # # Calcolare la dimensione dell'output dell'immagine a cui è stato applicato il filtro
+    # output_conv_dim = ((image_shape[1] - kernel_size + 2 * padding) / stride) + 1
+    # output_conv_shape = (output_conv_dim, output_conv_dim)
+    # output_conv_shape_flatten = int(output_conv_dim * output_conv_dim)
+    #
+    # # Array contenente gli indici
+    # matrix_index = torch.arange(0, image_flattened_dim, dtype=torch.float64, device="cuda").reshape(image_shape[1], image_shape[1]).unsqueeze(0)
+    #
+    # assert padding == 0, "Padding diverso da 0 non è supportato!"
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # # Unfold per generare la matrice delle patch
+    # patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
+    # patch_matrix = patch_matrix.transpose(0, 1).to(torch.int64)
+    #
+    # patch_number = patch_matrix.shape[0]  # Numero delle patch
+    #
+    # # Crea la matrice di zeri (aggiungiamo la dimensione per i filtri)
+    # convolution_expanded_matrix = torch.zeros(patch_number, image_flattened_dim, filters_number, device=device)
+    # reshaped_matrix = convolution_expanded_matrix.permute(0, 2, 1).reshape(-1, 784)
+    #
+    # # Ciclo sui filtri
+    # for f_idx, filter in enumerate(filter_weights):
+    #     filter = filter.reshape(-1)
+    #     for i in range(patch_number):
+    #         temp = torch.zeros(image_flattened_dim, device=device)
+    #         indices = patch_matrix[i, :].long()  #
+    #         temp[indices] = filter
+    #         convolution_expanded_matrix[i, :, f_idx] = temp
+    #
+    # filter_weights = filter_weights.to(device)
+    # output_tensor = torch.matmul(input_flattened, reshaped_matrix.T)
 
 
-
-    rs_loss = rsloss1 + rsloss2
-    total_neurons_number = lb_1.shape[1] + lb_2.shape[1]
-    if DEBUG:
-        print(f"{total_neurons_number=}")
-
-    if normalized:
-        rs_loss = rs_loss / total_neurons_number
-
-        rs_loss = (rs_loss + 1)/2
-        assert 0 <= rs_loss <= 1, "RS LOSS not in 0, 1 range"
-
-
-    return rs_loss
+    # # Conv like a fully connected layer Fc1
+    # W1 = params[0]
+    # b1 = params[1]
+    # #print(f"lb0: {lb.shape}, ub0: {ub.shape}, W1: {W1.shape}, b1: {b1.shape}")
+    # lb_1, ub_1 = interval_arithmetic_fc(lb, ub, W1, b1)
+    #
+    # def reshape(bounds):
+    #     # Reshape per ottenere l'output con la struttura di una convoluzione
+    #     batch_size, _, height, width =inputs.size(0), inputs.size(1), inputs.size(2), inputs.size(3)
+    #     out_height = (height - kernel_size) // stride + 1
+    #     out_width = (width - kernel_size) // stride + 1
+    #     bounds = bounds.view(batch_size, out_height, out_width, filters_number).permute(0, 3, 1, 2)
+    #     return bounds
+    #
+    # lb_1 = reshape(lb_1).flatten(start_dim=1)
+    # ub_1 = reshape(ub_1).flatten(start_dim=1)
+    #
+    # lbh_1 = torch.relu(lb_1)
+    # ubh_1 = torch.relu(ub_1)
+    #
+    # # Fc2
+    # W2 = params[2]
+    # b2 = params[3]
+    # lb_2, ub_2 = interval_arithmetic_fc(lbh_1, ubh_1, W2, b2)
+    # #print(f"lb1: {lb_1.shape}, ub1: {ub_1.shape}, W2: {W2.shape}, b2: {b2.shape}")
+    #
+    #
+    # rsloss1 = _l_relu_stable(lb_1, ub_1)
+    # rsloss2 = _l_relu_stable(lb_2, ub_2)
+    #
+    #
+    #
+    # rs_loss = rsloss1 + rsloss2
+    # total_neurons_number = lb_1.shape[1] + lb_2.shape[1]
+    # if DEBUG:
+    #     print(f"{total_neurons_number=}")
+    #
+    # if normalized:
+    #     rs_loss = rs_loss / total_neurons_number
+    #
+    #     rs_loss = (rs_loss + 1)/2
+    #     assert 0 <= rs_loss <= 1, "RS LOSS not in 0, 1 range"
+    #
+    #
+    # return rs_loss
 
 
 """RS Loss"""
