@@ -113,8 +113,10 @@ def calculate_rs_loss_regularizer(model, kernel_size, padding, stride, filters_n
             temp[:, indices] = filter
             convolution_expanded_matrix[i,:, :, f_idx] = temp
 
-    summed_matrix = convolution_expanded_matrix.sum(dim=1)
-    reshaped_matrix = summed_matrix.permute(0, 2, 1, 3).reshape(-1, kernel_size * kernel_size)
+    #summed_matrix = convolution_expanded_matrix.sum(dim=1)
+    reshaped_matrix = convolution_expanded_matrix.permute(3, 0, 1, 2)
+    output_tensor = torch.matmul(lb_flatted, reshaped_matrix.T)
+    pass
 
     # filter_weights = filter_weights.to(device)
     # output_tensor = torch.matmul(input_flattened, reshaped_matrix.T)  # (128, 2704)
