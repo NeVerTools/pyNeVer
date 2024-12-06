@@ -236,7 +236,7 @@ def main():
     stride = 1
     filters_number = 6
     batch_size = 128
-    in_channels = 3
+    in_channels = 6
     img_size = 28
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -246,7 +246,7 @@ def main():
     model = SimpleConvNet(in_channels, filters_number, kernel_size, stride=stride, padding=padding).to(device)
 
     # Input di esempio
-    inputs = (torch.arange(0, img_size*img_size*batch_size*in_channels, device=device, dtype=DATA_TYPE))* 0.00001
+    inputs = (torch.arange(0, img_size*img_size*batch_size*in_channels, device=device, dtype=DATA_TYPE))
     inputs =  inputs.reshape(batch_size, in_channels, img_size, img_size)
     lb = inputs
     ub = inputs
