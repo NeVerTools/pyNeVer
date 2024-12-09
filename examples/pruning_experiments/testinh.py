@@ -152,23 +152,50 @@ def fc_convLike(model, kernel_size, padding, stride, filters_number, inputs, lb,
     assert n_input_channels == n_input_channels, "The number of input channels does not match with the filters channels."
     filter_weights = params[0].reshape(filters_number, -1).to(DATA_TYPE).to(device)
 
-    kernel_param_size = kernel_size * kernel_size
+    # Getting kernel info
+    if isinstance(kernel_size, tuple) and len(kernel_size) == 2:
+        k_w, k_h = kernel_size
+        kernel_param_size = kernel_size
+    elif isinstance(kernel_size, int):
+        k_w = k_h = kernel_size
+        kernel_param_size = (kernel_size, kernel_size)
+    else:
+        assert False, "Kernel size must be either int or a two-dimension tuple."
 
     image_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
     image_flattened_dim = lb.shape[2] * lb.shape[3]
 
-    assert image_shape[1] == image_shape[2], "The image must be squared"
-
     # Getting output convolution shape, excluding the number of channels in output
-    output_conv_dim = int(((image_shape[1] - kernel_size + 2 * padding) / stride) + 1)
-    output_conv_shape = (output_conv_dim, output_conv_dim)
-    output_conv_shape_flatten = int(output_conv_dim * output_conv_dim)
+    output_conv_dim_h = int(((image_shape[1] - k_h + 2 * padding) / stride) + 1)
+    output_conv_dim_w = int(((image_shape[2] - k_w + 2 * padding) / stride) + 1)
+    output_conv_shape = (output_conv_dim_h, output_conv_dim_w)
+    output_conv_shape_flatten = output_conv_dim_h * output_conv_dim_w
+
+    # No padding supported till now //TODO
+    if type(padding) == int:
+        padding_h = padding
+        padding_w = padding
+        padding = padding
+
+    elif type(padding) == tuple and len(padding) == 2:
+        padding_h = padding[0]
+        padding_w = padding[1]
+        padding = (padding_h, padding_w)
+
+    elif type(padding) == tuple and len(padding) == 4:
+        if padding[2] != padding[3] or padding[1] != padding[0]:
+            raise ValueError(
+                "Only symmetrical padding is supported. Left must be equal to right padding as well as top and bottom padding")
+        padding_h = padding[2] + padding[3]
+        padding_w = padding[0] + padding[1]
+        padding = (padding_h, padding_w)
+    else:
+        assert False, "Padding must be either int or a two-dimension tuple."
+
 
     # Setting a matrix to handle the indexes (1, height, width)
     matrix_index = torch.arange(0, image_flattened_dim, dtype=DATA_TYPE, device=device).reshape(1, image_shape[1],
-                                                                                                    image_shape[2])
-    # No padding supported till now //TODO
-    assert padding == 0, "No padding supported"
+                                                                                                image_shape[2])
 
     # Using Unfold torch function to handle the indexes correctly
     patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
@@ -201,7 +228,7 @@ def fc_convLike(model, kernel_size, padding, stride, filters_number, inputs, lb,
         # Perform the fully connected-like operation for each batch item separately
         output_tensor = torch.matmul(reshaped_matrix, lb_single.T)
 
-        output_tensor = output_tensor.reshape(1, filters_number, output_conv_dim, output_conv_dim)
+        output_tensor = output_tensor.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
         output_batch.append(output_tensor)
 
     # Stack the output tensors along the batch dimension
@@ -234,10 +261,11 @@ def main():
     kernel_size = 3
     padding = 0
     stride = 1
-    filters_number = 6
-    batch_size = 128
+    filters_number = 2
+    batch_size = 26
     in_channels = 6
-    img_size = 28
+    img_size_w = 28
+    img_size_h = 26
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     device = "cpu"
@@ -246,8 +274,8 @@ def main():
     model = SimpleConvNet(in_channels, filters_number, kernel_size, stride=stride, padding=padding).to(device)
 
     # Input di esempio
-    inputs = (torch.arange(0, img_size*img_size*batch_size*in_channels, device=device, dtype=DATA_TYPE))
-    inputs =  inputs.reshape(batch_size, in_channels, img_size, img_size)
+    inputs = (torch.arange(0, img_size_w*img_size_h*batch_size*in_channels, device=device, dtype=DATA_TYPE))
+    inputs =  inputs.reshape(batch_size, in_channels, img_size_w, img_size_h)
     lb = inputs
     ub = inputs
 
