@@ -219,8 +219,8 @@ def main():
             self.conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=False)
 
             # Imposta manualmente i pesi dei filtri
-            #filters_weights = torch.arange(0, kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)*10
-            filters_weights = torch.randn(kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)
+            filters_weights = torch.arange(0, kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)*10
+            #filters_weights = torch.randn(kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)
             #filters_weights = torch.tensor([[[[-0.5, 1.2], [3.1, -0.7]]],  [[[0.9, -2.3], [-1.1, 4.4]]], [[[-3.2, 0.8], [2.7, -1.5]]]], dtype=DATA_TYPE)
 
             self.conv.weight.data = filters_weights.reshape(out_channels, in_channels, kernel_size, kernel_size)
