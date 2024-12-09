@@ -8,6 +8,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import torch.nn.functional as F
+
 seed_value = 42
 torch.manual_seed(seed_value)
 
@@ -129,28 +131,14 @@ def compare_tensors(tensor1, tensor2, atol=1e-8, rtol=1e-5):
 
 import torch
 
-def fc_convLike(model, kernel_size, padding, stride, filters_number, inputs, lb, ub, normalized, device):
+def propagate_conv(model, kernel_size, padding, stride, inputs, device):
     # Checking that the lb and ub dims are equal
-    assert lb.shape == ub.shape, "The dims of the ub and lb inputs do not match."
-    batch_dim = lb.shape[0]
+    ub = inputs
+    assert inputs.shape == ub.shape, "The dims of the ub and lb inputs do not match."
+    batch_dim = inputs.shape[0]
 
     # Checking that the input has 4 dims
-    assert lb.dim() == 4, "Input must be shaped as n_batch, n_channels, n_height, n_width."
-
-    # Getting the information of the input images like number of input channels, height, width
-    n_input_channels = inputs.shape[1]
-
-    lb = lb.to(DATA_TYPE).to(device)
-    ub = ub.to(DATA_TYPE).to(device)
-
-    # lb_flattened has shape (batch_dim, n_input_channels, -1)
-    lb_flatted = lb.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
-    ub_flatted = ub.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
-
-    # Getting the filters weights and biases
-    params = list(model.parameters())
-    assert n_input_channels == n_input_channels, "The number of input channels does not match with the filters channels."
-    filter_weights = params[0].reshape(filters_number, -1).to(DATA_TYPE).to(device)
+    assert inputs.dim() == 4, "Input must be shaped as n_batch, n_channels, n_height, n_width."
 
     # Getting kernel info
     if isinstance(kernel_size, tuple) and len(kernel_size) == 2:
@@ -162,49 +150,70 @@ def fc_convLike(model, kernel_size, padding, stride, filters_number, inputs, lb,
     else:
         assert False, "Kernel size must be either int or a two-dimension tuple."
 
-    image_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
-    image_flattened_dim = lb.shape[2] * lb.shape[3]
-
-    # Getting output convolution shape, excluding the number of channels in output
-    output_conv_dim_h = int(((image_shape[1] - k_h + 2 * padding) / stride) + 1)
-    output_conv_dim_w = int(((image_shape[2] - k_w + 2 * padding) / stride) + 1)
-    output_conv_shape = (output_conv_dim_h, output_conv_dim_w)
-    output_conv_shape_flatten = output_conv_dim_h * output_conv_dim_w
-
-    # No padding supported till now //TODO
-    if type(padding) == int:
-        padding_h = padding
-        padding_w = padding
-        padding = padding
+    if type(padding) == int and padding != 0:
+        pad_tuple = (padding, padding, padding, padding)
 
     elif type(padding) == tuple and len(padding) == 2:
-        padding_h = padding[0]
-        padding_w = padding[1]
-        padding = (padding_h, padding_w)
+        pad_tuple = (padding[1], padding[1], padding[0], padding[0])
 
     elif type(padding) == tuple and len(padding) == 4:
-        if padding[2] != padding[3] or padding[1] != padding[0]:
+        # Verifica che i valori siano simmetrici (opzionale se vuoi evitare un padding asimmetrico)
+        if padding[0] != padding[1] or padding[2] != padding[3]:
             raise ValueError(
-                "Only symmetrical padding is supported. Left must be equal to right padding as well as top and bottom padding")
-        padding_h = padding[2] + padding[3]
-        padding_w = padding[0] + padding[1]
-        padding = (padding_h, padding_w)
+                "Only symmetrical padding is supported. Left must be equal to right padding as well as top and bottom padding"
+            )
+        pad_tuple = padding
+
+    elif padding == 0 or padding is None:
+        pad_tuple = (0, 0, 0, 0)
+
     else:
         assert False, "Padding must be either int or a two-dimension tuple."
 
+    # Getting the information of the input images like number of input channels, height, width
+    n_input_channels = inputs.shape[1]
+
+    inputs = inputs.to(DATA_TYPE).to(device)
+    ub = ub.to(DATA_TYPE).to(device)
+
+    # Getting the filters weights and biases
+    params = list(model.parameters())
+    filters_number = params[0].shape[0]
+    filter_weights = params[0].reshape(filters_number, -1).to(DATA_TYPE).to(device)
+
+    image_shape = (inputs.shape[1], inputs.shape[2], inputs.shape[3])
+    image_flattened_dim = inputs.shape[2] * inputs.shape[3]
+
+    # Getting output convolution shape, excluding the number of channels in output
+    padding_left, padding_right, padding_top, padding_bottom = pad_tuple
+    output_conv_dim_h = int(((image_shape[1] - k_h + padding_top + padding_bottom) / stride) + 1)
+    output_conv_dim_w = int(((image_shape[2] - k_w + padding_left + padding_right) / stride) + 1)
+    output_conv_shape = (output_conv_dim_h, output_conv_dim_w)
+    output_conv_shape_flatten = output_conv_dim_h * output_conv_dim_w
+
+    # After calculating the correct output dimension, we apply padding to input
+    if padding is not None:
+        inputs = F.pad(inputs, pad=pad_tuple, mode='constant', value=0)
+        ub = F.pad(ub, pad=pad_tuple, mode='constant', value=0)
+        image_shape = (inputs.shape[1], inputs.shape[2], inputs.shape[3])
+        image_flattened_dim = inputs.shape[2] * inputs.shape[3]
+
+    # lb_flattened has shape (batch_dim, n_input_channels, -1)
+    lb_flatted = inputs.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
+    ub_flatted = ub.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
 
     # Setting a matrix to handle the indexes (1, height, width)
     matrix_index = torch.arange(0, image_flattened_dim, dtype=DATA_TYPE, device=device).reshape(1, image_shape[1],
                                                                                                 image_shape[2])
 
     # Using Unfold torch function to handle the indexes correctly
-    patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
+    patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size,stride=stride)
     patch_matrix = patch_matrix.transpose(0, 1).to(torch.int32)
 
 
     # The number of patches must be equal to the output_conv_shape_flatten
     n_patches = patch_matrix.shape[0]
-    assert n_patches == output_conv_shape_flatten, "The number of patches does not match with the expected output shape."
+    assert n_patches == output_conv_shape_flatten, f"The number of patches = {n_patches} does not match with the expected output shape flattened {output_conv_shape_flatten}."
 
     # Instantiating the matrix that will simulate the conv behaviour through a fc operation
     convolution_expanded_matrix = torch.zeros(n_patches, filters_number, n_input_channels * image_flattened_dim, dtype=DATA_TYPE, device=device)
@@ -246,8 +255,8 @@ def main():
             self.conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=False)
 
             # Imposta manualmente i pesi dei filtri
-            filters_weights = torch.arange(0, kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)*10
-            #filters_weights = torch.randn(kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)
+            #filters_weights = torch.arange(0, kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)*10
+            filters_weights = torch.randn(kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)
             #filters_weights = torch.tensor([[[[-0.5, 1.2], [3.1, -0.7]]],  [[[0.9, -2.3], [-1.1, 4.4]]], [[[-3.2, 0.8], [2.7, -1.5]]]], dtype=DATA_TYPE)
 
             self.conv.weight.data = filters_weights.reshape(out_channels, in_channels, kernel_size, kernel_size)
@@ -259,7 +268,7 @@ def main():
 
     # Parametri di esempio
     kernel_size = 3
-    padding = 0
+    padding = (1,1,2,2)
     stride = 1
     filters_number = 2
     batch_size = 26
@@ -271,6 +280,8 @@ def main():
     device = "cpu"
 
     # Modello
+    if len(padding) == 4:
+        padding = (padding[0], padding[2])
     model = SimpleConvNet(in_channels, filters_number, kernel_size, stride=stride, padding=padding).to(device)
 
     # Input di esempio
@@ -281,7 +292,7 @@ def main():
 
     # Chiamata della funzione
     with torch.no_grad():
-        results_bp = fc_convLike(model, kernel_size, padding, stride, filters_number, inputs, inputs, inputs, normalized=False, device = device)
+        results_bp = propagate_conv(model, kernel_size, padding, stride, inputs, device=device)
 
     with torch.no_grad():
         results_conv = model(inputs)
@@ -292,8 +303,6 @@ def main():
     print(f"{results_bp.shape=}")
     print(f"{results_conv.shape=}")
 
-
-    pass
 
 
 
