@@ -391,9 +391,16 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         assert n_patches == output_conv_shape_flatten, f"The number of patches = {n_patches} does not match with the expected output shape flattened {output_conv_shape_flatten}."
 
         # Instantiating the matrix that will simulate the conv behaviour through a fc operation
-        convolution_expanded_matrix = torch.zeros(n_patches, filters_number, n_input_channels * image_flattened_dim,
-                                                  dtype=DATA_TYPE, device=device)
+        covolution_sparse_tensor = torch.sparse_coo_tensor(
+            indices=torch.empty((3, 0), dtype=torch.long),
+            values=torch.empty(0, dtype=torch.float32),
+            size=(n_patches, filters_number, n_input_channels * image_flattened_dim),
+            dtype=DATA_TYPE,
+            device=device
+        )
+
         bias_expanded_matrix = torch.zeros(filters_number, n_patches, dtype=DATA_TYPE, device=device)
+        bias_expanded_sparse = bias_expanded_matrix = torch.sparse_coo_tensor(indices=torch.empty((2, 0), dtype=torch.long), values=torch.empty(0, dtype=DATA_TYPE), size=(filters_number, n_patches), dtype=DATA_TYPE, device=device)
 
         # Ciclo sui filtri per ogni batch
         output_batch_lb = []
@@ -405,16 +412,26 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
             for f_idx in range(filters_number):
                 filter = filter_weights[f_idx, :]
                 for i in range(n_patches):
-                    temp = torch.zeros(n_input_channels * image_flattened_dim, dtype=DATA_TYPE, device=device)
                     indices = generate_array_int32(patch_matrix[i, :], image_flattened_dim, n_input_channels - 1)
-                    # the n_input_channels dim must be done automatically
-                    temp[indices] = filter
-                    convolution_expanded_matrix[i, f_idx, :] = temp
+                    indices_2d = torch.stack((torch.full(indices.shape, i, dtype=torch.long),
+                                              torch.full(indices.shape, f_idx, dtype=torch.long),
+                                              indices), dim=1)
+
+                    updating_matrix = torch.sparse_coo_tensor(
+                        indices=indices_2d,
+                        values=filter,
+                        size=(n_patches, filters_number, n_input_channels * image_flattened_dim),
+                        dtype=DATA_TYPE,
+                        device=device
+                    )
+
+                    covolution_sparse_tensor = covolution_sparse_tensor + updating_matrix
+
                     if b_idx == 0:
                         if filter_biases is not None:
                             bias_expanded_matrix[f_idx, i] = filter_biases[f_idx]
 
-            expanded_filters_matrix = convolution_expanded_matrix.permute(1, 0, 2).unsqueeze(0)
+            expanded_filters_matrix = covolution_sparse_tensor.permute(1, 0, 2).unsqueeze(0)
 
             # Calculating the "positive" and "negative" filters matrix
             F_max = torch.maximum(expanded_filters_matrix, torch.tensor(0.0))
