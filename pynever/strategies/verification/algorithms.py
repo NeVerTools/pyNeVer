@@ -214,7 +214,7 @@ class SSBPVerification(VerificationStrategy):
         self.network = network
         self.prop = prop
 
-        star0 = self.prop.to_input_star()
+        star0 = self.prop.to_star()
         star0 = ExtendedStar(LinearFunctions(star0.predicate_matrix, star0.predicate_bias),
                              LinearFunctions(star0.basis_matrix, star0.center))
 

@@ -4,6 +4,7 @@ import pynever.strategies.smt_reading as reading
 from pynever import tensors
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import Star
+from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.tensors import Tensor
 
 
@@ -20,7 +21,34 @@ class NeverProperty:
         self.out_coef_mat = out_coef_mat
         self.out_bias_mat = out_bias_mat
 
-    def to_input_star(self) -> Star:
+    def to_numeric_bounds(self) -> HyperRectangleBounds:
+        """
+        This method creates a HyperRectangleBounds object from the property specification.
+        If the property is already a hyper rectangle it just initializes the object, otherwise
+        it returns the hyper rectangle approximation of the input property.
+
+        Returns
+        -------
+        HyperRectangleBounds
+            The hyper rectangle approximation of the input property
+
+        """
+
+        lbs = []
+        ubs = []
+
+        for i in range(self.in_bias_mat.shape[0]):
+            if 1 in self.in_coef_mat[i, :]:
+                lbs.append(self.in_bias_mat[i, 0])
+            else:
+                ubs.append(self.in_bias_mat[i, 0])
+
+        # debug
+        assert len(lbs) == len(ubs) == self.in_bias_mat.shape[0] // 2
+
+        return HyperRectangleBounds(lbs, ubs)
+
+    def to_star(self) -> Star:
         """
         This method creates the input star based on the property specification
 
