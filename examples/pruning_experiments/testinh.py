@@ -13,7 +13,7 @@ import torch.nn.functional as F
 seed_value = 42
 torch.manual_seed(seed_value)
 
-DATA_TYPE = torch.float64
+DATA_TYPE = torch.float32
 
 def generate_heatmaps_and_save(matrix, output_dir= "heatmaps"):
     """
@@ -82,7 +82,7 @@ def generate_array_int32(initial_array, k, n):
 
 
 
-def compare_tensors(tensor1, tensor2, atol=1e-8, rtol=1e-5):
+def compare_tensors(tensor1, tensor2, atol=1e-5, rtol=1e-5):
     """
     Confronta due tensori PyTorch per verificare se sono uguali o simili entro una tolleranza.
 
@@ -180,6 +180,7 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device):
     params = list(model.parameters())
     filters_number = params[0].shape[0]
     filter_weights = params[0].reshape(filters_number, -1).to(DATA_TYPE).to(device)
+    filter_biases = params[1].to(DATA_TYPE).to(device)
 
     image_shape = (inputs.shape[1], inputs.shape[2], inputs.shape[3])
     image_flattened_dim = inputs.shape[2] * inputs.shape[3]
@@ -217,6 +218,7 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device):
 
     # Instantiating the matrix that will simulate the conv behaviour through a fc operation
     convolution_expanded_matrix = torch.zeros(n_patches, filters_number, n_input_channels * image_flattened_dim, dtype=DATA_TYPE, device=device)
+    bias_expanded_matrix = torch.zeros(filters_number, n_patches, dtype=DATA_TYPE, device=device)
 
     # Ciclo sui filtri per ogni batch
     output_batch = []
@@ -231,6 +233,9 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device):
                 # the n_input_channels dim must be done automatically
                 temp[indices] = filter
                 convolution_expanded_matrix[i, f_idx, :] = temp
+                if b_idx == 0:
+                    bias_expanded_matrix[f_idx, i] = filter_biases[f_idx]
+
 
         reshaped_matrix = convolution_expanded_matrix.permute(1, 0, 2).unsqueeze(0)
 
@@ -243,6 +248,10 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device):
     # Stack the output tensors along the batch dimension
     output_tensor_batch = torch.cat(output_batch, dim=0)
 
+    #Adding biases
+    bias_expanded_matrix = bias_expanded_matrix.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
+    output_tensor_batch = output_tensor_batch + bias_expanded_matrix
+
     return output_tensor_batch
 
 
@@ -252,7 +261,7 @@ def main():
     class SimpleConvNet(torch.nn.Module):
         def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
             super(SimpleConvNet, self).__init__()
-            self.conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=False)
+            self.conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=True)
 
             # Imposta manualmente i pesi dei filtri
             #filters_weights = torch.arange(0, kernel_size*kernel_size*out_channels*in_channels, dtype=DATA_TYPE, device=device)*10
@@ -285,7 +294,8 @@ def main():
     model = SimpleConvNet(in_channels, filters_number, kernel_size, stride=stride, padding=padding).to(device)
 
     # Input di esempio
-    inputs = (torch.arange(0, img_size_w*img_size_h*batch_size*in_channels, device=device, dtype=DATA_TYPE))
+    inputs = torch.randn(batch_size, in_channels, img_size_w, img_size_h, dtype=DATA_TYPE, device=device)
+
     inputs =  inputs.reshape(batch_size, in_channels, img_size_w, img_size_h)
     lb = inputs
     ub = inputs

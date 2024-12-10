@@ -1,43 +1,62 @@
-
+from itertools import product
+import torch
+import torch.nn.functional as F
 import pytest
 
+from examples.pruning_experiments.testinh import propagate_conv
 
-@pytest.mark.parametrize("num_nodes,cluster_dim", generate_optimized_test_params())
-def test_one_way_gtsp_algorithm(num_nodes, cluster_dim):
-    """
-    Test the One-Way GTSP algorithm using both exact and heuristic methods.
 
-    This test compares the performance of the exact approach (using Integer Programming) and the heuristic
-    approach (using Nearest Neighbor) for solving the One-Way GTSP. The objective is to verify that the optimal
-    solution (from `GraphPathSolver`) has a cost that is less than or equal to the suboptimal solution (from
-    `NearestNeighbour`).
+def generate_optimized_test_params():
+    kernel_sizes = [1, 2, 3]
+    paddings = [1, 2, 3]
+    strides = [1, 2, 3]
+    filter_numbers = [8, 16, 28]
+    batch_sizes = [8, 16, 32]
+    input_channels = [1, 3, 6]
+    height_dims = [16, 28, 32]
+    width_dims = [16, 28, 32]
 
-    Parameters:
-    - num_nodes (int): The number of nodes in the graph.
-    - cluster_dim (int): The number of nodes per cluster.
+    # Generate all combinations
+    test_params = list(product(
+        kernel_sizes,
+        paddings,
+        strides,
+        filter_numbers,
+        batch_sizes,
+        input_channels,
+        height_dims,
+        width_dims
+    ))
 
-    The function performs the following steps:
-    1. Generates a random graph with the specified number of nodes and cluster dimensions.
-    2. Solves the GTSP using the exact `GraphPathSolver` method to obtain the optimal path and cost.
-    3. Solves the GTSP using the heuristic `NearestNeighbour` method to obtain the suboptimal path and cost.
-    4. Validates that both the optimal and suboptimal paths respect the cluster constraints.
-    5. Asserts that the optimal cost is less than or equal to the suboptimal cost.
-    6. Ensures that both the optimal and suboptimal costs are positive values.
+    return test_params
 
-    This test is parameterized to run with multiple combinations of node and cluster sizes.
-    """
-    matrix, colors_dict = generate_random_graphs(num_nodes, cluster_dim)
-    solver = GraphPathSolver(matrix, colors_dict)
-    optimal_path, optimal_cost = solver.launch_ip_problem()
-    suboptimal_solver = NearestNeighbour(matrix, colors_dict)
-    suboptimal_path, suboptimal_cost = suboptimal_solver.short_path_heuristic()
+@pytest.mark.parametrize(
+    "kernel_size, padding, stride, filters_number, batch_size, input_channels, height_dim, width_dim",
+    generate_optimized_test_params()
+)
+def test_propagate_conv(kernel_size, padding, stride, filters_number, batch_size, input_channels, height_dim, width_dim):
+    # Parametri di test
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    print(f" {num_nodes=} {cluster_dim=} {optimal_cost=} {suboptimal_cost=}")
+    # Crea input aleatori
+    inputs = torch.randn(batch_size, input_channels, width_dim, height_dim, dtype=torch.float32, device=device)
 
-    # Check that paths respect the constraint that exactly one node from each cluster must be in the path
-    validate_clusters(optimal_path, colors_dict)
-    validate_clusters(suboptimal_path, colors_dict)
+    model = torch.nn.Conv2d(input_channels, filters_number, kernel_size, stride=stride, padding=padding, bias=False).to(device)
 
-    assert optimal_cost <= suboptimal_cost, "Optimal cost should be less than or equal to suboptimal cost"
-    assert optimal_cost > 0, "The optimal cost must be positive"
-    assert suboptimal_cost > 0, "The suboptimal cost must be positive"
+
+    # Chiamata della funzione
+    with torch.no_grad():
+        output_custom = propagate_conv(model, kernel_size, padding, stride, inputs, device=device)
+
+    with torch.no_grad():
+        output_torch = model(inputs)
+
+
+
+    # Verifica che i risultati siano simili
+    # Assumiamo una tolleranza di errore per la differenza tra i risultati
+    assert torch.allclose(output_custom, output_torch, atol=1e-5), \
+        f"Test failed for kernel_size={kernel_size}, padding={padding}, stride={stride}, filters_number={filters_number}, " \
+        f"batch_size={batch_size}, input_channels={input_channels}, height_dim={height_dim}, width_dim={width_dim} .\n" \
+        f"Custom output: {output_custom}\nTorch output: {output_torch}"
+
