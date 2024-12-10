@@ -7,6 +7,7 @@ from datetime import datetime
 
 # Check CUDA availability and set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+torch.autograd.set_detect_anomaly(True)
 
 # Add parent directory to the system path
 current_directory = os.getcwd()
