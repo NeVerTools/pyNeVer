@@ -1,7 +1,7 @@
 import os
 
 import torch
-
+import time
 
 import torch
 
@@ -256,6 +256,8 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device):
 
 
 def propagate_conv_bp(filer_weights, kernel_size, padding, stride, lb, ub, device, filter_biases=None):
+    times = []
+
     # Checking that the lb and ub dims are equal
     assert lb.shape == ub.shape, "The dims of the ub and lb inputs do not match."
     batch_dim = lb.shape[0]
@@ -340,6 +342,8 @@ def propagate_conv_bp(filer_weights, kernel_size, padding, stride, lb, ub, devic
     n_patches = patch_matrix.shape[0]
     assert n_patches == output_conv_shape_flatten, f"The number of patches = {n_patches} does not match with the expected output shape flattened {output_conv_shape_flatten}."
 
+
+
     # Instantiating the matrix that will simulate the conv behaviour through a fc operation
     covolution_sparse_tensor = torch.sparse_coo_tensor(
         indices=torch.empty((3, 0), dtype=torch.long),
@@ -352,8 +356,12 @@ def propagate_conv_bp(filer_weights, kernel_size, padding, stride, lb, ub, devic
     bias_expanded_matrix = torch.zeros(filters_number, n_patches, dtype=DATA_TYPE, device=device)
 
     # Ciclo sui filtri per ogni batch
+
+
     output_batch_lb = []
     output_batch_ub = []
+
+
     for b_idx in range(batch_dim):
         lb_single = lb_flatted[b_idx, :]
         ub_single = ub_flatted[b_idx, :]
@@ -361,18 +369,22 @@ def propagate_conv_bp(filer_weights, kernel_size, padding, stride, lb, ub, devic
         for f_idx in range(filters_number):
             filter = filter_weights[f_idx, :]
             for i in range(n_patches):
+
+
                 indices = generate_array_int32(patch_matrix[i, :], image_flattened_dim, n_input_channels - 1)
                 indices_3d = torch.stack((torch.full(indices.shape, i, dtype=torch.long),
                                           torch.full(indices.shape, f_idx, dtype=torch.long),
                                           indices), dim=1)
 
+
                 updating_matrix = torch.sparse_coo_tensor(
-                    indices=indices_3d,
+                    indices=indices_3d.T,
                     values=filter,
                     size=(n_patches, filters_number, n_input_channels * image_flattened_dim),
                     dtype=DATA_TYPE,
                     device=device
                 )
+
 
                 covolution_sparse_tensor = covolution_sparse_tensor + updating_matrix
 
@@ -383,29 +395,51 @@ def propagate_conv_bp(filer_weights, kernel_size, padding, stride, lb, ub, devic
         expanded_filters_matrix = covolution_sparse_tensor.permute(1, 0, 2).unsqueeze(0)
 
         # Calculating the "positive" and "negative" filters matrix
-        F_max = torch.maximum(expanded_filters_matrix, torch.tensor(0.0))
-        F_min = torch.minimum(expanded_filters_matrix, torch.tensor(0.0))
+        #F_max = torch.maximum(expanded_filters_matrix, torch.tensor(0.0))
+        #F_min = torch.minimum(expanded_filters_matrix, torch.tensor(0.0))
+        # F_max
+        indices = expanded_filters_matrix._indices()
+        values = expanded_filters_matrix._values()
+        updated_values = torch.maximum(values, torch.tensor(0.0))
+
+        # Getting F_max
+        F_max = torch.sparse_coo_tensor(indices, updated_values, expanded_filters_matrix.size(), device=expanded_filters_matrix.device)
+        updated_values = torch.minimum(values, torch.tensor(0.0))
+
+        # Getting F_min
+        F_min = torch.sparse_coo_tensor(indices, updated_values, expanded_filters_matrix.size(),
+                                        device=expanded_filters_matrix.device)
 
         # Perform the fully connected-like operation for each batch item separately
-        output_tensor_lb = torch.matmul(F_max, lb_single.T) + torch.matmul(F_min, ub_single.T)
-        output_tensor_ub = torch.matmul(F_max, ub_single.T) + torch.matmul(F_min, lb_single.T)
+        time_ = time.time()
 
-        output_tensor_lb = output_tensor_lb.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
-        output_tensor_ub = output_tensor_ub.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
+        output_tensor_lb = torch.sparse.sum(F_max * lb_single.T, dim=-1) + torch.sparse.sum(F_min * ub_single.T, dim=-1)
+        output_tensor_ub = torch.sparse.sum(F_max * ub_single.T, dim=-1) + torch.sparse.sum(F_min * lb_single.T, dim=-1)
+        diff = time.time() - time_
+        times.append(diff)
+
+        #output_tensor_lb = output_tensor_lb.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
+        #output_tensor_ub = output_tensor_ub.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
         output_batch_lb.append(output_tensor_lb)
         output_batch_ub.append(output_tensor_ub)
 
     # Stack the output tensors along the batch dimension
+
+
     output_tensor_batch_lb = torch.cat(output_batch_lb, dim=0)
     output_tensor_batch_ub = torch.cat(output_batch_ub, dim=0)
-    # Adding biases
-    if filter_biases is not None:
-        bias_expanded_matrix = bias_expanded_matrix.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
-        output_tensor_batch_lb = output_tensor_batch_lb + bias_expanded_matrix
-        output_tensor_batch_ub = output_tensor_batch_ub + bias_expanded_matrix
+    times.append(diff)
 
-    assert torch.all(
-        output_tensor_batch_lb <= output_tensor_batch_ub), "Lower bounds must always be lower than upper bounds."
+    print(sum(times))
+
+    # Adding biases
+    # if filter_biases is not None:
+    #     bias_expanded_matrix = bias_expanded_matrix.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
+    #     output_tensor_batch_lb = output_tensor_batch_lb + bias_expanded_matrix
+    #     output_tensor_batch_ub = output_tensor_batch_ub + bias_expanded_matrix
+    #
+    # assert torch.all(
+    #     output_tensor_batch_lb <= output_tensor_batch_ub), "Lower bounds must always be lower than upper bounds."
     return output_tensor_batch_lb, output_tensor_batch_ub
 
 
@@ -454,18 +488,32 @@ def main():
     lb = inputs - noise
     ub = inputs + noise
 
-    # Chiamata della funzione
+    # Misura il tempo di esecuzione per `propagate_conv`
+    start_time = time.time()
     with torch.no_grad():
         results_bp = propagate_conv(model, kernel_size, padding, stride, inputs, device=device)
+    propagate_conv_time = time.time() - start_time
+    print(f"{propagate_conv_time=}")
 
+    # Misura il tempo di esecuzione per il modello convoluzionale nativo
+    start_time = time.time()
     with torch.no_grad():
         results_conv = model(inputs)
+    model_time = time.time() - start_time
+    print(f"{model_time=}")
 
+
+    # Misura il tempo di esecuzione per `propagate_conv_bp`
     parameters = list(model.parameters())
-
+    start_time = time.time()
     with torch.no_grad():
-        lb, ub = propagate_conv_bp(parameters[0], kernel_size, padding, stride, lb, ub, device=device, filter_biases=parameters[1])
+        lb, ub = propagate_conv_bp(parameters[0], kernel_size, padding, stride, lb, ub, device=device,
+                                   filter_biases=parameters[1])
+    propagate_conv_bp_time = time.time() - start_time
+    print(f"{propagate_conv_bp_time=}")
 
+
+    # Comparazione dei risultati
     comparation_dict, diff_tensor = compare_tensors(results_conv, results_bp)
     generate_heatmaps_and_save(diff_tensor.squeeze(0).cpu())
     print(comparation_dict)
