@@ -262,202 +262,167 @@ def propagate_conv(model, kernel_size, padding, stride, inputs, device, filter_b
 
     return output_tensor_batch
 
-#BP con matrici sparse
-def propagate_conv_bp(filer_weights, kernel_size, padding, stride, inputs, lb, ub, device, filter_biases=None):
-    times = []
 
-    # Checking that the lb and ub dims are equal
-    assert lb.shape == ub.shape, "The dims of the ub and lb inputs do not match."
-    batch_dim = lb.shape[0]
+def propagate_conv_bp(filter_weights, kernel_size, padding, stride, inputs, lb, ub, device, filter_biases=None):
 
-    # Checking that the input has 4 dims
-    assert lb.dim() == 4, "lb must be shaped as n_batch, n_channels, n_height, n_width."
-    assert ub.dim() == 4, "ub must be shaped as n_batch, n_channels, n_height, n_width."
-    # Getting kernel info
+    # Ensure the dimensions of lower bounds (lb) and upper bounds (ub) match
+    assert lb.shape == ub.shape, "The dimensions of 'lb' and 'ub' must match."
+    batch_size = lb.shape[0]
 
+    # Ensure the inputs have 4 dimensions: batch_size, channels, height, width
+    assert lb.dim() == 4, "'lb' must have shape (batch_size, channels, height, width)."
+    assert ub.dim() == 4, "'ub' must have shape (batch_size, channels, height, width)."
+
+    # Extract kernel dimensions
     if isinstance(kernel_size, tuple) and len(kernel_size) == 2:
-        k_w, k_h = kernel_size[0], kernel_size[1]
-        kernel_param_size = kernel_size
+        kernel_height, kernel_width = kernel_size
     elif isinstance(kernel_size, int):
-        k_w = k_h = kernel_size
-        kernel_param_size = (kernel_size, kernel_size)
+        kernel_height = kernel_width = kernel_size
+        kernel_size = (kernel_size, kernel_size)
     else:
-        assert False, "Kernel size must be either int or a two-dimension tuple."
+        raise ValueError("Kernel size must be an int or a tuple of two integers.")
 
-    if type(padding) == int and padding != 0:
+    # Determine padding values
+    if isinstance(padding, int):
         pad_tuple = (padding, padding, padding, padding)
-
-    elif type(padding) == tuple and len(padding) == 2:
+    elif isinstance(padding, tuple) and len(padding) == 2:
         pad_tuple = (padding[1], padding[1], padding[0], padding[0])
-
-    elif type(padding) == tuple and len(padding) == 4:
-        # Verifica che i valori siano simmetrici (opzionale se vuoi evitare un padding asimmetrico)
+    elif isinstance(padding, tuple) and len(padding) == 4:
         if padding[0] != padding[1] or padding[2] != padding[3]:
-            raise ValueError(
-                "Only symmetrical padding is supported. Left must be equal to right padding as well as top and bottom padding"
-            )
+            raise ValueError("Only symmetrical padding is supported. Top must equal bottom and left must equal right.")
         pad_tuple = padding
-
     elif padding == 0 or padding is None:
         pad_tuple = (0, 0, 0, 0)
-
     else:
-        assert False, "Padding must be either int or a two-dimension tuple."
+        raise ValueError("Padding must be an int or a tuple of appropriate dimensions.")
 
-    # Getting the information of the input images like number of input channels, height, width
-    n_input_channels = lb.shape[1]
+    # Extract input shape information: channels, height, width
+    input_channels = lb.shape[1]
 
+    # Move tensors to the specified device and data type
     lb = lb.to(DATA_TYPE).to(device)
     ub = ub.to(DATA_TYPE).to(device)
 
-    # Getting the filters weights and biases
-    filters_number = filer_weights.shape[0]
-    filter_weights = filer_weights.reshape(filters_number, -1).to(DATA_TYPE).to(device)
+    # Flatten filter weights for sparse matrix operations
+    num_filters = filter_weights.shape[0]
+    filter_weights = filter_weights.reshape(num_filters, -1).to(DATA_TYPE).to(device)
 
     if filter_biases is not None:
         filter_biases = filter_biases.to(DATA_TYPE).to(device)
 
-    image_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
-    image_flattened_dim = lb.shape[2] * lb.shape[3]
+    input_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
+    input_flattened_size = lb.shape[2] * lb.shape[3]
 
-    # Getting output convolution shape, excluding the number of channels in output
-    padding_left, padding_right, padding_top, padding_bottom = pad_tuple
-    output_conv_dim_h = int(((image_shape[1] - k_h + padding_top + padding_bottom) / stride) + 1)
-    output_conv_dim_w = int(((image_shape[2] - k_w + padding_left + padding_right) / stride) + 1)
-    output_conv_shape = (output_conv_dim_h, output_conv_dim_w)
-    output_conv_shape_flatten = output_conv_dim_h * output_conv_dim_w
+    # Calculate output dimensions of the convolution
+    pad_top, pad_bottom, pad_left, pad_right = pad_tuple
+    output_height = int(((input_shape[1] - kernel_height + pad_top + pad_bottom) / stride) + 1)
+    output_width = int(((input_shape[2] - kernel_width + pad_left + pad_right) / stride) + 1)
+    output_shape = (output_height, output_width)
+    output_flattened_size = output_height * output_width
 
-    # After calculating the correct output dimension, we apply padding to input
+    # Apply padding to input tensors
     if padding is not None:
         lb = torch.nn.functional.pad(lb, pad=pad_tuple, mode='constant', value=0)
         ub = torch.nn.functional.pad(ub, pad=pad_tuple, mode='constant', value=0)
         inputs = torch.nn.functional.pad(inputs, pad=pad_tuple, mode='constant', value=0)
-        image_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
-        image_flattened_dim = lb.shape[2] * lb.shape[3]
+        input_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
+        input_flattened_size = lb.shape[2] * lb.shape[3]
 
-    # lb_flattened has shape (batch_dim, n_input_channels, -1)
-    lb_flatted = lb.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
-    ub_flatted = ub.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
-    input_flatted = inputs.reshape(batch_dim, -1).to(DATA_TYPE).to(device)
+    # Flatten the tensors for sparse operations
+    lb_flattened = lb.reshape(batch_size, -1).to(DATA_TYPE).to(device)
+    ub_flattened = ub.reshape(batch_size, -1).to(DATA_TYPE).to(device)
+    inputs_flattened = inputs.reshape(batch_size, -1).to(DATA_TYPE).to(device)
 
-    # Setting a matrix to handle the indexes (1, height, width)
-    matrix_index = torch.arange(0, image_flattened_dim, dtype=DATA_TYPE, device=device).reshape(1, image_shape[1],
-                                                                                                image_shape[2])
+    # Create an index matrix for image patches
+    index_matrix = torch.arange(0, input_flattened_size, dtype=DATA_TYPE, device=device).reshape(1, input_shape[1], input_shape[2])
 
-    # Using Unfold torch function to handle the indexes correctly
-    patch_matrix = torch.nn.functional.unfold(matrix_index, kernel_size=kernel_size, stride=stride)
-    patch_matrix = patch_matrix.transpose(0, 1).to(torch.int32)
+    # Unfold the input indices to get patch indices
+    patch_indices = torch.nn.functional.unfold(index_matrix, kernel_size=kernel_size, stride=stride).transpose(0, 1).to(torch.int32)
+    num_patches = patch_indices.shape[0]
 
-    # The number of patches must be equal to the output_conv_shape_flatten
-    n_patches = patch_matrix.shape[0]
-    assert n_patches == output_conv_shape_flatten, f"The number of patches = {n_patches} does not match with the expected output shape flattened {output_conv_shape_flatten}."
+    # Ensure the number of patches matches the expected output size
+    assert num_patches == output_flattened_size, f"Mismatch in patch count: {num_patches} != {output_flattened_size}."
 
-    # Inizializzazione della matrice dei bias
-    bias_expanded_matrix = torch.zeros(filters_number, n_patches, dtype=DATA_TYPE, device=device)
+    # Initialize bias matrix for all filters
+    bias_matrix = torch.zeros(num_filters, num_patches, dtype=DATA_TYPE, device=device)
 
-    # Inizializzazione della variabile indices_3d
-    indices_3d = []  # Inizializza come lista vuota per poi concatenare
-    values = []
-    # Ciclo sui filtri per ogni batch
-    for f_idx in range(filters_number):
-        filter = filter_weights[f_idx, :]
 
-        # Lista temporanea per indices 3d
-        temp_indices_3d = []
+    indices_list = []  # To store sparse tensor indices
+
+    # Loop over filters to create sparse matrix components
+    for filter_idx in range(num_filters):
+        filter_weights_current = filter_weights[filter_idx, :]
+
+        temp_indices = []
         temp_values = []
-        for i_patch in range(n_patches):
 
-            # Genera l'array di indici per ogni patch
-            indices = generate_array_int32(patch_matrix[i_patch, :], image_flattened_dim, n_input_channels - 1)
+        for patch_idx in range(num_patches):
+            # Generate indices for the current patch
+            indices = generate_array_int32(patch_indices[patch_idx, :], input_flattened_size, input_channels - 1)
 
-            # Crea un tensor con le informazioni per ogni patch
-            temp_indices_3d.append(torch.stack((
-                torch.full(indices.shape,f_idx , dtype=torch.long),
-                torch.full(indices.shape, i_patch, dtype=torch.long),
-                indices
-            ), dim=1))
+            temp_indices.append(
+                torch.stack((
+                    torch.full(indices.shape, filter_idx, dtype=torch.long),
+                    torch.full(indices.shape, patch_idx, dtype=torch.long),
+                    indices
+                ), dim=1)
+            )
+            temp_values.append(filter_weights_current)
 
-            temp_values.append(filter)
+        indices_list.append(torch.cat(temp_indices, dim=0))
 
-
-
-        # Ora, concatenare tutte le temp_indices_3d lungo la dimensione 0
-        indices_3d.append(torch.cat(temp_indices_3d, dim=0))
-        values.append(torch.cat(temp_values, dim=0))
-
-        # Se i bias sono definiti, espandili nel tensor finale
         if filter_biases is not None:
-            bias_expanded_matrix[f_idx, :] = filter_biases[f_idx]  # Aggiorna per ogni filtro
-
-    # Converti indices_3d da lista a tensor (se necessario) (
-    indices_3d = torch.cat(indices_3d, dim=0)
-    values = torch.cat(values, dim=0)
+            bias_matrix[filter_idx, :] = filter_biases[filter_idx]
 
 
+    #Generating the values for the sparse matrix
+    values_list = []
+    for filter_idx in range(num_filters):
+        for patch_idx in range(num_patches):
+            values_list.append(filter_weights[filter_idx])
 
-    #expanded_filters_matrix = covolution_sparse_tensor.permute(1, 0, 2).unsqueeze(0)
-
-    # Calculating the "positive" and "negative" filters matrix
-    max_value = torch.maximum(values, torch.tensor(0.0))
-    min_value = torch.minimum(values, torch.tensor(0.0))
-
-
-    # Getting F_max
-
-    F_max = torch.sparse_coo_tensor(indices_3d.T, max_value,size = (filters_number, n_patches , n_input_channels * image_flattened_dim),
-                                    device=device)
-    # Getting F_min
-    F_min = torch.sparse_coo_tensor(indices_3d.T, min_value, size =  (filters_number, n_patches , n_input_channels * image_flattened_dim),
-                                    device=device)
-
-    F =  torch.sparse_coo_tensor(indices_3d.T, values, size = (filters_number, n_patches , n_input_channels * image_flattened_dim),
-                                    device=device)
+    # Concatenate all indices and values for the sparse matrix
+    sparse_indices = torch.cat(indices_list, dim=0)
+    sparse_values = torch.cat(values_list, dim=0)
 
 
-    output_batch_lb = []
-    output_batch_ub = []
-    output_batch = []
+    # Create sparse tensors for the filters
+    filter_tensor = torch.sparse_coo_tensor(sparse_indices.T, sparse_values,
+                                            size=(num_filters, num_patches, input_channels * input_flattened_size),
+                                            device=device)
 
+    # Initialize outputs
+    outputs_lb, outputs_ub, outputs = [], [], []
 
-    for b_idx in range(batch_dim):
-        lb_single = lb_flatted[b_idx, :]
-        ub_single = ub_flatted[b_idx, :]
-        input_single =  input_flatted[b_idx, :]
+    # Compute outputs for each batch
+    for batch_idx in range(batch_size):
+        lb_single = lb_flattened[batch_idx, :]
+        ub_single = ub_flattened[batch_idx, :]
+        input_single = inputs_flattened[batch_idx, :]
 
+        # Calculate bounds and output
+        output_lb = torch.sparse.sum(filter_tensor * lb_single.T, dim=-1)
+        output_ub = torch.sparse.sum(filter_tensor * ub_single.T, dim=-1)
+        output = torch.sparse.sum(filter_tensor * input_single.T, dim=-1)
 
-        output_tensor_lb = torch.sparse.sum(F_max * lb_single.T, dim=-1) + torch.sparse.sum(F_min * ub_single.T, dim=-1)
-        output_tensor_ub = torch.sparse.sum(F_max * ub_single.T, dim=-1) + torch.sparse.sum(F_min * lb_single.T, dim=-1)
-        output_tensor = torch.sparse.sum(F * input_single.T, dim=-1)
+        outputs_lb.append(output_lb)
+        outputs_ub.append(output_ub)
+        outputs.append(output)
 
-        #output_tensor_lb = output_tensor_lb.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
-        #output_tensor_ub = output_tensor_ub.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
+    # Reshape outputs to match expected dimensions
+    output_lb_tensor = torch.cat(outputs_lb, dim=0).to_dense().view(batch_size, num_filters, output_height, output_width)
+    output_ub_tensor = torch.cat(outputs_ub, dim=0).to_dense().view(batch_size, num_filters, output_height, output_width)
+    output_tensor = torch.cat(outputs, dim=0).to_dense().view(batch_size, num_filters, output_height, output_width)
 
-        output_batch.append(output_tensor)
-        output_batch_lb.append(output_tensor_lb)
-        output_batch_ub.append(output_tensor_ub)
-
-    # Stack the output tensors along the batch dimension
-    output_tensor_batch_lb = torch.cat(output_batch_lb, dim=0).to_dense().view(batch_dim, filters_number, output_conv_dim_h, output_conv_dim_w)
-    output_tensor_batch_ub = torch.cat(output_batch_ub, dim=0).to_dense().view(batch_dim, filters_number, output_conv_dim_h, output_conv_dim_w)
-    output_tensor_batch = torch.cat(output_batch, dim=0).to_dense().view(batch_dim, filters_number, output_conv_dim_h, output_conv_dim_w)
-
+    # Add biases if applicable
     if filter_biases is not None:
-        bias_expanded_matrix = bias_expanded_matrix.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
-        output_tensor_batch_lb = bias_expanded_matrix + output_tensor_batch_lb
-        output_tensor_batch_ub = bias_expanded_matrix + output_tensor_batch_lb
-        output_tensor_batch = bias_expanded_matrix + output_tensor_batch
+        bias_matrix = bias_matrix.view(1, num_filters, output_height, output_width)
+        output_lb_tensor += bias_matrix
+        output_ub_tensor += bias_matrix
+        output_tensor += bias_matrix
 
-    print(f"sum: {sum(times)}")
+    return output_lb_tensor, output_ub_tensor, output_tensor
 
-    # Adding biases
-    # if filter_biases is not None:
-    #     bias_expanded_matrix = bias_expanded_matrix.view(1, filters_number, output_conv_dim_h, output_conv_dim_w)
-    #     output_tensor_batch_lb = output_tensor_batch_lb + bias_expanded_matrix
-    #     output_tensor_batch_ub = output_tensor_batch_ub + bias_expanded_matrix
-    #
-    # assert torch.all(
-    #     output_tensor_batch_lb <= output_tensor_batch_ub), "Lower bounds must always be lower than upper bounds."
-    return output_tensor_batch_lb, output_tensor_batch_ub, output_tensor_batch
 
 
 def main():
@@ -485,10 +450,10 @@ def main():
     stride = 1
 
     #  il problema é qui nel filtro
-    filters_number = 5
-    batch_size = 2
-    in_channels = 6
-    img_size_w =29
+    filters_number = 32
+    batch_size = 128
+    in_channels = 3
+    img_size_w =28
     img_size_h = 28
     noise = 0.0000000001
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
