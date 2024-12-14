@@ -229,14 +229,14 @@ class NeuralNetwork(abc.ABC):
 
         return not has_edges
 
-    def get_topological_order(self) -> list:
+    def get_topological_order(self) -> list[str]:
         """
         Procedure to walk the network with a DFS and build the
         topological sort.
 
         Returns
         -------
-        list
+        list[str]
             The topological sort of the network as a stack.
         """
 
