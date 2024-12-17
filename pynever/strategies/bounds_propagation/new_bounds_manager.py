@@ -6,6 +6,7 @@ from pynever.networks import NeuralNetwork
 from pynever.nodes import LayerNode
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
 from pynever.strategies.verification.properties import NeverProperty
+from pynever.utilities import xnor
 
 
 class NewBoundsManager:
@@ -57,7 +58,7 @@ class NewBoundsManager:
         next_layer = self.get_next_layer(in_layer)
         parents = self.network.get_parents(cur_layer)
 
-        assert len(self.network.get_children(cur_layer)) == 0 XNOR len(self.topological_stack) == 0
+        assert xnor(len(self.network.get_children(cur_layer)) == 0, len(self.topological_stack) == 0)
 
         # get input symbolic bounds for the current layer
         """

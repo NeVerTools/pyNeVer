@@ -15,6 +15,13 @@ from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
 from pynever.strategies.conversion.representation import PyTorchNetwork
 
 
+def xor(a: bool, b: bool) -> bool:
+    return (a and not b) or (b and not a)
+
+def xnor(a: bool, b: bool) -> bool:
+    return not xor(a, b)
+
+
 def execute_network(network: networks.NeuralNetwork, net_input: tensors.Tensor) -> tensors.Tensor:
     """Applies the neural network function to an input Tensor using pyTorch backend.
 
