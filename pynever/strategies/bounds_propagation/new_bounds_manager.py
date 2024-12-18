@@ -31,7 +31,20 @@ class NewBoundsManager:
         # Usa self.topological_stack
         pass
 
-    def propagate_bounds(self, in_num_bounds: HyperRectangleBounds, in_sym_bounds: SymbolicLinearBounds = None,
+    def compute_bounds(self, layer: LayerNode, symbolic_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds],
+                       numeric_bounds: HyperRectangleBounds | list[HyperRectangleBounds]) -> tuple[
+        SymbolicLinearBounds, HyperRectangleBounds]:
+
+        # Next layer data
+        next_layer = self.get_next_layer(layer)
+
+        # Parent data
+        parents = self.network.get_parents(layer)
+
+        raise NotImplementedError
+
+    def propagate_bounds(self, in_num_bounds: HyperRectangleBounds | list[HyperRectangleBounds],
+                         in_sym_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds] | None,
                          in_layer: LayerNode = None):
 
         if in_layer is None:
@@ -44,8 +57,6 @@ class NewBoundsManager:
             if in_sym_bounds is None:
                 in_sym_bounds = self.init_symb_bounds()
 
-            # return self.propagate_bounds(in_num_bounds, in_sym_bounds, next_layer)
-
         # Initialize the bounds data structure
         bounds_dict = VerboseBounds()
 
@@ -54,32 +65,20 @@ class NewBoundsManager:
         cur_sym_bounds = in_sym_bounds
         cur_num_bounds = in_num_bounds
 
-        # Next layer data
-        next_layer = self.get_next_layer(in_layer)
-        parents = self.network.get_parents(cur_layer)
-
+        # TODO remove after debugging
         assert xnor(len(self.network.get_children(cur_layer)) == 0, len(self.topological_stack) == 0)
 
-        # get input symbolic bounds for the current layer
-        """
-        if len(parents) > 1:
-            cur_input_bounds = list...
-        else:
-            cur_input_bounds = bounds...
-        """
-
-        # Non mi serve un for figli... perché ho l'ordine topologico.
-
-        # compute the output bounds for the layer
-        cur_bounds = compute_bounds(cur_input_bounds, cur_layer)
-        bounds_dict[cur_layer.identifier] = cur_bounds
+        # Compute bounds for this layer
+        out_sym_bounds, out_num_bounds = self.compute_bounds(cur_layer, cur_sym_bounds, cur_num_bounds)
 
         # Fill the bounds dictionary for this layer
-        bounds_dict.symbolic_bounds[cur_layer.identifier] = cur_sym_bounds
         bounds_dict.numeric_pre_bounds[cur_layer.identifier] = cur_num_bounds
+        bounds_dict.symbolic_bounds[cur_layer.identifier] = out_sym_bounds
+        bounds_dict.numeric_post_bounds[cur_layer.identifier] = out_num_bounds
 
         if len(self.topological_stack) == 0:
             return bounds_dict, cur_bounds.concretize()
 
         else:
-            return self.propagate_bounds(in_num_bounds, in_sym_bounds, next_layer)  # next layer dipende dallo stack
+            next_layer = self.network.nodes[self.topological_stack.pop()]
+            return self.propagate_bounds(in_num_bounds, in_sym_bounds, next_layer)
