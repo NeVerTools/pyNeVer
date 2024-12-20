@@ -3,7 +3,7 @@ This module controls the bounds propagation for neural networks
 
 """
 from pynever.networks import NeuralNetwork
-from pynever.nodes import LayerNode
+from pynever.nodes import ConcreteLayerNode
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.utilities import xnor
@@ -27,16 +27,14 @@ class NewBoundsManager:
         # Usa self.input_bounds
         pass
 
-    def get_next_layer(self, layer: LayerNode) -> LayerNode:
+    def get_next_layer(self, layer: ConcreteLayerNode) -> ConcreteLayerNode:
         # Usa self.topological_stack
         pass
 
-    def compute_bounds(self, layer: LayerNode, symbolic_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds],
+    def compute_bounds(self, layer: ConcreteLayerNode,
+                       symbolic_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds],
                        numeric_bounds: HyperRectangleBounds | list[HyperRectangleBounds]) -> tuple[
         SymbolicLinearBounds, HyperRectangleBounds]:
-
-        # Next layer data
-        next_layer = self.get_next_layer(layer)
 
         # Parent data
         parents = self.network.get_parents(layer)
@@ -45,7 +43,7 @@ class NewBoundsManager:
 
     def propagate_bounds(self, in_num_bounds: HyperRectangleBounds | list[HyperRectangleBounds],
                          in_sym_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds] | None,
-                         in_layer: LayerNode = None):
+                         in_layer: ConcreteLayerNode = None) -> VerboseBounds:
 
         if in_layer is None:
             in_layer = self.network.get_roots()[0]
@@ -72,13 +70,23 @@ class NewBoundsManager:
         out_sym_bounds, out_num_bounds = self.compute_bounds(cur_layer, cur_sym_bounds, cur_num_bounds)
 
         # Fill the bounds dictionary for this layer
-        bounds_dict.numeric_pre_bounds[cur_layer.identifier] = cur_num_bounds
         bounds_dict.symbolic_bounds[cur_layer.identifier] = out_sym_bounds
+        bounds_dict.numeric_pre_bounds[cur_layer.identifier] = cur_num_bounds
         bounds_dict.numeric_post_bounds[cur_layer.identifier] = out_num_bounds
 
         if len(self.topological_stack) == 0:
-            return bounds_dict, cur_bounds.concretize()
+            return bounds_dict
 
         else:
             next_layer = self.network.nodes[self.topological_stack.pop()]
+            parents = self.network.get_parents(next_layer)
+
+            # Here I choose whether in_num_bounds and in_symb_bounds are a list or a single element
+            if len(parents) > 1:
+                in_num_bounds = [bounds_dict.numeric_post_bounds[l.identifier] for l in parents]
+                in_sym_bounds = [bounds_dict.symbolic_bounds[l.identifier] for l in parents]
+            else:
+                in_num_bounds = bounds_dict.numeric_pre_bounds[parents[0].identifier]
+                in_sym_bounds = bounds_dict.symbolic_bounds[parents[0].identifier]
+
             return self.propagate_bounds(in_num_bounds, in_sym_bounds, next_layer)
