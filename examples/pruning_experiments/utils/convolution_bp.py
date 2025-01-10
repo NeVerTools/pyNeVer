@@ -203,11 +203,14 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
         torch.int32)
     num_patches = patch_indices.shape[0]
 
+    assert num_patches == (output_height * output_width), "Wrong number of patches. Please check."
+
     # Ensure the number of patches matches the expected output size
     assert num_patches == output_flattened_size, f"Mismatch in patch count: {num_patches} != {output_flattened_size}."
 
     # Initialize a bias matrix for all filters (if biases are provided)
-    bias_matrix = torch.zeros(num_filters, num_patches, dtype=DATA_TYPE, device=device)
+    if filter_biases is not None:
+        bias_matrix = torch.zeros(num_filters, num_patches, dtype=DATA_TYPE, device=device)
 
     indices_list = []  # List to store indices for sparse matrix
     temp_indices = []
@@ -289,7 +292,129 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
     assert torch.all(output_lb_tensor <= output_ub_tensor), "Lower bounds must always be lower than upper bounds."
 
     # Return the flattened lower and upper bounds tensors
+    return output_lb_tensor.view(-1), output_ub_tensor.view(-1), sparse_indices
+
+
+
+def partial_conv_sparse(kernel_size, padding, stride, lb, ub, device, filter_weights, sparse_indices, filter_biases=None, differentiable=True):
+    # Flatten the lower and upper bounds for sparse matrix operations
+    batch_size = lb.shape[0]
+    input_channels = lb.shape[1]
+    input_flattened_size = lb.shape[2] * lb.shape[3]
+    num_filters = filter_weights.shape[0]
+
+    # Ensure that the lower bounds (lb) and upper bounds (ub) have the same dimensions
+    assert lb.shape == ub.shape, "The dimensions of 'lb' and 'ub' must match."
+
+    # Ensure that the inputs (lb and ub) have 4 dimensions: batch_size, channels, height, width
+    assert lb.dim() == 4, "'lb' must have shape (batch_size, channels, height, width)."
+    assert ub.dim() == 4, "'ub' must have shape (batch_size, channels, height, width)."
+
+    # Extract kernel dimensions for the convolution
+    if isinstance(kernel_size, tuple) and len(kernel_size) == 2:
+        kernel_height, kernel_width = kernel_size
+    elif isinstance(kernel_size, int):
+        kernel_height = kernel_width = kernel_size
+        kernel_size = (kernel_size, kernel_size)
+    else:
+        raise ValueError("Kernel size must be an int or a tuple of two integers.")
+
+    # Determine padding configuration
+    if isinstance(padding, int):
+        pad_tuple = (padding, padding, padding, padding)  # Same padding for all sides
+    elif isinstance(padding, tuple) and len(padding) == 2:
+        pad_tuple = (padding[1], padding[1], padding[0], padding[0])  # Symmetric padding for height and width
+    elif isinstance(padding, tuple) and len(padding) == 4:
+        # Ensure padding is symmetric (top == bottom and left == right)
+        if padding[0] != padding[1] or padding[2] != padding[3]:
+            raise ValueError("Only symmetrical padding is supported. Top must equal bottom and left must equal right.")
+        pad_tuple = padding
+    elif padding == 0 or padding is None:
+        pad_tuple = (0, 0, 0, 0)  # No padding
+    else:
+        raise ValueError("Padding must be an int or a tuple of appropriate dimensions.")
+
+    # Determine stride values
+    if isinstance(stride, int):
+        stride_tuple = (stride, stride)
+    elif isinstance(stride, tuple) and len(stride) == 2:
+        stride_tuple = stride
+    else:
+        raise ValueError("Stride must be an int or a tuple of appropriate dimensions.")
+
+    pad_top, pad_bottom, pad_left, pad_right = pad_tuple
+    input_shape = (lb.shape[1], lb.shape[2], lb.shape[3])
+
+    output_height = int(((input_shape[1] - kernel_height + pad_top + pad_bottom) / stride_tuple[0]) + 1)
+    output_width = int(((input_shape[2] - kernel_width + pad_left + pad_right) / stride_tuple[1]) + 1)
+
+    lb_flattened = lb.reshape(batch_size, -1).to(DATA_TYPE).to(device)
+    ub_flattened = ub.reshape(batch_size, -1).to(DATA_TYPE).to(device)
+
+    # Positive and negative values of filters array
+    pos_values_list = torch.maximum(filter_weights, torch.tensor(0.0, device=filter_weights.device))
+    neg_values_list = torch.minimum(filter_weights, torch.tensor(0.0, device=filter_weights.device))
+
+    # Replica i valori per il numero di patch
+    num_patches = output_height * output_width
+    pos_sparse_values = pos_values_list.repeat_interleave(num_patches, 0).reshape(-1)
+    neg_sparse_values = neg_values_list.repeat_interleave(num_patches, 0).reshape(-1)
+
+    # Initialize a bias matrix for all filters (if biases are provided)
+    if filter_biases is not None:
+        bias_matrix = torch.zeros(num_filters, num_patches, dtype=DATA_TYPE, device=device)
+
+        for filter_idx in range(num_filters):
+            # Apply biases to the bias matrix if provided
+                bias_matrix[filter_idx, :] = filter_biases[filter_idx]
+
+    # Create sparse tensors for positive and negative filter values
+    pos_filter_tensor = torch.sparse_coo_tensor(sparse_indices.T, pos_sparse_values,
+                                                size=(num_filters * num_patches, input_channels * input_flattened_size),
+                                                device=device)
+    neg_filter_tensor = torch.sparse_coo_tensor(sparse_indices.T, neg_sparse_values,
+                                                size=(num_filters * num_patches, input_channels * input_flattened_size),
+                                                device=device)
+
+    # Convert the sparse tensors to CSR format if not differentiable
+    if not differentiable:
+        pos_filter_tensor = pos_filter_tensor.to_sparse_csr()
+        neg_filter_tensor = neg_filter_tensor.to_sparse_csr()
+
+    # Initialize output lists for lower and upper bounds
+    outputs_lb, outputs_ub = [], []
+
+    # Compute the outputs for each batch
+    for batch_idx in range(batch_size):
+        lb_single = lb_flattened[batch_idx, :].unsqueeze(dim=0)
+        ub_single = ub_flattened[batch_idx, :].unsqueeze(dim=0)
+
+        # Perform the matrix multiplication (sparse operation) for the current batch
+        output_lb = torch.sparse.mm(pos_filter_tensor, lb_single.T) + torch.sparse.mm(neg_filter_tensor, ub_single.T)
+        output_ub = torch.sparse.mm(pos_filter_tensor, ub_single.T) + torch.sparse.mm(neg_filter_tensor, lb_single.T)
+
+        # Append results for current batch
+        outputs_lb.append(output_lb)
+        outputs_ub.append(output_ub)
+
+    # Concatenate all batch results and reshape to match output dimensions
+    output_lb_tensor = torch.cat(outputs_lb, dim=0).to_dense().view(batch_size, num_filters, output_height,
+                                                                    output_width)
+    output_ub_tensor = torch.cat(outputs_ub, dim=0).to_dense().view(batch_size, num_filters, output_height,
+                                                                    output_width)
+
+    # Add biases if applicable
+    if filter_biases is not None:
+        bias_matrix = bias_matrix.view(1, num_filters, output_height, output_width)
+        output_lb_tensor += bias_matrix
+        output_ub_tensor += bias_matrix
+
+    # Ensure that lower bounds are always less than or equal to upper bounds
+    assert torch.all(output_lb_tensor <= output_ub_tensor), "Lower bounds must always be lower than upper bounds."
+
+    # Return the flattened lower and upper bounds tensors
     return output_lb_tensor.view(-1), output_ub_tensor.view(-1)
+
 
 
 def propagate_conv_bp(kernel_size, padding, stride, lb, ub, device, filter_weights, filter_biases=None,
