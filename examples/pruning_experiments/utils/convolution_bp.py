@@ -233,18 +233,16 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
 
     indices_list.append(torch.cat(temp_indices, dim=0))
 
-    # Generate the values for the sparse matrix
-    pos_values_list = []
-    neg_values_list = []
-    for filter_idx in range(num_filters):
-        for patch_idx in range(num_patches):
-            pos_values_list.append(torch.maximum(filter_weights[filter_idx], torch.tensor(0.0)))
-            neg_values_list.append(torch.minimum(filter_weights[filter_idx], torch.tensor(0.0)))
+    # Positive and negative values of filters array
+    pos_values_list = torch.maximum(filter_weights, torch.tensor(0.0, device=filter_weights.device))
+    neg_values_list = torch.minimum(filter_weights, torch.tensor(0.0, device=filter_weights.device))
+
+    # Replica i valori per il numero di patch
+    pos_sparse_values = pos_values_list.repeat_interleave(num_patches, 0).reshape(-1)
+    neg_sparse_values = neg_values_list.repeat_interleave(num_patches, 0).reshape(-1)
 
     # Concatenate the indices and values for the sparse matrix
     sparse_indices = torch.cat(indices_list, dim=0)
-    pos_sparse_values = torch.cat(pos_values_list, dim=0)
-    neg_sparse_values = torch.cat(neg_values_list, dim=0)
 
     # Create sparse tensors for positive and negative filter values
     pos_filter_tensor = torch.sparse_coo_tensor(sparse_indices.T, pos_sparse_values,
