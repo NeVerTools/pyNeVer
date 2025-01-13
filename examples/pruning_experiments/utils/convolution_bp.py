@@ -296,7 +296,7 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
 
 
 
-def partial_conv_sparse(kernel_size, padding, stride, lb, ub, device, filter_weights, sparse_indices, filter_biases=None, differentiable=True):
+def partial_conv_sparse(kernel_size, padding, stride, lb, ub, device, filter_weights,  filter_biases=None, sparse_indices=None, differentiable=True):
     # Flatten the lower and upper bounds for sparse matrix operations
     batch_size = lb.shape[0]
     input_channels = lb.shape[1]

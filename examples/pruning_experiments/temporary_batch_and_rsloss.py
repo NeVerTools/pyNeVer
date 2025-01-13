@@ -10,7 +10,7 @@ import io
 
 
 # Check CUDA availability and set device
-device = torch.device('cpu' )#'cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' )#'cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
 torch.autograd.set_detect_anomaly(True)
 
@@ -61,13 +61,8 @@ if __name__ == '__main__':
     hidden_layer_dims = [33, 45, 48, 51, 53, 54, 57, 60]
     filters_numbers = [4]
 
-
-
-
     OUTPUT_FOLDER = r"results/best_selection"
     CSV_FILE = os.path.join(OUTPUT_FOLDER, "results.csv")
-
-
 
     old_weights = None
     old_model = None
@@ -78,7 +73,6 @@ if __name__ == '__main__':
 
     # Rs lambda for the smallest network, this values has to increase
     rs_factor = 3
-
 
     def profile_generate_no_batch_networks(config, filters_number, rs_factor, hidden_layer_dims):
         profiler = cProfile.Profile()

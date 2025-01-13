@@ -427,8 +427,8 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         'lambda': None         # Value of the RS regularizer, if applicable
     }
 
-    def calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, normalized=True):
-        from examples.pruning_experiments.utils.convolution_bp import propagate_conv_bp_sparse
+    def calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, sparce_indexes=None, normalized=True):
+        from examples.pruning_experiments.utils.convolution_bp import propagate_conv_bp_sparse, partial_conv_sparse
         t_start = time.time()
         batch_dim = lbs.shape[0]
 
@@ -437,7 +437,11 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         filter_weights = parameters[0]
         filter_biases = parameters[1]
 
-        lb_1, ub_1 = propagate_conv_bp_sparse(kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, True)
+
+        if sparce_indexes is None:
+            lb_1, ub_1, sparce_indexes = propagate_conv_bp_sparse(kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, differentiable=True)
+        else:
+            lb_1, ub_1 = partial_conv_sparse(kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, sparse_indices=sparce_indexes, differentiable=True)
 
         #lb_1 = lb_1.flatten(start_dim=1)
         #ub_1 = ub_1.flatten(start_dim=1)
@@ -487,15 +491,16 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
         print(f"Time: {time.time() - t_start}")
 
-        return rs_loss
+
+        return rs_loss, sparce_indexes
 
 
 
-    def compute_rs_loss(inputs, model, kernel, padding, stride, filters_number, noise):
+    def compute_rs_loss(inputs, model, kernel, padding, stride, filters_number, noise, sparse_indexes=None):
         """Helper function to compute RS loss."""
         ubs = inputs + noise
         lbs = inputs - noise
-        return calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, normalized=True)
+        return calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, sparce_indexes=sparse_indexes , normalized=True)
 
     for epoch in range(num_epochs):
         model.train()
@@ -507,6 +512,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
         # Training phase
         train_time = time.time()
+        sparse_indexes = None
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
@@ -522,8 +528,8 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
             # Compute RS loss if applicable
             if rs_loss_regularizer is not None:
-                rs_loss = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
-                                          filters_number=filters_number, noise=noise)
+                rs_loss, sparse_indexes = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
+                                          filters_number=filters_number, sparse_indexes=sparse_indexes, noise=noise)
                 loss += rs_loss_regularizer * rs_loss
                 partial_loss_2 = rs_loss.item()
             else:
@@ -584,7 +590,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
                 # Compute RS loss if applicable
                 if rs_loss_regularizer is not None:
-                    rs_loss = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
+                    rs_loss, _ = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
                                           filters_number=filters_number, noise=noise)
                     loss += rs_loss_regularizer * rs_loss
                     partial_loss_2 = rs_loss.item()
