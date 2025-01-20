@@ -52,25 +52,17 @@ if __name__ == '__main__':
     yaml_file = 'configs/config_MNIST_filter_growth.yaml'
     config = load_yaml_config(yaml_file)
 
-    filters_numbers = [4, 12, 24, 48, 64, 96, 124, 148]
-    hidden_layer_dims = [33, 45, 48, 51, 53, 54, 57, 60]
-
+    filters_numbers = [4, 12, 36, 48, 64, 96, 124, 148]
+    hidden_layer_dims = [30, 45, 65, 75, 85, 95, 100, 100]
 
 
     OUTPUT_FOLDER = r"results/best_selection"
     CSV_FILE = os.path.join(OUTPUT_FOLDER, "results.csv")
 
-
-
-    old_weights = None
     old_model = None
 
-    min_increment = 0
-    max_increment = 5
-    steps_limit = 10
-
     # Rs lambda for the smallest network, this values has to increase
-    rs_factor = 3
+    rs_factor = 0.005
 
     # Best accuracy for the smallest netowork. That value is gonna be the value to improve with over-parametrization
     metrics, model = generate_no_batch_networks(config, filters_number=filters_numbers.pop(0),
@@ -94,15 +86,17 @@ if __name__ == '__main__':
         target_rs_loss = None
 
         # Increasing the lambda parameter of the RSLoss until it stops decreasing the accuracy
-        min_increment = 0.1
-        max_increment = 7
+        min_increment = 0.0005
+        max_increment = 0.01
+        steps_limit = 6
+
         increment = (max_increment - min_increment)/2
 
         steps_counter = 0
         failure_bool = True
 
         while steps_counter <= steps_limit:
-            metrics, model = generate_no_batch_networks(config, filters_number=filters, old_weights=old_weights,
+            metrics, model = generate_no_batch_networks(config, filters_number=filters,
                                                         rs_factor=rs_factor + increment,
                                                         hidden_layer_dim=hidden_layer_dims[idx])
 

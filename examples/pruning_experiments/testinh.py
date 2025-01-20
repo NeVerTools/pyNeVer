@@ -463,7 +463,7 @@ def main():
 
     # Input di esempio
     inputs = torch.randn(batch_size, in_channels, img_size_w, img_size_h, dtype=DATA_TYPE, device=device)
-    #inputs = torch.arange(img_size_w * img_size_h * in_channels * batch_size, dtype=DATA_TYPE, device=device)
+    #inputs = torch.arange(img_size_w dd* img_size_h * in_channels * batch_size, dtype=DATA_TYPE, device=device)
     #inputs = inputs.reshape(batch_size, in_channels, img_size_w, img_size_h)
 
     #inputs =  inputs.reshape(batch_size, in_channels, img_size_w, img_size_h)

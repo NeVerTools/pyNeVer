@@ -260,27 +260,21 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
         pos_filter_tensor = pos_filter_tensor.to_sparse_csr()
         neg_filter_tensor = neg_filter_tensor.to_sparse_csr()
 
-    # Initialize output lists for lower and upper bounds
-    outputs_lb, outputs_ub = [], []
 
-    # Compute the outputs for each batch
-    for batch_idx in range(batch_size):
-        lb_single = lb_flattened[batch_idx, :].unsqueeze(dim=0)
-        ub_single = ub_flattened[batch_idx, :].unsqueeze(dim=0)
+    batched_lb = lb_flattened.view(batch_size,  input_channels * input_flattened_size)
+    batched_ub = ub_flattened.view(batch_size,  input_channels * input_flattened_size)
 
-        # Perform the matrix multiplication (sparse operation) for the current batch
-        output_lb = torch.sparse.mm(pos_filter_tensor, lb_single.T) + torch.sparse.mm(neg_filter_tensor, ub_single.T)
-        output_ub = torch.sparse.mm(pos_filter_tensor, ub_single.T) + torch.sparse.mm(neg_filter_tensor, lb_single.T)
 
-        # Append results for current batch
-        outputs_lb.append(output_lb)
-        outputs_ub.append(output_ub)
+    # Perform the matrix multiplication (sparse operation) for the current batch
+    output_lb = torch.sparse.mm(batched_lb, pos_filter_tensor.T) + torch.sparse.mm(batched_ub, neg_filter_tensor.T)
+    output_ub = torch.sparse.mm(batched_ub, pos_filter_tensor.T) + torch.sparse.mm(batched_lb, neg_filter_tensor.T)
 
-    # Concatenate all batch results and reshape to match output dimensions
-    output_lb_tensor = torch.cat(outputs_lb, dim=0).to_dense().view(batch_size, num_filters, output_height,
-                                                                    output_width)
-    output_ub_tensor = torch.cat(outputs_ub, dim=0).to_dense().view(batch_size, num_filters, output_height,
-                                                                    output_width)
+
+    # Making the matrix dense and reshaping
+    output_lb_tensor =output_lb.to_dense().view(batch_size, num_filters, output_height,
+                                                                     output_width)
+    output_ub_tensor = output_ub.to_dense().view(batch_size, num_filters, output_height,
+                                          output_width)
 
     # Add biases if applicable
     if filter_biases is not None:
@@ -292,7 +286,7 @@ def propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device, filte
     assert torch.all(output_lb_tensor <= output_ub_tensor), "Lower bounds must always be lower than upper bounds."
 
     # Return the flattened lower and upper bounds tensors
-    return output_lb_tensor.view(-1), output_ub_tensor.view(-1), sparse_indices
+    return output_lb_tensor.reshape(-1), output_ub_tensor.reshape(-1), sparse_indices
 
 
 
@@ -381,27 +375,21 @@ def partial_conv_sparse(kernel_size, padding, stride, lb, ub, device, filter_wei
         pos_filter_tensor = pos_filter_tensor.to_sparse_csr()
         neg_filter_tensor = neg_filter_tensor.to_sparse_csr()
 
-    # Initialize output lists for lower and upper bounds
-    outputs_lb, outputs_ub = [], []
 
-    # Compute the outputs for each batch
-    for batch_idx in range(batch_size):
-        lb_single = lb_flattened[batch_idx, :].unsqueeze(dim=0)
-        ub_single = ub_flattened[batch_idx, :].unsqueeze(dim=0)
+    batched_lb = lb_flattened.view(batch_size,  input_channels * input_flattened_size)
+    batched_ub = ub_flattened.view(batch_size,  input_channels * input_flattened_size)
 
-        # Perform the matrix multiplication (sparse operation) for the current batch
-        output_lb = torch.sparse.mm(pos_filter_tensor, lb_single.T) + torch.sparse.mm(neg_filter_tensor, ub_single.T)
-        output_ub = torch.sparse.mm(pos_filter_tensor, ub_single.T) + torch.sparse.mm(neg_filter_tensor, lb_single.T)
 
-        # Append results for current batch
-        outputs_lb.append(output_lb)
-        outputs_ub.append(output_ub)
+    # Perform the matrix multiplication (sparse operation) for the current batch
+    output_lb = torch.sparse.mm(batched_lb, pos_filter_tensor.T) + torch.sparse.mm(batched_ub, neg_filter_tensor.T)
+    output_ub = torch.sparse.mm(batched_ub, pos_filter_tensor.T) + torch.sparse.mm(batched_lb, neg_filter_tensor.T)
 
-    # Concatenate all batch results and reshape to match output dimensions
-    output_lb_tensor = torch.cat(outputs_lb, dim=0).to_dense().view(batch_size, num_filters, output_height,
-                                                                    output_width)
-    output_ub_tensor = torch.cat(outputs_ub, dim=0).to_dense().view(batch_size, num_filters, output_height,
-                                                                    output_width)
+
+    # Making the matrix dense and reshaping
+    output_lb_tensor =output_lb.to_dense().view(batch_size, num_filters, output_height,
+                                                                     output_width)
+    output_ub_tensor = output_ub.to_dense().view(batch_size, num_filters, output_height,
+                                          output_width)
 
     # Add biases if applicable
     if filter_biases is not None:
@@ -413,7 +401,7 @@ def partial_conv_sparse(kernel_size, padding, stride, lb, ub, device, filter_wei
     assert torch.all(output_lb_tensor <= output_ub_tensor), "Lower bounds must always be lower than upper bounds."
 
     # Return the flattened lower and upper bounds tensors
-    return output_lb_tensor.view(-1), output_ub_tensor.view(-1)
+    return output_lb_tensor.reshape(-1), output_ub_tensor.reshape(-1)
 
 
 
@@ -610,8 +598,8 @@ def main():
     stride = 1
 
     #  il problema é qui nel filtro
-    filters_number = 3
-    batch_size = 10
+    filters_number = 1
+    batch_size = 2
     in_channels = 3
     img_size_w = 28
     img_size_h = 28
@@ -665,7 +653,7 @@ def main():
     profiler = cProfile.Profile()
     profiler.enable()
 
-    lb, ub = propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device=device, filter_weights=parameters[0])
+    lb, ub, _ = propagate_conv_bp_sparse(kernel_size, padding, stride, lb, ub, device=device, filter_weights=parameters[0], differentiable=True)
     propagate_conv_bp_time = time.time() - start_time
     print(f"{propagate_conv_bp_time=}")
 

@@ -58,8 +58,9 @@ if __name__ == '__main__':
     config = load_yaml_config(yaml_file)
 
     filters_numbers = [4, 12, 24, 48, 64, 96, 124, 148]
-    hidden_layer_dims = [33, 45, 48, 51, 53, 54, 57, 60]
+    hidden_layer_dims = [30, 45, 65, 75, 85, 95, 100, 100]
     filters_numbers = [4]
+    hidden_layer_dims = [30]
 
     OUTPUT_FOLDER = r"results/best_selection"
     CSV_FILE = os.path.join(OUTPUT_FOLDER, "results.csv")
@@ -68,11 +69,11 @@ if __name__ == '__main__':
     old_model = None
 
     min_increment = 0
-    max_increment = 5
-    steps_limit = 10
+    max_increment = 0.01
+    steps_limit = 0.0005
 
     # Rs lambda for the smallest network, this values has to increase
-    rs_factor = 3
+    rs_factor = 0.005
 
     def profile_generate_no_batch_networks(config, filters_number, rs_factor, hidden_layer_dims):
         profiler = cProfile.Profile()
@@ -81,7 +82,8 @@ if __name__ == '__main__':
             config,
             filters_number=filters_number,
             rs_factor=rs_factor,
-            hidden_layer_dim=hidden_layer_dims
+            hidden_layer_dim=hidden_layer_dims,
+            save_bool=True
         )
         profiler.disable()
 
