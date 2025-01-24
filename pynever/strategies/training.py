@@ -274,10 +274,14 @@ class PytorchTraining(TrainingStrategy):
 
         # history_score is used to keep track of the evolution of training loss and validation loss
         history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
+        train_accuracy = 0
 
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
         # epoch until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
+
+            train_size = 0
+            correct = 0
 
             if epochs_without_decrease > self.train_patience:
                 break
@@ -308,21 +312,27 @@ class PytorchTraining(TrainingStrategy):
 
                 optimizer.step()
 
+                _, pred = torch.max(output.data, 1)
+                correct += (pred == target).sum().item()
+                train_size += self.train_batch_size
+
                 if batch_idx % self.verbose_rate == 0:
                     logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                         epoch, batch_idx * len(data), len(training_set),
-                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                               100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
                         loss.data.item()))
 
             # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
             avg_loss = avg_loss / batch_idx
             history_score[epoch - start_epoch][0] = avg_loss
+            train_accuracy = 100 * correct / train_size
 
             # EPOCH TEST
 
             net.pytorch_network.eval()
             net.pytorch_network.float()
             validation_loss = 0
+
             with torch.no_grad():
 
                 for batch_idx, (data, target) in enumerate(validation_loader):
@@ -375,7 +385,8 @@ class PytorchTraining(TrainingStrategy):
             best_checkpoint = torch.load(best_model_path)
             net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
 
-        logger.info(f"Best Loss Score: {best_loss_score}")
+        logger.info(f"Best Training Loss Score: {best_loss_score}")
+        logger.info(f"Training Accuracy: {train_accuracy}")
 
         return net
 
@@ -436,6 +447,7 @@ class PytorchTesting(TestingStrategy):
 
     def pytorch_testing(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> float:
 
+        logger = logging.getLogger(logger_name)
         net.pytorch_network.to(self.device)
 
         # We set all the values of the network to double.
@@ -446,7 +458,11 @@ class PytorchTesting(TestingStrategy):
 
         net.pytorch_network.eval()
         test_loss = 0
+        test_size = 0
+
         with torch.no_grad():
+
+            correct = 0
 
             for batch_idx, (data, target) in enumerate(test_loader):
 
@@ -464,8 +480,16 @@ class PytorchTesting(TestingStrategy):
                     self.losses.append(loss.item())
                 test_loss += loss.data.item()
 
+                _, pred = torch.max(output.data, 1)
+                correct += (pred == target).sum().item()
+                test_size += self.test_batch_size
+
         # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
         test_loss = test_loss / batch_idx
+        test_accuracy = 100 * correct / test_size
+
+        logger.info(f"Best Test Loss Score: {test_loss}")
+        logger.info(f"Accuracy: {test_accuracy}")
 
         return test_loss
 
