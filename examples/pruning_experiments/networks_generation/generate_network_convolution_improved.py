@@ -13,6 +13,7 @@ import time
 from sympy import false
 from torch.utils.data import DataLoader, Subset, random_split
 from torchvision import datasets, transforms
+from examples.pruning_experiments.utils.convolution_bp import propagate_conv_bp_sparse, partial_conv_sparse
 
 import pynever.networks as networks
 import pynever.nodes as nodes
@@ -31,6 +32,10 @@ kernel_size = 3
 stride = 1
 padding = 0
 noise = 0.1
+
+# To check that two vector are equals
+def tensors_are_close(tensor1, tensor2, rtol=1e-04, atol=1e-04):
+    return torch.isclose(tensor1, tensor2, rtol=rtol, atol=atol).all()
 
 def load_yaml_config(yaml_file_path):
     """
@@ -58,7 +63,6 @@ def _l_relu_stable(lb, ub, norm_constant=1.0):
     return loss
 
 
-
 # Assume le forme Bxm, Bxm, mxn, n
 def interval_arithmetic_fc(lb, ub, W, b):
     W = W.T
@@ -79,6 +83,134 @@ def _compute_bounds_n_layers(lb, ub, W, b):
         raise NotImplementedError
     return naive_ia_bounds
 
+
+def calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, inputs,
+                                  eval_mode,
+                                  sparce_indexes=None, normalized=True, paper_like=True):
+    """
+    Compute the RS Loss Regularizer for a given convolutional model.
+
+    Args:
+        model: The neural network model.
+        kernel: Size of the convolutional kernel.
+        padding: Padding used in convolution.
+        stride: Stride used in convolution.
+        filters_number: Number of filters in the convolutional layer.
+        lbs: Lower bounds of input activations.
+        ubs: Upper bounds of input activations.
+        device: Computation device (CPU/GPU).
+        inputs: Input tensor to the model.
+        eval_mode: Boolean flag indicating evaluation mode (True: BatchNorm uses running stats, False: uses batch stats).
+        sparce_indexes: Sparse indices for optimization (default: None, meaning full computation).
+        normalized: Whether to normalize the RS loss (default: True).
+        paper_like: If True, normalizes loss as in the reference paper (default: True).
+
+    Returns:
+        rs_loss: Computed RS loss value.
+        sparce_indexes: Updated sparse indices.
+    """
+    batch_dim = lbs.shape[0]  # Batch size
+
+    # Forward pass through convolutional layer
+    conv_layer = model.conv
+    conv_output = conv_layer(inputs)
+
+    # Extract convolutional layer parameters
+    parameters = list(model.parameters())
+    filter_weights = parameters[0]  # Convolution filters
+    filter_biases = parameters[1]  # Bias terms
+
+    # Compute sparse bounds if no sparse indices are provided
+    if sparce_indexes is None:
+        lb_1, ub_1, sparce_indexes = propagate_conv_bp_sparse(
+            kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, differentiable=True
+        )
+    else:
+        lb_1, ub_1 = partial_conv_sparse(
+            kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases,
+            sparse_indices=sparce_indexes, differentiable=True
+        )
+
+    # Reshape bounds for batch processing
+    lb_1 = lb_1.view(batch_dim, filters_number, -1).unsqueeze(1)
+    ub_1 = ub_1.view(batch_dim, filters_number, -1).unsqueeze(1)
+
+    # ===================== BATCH NORMALIZATION =====================
+    gamma_quadro = parameters[2].detach().pow(2)  # Square of BatchNorm scale factor
+    gamma = parameters[2].view(1, -1, 1)  # Scale factor gamma
+    beta = parameters[3].view(1, -1, 1)  # Shift factor beta
+    eps = model.bn1.eps  # Epsilon for numerical stability
+
+    # Compute batch statistics based on evaluation mode
+    if eval_mode:
+        batch_mean = model.bn1.running_mean.reshape(1, 1, filters_number, 1)
+        batch_var = model.bn1.running_var.reshape(1, 1, filters_number, 1)
+    else:
+        batch_mean = conv_output.view(batch_dim, filters_number, -1).mean(dim=(0, 2), keepdim=True)
+        batch_var = conv_output.view(batch_dim, filters_number, -1).var(dim=(0, 2), keepdim=True, unbiased=False)
+
+    # Compute standard deviation for batch normalization
+    std_dev = torch.sqrt(batch_var + eps)
+
+    # Normalize bounds using batch normalization parameters
+    lb_1_b_normalized = gamma * (lb_1 - batch_mean) / std_dev + beta
+    ub_1_b_normalized = gamma * (ub_1 - batch_mean) / std_dev + beta
+
+
+    assert (lb_1_b_normalized <= ub_1_b_normalized).all(), "Lower bounds must be smaller than upper bounds."
+
+    # ===================== LOSS COMPUTATION =====================
+    if paper_like:
+        lb_1_loss = lb_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
+        ub_1_loss = ub_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
+    else:
+        lb_1_loss = lb_1_b_normalized
+        ub_1_loss = ub_1_b_normalized
+
+    # Compute first RS loss term using stable ReLU relaxation
+    rsloss1 = _l_relu_stable(lb_1_loss.view(batch_dim, -1), ub_1_loss.view(batch_dim, -1))
+
+    # Apply ReLU activation to the batch-normalized bounds
+    lbh_1 = torch.relu(lb_1_b_normalized)
+    ubh_1 = torch.relu(ub_1_b_normalized)
+
+    # ===================== FULLY CONNECTED LAYER =====================
+    W2 = parameters[4]  # Fully connected layer weights
+    b2 = parameters[5]  # Fully connected layer biases
+
+    # Compute bounds for the fully connected layer
+    lb_2, ub_2 = interval_arithmetic_fc(
+        lbh_1.view(batch_dim, -1), ubh_1.view(batch_dim, -1), W2, b2
+    )
+
+    # Compute second RS loss term
+    rsloss2 = _l_relu_stable(lb_2.view(batch_dim, -1), ub_2.view(batch_dim, -1))
+
+    # ===================== FINAL LOSS COMPUTATION =====================
+    rs_loss = rsloss1 + rsloss2  # Aggregate loss terms
+    total_neurons_number = lb_1.view(batch_dim, -1).shape[1] + lb_2.view(batch_dim, -1).shape[1]  # Total neurons
+
+    # Debugging print statement
+    if DEBUG:
+        print(f"{total_neurons_number=}")
+
+    # Normalize RS loss if required
+    if normalized:
+        rs_loss = rs_loss / total_neurons_number
+        rs_loss = (rs_loss + 1) / 2
+        assert 0 <= rs_loss <= 1, "RS LOSS not in [0, 1] range"
+
+    return rs_loss, sparce_indexes
+
+
+def compute_rs_loss(inputs, model, kernel, padding, stride, filters_number, noise, eval_mode, device, sparse_indexes=None,
+                    paper_like=True):
+    """Helper function to compute RS loss."""
+    ubs = inputs + noise
+    lbs = inputs - noise
+    return calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device,
+                                         inputs=inputs, eval_mode=eval_mode, sparce_indexes=sparse_indexes, normalized=True,
+                                         paper_like=paper_like)
 
 ########################################################################################################################
 def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_params, criterion_cls, num_epochs,
@@ -112,97 +244,6 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         'lambda': None         # Value of the RS regularizer, if applicable
     }
 
-    def calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, sparce_indexes=None, normalized=True, paper_like = True):
-        from examples.pruning_experiments.utils.convolution_bp import propagate_conv_bp_sparse, partial_conv_sparse
-        batch_dim = lbs.shape[0]
-
-        parameters = list(model.parameters())
-
-        filter_weights = parameters[0]
-        filter_biases = parameters[1]
-
-
-        if sparce_indexes is None:
-            lb_1, ub_1, sparce_indexes = propagate_conv_bp_sparse(kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, differentiable=True)
-        else:
-            lb_1, ub_1 = partial_conv_sparse(kernel, padding, stride, lbs, ubs, device, filter_weights, filter_biases, sparse_indices=sparce_indexes, differentiable=True)
-
-        #lb_1 = lb_1.flatten(start_dim=1)
-        #ub_1 = ub_1.flatten(start_dim=1)
-
-        lb_1 = lb_1.view(batch_dim, filters_number, -1).unsqueeze(0).unsqueeze(2)
-        ub_1 = ub_1.view(batch_dim, filters_number, -1).unsqueeze(0).unsqueeze(2)
-
-
-        # BATCH NORM
-        gamma_quadro = parameters[2].detach().pow(2)
-        gamma = parameters[2].view(1, -1, 1)#.detach()
-        beta = parameters[3].view(1, -1, 1)#.detach()
-        running_mean = model.bn1.running_mean.view(1, -1, 1)
-        running_var = model.bn1.running_var.view(1, -1, 1)
-        eps = model.bn1.eps
-
-        # Calcolo di std dev per il batch norm
-        std_dev = torch.sqrt(running_var + eps)
-
-        lb_1_b_normalized = gamma * (lb_1 - running_mean) / std_dev + beta
-        ub_1_b_normalized = gamma * (ub_1 - running_mean) / std_dev + beta
-
-        # Calcolo dei limiti normali
-        if paper_like:
-            lb_1_loss = lb_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
-            ub_1_loss = ub_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
-        else:
-            lb_1_loss = gamma * (lb_1 - running_mean) / std_dev + beta
-            ub_1_loss = gamma * (ub_1 - running_mean) / std_dev + beta
-
-
-        rsloss1 = _l_relu_stable(lb_1_loss.view(batch_dim, -1), ub_1_loss.view(batch_dim, -1))
-
-        # Calcolo bounds come nel paper
-
-        #lb_1= lb_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
-        #ub_1 = ub_1 / gamma_quadro.unsqueeze(0).unsqueeze(2)
-
-        # # Apply batch norm TODO
-        # lb_1 = ((gamma * lb_1 - running_mean)/torch.sqrt(running_var + eps)) + beta
-        # ub_1 = ((gamma * ub_1 - running_mean)/torch.sqrt(running_var + eps)) + beta
-
-
-        lbh_1 = torch.relu(lb_1_b_normalized)
-        ubh_1 = torch.relu(ub_1_b_normalized)
-
-        # Fc2
-        W2 = parameters[4]
-        b2 = parameters[5]
-
-        lb_2, ub_2 = interval_arithmetic_fc(lbh_1.view(batch_dim, -1), ubh_1.view(batch_dim, -1), W2, b2)
-
-        rsloss2 = _l_relu_stable(lb_2.view(batch_dim, -1), ub_2.view(batch_dim, -1))
-
-        rs_loss = rsloss1 + rsloss2
-        total_neurons_number = lb_1.view(batch_dim, -1).shape[1]  + lb_2.view(batch_dim, -1).shape[1]
-        if DEBUG:
-            print(f"{total_neurons_number=}")
-
-        if normalized:
-            rs_loss = rs_loss / total_neurons_number
-
-            rs_loss = (rs_loss + 1) / 2
-            assert 0 <= rs_loss <= 1, "RS LOSS not in 0, 1 range"
-
-
-
-        return rs_loss, sparce_indexes
-
-
-
-    def compute_rs_loss(inputs, model, kernel, padding, stride, filters_number, noise, sparse_indexes=None, paper_like=True):
-        """Helper function to compute RS loss."""
-        ubs = inputs + noise
-        lbs = inputs - noise
-        return calculate_rs_loss_regularizer(model, kernel, padding, stride, filters_number, lbs, ubs, device, sparce_indexes=sparse_indexes , normalized=True, paper_like=paper_like)
-
     sparse_indexes = None
 
     for epoch in range(num_epochs):
@@ -216,6 +257,7 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
         # Training phase
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
+
             outputs = model(inputs)
 
             # Compute primary loss
@@ -229,8 +271,9 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
             # Compute RS loss if applicable
             if rs_loss_regularizer is not None and rs_loss_regularizer != 0:
-                rs_loss, sparse_indexes = compute_rs_loss(inputs, model, kernel=kernel_size, padding = padding, stride=stride,
-                                          filters_number=filters_number, sparse_indexes=sparse_indexes, noise=noise, paper_like=PAPER_LIKE)
+                rs_loss, sparse_indexes = compute_rs_loss(inputs, model, kernel=kernel_size, padding=padding,
+                                                          stride=stride, filters_number=filters_number, noise=noise, eval_mode=False, device=device,
+                                                          sparse_indexes=sparse_indexes, paper_like=PAPER_LIKE)
                 loss += rs_loss_regularizer * rs_loss
                 partial_loss_2 = rs_loss.item()
             else:
@@ -291,9 +334,9 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
                 if rs_loss_regularizer is not None and rs_loss_regularizer != 0.0:
                     if epoch == num_epochs - 1:
                         rs_loss, sparse_indexes = compute_rs_loss(inputs, model, kernel=kernel_size, padding=padding,
-                                                                  stride=stride,
-                                                                  filters_number=filters_number,
-                                                                  sparse_indexes=sparse_indexes, noise=noise, paper_like=PAPER_LIKE)
+                                                                  stride=stride, filters_number=filters_number,
+                                                                  noise=noise, eval_mode=True, device=device, sparse_indexes=sparse_indexes,
+                                                                  paper_like=PAPER_LIKE)
                         loss += rs_loss_regularizer * rs_loss
                         partial_loss_2 = rs_loss.item()
                     else:
@@ -348,9 +391,9 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
 
                     if rs_loss_regularizer is not None and rs_loss_regularizer != 0.0:
                         rs_loss, sparse_indexes = compute_rs_loss(inputs, model, kernel=kernel_size, padding=padding,
-                                                                  stride=stride,
-                                                                  filters_number=filters_number,
-                                                                  sparse_indexes=sparse_indexes, noise=noise, paper_like=PAPER_LIKE)
+                                                                  stride=stride, filters_number=filters_number,
+                                                                  noise=noise, eval_mode=True, device=device, sparse_indexes=sparse_indexes,
+                                                                  paper_like=PAPER_LIKE)
                         assert False, "Never be here!"
                         loss += rs_loss_regularizer * rs_loss
                         partial_loss_2 = rs_loss.item()
@@ -397,6 +440,10 @@ def train(model, device, train_loader, test_loader, optimizer_cls, optimizer_par
     return metrics
 
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class CustomNN(nn.Module):
     def __init__(self, input_dim: int, output_dim: int, filters_number: int, kernel_size: int, stride: int,
                  padding: int, hidden_layer_dim: int):
@@ -430,6 +477,7 @@ class CustomNN(nn.Module):
         x = self.fc1_dropout(F.relu(self.fc1(x)))
         x = self.fc2(x)
         return x
+
 
 
 

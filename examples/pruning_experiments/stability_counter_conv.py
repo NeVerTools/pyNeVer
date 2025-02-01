@@ -120,5 +120,5 @@ if __name__ == '__main__':
         directory_path=r"C:\Users\andr3\PycharmProjects\pyNeVer\examples\pruning_experiments\results\no_batch",
         output_file_path='instability_csv.csv',
         noise=0.1,
-        num_samples=10
+        num_samples=100
     )
