@@ -219,9 +219,13 @@ class SSBPVerification(VerificationStrategy):
                              LinearFunctions(star0.basis_matrix, star0.center))
 
         bounds = self.get_bounds(self.parameters.bounds, self.parameters.bounds_direction)
-        star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
-        return star1, BoundsManager.get_input_bounds(self.prop), bounds
+        if self.network.count_relu_layers() > 0:
+            star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
+            return star1, BoundsManager.get_input_bounds(self.prop), bounds
+
+        else:
+            return star0, BoundsManager.get_input_bounds(self.prop), bounds
 
     def get_bounds(self, strategy: BoundsBackend, direction: BoundsDirection) -> VerboseBounds:
         """
