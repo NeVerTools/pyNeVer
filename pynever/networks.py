@@ -252,6 +252,7 @@ class NeuralNetwork(abc.ABC):
         result = []
         seen = set()
         recursive_dfs(self.get_roots()[0].identifier, seen, result)
+        result.reverse()
 
         return result
 

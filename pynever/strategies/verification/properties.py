@@ -6,7 +6,7 @@ from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import Star
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.tensors import Tensor
-
+import torch
 
 class NeverProperty:
     """
@@ -46,7 +46,7 @@ class NeverProperty:
         # debug
         assert len(lbs) == len(ubs) == self.in_bias_mat.shape[0] // 2
 
-        return HyperRectangleBounds(lbs, ubs)
+        return HyperRectangleBounds(torch.tensor(lbs), torch.tensor(ubs))
 
     def to_star(self) -> Star:
         """

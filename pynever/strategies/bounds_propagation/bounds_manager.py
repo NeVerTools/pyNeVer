@@ -13,9 +13,9 @@ from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
 from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
     VerboseBounds, BoundsStats
-from pynever.strategies.bounds_propagation.convolution import LinearizeConv
+from pynever.strategies.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.relu import LinearizeReLU
+from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.bounds_propagation.utility.property_converter import PropertyFormatConverter
@@ -194,7 +194,7 @@ class BoundsManager:
             """ Convolutional layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, layer_in_eq)
+                cur_layer_output_eq = LinearizeConv().compute_output_equations(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:

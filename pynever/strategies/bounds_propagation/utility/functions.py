@@ -1,7 +1,6 @@
 from enum import Enum
 
-import numpy as np
-
+import torch
 from pynever.strategies.bounds_propagation.bounds import VerboseBounds
 
 
@@ -12,19 +11,21 @@ class StabilityInfo(Enum):
 
 
 def get_positive_part(weights):
-    return np.maximum(weights, np.zeros(weights.shape))
+    return torch.clamp(weights, min=0)
 
 
 def get_negative_part(weights):
-    return np.minimum(weights, np.zeros(weights.shape))
+    return torch.clamp(weights, max=0)
 
 
 def compute_lower(weights_minus, weights_plus, input_lower, input_upper):
-    return weights_plus.dot(input_lower) + weights_minus.dot(input_upper)
+    #return weights_plus.dot(input_lower) + weights_minus.dot(input_upper)
+    return torch.matmul(weights_plus, input_lower) + torch.matmul(weights_minus, input_upper)
 
 
 def compute_upper(weights_minus, weights_plus, input_lower, input_upper):
-    return weights_plus.dot(input_upper) + weights_minus.dot(input_lower)
+    #return weights_plus.dot(input_upper) + weights_minus.dot(input_lower)
+    return torch.matmul(weights_plus, input_upper) + torch.matmul(weights_minus, input_lower)
 
 
 def compute_max(weights, input_bounds):
@@ -46,7 +47,9 @@ def compute_lin_lower_and_upper(weights_minus, weights_plus, bias, lower_matrix,
 
 
 def compute_overapproximation_volume(areas_map: dict) -> float:
-    return np.prod(list(areas_map.values()))
+    #return np.prod(list(areas_map.values()))
+    # TODO Stefano check this. NON so a che serva
+    return torch.prod(torch.tensor(list(areas_map.values()), dtype=torch.float))
 
 
 def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_neurons, layer_id):

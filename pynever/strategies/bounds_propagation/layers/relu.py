@@ -3,8 +3,7 @@ This file contains specialized methods that provide
 the linearization of ReLU activation functions
 
 """
-
-import numpy as np
+import torch
 
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
@@ -19,7 +18,7 @@ class LinearizeReLU:
 
     """
 
-    USE_FIXED_NEURONS = True
+    USE_FIXED_NEURONS = False
 
     def __init__(self, fixed_neurons: dict, input_hyper_rect: HyperRectangleBounds):
         self.fixed_neurons = fixed_neurons
@@ -57,8 +56,8 @@ class LinearizeReLU:
         current_layer_inactive = LinearizeReLU.extract_layer_inactive_from_fixed_neurons(self.fixed_neurons, layer_id)
 
         cur_layer_output_num_bounds = HyperRectangleBounds(
-            np.maximum(cur_numeric_bounds.get_lower(), 0),
-            np.maximum(cur_numeric_bounds.get_upper(), 0))
+            torch.maximum(cur_numeric_bounds.get_lower(), torch.tensor(0, dtype=cur_numeric_bounds.get_lower().dtype)),
+            torch.maximum(cur_numeric_bounds.get_upper(), torch.tensor(0, dtype=cur_numeric_bounds.get_upper().dtype)))
 
         if LinearizeReLU.USE_FIXED_NEURONS:
             LinearizeReLU.force_inactive_neurons(cur_symbolic_bounds, cur_layer_output_num_bounds,
@@ -90,10 +89,11 @@ class LinearizeReLU:
         size = len(preact_lower_bounds)
 
         # matrix and offset for the relaxation
-        matrix = np.identity(size)
-        offset = np.zeros(size)
+        matrix = torch.eye(size)
+        offset = torch.zeros(size)
 
-        postact_lower_bounds = np.array(preact_lower_bounds)
+        postact_lower_bounds = torch.tensor(preact_lower_bounds, dtype=torch.float32)
+
 
         for i in range(size):
             if preact_lower_bounds[i] >= 0:
@@ -127,10 +127,10 @@ class LinearizeReLU:
         size = len(preact_lower_bounds)
 
         # matrix and offset for the relaxation
-        matrix = np.identity(size)
-        offset = np.zeros(size)
+        matrix = torch.eye(size)
+        offset = torch.zeros(size)
 
-        postact_upper_bounds = np.array(preact_upper_bounds)
+        postact_upper_bounds = torch.tensor(preact_upper_bounds)
         for i in range(size):
             if preact_lower_bounds[i] >= 0:
                 # the upper bound is exactly the preactivation
@@ -239,8 +239,8 @@ class LinearizeReLU:
 
     @staticmethod
     def get_array_lin_lower_bound_coefficients(lower, upper):
-        ks = np.zeros(len(lower))
-        bs = np.zeros(len(lower))
+        ks = torch.zeros(len(lower))
+        bs = torch.zeros(len(lower))
 
         for i in range(len(lower)):
             k, b = LinearizeReLU.get_lin_lower_bound_coefficients(lower[i], upper[i])
@@ -251,8 +251,8 @@ class LinearizeReLU:
 
     @staticmethod
     def get_array_lin_upper_bound_coefficients(lower, upper):
-        ks = np.zeros(len(lower))
-        bs = np.zeros(len(lower))
+        ks = torch.zeros(len(lower))
+        bs = torch.zeros(len(lower))
 
         for i in range(len(lower)):
             k, b = LinearizeReLU.get_lin_upper_bound_coefficients(lower[i], upper[i])
