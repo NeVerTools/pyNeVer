@@ -130,7 +130,6 @@ class NeuralNetwork(abc.ABC):
         ----------
         node: ConcreteLayerNode
             The node to be removed.
-
         """
         for parent_node in self.get_parents(node):
             self.edges[parent_node.identifier].remove(node.identifier)
@@ -157,9 +156,7 @@ class NeuralNetwork(abc.ABC):
             The children of the node. (Optional)
         input_ids: list[ConcreteLayerNode] | None
             The inputs of the node. (Optional)
-
         """
-
         if input_ids is not None and parents is not None:
             raise Exception("A node cannot have both a parent and an input!")
 
@@ -206,7 +203,6 @@ class NeuralNetwork(abc.ABC):
         bool
             True if network is acyclic, False otherwise.
         """
-
         aux_network = copy.deepcopy(self)
         root_nodes = aux_network.get_roots()
         topologically_sorted = []
@@ -239,7 +235,6 @@ class NeuralNetwork(abc.ABC):
         list[str]
             The topological sort of the network as a stack.
         """
-
         def recursive_dfs(node_id: str, visited: set[str], order: list[str]) -> None:
 
             for child in self.get_children(self.nodes[node_id]):
@@ -663,9 +658,8 @@ class SequentialNetwork(NeuralNetwork):
 
 class AcyclicNetwork(NeuralNetwork):
 
-    def __init__(self, identifier: str, input_ids: list[str], input_edges: dict):
+    def __init__(self, identifier: str, input_ids: list[str]):
         super().__init__(identifier, input_ids)
-        self.input_edges = input_edges
 
     def add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
                  children: list[nodes.LayerNode] | None = None):
