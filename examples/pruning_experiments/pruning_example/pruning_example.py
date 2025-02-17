@@ -13,7 +13,7 @@ import pynever.nodes as nodes
 import pynever.strategies.training as training
 import pynever.utilities as util
 from pynever.strategies import pruning
-from pynever.strategies.conversion import ONNXConverter, PyTorchConverter
+from pynever.strategies.conversion.converters.onnx import ONNXConverter
 
 # Logger Setup
 logger = logging.getLogger("pynever")
@@ -26,13 +26,13 @@ logger.addHandler(ch)
 
 # Building of the network of interest
 small_net = networks.SequentialNetwork("SmallNetwork", "X")
-small_net.add_node(nodes.FullyConnectedNode('Linear_1', (784,), 64))
-small_net.add_node(nodes.BatchNormNode('BatchNorm_2', (64,)))
-small_net.add_node(nodes.ReLUNode('ReLU_3', (64,)))
-small_net.add_node(nodes.FullyConnectedNode('Linear_4', (64,), 32))
-small_net.add_node(nodes.BatchNormNode('BatchNorm_5', (32,)))
-small_net.add_node(nodes.ReLUNode('ReLU_6', (32,)))
-small_net.add_node(nodes.FullyConnectedNode('Linear_7', (32,), 10))
+small_net.append_node(nodes.FullyConnectedNode('Linear_1', (784,), 64))
+small_net.append_node(nodes.BatchNormNode('BatchNorm_2', (64,)))
+small_net.append_node(nodes.ReLUNode('ReLU_3', (64,)))
+small_net.append_node(nodes.FullyConnectedNode('Linear_4', (64,), 32))
+small_net.append_node(nodes.BatchNormNode('BatchNorm_5', (32,)))
+small_net.append_node(nodes.ReLUNode('ReLU_6', (32,)))
+small_net.append_node(nodes.FullyConnectedNode('Linear_7', (32,), 10))
 
 onnx_net = ONNXConverter().from_neural_network(small_net)
 onnx.save(onnx_net.onnx_network, "FMNIST_Example.onnx")
@@ -43,8 +43,8 @@ train_dataset = dt.TorchFMNIST("data/", True, transform)
 test_dataset = dt.TorchFMNIST("data/", False, transform)
 
 # Initialization of the training and pruning parameters
-cuda = True  # If possible the experiment should be run with cuda, otherwise it will take quite some time.
-epochs = 1
+cuda = False  # If possible the experiment should be run with cuda, otherwise it will take quite some time.
+epochs = 2
 train_batch_size = 128
 validation_batch_size = 64
 test_batch_size = 64
@@ -133,15 +133,3 @@ if (isinstance(baseline_net, networks.SequentialNetwork) and
     logger.info(f"COMBINED BATCHNORM NETWORKS")
     logger.info(f"Baseline: {com_baseline_accuracy}, Sparse: {com_sparse_accuracy}, NS: {com_ns_accuracy}, "
                 f"WP: {com_wp_accuracy}")
-
-
-    com_baseline_net = ONNXConverter().from_neural_network(com_baseline_net)
-    com_sparse_net = ONNXConverter().from_neural_network(com_sparse_net)
-    com_wp_pruned_net = ONNXConverter().from_neural_network(com_wp_pruned_net)
-    com_ns_pruned_net = ONNXConverter().from_neural_network(com_ns_pruned_net)
-
-    onnx.save(com_baseline_net.onnx_network, "baseline.onnx")
-    onnx.save(com_sparse_net.onnx_network, "sparse.onnx")
-    onnx.save(com_wp_pruned_net.onnx_network, "wp.onnx")
-    onnx.save(com_ns_pruned_net.onnx_network, "np.onnx")
-

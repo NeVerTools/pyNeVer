@@ -372,7 +372,7 @@ def generate_no_batch_networks(data_dict, hdim):
     # Train the model without batch or L1 regularization
     print("Model Simple")
     model1 = copy.deepcopy(model).to(device)
-    metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, opt_params_without_weight_decay,
+    metrics1 = train(model1, device, train_loader, test_loader, optimizer_cls, ,
                      criterion_cls, num_epochs,
                      output_dim, None, scheduler_lr_cls, scheduler_lr_params, val_loader)
     metrics1['h_dim'] = hdim
