@@ -2,79 +2,70 @@
 This module controls the bounds propagation for neural networks
 
 """
-from enum import Enum
 
-import torch
-
-from pynever import nodes
+from pynever import nodes, tensors
 from pynever.networks import NeuralNetwork
 from pynever.nodes import LayerNode
 from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
+from pynever.strategies.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
 from pynever.strategies.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 from pynever.strategies.verification.properties import NeverProperty
+from pynever.strategies.verification.ssbp.constants import BoundsDirection
 from pynever.utilities import xnor
-from pynever.strategies.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
-from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
 
-class BoundsDirection(Enum):
-    FORWARDS = 1
-    BACKWARDS = 2
 
 class NewBoundsManager:
-    def __init__(self, network: NeuralNetwork, prop: NeverProperty = None, input_bounds: HyperRectangleBounds = None):
+    def __init__(self, network: NeuralNetwork, prop: NeverProperty = None, input_bounds: HyperRectangleBounds = None,
+                 direction: BoundsDirection = BoundsDirection.FORWARDS):
         if prop is None and input_bounds is None:
             raise Exception('Please initialize with either a property or input bounds')
 
+        # Initialize the parameters
         self.network: NeuralNetwork = network
         self.topological_stack: list[str] = self.network.get_topological_order()
-        self.prop: NeverProperty = prop
-        self.direction = BoundsDirection.FORWARDS
+        self.direction: BoundsDirection = direction
 
         # Initialize the bounds data structure
         self.bounds_dict = VerboseBounds()
 
-        if input_bounds is None:
-            self.input_bounds = self.prop.to_numeric_bounds()
-        else:
-            self.input_bounds = input_bounds
+        # Initialize the bounds
+        self.input_bounds = prop.to_numeric_bounds() if prop else input_bounds
 
-
-    def init_symb_bounds(self) -> SymbolicLinearBounds:
+    def init_symbolic_bounds(self) -> SymbolicLinearBounds:
+        """
+        Initialize the input symbolic linear bounds
+        """
         input_size = self.input_bounds.get_size()
-        lower_equation = LinearFunctions(torch.eye(input_size), torch.zeros(input_size))
-        upper_equation = LinearFunctions(torch.eye(input_size), torch.zeros(input_size))
-        input_symb_bounds = SymbolicLinearBounds(lower_equation, upper_equation)
+        lower_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
+        upper_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
 
-        return input_symb_bounds
+        return SymbolicLinearBounds(lower_equation, upper_equation)
 
-
-    def compute_bounds(self, layer: LayerNode, symbolic_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds],
-                       numeric_bounds: HyperRectangleBounds | list[HyperRectangleBounds]) -> tuple[
-        SymbolicLinearBounds, HyperRectangleBounds]:
-
+    def compute_layer(self, layer: LayerNode, layer_in_symbolic: SymbolicLinearBounds | list[SymbolicLinearBounds],
+                      layer_in_numeric: HyperRectangleBounds | list[HyperRectangleBounds]) \
+            -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
 
         if isinstance(layer, nodes.FullyConnectedNode):
             """ Fully Connected layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = compute_dense_output_bounds(layer, symbolic_bounds)
+                cur_layer_output_eq = compute_dense_output_bounds(layer, layer_in_symbolic)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(self.input_bounds)
 
             else:
                 raise NotImplementedError('Backwards bounds propagation not yet implemented for fully connected layers')
 
-
         elif isinstance(layer, nodes.ConvNode):
             """ Convolutional layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = LinearizeConv().compute_output_equations(layer, symbolic_bounds)
+                cur_layer_output_eq = LinearizeConv().compute_output_equations(layer, layer_in_symbolic)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(self.input_bounds)
 
             else:
                 raise NotImplementedError('Backwards bounds propagation not yet implemented for convolutional layers')
-
 
         elif isinstance(layer, nodes.ReLUNode):
             """ ReLU layer """
@@ -82,26 +73,26 @@ class NewBoundsManager:
             relu_lin = LinearizeReLU(fixed_neurons={}, input_hyper_rect=self.input_bounds)
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = relu_lin.compute_output_linear_bounds(symbolic_bounds)
-                cur_layer_output_num_bounds = relu_lin.compute_output_numeric_bounds(layer, numeric_bounds, symbolic_bounds)
+                cur_layer_output_eq = relu_lin.compute_output_linear_bounds(layer_in_symbolic)
+                cur_layer_output_num_bounds = relu_lin.compute_output_numeric_bounds(layer, layer_in_numeric,
+                                                                                     layer_in_symbolic)
 
             else:
                 raise NotImplementedError('Backwards bounds propagation not yet implemented for convolutional layers')
 
-
         elif isinstance(layer, nodes.FlattenNode):
             """ Flatten layer """
 
-            #self.layer2layer_equations[layer.identifier] = layer_in_eq
-            cur_layer_output_eq = symbolic_bounds
-            cur_layer_output_num_bounds = numeric_bounds
+            # self.layer2layer_equations[layer.identifier] = layer_in_eq
+            cur_layer_output_eq = layer_in_symbolic
+            cur_layer_output_num_bounds = layer_in_numeric
 
         elif isinstance(layer, nodes.ReshapeNode):
             """ Reshape layer """
 
-            #self.layer2layer_equations[layer.identifier] = layer_in_eq
-            cur_layer_output_eq = symbolic_bounds
-            cur_layer_output_num_bounds = numeric_bounds
+            # self.layer2layer_equations[layer.identifier] = layer_in_eq
+            cur_layer_output_eq = layer_in_symbolic
+            cur_layer_output_num_bounds = layer_in_numeric
 
         else:
             raise Exception(
@@ -110,27 +101,24 @@ class NewBoundsManager:
 
         return cur_layer_output_eq, cur_layer_output_num_bounds
 
-
     def propagate_bounds(self, in_num_bounds: HyperRectangleBounds | list[HyperRectangleBounds] | None = None,
                          in_sym_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds] | None = None,
-                         in_layer: LayerNode = None):
+                         start_layer: LayerNode = None):
 
-        if in_layer is None:
-            in_layer = self.network.get_roots()[0]
+        if start_layer is None:
+            start_layer = self.network.get_roots()[0]
 
-            # Dev'essere così per forza - succede solo una volta
             # TODO remove after debugging
-            assert in_layer.identifier == self.topological_stack.pop()
+            assert start_layer.identifier == self.topological_stack.pop()
 
             if in_sym_bounds is None:
-                in_sym_bounds = self.init_symb_bounds()
+                in_sym_bounds = self.init_symbolic_bounds()
 
             if in_num_bounds is None:
                 in_num_bounds = self.input_bounds
 
-
         # Current layer data
-        cur_layer = in_layer
+        cur_layer = start_layer
         cur_sym_bounds = in_sym_bounds
         cur_num_bounds = in_num_bounds
 
@@ -138,7 +126,7 @@ class NewBoundsManager:
         assert xnor(len(self.network.get_children(cur_layer)) == 0, len(self.topological_stack) == 0)
 
         # Compute bounds for this layer
-        out_sym_bounds, out_num_bounds = self.compute_bounds(cur_layer, cur_sym_bounds, cur_num_bounds)
+        out_sym_bounds, out_num_bounds = self.compute_layer(cur_layer, cur_sym_bounds, cur_num_bounds)
 
         # Fill the bounds dictionary for this layer
         self.bounds_dict.identifiers.append(cur_layer.identifier)
@@ -147,7 +135,6 @@ class NewBoundsManager:
         self.bounds_dict.numeric_post_bounds[cur_layer.identifier] = out_num_bounds
 
         if len(self.topological_stack) == 0:
-            # TODO Stefano check changes here, I think there was a previous error
             return self.bounds_dict, out_num_bounds
 
         else:

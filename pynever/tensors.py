@@ -57,7 +57,7 @@ class Tensor:
 
 
 # TODO move to configuration file
-BACKEND = BackEnd.NUMPY
+BACKEND = BackEnd.PYTORCH
 
 
 # TODO is iterable in size correct?

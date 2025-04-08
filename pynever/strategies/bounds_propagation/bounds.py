@@ -105,6 +105,8 @@ class VerboseBounds:
 
     Attributes
     ----------
+    identifiers : list[str]
+        The list of identifiers of explored layers
     symbolic_bounds : dict[layer_id: str, bounds: SymbolicLinearBounds]
         The dictionary of the symbolic bounds for the network
     numeric_pre_bounds : dict[layer_id: str, bounds: HyperRectangleBounds]
@@ -124,7 +126,7 @@ class VerboseBounds:
                  numeric_pre: dict = None,
                  numeric_post: dict = None,
                  stable_count: int = 0):
-        self.identifiers = copy.deepcopy(identifiers) if symbolic is not None else list()
+        self.identifiers = copy.deepcopy(identifiers) if identifiers is not None else list()
         self.symbolic_bounds = copy.deepcopy(symbolic) if symbolic is not None else dict()
         self.numeric_pre_bounds = copy.deepcopy(numeric_pre) if numeric_pre is not None else dict()
         self.numeric_post_bounds = copy.deepcopy(numeric_post) if numeric_post is not None else dict()
