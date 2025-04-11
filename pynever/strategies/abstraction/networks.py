@@ -8,7 +8,7 @@ import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction import LOGGER_LAYER
 from pynever.strategies.abstraction.star import AbsElement
 from pynever.strategies.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
-from pynever.strategies.verification.parameters import SSLPVerificationParameters
+from pynever.strategies.verification.parameters import SSLPVerificationParameters, VerificationParameters
 
 
 # TODO update documentation
@@ -37,22 +37,20 @@ class AbsNeuralNetwork(abc.ABC):
         Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the AbsLayerNodes
-        to control the refinement component of the abstraction. At present the function is just a placeholder
-        for future implementations.
-
     """
 
     corresponding_classes = {
         'FullyConnectedNode': absnodes.AbsFullyConnectedNode,
+        'ConvNode': absnodes.AbsConvNode,
+        'ReshapeNode': absnodes.AbsReshapeNode,
+        'FlattenNode': absnodes.AbsFlattenNode,
         'ReLUNode': absnodes.AbsReLUNode,
         'SigmoidNode': absnodes.AbsSigmoidNode,
         'ConcatNode': absnodes.AbsConcatNode,
         'SumNode': absnodes.AbsSumNode,
     }
 
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: SSLPVerificationParameters,
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: VerificationParameters,
                  bounds: dict[str, AbstractBounds] | None = None):
         self.nodes: dict[str, absnodes.AbsLayerNode] = {}
         self.ref_network = ref_network
@@ -90,18 +88,6 @@ class AbsNeuralNetwork(abc.ABC):
         ----------
         AbsElement
             The AbsElement resulting from the computation corresponding to the abstract transformer.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
         """
         raise NotImplementedError
 
@@ -174,9 +160,9 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
             if self.bounds:
                 identifier = current_node.identifier.replace('ABS_', '')
-                abs_input = current_node.forward(abs_input, self.bounds[identifier])
+                abs_input = current_node.forward_star(abs_input, self.bounds[identifier])
             else:
-                abs_input = current_node.forward(abs_input)
+                abs_input = current_node.forward_star(abs_input)
 
             time_end = time.perf_counter()
 
@@ -187,17 +173,6 @@ class AbsSeqNetwork(AbsNeuralNetwork):
             current_node = self.get_abstract(next_node) if next_node is not None else None
 
         return abs_input
-
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError
 
 
 class AbsAcyclicNetwork(AbsNeuralNetwork):
@@ -250,7 +225,7 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
             current_node_inputs = filter(lambda i: i.identifier in input_ids, temp_abs_inputs)
 
-            current_abs_output = current_node.forward(current_node_inputs)
+            current_abs_output = current_node.forward_star(current_node_inputs)
 
             current_abs_output.identifier = current_node.identifier
             temp_abs_inputs.append(current_abs_output)
@@ -265,14 +240,3 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
         final_outputs = filter(lambda fo: fo.identifier in leaves_ids, temp_abs_inputs)
 
         return final_outputs
-
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError

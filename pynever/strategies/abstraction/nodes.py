@@ -1,3 +1,7 @@
+"""
+This module defines the abstraction of NN layers both for star and bounds propagation algorithms
+"""
+
 import abc
 import math
 import multiprocessing
@@ -7,21 +11,11 @@ import numpy as np
 import pynever.nodes as nodes
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.bounds_propagation.bounds import AbstractBounds, SymbolicLinearBounds, HyperRectangleBounds
+from pynever.strategies.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
+from pynever.strategies.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.verification.parameters import VerificationParameters
-
-
-# TODO update method documentation
-
-
-class RefinementState(abc.ABC):
-    """
-    A class used for the internal control of the refinement strategies/heuristics applied in the abstraction refinement
-    step. At present is not still used and it is just an abstract placeholder. It will be used in future
-    implementations.
-
-    """
-    pass
 
 
 class AbsLayerNode(nodes.LayerNode):
@@ -31,22 +25,20 @@ class AbsLayerNode(nodes.LayerNode):
 
     Attributes
     ----------
-    identifier : str
+    identifier: str
         Identifier of the AbsLayerNode.
-
-    ref_node : SingleInputLayerNode
+    ref_node: SingleInputLayerNode
         Reference SingleInputLayerNode for the abstract transformer.
+    parameters: VerificationParameters
+        Verification parameters for the abstract transformer.
 
     Methods
     ----------
-    forward(AbsElement)
+    forward_star(AbsElement)
         Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
         transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
+    forward_bounds(SymbolicLinearBounds, HyperRectangleBounds, HyperRectangleBounds)
+        Function which propagates symbolic linear bounds for the layer.
 
     """
 
@@ -54,16 +46,18 @@ class AbsLayerNode(nodes.LayerNode):
                  parameters: VerificationParameters | None = None):
         super().__init__(identifier)
         self.ref_node = ref_node
+        self.parameters = parameters
 
     @abc.abstractmethod
-    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
-        abs_input : AbsElement | list[AbsElement]
+        abs_input: AbsElement | list[AbsElement]
             The input abstract element or a list of inputs.
         bounds: AbstractBounds | None
             The optional abstract bounds obtained by bound propagation
@@ -77,14 +71,24 @@ class AbsLayerNode(nodes.LayerNode):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
+        Compute the output symbolic and numeric bounds for this layer
 
         Parameters
         ----------
-        ref_state: RefinementState
-            The RefinementState to update.
+        symbolic_in: SymbolicLinearBounds
+            Symbolic bounds
+        numeric_in: HyperRectangleBounds
+            Numeric bounds before this layer
+        initial_bounds: HyperRectangleBounds
+            Input bounds for the neural network
+
+        Returns
+        ----------
+        SymbolicLinearBounds, HyperRectangleBounds
+            Symbolic and numeric bounds after this layer
         """
 
         raise NotImplementedError
@@ -94,32 +98,18 @@ class AbsFullyConnectedNode(AbsLayerNode):
     """
     A class used for our internal representation of a Fully Connected Abstract transformer.
 
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the LayerNode.
-
-    ref_node : FullyConnectedNode
-        Reference LayerNode for the abstract transformer.
-
     Methods
     ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
+    __starset_forward(StarSet)
+    _single_fc_forward(Star)
     """
 
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode,
                  parameters: VerificationParameters | None = None):
-        super().__init__(identifier, ref_node)
-        self.ref_node = ref_node
+        super().__init__(identifier, ref_node, parameters)
 
-    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
@@ -181,16 +171,77 @@ class AbsFullyConnectedNode(AbsLayerNode):
 
         return {new_star}
 
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
+        Bounds propagation for a linear layer
+        """
+        symbolic_out = compute_dense_output_bounds(self.ref_node, symbolic_in)
+        return symbolic_out, symbolic_out.to_hyper_rectangle_bounds(initial_bounds)
 
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
+
+class AbsConvNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Convolutional Abstract transformer.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.ConvNode, parameters: VerificationParameters | None = None):
+        super().__init__(identifier, ref_node, parameters)
+
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
         raise NotImplementedError
+
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
+        """
+        Bounds propagation for a convolutional layer
+        """
+        symbolic_out = LinearizeConv().compute_output_equations(self.ref_node, symbolic_in)
+        return symbolic_out, symbolic_out.to_hyper_rectangle_bounds(initial_bounds)
+
+
+class AbsReshapeNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Convolutional Abstract transformer.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.ReshapeNode, parameters: VerificationParameters | None = None):
+        super().__init__(identifier, ref_node, parameters)
+
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
+        raise NotImplementedError
+
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
+        """
+        Bounds propagation for a reshape layer
+        """
+        return symbolic_in, numeric_in
+
+
+class AbsFlattenNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Convolutional Abstract transformer.
+
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.FlattenNode, parameters: VerificationParameters | None = None):
+        super().__init__(identifier, ref_node, parameters)
+
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
+        raise NotImplementedError
+
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
+        """
+        Bounds propagation for a flatten layer
+        """
+        return symbolic_in, numeric_in
 
 
 class AbsReLUNode(AbsLayerNode):
@@ -199,58 +250,37 @@ class AbsReLUNode(AbsLayerNode):
 
     Attributes
     ----------
-    identifier : str
-        Identifier of the SingleInputLayerNode.
-
-    ref_node : ReLUNode
-        Reference SingleInputLayerNode for the abstract transformer.
-
-    heuristic : str
-        Heuristic used to decide the refinement level of the abstraction.
-        At present can be only one of the following:
-        - complete: for each star all the neurons are processed with a precise abstraction
-        - mixed: for each star a given number of neurons is processed with a precise abstraction
-        - overapprox: for each star all the neurons are processed with a coarse abstraction
-
-    params : List
-        Parameters for the heuristic of interest.
-        It is a List with the number of neurons to process with a precise abstraction in this layer.
+    layer_bounds: AbstractBounds | None
+        The abstract bounds of the layer obtained through bounds propagation
+    n_areas: int
+        The total areas of the approximation
 
     Methods
     ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
-
+    __starset_forward(StarSet)
+    __mixed_single_relu_forward(Star)
+    __mixed_step_relu(Star, int, bool)
     """
 
     def __init__(self, identifier: str, ref_node: nodes.ReLUNode, parameters: VerificationParameters):
-
-        super().__init__(identifier, ref_node)
-
         if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'neurons_to_refine'):
             raise Exception('Verification parameters must include attributes "heuristic" and "neurons_to_refine"')
 
-        self.parameters = parameters
+        super().__init__(identifier, ref_node, parameters)
         self.layer_bounds = None
         self.n_areas = None
 
-    def forward(self, abs_input: AbsElement | list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
-        abs_input : AbsElement
+        abs_input: AbsElement
             The input abstract element.
-
-        bounds : dict
+        bounds: dict
             Optional bounds for this layer as computed by the previous
 
         Returns
@@ -276,7 +306,7 @@ class AbsReLUNode(AbsLayerNode):
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
 
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-            parallel_results = my_pool.map(self._mixed_single_relu_forward, abs_input.stars)
+            parallel_results = my_pool.map(self.__mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
         if hasattr(self.parameters, 'neurons_to_refine'):
@@ -306,7 +336,7 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    def _mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], np.ndarray | None]:
+    def __mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], np.ndarray | None]:
         """
         Utility function for the management of the forward for AbsReLUNode. It is outside
         the class scope since multiprocessing does not support parallelization with
@@ -419,18 +449,16 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-
+        Bounds propagation for a ReLU layer
         """
+        relu_lin = LinearizeReLU(fixed_neurons={}, input_hyper_rect=initial_bounds)
 
-        raise NotImplementedError
+        symbolic_out = relu_lin.compute_output_linear_bounds(symbolic_in)
+        numeric_out = relu_lin.compute_output_numeric_bounds(self.ref_node, numeric_in, symbolic_in)
+        return symbolic_out, numeric_out
 
 
 class AbsSigmoidNode(AbsLayerNode):
@@ -439,48 +467,32 @@ class AbsSigmoidNode(AbsLayerNode):
 
     Attributes
     ----------
-    identifier : str
-        Identifier of the SingleInputLayerNode.
-
-    ref_node : SigmoidNode
-        Reference SingleInputLayerNode for the abstract transformer.
-
-    refinement_level : Union[int, List[int]]
-        Refinement level for the sigmoid nodes: if it is a single int then that refinement level is applied to all
-        the neurons of the layers, otherwise it is a list containing the refinement levels for each layers.
-
-    Methods
-    ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
+    approx_levels: int
+        The level of precision for the star approximation of the sigmoid
     """
 
     def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, parameters: VerificationParameters | None = None):
-        super().__init__(identifier, ref_node)
+        super().__init__(identifier, ref_node, parameters)
 
-        approx_levels = parameters.sigmoid_params.approx_levels
+        approx_levels = self.parameters.sigmoid_params.approx_levels
 
         if approx_levels is None:
             approx_levels = [0 for _ in range(ref_node.get_input_dim()[-1])]
         elif isinstance(approx_levels, int):
             approx_levels = [approx_levels for _ in range(ref_node.get_input_dim()[-1])]
+        else:
+            raise InvalidDimensionError('Sigmoid approx_levels must be a positive integer or None')
 
         self.approx_levels = approx_levels
 
-    def forward(self, abs_input: AbsElement, bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_input: AbsElement, bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the input AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
-        abs_input : AbsElement
+        abs_input: AbsElement
             The input abstract element.
         bounds: AbstractBounds | None
             The optional abstract bounds obtained by bound propagation
@@ -701,14 +713,10 @@ class AbsSigmoidNode(AbsLayerNode):
 
         return base * height / 2.0
 
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
+        Bounds propagation for a sigmoid layer
         """
         raise NotImplementedError
 
@@ -719,35 +727,22 @@ class AbsConcatNode(AbsLayerNode):
 
     Attributes
     ----------
-    identifier : str
-        Identifier of the SingleInputLayerNode.
-
-    ref_node : ConcatNode
-        Reference SingleInputLayerNode for the abstract transformer.
 
     Methods
     ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
     """
 
     def __init__(self, identifier: str, ref_node: nodes.ConcatNode, parameters: VerificationParameters | None = None):
-        super().__init__(identifier, ref_node)
+        super().__init__(identifier, ref_node, parameters)
 
-    def forward(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
-        abs_inputs : list[AbsElement]
+        abs_inputs: list[AbsElement]
             The input abstract elements.
         bounds: AbstractBounds | None
             The optional abstract bounds obtained by bound propagation
@@ -829,14 +824,10 @@ class AbsConcatNode(AbsLayerNode):
 
         return {new_star}
 
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
+        Bounds propagation for a concat layer
         """
         raise NotImplementedError
 
@@ -845,37 +836,21 @@ class AbsSumNode(AbsLayerNode):
     """
     A class used for our internal representation of a Sum Abstract transformer.
 
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the SingleInputLayerNode.
-
-    ref_node : SumNode
-        Reference SingleInputLayerNode for the abstract transformer.
-
     Methods
     ----------
-    forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the abstract
-        transformer.
-
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the abstract
-        transformer to control the refinement component of the abstraction. At present the function is just a
-        placeholder for future implementations.
     """
 
     def __init__(self, identifier: str, ref_node: nodes.SumNode, parameters: VerificationParameters | None = None):
-        super().__init__(identifier, ref_node)
+        super().__init__(identifier, ref_node, parameters)
 
-    def forward(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
+    def forward_star(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
         """
         Compute the output AbsElement based on the inputs AbsElement and the characteristics of the
         concrete abstract transformer.
 
         Parameters
         ----------
-        abs_inputs : list[AbsElement]
+        abs_inputs: list[AbsElement]
             The input abstract elements.
         bounds: AbstractBounds | None
             The optional abstract bounds obtained by bound propagation
@@ -951,13 +926,9 @@ class AbsSumNode(AbsLayerNode):
 
         return {new_star}
 
-    def backward(self, ref_state: RefinementState):
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
         """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
+        Bounds propagation for a sum layer
         """
         raise NotImplementedError
