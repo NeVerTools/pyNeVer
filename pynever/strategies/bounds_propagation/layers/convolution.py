@@ -1,10 +1,8 @@
-import time
-
 import numpy as np
 import torch
 
-from pynever.nodes import ConvNode, MaxPoolNode
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
+from pynever.nodes import ConvNode
+from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
 from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 
 
@@ -12,8 +10,7 @@ class LinearizeConv:
 
     def compute_output_equations(self, conv_node: ConvNode, inputs: SymbolicLinearBounds):
 
-
-        #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         device = torch.device("cpu")
 
         DATA_TYPE = torch.float32
@@ -37,8 +34,6 @@ class LinearizeConv:
 
         if conv_node.has_bias:
             bias_weights = torch.from_numpy(conv_node.bias).to(device)
-
-
 
         # Extract kernel dimensions
         if isinstance(conv_node.kernel_size, tuple) and len(conv_node.kernel_size) == 2:
@@ -85,15 +80,17 @@ class LinearizeConv:
 
         # Calculate output dimensions of the convolution
         pad_top, pad_bottom, pad_left, pad_right = pad_tuple
-        output_height = int(((input_shape[1] - kernel_height + pad_top + pad_bottom) /  conv_node.stride[0]) + 1)
-        output_width = int(((input_shape[2] - kernel_width + pad_left + pad_right) /  conv_node.stride[1]) + 1)
+        output_height = int(((input_shape[1] - kernel_height + pad_top + pad_bottom) / conv_node.stride[0]) + 1)
+        output_width = int(((input_shape[2] - kernel_width + pad_left + pad_right) / conv_node.stride[1]) + 1)
         output_flattened_size = output_height * output_width
 
-        assert output_height == conv_node.out_dim[1] and output_width == conv_node.out_dim[2], "The predicted output dim is different from the real one"
+        assert output_height == conv_node.out_dim[1] and output_width == conv_node.out_dim[
+            2], "The predicted output dim is different from the real one"
 
         # Create an index matrix for image patches
-        index_matrix = torch.arange(0, input_flattened_size * input_channels, dtype=DATA_TYPE, device=device).reshape(input_channels, input_shape[1],
-                                                                                                     input_shape[2])
+        index_matrix = torch.arange(0, input_flattened_size * input_channels, dtype=DATA_TYPE, device=device).reshape(
+            input_channels, input_shape[1],
+            input_shape[2])
 
         list_index_matrixes = []
         # Apply padding to input tensors. When there is padding the indexing system must be modified
@@ -108,8 +105,9 @@ class LinearizeConv:
         # Unfold the input indices to get patch indices
         list_patches_indices = list()
         for index in range(len(list_index_matrixes)):
-            patch_indices = torch.nn.functional.unfold(list_index_matrixes[index].unsqueeze(0), kernel_size=kernel_size, stride=conv_node.stride).transpose(0,
-                                                                                                                   1).to(torch.int32)
+            patch_indices = torch.nn.functional.unfold(list_index_matrixes[index].unsqueeze(0), kernel_size=kernel_size,
+                                                       stride=conv_node.stride).transpose(0,
+                                                                                          1).to(torch.int32)
             list_patches_indices.append(patch_indices)
 
         num_patches = list_patches_indices[0].shape[0]
@@ -118,7 +116,6 @@ class LinearizeConv:
 
         # Ensure the number of patches matches the expected output size
         assert num_patches == output_flattened_size, f"Mismatch in patch count: {num_patches} != {output_flattened_size}."
-
 
         # This conversion is temporary
         filter_temp_matrix_pos_results = []
@@ -145,7 +142,7 @@ class LinearizeConv:
                     padding_re_indexing_list.append(filter_pad)
                     patch_list.append(patch)
 
-                padding_re_indexing = patch_list[0]!=-1
+                padding_re_indexing = patch_list[0] != -1
 
                 temp_pos_results = []
                 temp_neg_results = []
@@ -162,13 +159,12 @@ class LinearizeConv:
                     else:
                         assert False, "Case not implemented."
 
-
                     pos_filter = torch.maximum(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
                     neg_filter = torch.minimum(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
                     pos_filter = pos_filter[padding_re_indexing_list[in_ch_idx]]
                     neg_filter = neg_filter[padding_re_indexing_list[in_ch_idx]]
 
-                    #Phantom dimension for broadcasting
+                    # Phantom dimension for broadcasting
                     pos_filter = pos_filter[:, None]
                     neg_filter = neg_filter[:, None]
 
@@ -177,7 +173,6 @@ class LinearizeConv:
                     neg_matrix = sym_lower_bounds.matrix[patch_list[in_ch_idx]]
                     pos_offset = sym_upper_bounds.offset[patch_list[in_ch_idx]]
                     neg_offset = sym_lower_bounds.offset[patch_list[in_ch_idx]]
-
 
                     i_ch_lower_symb_matrix_bounds = neg_matrix * pos_filter + pos_matrix * neg_filter
                     i_ch_upper_symb_matrix_bounds = pos_matrix * pos_filter + neg_matrix * neg_filter
@@ -243,4 +238,3 @@ class LinearizeConv:
         lower = LinearFunctions(neg_matrix, neg_offset)
 
         return SymbolicLinearBounds(lower, upper)
-
