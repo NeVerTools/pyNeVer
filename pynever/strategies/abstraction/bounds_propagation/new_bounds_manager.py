@@ -2,15 +2,14 @@
 This module controls the bounds propagation for neural networks
 
 """
-
-from pynever import nodes, tensors
-from pynever.networks import NeuralNetwork
+from pynever import tensors
+from pynever.networks import NeuralNetwork, SequentialNetwork, AcyclicNetwork
 from pynever.nodes import LayerNode
-from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
-from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
-from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, \
+    VerboseBounds
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork
+from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsDirection
 from pynever.utilities import xnor
@@ -18,14 +17,22 @@ from pynever.utilities import xnor
 
 class NewBoundsManager:
     def __init__(self, network: NeuralNetwork, prop: NeverProperty = None, input_bounds: HyperRectangleBounds = None,
-                 direction: BoundsDirection = BoundsDirection.FORWARDS):
+                 parameters: SSBPVerificationParameters = None):
         if prop is None and input_bounds is None:
             raise Exception('Please initialize with either a property or input bounds')
 
         # Initialize the parameters
         self.network: NeuralNetwork = network
+
+        if isinstance(self.network, SequentialNetwork):
+            self.abs_network = AbsSeqNetwork(self.network, parameters)
+        elif isinstance(self.network, AcyclicNetwork):
+            self.abs_network = AbsAcyclicNetwork(self.network, parameters)
+        else:
+            raise NotImplementedError
+
         self.topological_stack: list[str] = self.network.get_topological_order()
-        self.direction: BoundsDirection = direction
+        self.direction: BoundsDirection = parameters.bounds_direction
 
         # Initialize the bounds data structure
         self.bounds_dict = VerboseBounds()
@@ -43,64 +50,6 @@ class NewBoundsManager:
 
         return SymbolicLinearBounds(lower_equation, upper_equation)
 
-    def compute_layer(self, layer: LayerNode, layer_in_symbolic: SymbolicLinearBounds | list[SymbolicLinearBounds],
-                      layer_in_numeric: HyperRectangleBounds | list[HyperRectangleBounds]) \
-            -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
-
-        if isinstance(layer, nodes.FullyConnectedNode):
-            """ Fully Connected layer """
-
-            if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = compute_dense_output_bounds(layer, layer_in_symbolic)
-                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(self.input_bounds)
-
-            else:
-                raise NotImplementedError('Backwards bounds propagation not yet implemented for fully connected layers')
-
-        elif isinstance(layer, nodes.ConvNode):
-            """ Convolutional layer """
-
-            if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = LinearizeConv().compute_output_equations(layer, layer_in_symbolic)
-                cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(self.input_bounds)
-
-            else:
-                raise NotImplementedError('Backwards bounds propagation not yet implemented for convolutional layers')
-
-        elif isinstance(layer, nodes.ReLUNode):
-            """ ReLU layer """
-
-            relu_lin = LinearizeReLU(fixed_neurons={}, input_hyper_rect=self.input_bounds)
-
-            if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = relu_lin.compute_output_linear_bounds(layer_in_symbolic)
-                cur_layer_output_num_bounds = relu_lin.compute_output_numeric_bounds(layer, layer_in_numeric,
-                                                                                     layer_in_symbolic)
-
-            else:
-                raise NotImplementedError('Backwards bounds propagation not yet implemented for convolutional layers')
-
-        elif isinstance(layer, nodes.FlattenNode):
-            """ Flatten layer """
-
-            # self.layer2layer_equations[layer.identifier] = layer_in_eq
-            cur_layer_output_eq = layer_in_symbolic
-            cur_layer_output_num_bounds = layer_in_numeric
-
-        elif isinstance(layer, nodes.ReshapeNode):
-            """ Reshape layer """
-
-            # self.layer2layer_equations[layer.identifier] = layer_in_eq
-            cur_layer_output_eq = layer_in_symbolic
-            cur_layer_output_num_bounds = layer_in_numeric
-
-        else:
-            raise Exception(
-                "Currently supporting bounds computation only for FullyConnected, Convolutional, ReLU "
-                "and Flatten layers.\n Instead got {}".format(layer.__class__))
-
-        return cur_layer_output_eq, cur_layer_output_num_bounds
-
     def propagate_bounds(self, in_num_bounds: HyperRectangleBounds | list[HyperRectangleBounds] | None = None,
                          in_sym_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds] | None = None,
                          start_layer: LayerNode = None):
@@ -110,10 +59,10 @@ class NewBoundsManager:
 
             # TODO remove after debugging
             assert start_layer.identifier == self.topological_stack.pop()
+            start_layer = self.abs_network.get_abstract(start_layer)
 
             if in_sym_bounds is None:
                 in_sym_bounds = self.init_symbolic_bounds()
-
             if in_num_bounds is None:
                 in_num_bounds = self.input_bounds
 
@@ -123,10 +72,11 @@ class NewBoundsManager:
         cur_num_bounds = in_num_bounds
 
         # TODO remove after debugging
-        assert xnor(len(self.network.get_children(cur_layer)) == 0, len(self.topological_stack) == 0)
+        assert xnor(len(self.network.get_children(self.abs_network.get_concrete(cur_layer))) == 0,
+                    len(self.topological_stack) == 0)
 
         # Compute bounds for this layer
-        out_sym_bounds, out_num_bounds = self.compute_layer(cur_layer, cur_sym_bounds, cur_num_bounds)
+        out_sym_bounds, out_num_bounds = cur_layer.forward_bounds(cur_sym_bounds, cur_num_bounds, self.input_bounds)
 
         # Fill the bounds dictionary for this layer
         self.bounds_dict.identifiers.append(cur_layer.identifier)
@@ -138,5 +88,5 @@ class NewBoundsManager:
             return self.bounds_dict, out_num_bounds
 
         else:
-            next_layer = self.network.nodes[self.topological_stack.pop()]
+            next_layer = self.abs_network.get_abstract(self.network.nodes[self.topological_stack.pop()])
             return self.propagate_bounds(out_num_bounds, out_sym_bounds, next_layer)

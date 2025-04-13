@@ -6,9 +6,9 @@ import pynever.networks as networks
 import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction import LOGGER_LAYER
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
-from pynever.strategies.verification.parameters import SSLPVerificationParameters, VerificationParameters
+from pynever.strategies.verification.parameters import VerificationParameters
 
 
 # TODO update documentation
@@ -26,10 +26,6 @@ class AbsNeuralNetwork(abc.ABC):
     nodes : dict <str, AbsLayerNode>
         Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,
         the identifier of the node of interest is used as a key in the nodes dictionary.
-
-    edges : dict <str, list <str>>
-        Dictionary of identifiers of AbsLayerNodes, it contains for each nodes identified by the keys, the list of nodes
-        connected to it.
 
     Methods
     ----------
@@ -50,11 +46,9 @@ class AbsNeuralNetwork(abc.ABC):
         'SumNode': absnodes.AbsSumNode,
     }
 
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: VerificationParameters,
-                 bounds: dict[str, AbstractBounds] | None = None):
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: VerificationParameters):
         self.nodes: dict[str, absnodes.AbsLayerNode] = {}
         self.ref_network = ref_network
-        self.bounds = bounds
 
         for node_id, node in ref_network.nodes.items():
             self.nodes[f'ABS_{node_id}'] = AbsNeuralNetwork.__get_abstract_node_class(node)(f'ABS_{node_id}',
@@ -99,11 +93,6 @@ class AbsSeqNetwork(AbsNeuralNetwork):
     correspond to a standard list. The method forward and backward calls the corresponding methods
     in the AbsLayerNodes following the correct order to compute the output AbsElement.
 
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the Sequential AbsNeuralNetwork.
-
     Methods
     -------
     add_node(SingleInputLayerNode)
@@ -122,14 +111,9 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the AbsLayerNodes
-        to control the refinement component of the abstraction. At present the function is just a placeholder for
-        future implementations.
-
     """
 
-    def __init__(self, ref_network: networks.SequentialNetwork, parameters: SSLPVerificationParameters):
+    def __init__(self, ref_network: networks.SequentialNetwork, parameters: VerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
         self.bounds = None
@@ -177,7 +161,7 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
 class AbsAcyclicNetwork(AbsNeuralNetwork):
 
-    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: SSLPVerificationParameters):
+    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: VerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
         self.input_ids: dict[str, str | None] = {k: self.get_abstract(v).identifier
