@@ -1,3 +1,5 @@
+import numpy as np
+
 from pynever import tensors
 from pynever.strategies.abstraction.bounds_propagation.utility.functions import *
 
