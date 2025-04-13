@@ -10,11 +10,11 @@ import numpy as np
 
 import pynever.nodes as nodes
 from pynever.exceptions import InvalidDimensionError
+from pynever.strategies.abstraction.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds, SymbolicLinearBounds, HyperRectangleBounds
-from pynever.strategies.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
-from pynever.strategies.bounds_propagation.layers.convolution import LinearizeConv
-from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
+from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBounds, SymbolicLinearBounds, HyperRectangleBounds
+from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.verification.parameters import VerificationParameters
 
 

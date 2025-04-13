@@ -1,13 +1,13 @@
 import numpy as np
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
 from pynever import networks
 from pynever.networks import SequentialNetwork
+from pynever.strategies.abstraction.bounds_propagation.refinement import BoundsRefinement
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.bounds_propagation.refinement import BoundsRefinement
+from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit

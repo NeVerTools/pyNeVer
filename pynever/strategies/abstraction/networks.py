@@ -7,7 +7,7 @@ import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
 from pynever.strategies.abstraction import LOGGER_LAYER
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, VerificationParameters
 
 

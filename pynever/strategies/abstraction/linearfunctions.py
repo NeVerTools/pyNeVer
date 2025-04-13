@@ -64,9 +64,7 @@
 #             self.offset
 #
 
-import torch
-from pynever import tensors
-from pynever.strategies.bounds_propagation.utility.functions import *
+from pynever.strategies.abstraction.bounds_propagation.utility.functions import *
 
 
 class LinearFunctions:

@@ -7,20 +7,18 @@ Authors: Stefano Demarchi, Pedro Achete
 
 """
 
-import os
 import re
 from argparse import ArgumentParser
 
 import torch
 
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
-from pynever.strategies.bounds_propagation.new_bounds_manager import NewBoundsManager
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.abstraction.bounds_propagation.new_bounds_manager import NewBoundsManager
 from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
 from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
 from pynever.strategies.abstraction.networks import networks
 from pynever.strategies.conversion.converters.onnx import ONNXConverter
 from pynever.strategies.verification.properties import VnnLibProperty
-from pynever.utilities import execute_network
 import os
 import time
 import warnings

@@ -9,12 +9,11 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
+import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
 import pynever.tensors as tensors
-import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds, VerboseBounds
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
 
@@ -611,7 +610,7 @@ class ExtendedStar(Star):
         return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center),
                             fixed_neurons=self.fixed_neurons, enforced_constraints=self.enforced_constraints)
 
-    def approx_relu_forward(self, bounds: VerboseBounds, layer_id: str) -> ExtendedStar:
+    def approx_relu_forward(self, bounds: 'VerboseBounds', layer_id: str) -> ExtendedStar:
         """
         Approximate abstract propagation for a ReLU layer
 
@@ -660,7 +659,7 @@ class ExtendedStar(Star):
             self.create_approx_transformation(unstable, inactive), fixed_neurons=self.fixed_neurons)
 
     def create_approx_predicate(self, predicate_equation, unstable_neurons: list[int],
-                                layer_bounds: AbstractBounds) -> LinearFunctions:
+                                layer_bounds: 'AbstractBounds') -> LinearFunctions:
         """
         For every unstable neuron y we introduce a fresh variable z and
         relate it to the input variables x via 4 constraints.

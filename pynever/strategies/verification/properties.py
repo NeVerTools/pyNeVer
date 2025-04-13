@@ -4,7 +4,7 @@ import pynever.strategies.smt_reading as reading
 from pynever import tensors
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.star import Star
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.tensors import Tensor
 import torch
 

@@ -9,12 +9,12 @@ import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
+from pynever.strategies.abstraction.bounds_propagation.utility.functions import StabilityInfo
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.utility.functions import StabilityInfo
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification import VERIFICATION_LOGGER
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty

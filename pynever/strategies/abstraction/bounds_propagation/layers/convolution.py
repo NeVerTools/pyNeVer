@@ -2,8 +2,8 @@ import numpy as np
 import torch
 
 from pynever.nodes import ConvNode
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 class LinearizeConv:

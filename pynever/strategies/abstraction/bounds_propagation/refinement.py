@@ -8,10 +8,10 @@ import numpy as np
 from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
-from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit, BoundsDirection
 from pynever.tensors import Tensor
 

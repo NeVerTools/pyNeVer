@@ -1,7 +1,7 @@
 from enum import Enum
 
 import torch
-from pynever.strategies.bounds_propagation.bounds import VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
 
 
 class StabilityInfo(Enum):

@@ -1,11 +1,9 @@
-import time
-
 import numpy as np
 import torch
 
-from pynever.nodes import ConvNode, MaxPoolNode
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.nodes import MaxPoolNode
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 #NON COMPLETED
 

@@ -7,8 +7,8 @@ import torch
 
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 class LinearizeReLU:

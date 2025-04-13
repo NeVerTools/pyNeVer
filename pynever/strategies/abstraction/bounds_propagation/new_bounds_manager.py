@@ -6,11 +6,11 @@ This module controls the bounds propagation for neural networks
 from pynever import nodes, tensors
 from pynever.networks import NeuralNetwork
 from pynever.nodes import LayerNode
-from pynever.strategies.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
-from pynever.strategies.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
-from pynever.strategies.bounds_propagation.layers.convolution import LinearizeConv
-from pynever.strategies.bounds_propagation.layers.relu import LinearizeReLU
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.layers.affine_layer import compute_dense_output_bounds
+from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsDirection
 from pynever.utilities import xnor

@@ -1,9 +1,9 @@
 import torch
 
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds
+from pynever.strategies.abstraction.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 def compute_dense_output_bounds(layer, inputs):
