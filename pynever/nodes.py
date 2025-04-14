@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 
+from pynever import tensors
 from pynever.exceptions import InvalidDimensionError, OutOfRangeError
 from pynever.tensors import Tensor
 
@@ -79,10 +80,6 @@ class ConcreteLayerNode(LayerNode):
     def get_output_dim(self) -> tuple:
         return self.out_dim
 
-    @abc.abstractmethod
-    def update_input(self, in_dims: list[tuple]):
-        raise NotImplementedError
-
 
 class ReLUNode(ConcreteLayerNode):
     """
@@ -103,9 +100,6 @@ class ReLUNode(ConcreteLayerNode):
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
-
 
 class ELUNode(ConcreteLayerNode):
     """
@@ -120,20 +114,15 @@ class ELUNode(ConcreteLayerNode):
 
     def __init__(self, identifier: str, in_dim: tuple, alpha: float = 1.0):
         if len(in_dim) < 1:
-            raise InvalidDimensionError("ELUNode: in_dim cannot be empty")
-
-        if alpha is None:
-            alpha = 1.0
+            raise InvalidDimensionError('ELUNode: in_dim cannot be empty')
 
         out_dim = copy.deepcopy(in_dim)
-        self.alpha = alpha
         super().__init__(identifier, [in_dim], out_dim)
+
+        self.alpha = alpha
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
 
 
 class CELUNode(ConcreteLayerNode):
@@ -151,18 +140,13 @@ class CELUNode(ConcreteLayerNode):
         if len(in_dim) < 1:
             raise InvalidDimensionError("CELUNode: in_dim cannot be empty")
 
-        if alpha is None:
-            alpha = 1.0
-
         out_dim = copy.deepcopy(in_dim)
-        self.alpha = alpha
         super().__init__(identifier, [in_dim], out_dim)
+
+        self.alpha = alpha
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
 
 
 class LeakyReLUNode(ConcreteLayerNode):
@@ -180,18 +164,13 @@ class LeakyReLUNode(ConcreteLayerNode):
         if len(in_dim) < 1:
             raise InvalidDimensionError("LeakyReLUNode: in_dim cannot be empty")
 
-        if negative_slope is None:
-            negative_slope = 1e-2
-
         out_dim = copy.deepcopy(in_dim)
-        self.negative_slope = negative_slope
         super().__init__(identifier, [in_dim], out_dim)
+
+        self.negative_slope = negative_slope
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
 
 
 class SigmoidNode(ConcreteLayerNode):
@@ -213,9 +192,6 @@ class SigmoidNode(ConcreteLayerNode):
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
-
 
 class TanhNode(ConcreteLayerNode):
     """
@@ -235,9 +211,6 @@ class TanhNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim)
 
 
 class FullyConnectedNode(ConcreteLayerNode):
@@ -274,8 +247,8 @@ class FullyConnectedNode(ConcreteLayerNode):
 
         # We assume the Linear operation is x * W^T
         if weight is None:
-            weight = np.random.uniform(-math.sqrt(1 / in_features), math.sqrt(1 / in_features),
-                                       size=[out_features, in_features])
+            weight = tensors.random_uniform(-math.sqrt(1 / in_features), math.sqrt(1 / in_features),
+                                            size=[out_features, in_features])
 
         weight_error = f"Weight dimensions should be equal to out_features ({out_features}) " \
                        f"and in_features ({in_features}) respectively."
@@ -285,8 +258,7 @@ class FullyConnectedNode(ConcreteLayerNode):
 
         if has_bias:
             if bias is None:
-                bias = np.random.uniform(-math.sqrt(1 / in_features), math.sqrt(1 / in_features),
-                                         size=[out_features])
+                bias = tensors.zeros(out_features)
             else:
                 if bias.shape != (out_features,):
                     raise InvalidDimensionError(f"Bias shape is wrong: it should be equal to ({out_features},)")
@@ -304,13 +276,10 @@ class FullyConnectedNode(ConcreteLayerNode):
 
         """
 
-        return self.bias if self.bias.shape == (self.weight.shape[0], 1) else np.expand_dims(self.bias, 1)
+        return self.bias if self.bias.shape == (self.weight.shape[0], 1) else tensors.expand_dims(self.bias, 1)
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.out_features, self.weight, self.bias, self.has_bias)
 
 
 class BatchNormNode(ConcreteLayerNode):
@@ -366,9 +335,9 @@ class BatchNormNode(ConcreteLayerNode):
 
         if track_running_stats:
             if running_mean is None:
-                running_mean = np.ones(num_features)
+                running_mean = tensors.ones(num_features)
             if running_var is None:
-                running_var = np.zeros(num_features)
+                running_var = tensors.zeros(num_features)
 
             if not running_var.shape[0] == num_features:
                 raise InvalidDimensionError("The dimension of the running_var should be equal to num_features")
@@ -380,10 +349,10 @@ class BatchNormNode(ConcreteLayerNode):
             running_var = None
 
         if weight is None:
-            weight = np.ones(num_features)
+            weight = tensors.ones(num_features)
 
         if bias is None:
-            bias = np.zeros(num_features)
+            bias = tensors.zeros(num_features)
 
         if weight.shape[0] != num_features:
             raise InvalidDimensionError("The dimension of the weight should be equal to num_features")
@@ -403,11 +372,6 @@ class BatchNormNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim,
-                      self.weight, self.bias, self.running_mean, self.running_var,
-                      self.eps, self.momentum, self.affine, self.track_running_stats)
 
 
 class ConvNode(ConcreteLayerNode):
@@ -505,14 +469,14 @@ class ConvNode(ConcreteLayerNode):
             weight_size.append(s)
         weight_size = tuple(weight_size)
         if weight is None:
-            weight = np.random.uniform(-np.sqrt(k), np.sqrt(k), size=weight_size)
+            weight = tensors.random_uniform(-np.sqrt(k), np.sqrt(k), size=weight_size)
 
         if weight.shape != weight_size:
             raise InvalidDimensionError(f"Weight shape is wrong: it should be {weight_size}")
 
         if has_bias:
             if bias is None:
-                bias = np.random.uniform(-np.sqrt(k), np.sqrt(k), size=out_channels)
+                bias = tensors.zeros(out_channels)
             else:
                 if bias.shape != (out_channels,):
                     raise InvalidDimensionError(f"Bias shape is wrong: it should be equal to ({out_channels},)")
@@ -524,11 +488,6 @@ class ConvNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.out_channels,
-                      self.kernel_size, self.stride, self.padding, self.dilation, self.groups,
-                      self.has_bias, self.bias, self.weight)
 
 
 class AveragePoolNode(ConcreteLayerNode):
@@ -598,10 +557,6 @@ class AveragePoolNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.kernel_size, self.stride,
-                      self.padding, self.ceil_mode, self.count_include_pad)
 
 
 class MaxPoolNode(ConcreteLayerNode):
@@ -680,10 +635,6 @@ class MaxPoolNode(ConcreteLayerNode):
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.kernel_size, self.stride,
-                      self.padding, self.dilation, self.ceil_mode, self.return_indices)
-
 
 class LRNNode(ConcreteLayerNode):
     """
@@ -710,6 +661,7 @@ class LRNNode(ConcreteLayerNode):
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
+
         self.size = size
         self.alpha = alpha
         self.beta = beta
@@ -717,9 +669,6 @@ class LRNNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.size, self.alpha, self.beta, self.k)
 
 
 class SoftMaxNode(ConcreteLayerNode):
@@ -743,13 +692,11 @@ class SoftMaxNode(ConcreteLayerNode):
 
         out_dim = copy.deepcopy(in_dim)
         super().__init__(identifier, [in_dim], out_dim)
+
         self.axis = axis
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.axis)
 
 
 class UnsqueezeNode(ConcreteLayerNode):
@@ -800,9 +747,6 @@ class UnsqueezeNode(ConcreteLayerNode):
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
 
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.axes)
-
 
 class ReshapeNode(ConcreteLayerNode):
     """
@@ -840,19 +784,17 @@ class ReshapeNode(ConcreteLayerNode):
 
         # We leverage numpy reshape to compute our output dimension. If the reshape encounter a new shape which is
         # not valid numpy raise an exception which will be eventually caught in the gui.
-        temp_input = np.ones(in_dim)
-        temp_output = np.reshape(temp_input, temp_shape)
+        temp_input = tensors.ones(in_dim)
+        temp_output = tensors.reshape(temp_input, temp_shape)
         out_dim = temp_output.shape
 
         super().__init__(identifier, [in_dim], out_dim)
+
         self.shape = shape
         self.allow_zero = allow_zero
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.shape, self.allow_zero)
 
 
 class FlattenNode(ConcreteLayerNode):
@@ -874,23 +816,19 @@ class FlattenNode(ConcreteLayerNode):
         if not (-len(in_dim) <= axis <= len(in_dim)):
             raise InvalidDimensionError(f"Axis must be in [{-len(in_dim)}, {len(in_dim)}]")
 
-        temp_input = np.ones(in_dim)
+        temp_input = tensors.ones(in_dim)
         new_shape = (-1,) if axis == 0 else (np.prod(in_dim[0:axis]).astype(int), -1)
-        temp_output = np.reshape(temp_input, new_shape)
 
-        # We leverage numpy reshape to compute our output dimension. If the reshape encounter a new shape which is
+        # We leverage reshape to compute our output dimension. If the reshape encounter a new shape which is
         # not valid numpy raise an exception which will be eventually caught in the gui.
-
-        out_dim = temp_output.shape
-
+        temp_output = tensors.reshape(temp_input, new_shape)
+        out_dim = tuple(temp_output.shape)
         super().__init__(identifier, [in_dim], out_dim)
+
         self.axis = axis
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.axis)
 
 
 class DropoutNode(ConcreteLayerNode):
@@ -909,13 +847,11 @@ class DropoutNode(ConcreteLayerNode):
         super().__init__(identifier, [in_dim], out_dim)
         if not (0 <= p <= 1):
             raise OutOfRangeError(p, 0, 1)
+
         self.p = p
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.p)
 
 
 class TransposeNode(ConcreteLayerNode):
@@ -937,16 +873,13 @@ class TransposeNode(ConcreteLayerNode):
         if len(perm) != len(in_dim):
             raise Exception("The perm parameter must be be a permutation of the input dimensions.")
 
-        self.perm = perm
-        out_dim = tuple(np.array(in_dim)[perm])
-
+        out_dim = tuple(tensors.array(in_dim)[perm, :])
         super().__init__(identifier, [in_dim], out_dim)
+
+        self.perm = perm
 
     def get_input_dim(self) -> tuple:
         return self.in_dims[0]
-
-    def update_input(self, in_dim: tuple):
-        self.__init__(self.identifier, in_dim, self.perm)
 
 
 class ConcatNode(ConcreteLayerNode):
@@ -997,9 +930,6 @@ class ConcatNode(ConcreteLayerNode):
     def get_input_dim(self) -> list[tuple]:
         return self.in_dims
 
-    def update_input(self, in_dims: list[tuple]):
-        self.__init__(self.identifier, in_dims, self.axis)
-
 
 class SumNode(ConcreteLayerNode):
     """
@@ -1026,6 +956,3 @@ class SumNode(ConcreteLayerNode):
 
     def get_input_dim(self) -> list[tuple]:
         return self.in_dims
-
-    def update_input(self, in_dims: list[tuple]):
-        self.__init__(self.identifier, in_dims)

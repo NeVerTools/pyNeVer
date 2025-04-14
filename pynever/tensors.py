@@ -88,7 +88,7 @@ def random_uniform(low: float | int, high: float | int, size: int | Iterable | t
             raise NotImplementedError
 
 
-def ones(shape: tuple[int], dtype=float) -> Tensor:
+def ones(shape: int | tuple[int], dtype=float) -> Tensor:
     """Returns a Tensor filled with ones.
 
     Parameters
@@ -104,6 +104,10 @@ def ones(shape: tuple[int], dtype=float) -> Tensor:
         The Tensor filled with ones
 
     """
+
+    if isinstance(shape, int):
+        shape = (shape,)
+
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.ones(shape=shape, dtype=dtype))
@@ -113,7 +117,7 @@ def ones(shape: tuple[int], dtype=float) -> Tensor:
             raise NotImplementedError
 
 
-def zeros(shape: tuple, dtype=float) -> Tensor:
+def zeros(shape: int | tuple[int], dtype=float) -> Tensor:
     """Returns a Tensor filled with zeroes.
 
     Parameters
@@ -129,6 +133,10 @@ def zeros(shape: tuple, dtype=float) -> Tensor:
         The Tensor filled with zeroes
 
     """
+
+    if isinstance(shape, int):
+        shape = (shape,)
+
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.zeros(shape=shape, dtype=dtype))
@@ -725,6 +733,6 @@ def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable
         case BackEnd.NUMPY:
             return Tensor(numpy.expand_dims(a=in_tensor, axis=axis))
         case BackEnd.PYTORCH:
-            return Tensor(torch.expand(input=in_tensor, dim=axis))
+            return Tensor(torch.unsqueeze(in_tensor, axis))
         case _:
             raise NotImplementedError
