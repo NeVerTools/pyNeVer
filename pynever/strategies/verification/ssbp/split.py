@@ -4,7 +4,7 @@ from ortools.linear_solver import pywraplp
 import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
 from pynever import networks
 from pynever.networks import SequentialNetwork
-from pynever.strategies.abstraction.bounds_propagation.refinement import BoundsRefinement
+from pynever.strategies.verification.ssbp.refinement import BoundsRefinement
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
