@@ -1,13 +1,14 @@
-import numpy as np
+import copy
 
 from pynever import tensors
-from pynever.strategies.abstraction.bounds_propagation.utility.functions import *
+from pynever.strategies.abstraction.bounds_propagation.util import *
+from pynever.tensors import Tensor
 
 
 class LinearFunctions:
     """
-    matrix is an (n x m) np array
-    offset is an (n) np array
+    matrix is an (n x m) Tensor
+    offset is an (n) Tensor
 
     An object represents n linear functions f(i) of m input variables x
 
@@ -15,17 +16,17 @@ class LinearFunctions:
 
     """
 
-    def __init__(self, matrix, offset):
+    def __init__(self, matrix: Tensor, offset: Tensor):
         self.size = matrix.shape[0]
         self.matrix = matrix
         self.offset = offset
 
     def clone(self):
-        return LinearFunctions(self.matrix.copy(), self.offset.copy())
+        return LinearFunctions(copy.deepcopy(self.matrix), copy.deepcopy(self.offset))
 
     def mask_zero_outputs(self, zero_outputs):
-        mask = np.diag(
-            [0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)]
+        mask = tensors.diag(
+            Tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)])
         )
 
         return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
@@ -39,89 +40,12 @@ class LinearFunctions:
     def get_offset(self):
         return self.offset
 
-    def compute_value(self, row_number, input_values):
-        return self.matrix[row_number].dot(input_values) + self.offset[row_number]
-
-    def compute_values(self, input_values):
-        return self.matrix.dot(input_values) + self.offset
-
-    def compute_max_value(self, row_number, input_bounds):
-        row_coeff = self.matrix[row_number]
-        return get_positive_part(row_coeff).dot(input_bounds.get_upper()) + \
-            get_negative_part(row_coeff).dot(input_bounds.get_lower()) + self.offset[row_number]
-
-    def compute_min_value(self, row_number, input_bounds):
-        row_coeff = self.matrix[row_number]
-        return get_positive_part(row_coeff).dot(input_bounds.get_lower()) + \
-            get_negative_part(row_coeff).dot(input_bounds.get_upper()) + self.offset[row_number]
-
     def compute_max_values(self, input_bounds):
-        return get_positive_part(self.matrix).dot(input_bounds.get_upper()) + \
-            get_negative_part(self.matrix).dot(input_bounds.get_lower()) + \
+        return tensors.dot(get_positive_part(self.matrix), input_bounds.get_upper()) + \
+            tensors.dot(get_negative_part(self.matrix), input_bounds.get_lower()) + \
             self.offset
 
     def compute_min_values(self, input_bounds):
-        return get_positive_part(self.matrix).dot(input_bounds.get_lower()) + \
-            get_negative_part(self.matrix).dot(input_bounds.get_upper()) + \
-            self.offset
-
-
-class TorchLinearFunctions:
-    """
-    matrix is an (n x m) torch Tensor
-    offset is an (n) torch Tensor
-
-    An object represents n linear functions f(i) of m input variables x
-
-    f(i) = matrix[i]*x + offset[i]
-
-    """
-
-    def __init__(self, matrix, offset):
-        self.size = matrix.shape[0]
-        self.matrix = matrix
-        self.offset = offset
-
-    def clone(self):
-        return LinearFunctions(self.matrix.clone(), self.offset.clone())
-
-    def mask_zero_outputs(self, zero_outputs):
-        mask = torch.diag(
-            torch.tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)], dtype=torch.float32)
-        )
-        return LinearFunctions(torch.matmul(mask, self.matrix), torch.matmul(mask, self.offset))
-
-    def get_size(self):
-        return self.size
-
-    def get_matrix(self):
-        return self.matrix
-
-    def get_offset(self):
-        return self.offset
-
-    def compute_value(self, row_number, input_values):
-        return torch.matmul(self.matrix[row_number], input_values) + self.offset[row_number]
-
-    def compute_values(self, input_values):
-        return torch.matmul(self.matrix, input_values) + self.offset
-
-    def compute_max_value(self, row_number, input_bounds):
-        row_coeff = self.matrix[row_number]
-        return torch.matmul(get_positive_part(row_coeff), input_bounds.get_upper()) + \
-            torch.matmul(get_negative_part(row_coeff), input_bounds.get_lower()) + self.offset[row_number]
-
-    def compute_min_value(self, row_number, input_bounds):
-        row_coeff = self.matrix[row_number]
-        return torch.matmul(get_positive_part(row_coeff), input_bounds.get_lower()) + \
-            torch.matmul(get_negative_part(row_coeff), input_bounds.get_upper()) + self.offset[row_number]
-
-    def compute_max_values(self, input_bounds):
-        return torch.matmul(get_positive_part(self.matrix), input_bounds.get_upper()) + \
-            torch.matmul(get_negative_part(self.matrix), input_bounds.get_lower()) + \
-            self.offset
-
-    def compute_min_values(self, input_bounds):
-        return torch.matmul(get_positive_part(self.matrix), input_bounds.get_lower()) + \
-            torch.matmul(get_negative_part(self.matrix), input_bounds.get_upper()) + \
+        return tensors.dot(get_positive_part(self.matrix), input_bounds.get_lower()) + \
+            tensors.dot(get_negative_part(self.matrix), input_bounds.get_upper()) + \
             self.offset

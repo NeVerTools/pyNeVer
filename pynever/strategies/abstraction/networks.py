@@ -61,12 +61,6 @@ class AbsNeuralNetwork(abc.ABC):
         except KeyError:
             raise Exception(f'Node {type(node).__name__} is not supported')
 
-    def get_abstract(self, node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode:
-        return self.nodes[f'ABS_{node.identifier}']
-
-    def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
-        return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]
-
     @abc.abstractmethod
     def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement | list[AbsElement]:
         """
@@ -84,6 +78,12 @@ class AbsNeuralNetwork(abc.ABC):
             The AbsElement resulting from the computation corresponding to the abstract transformer.
         """
         raise NotImplementedError
+
+    def get_abstract(self, node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode:
+        return self.nodes[f'ABS_{node.identifier}']
+
+    def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
+        return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]
 
 
 class AbsSeqNetwork(AbsNeuralNetwork):

@@ -3,10 +3,10 @@ from fractions import Fraction
 import pynever.strategies.smt_reading as reading
 from pynever import tensors
 from pynever.exceptions import InvalidDimensionError
-from pynever.strategies.abstraction.star import Star
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.abstraction.star import Star
 from pynever.tensors import Tensor
-import torch
+
 
 class NeverProperty:
     """
@@ -39,14 +39,14 @@ class NeverProperty:
 
         for i in range(self.in_bias_mat.shape[0]):
             if 1 in self.in_coef_mat[i, :]:
-                lbs.append(self.in_bias_mat[i, 0])
+                lbs.append(self.in_bias_mat[i, :])
             else:
-                ubs.append(self.in_bias_mat[i, 0])
+                ubs.append(self.in_bias_mat[i, :])
 
         # debug
         assert len(lbs) == len(ubs) == self.in_bias_mat.shape[0] // 2
 
-        return HyperRectangleBounds(torch.tensor(lbs), torch.tensor(ubs))
+        return HyperRectangleBounds(Tensor(lbs), Tensor(ubs))
 
     def to_star(self) -> Star:
         """
@@ -198,7 +198,7 @@ class LocalRobustnessProperty(NeverProperty):
 
     @staticmethod
     def build_matrices(sample: Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool) -> tuple[
-            Tensor, Tensor, list[Tensor], list[Tensor]]:
+        Tensor, Tensor, list[Tensor], list[Tensor]]:
 
         if sample.shape[1] != 1:
             raise InvalidDimensionError('Wrong shape for the sample, should be mono-dimensional')

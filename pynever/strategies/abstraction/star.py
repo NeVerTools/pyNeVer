@@ -9,7 +9,7 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation.util as utilf
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
@@ -589,8 +589,8 @@ class ExtendedStar(Star):
 
         """
 
-        mask = np.diag(
-            [0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])]
+        mask = tensors.diag(
+            Tensor([0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])])
         )
 
         return LinearFunctions(tensors.matmul(mask, self.basis_matrix), tensors.matmul(mask, self.center))

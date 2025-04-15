@@ -1,4 +1,4 @@
-import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation.util as utilf
 from pynever import networks, nodes, tensors
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds

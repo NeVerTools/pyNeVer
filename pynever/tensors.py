@@ -3,6 +3,8 @@
 This module contains out internal representation of a tensor and some relevant tensor operations.
 
 """
+from __future__ import annotations
+
 import enum
 from collections.abc import Iterable
 
@@ -18,7 +20,7 @@ class BackEnd(enum.Enum):
 
 
 class NpTensor(numpy.ndarray):
-    """Our internal representation of a Tensor. Right now it just a placeholder."""
+    """Representation of a numpy tensor"""
 
     def __new__(cls, t: numpy.ndarray):
         obj = numpy.asarray(t).view(cls)
@@ -36,6 +38,8 @@ class NpTensor(numpy.ndarray):
 
 
 class PtTensor(torch.Tensor):
+    """Representation of a pytorch tensor"""
+
     def __getitem__(self, item):
         try:
             return super().__getitem__(item).item()
@@ -44,7 +48,10 @@ class PtTensor(torch.Tensor):
 
 
 class Tensor:
-    """Our internal representation of a Tensor. It's a different type of tensor depending on the chosen backend."""
+    """Our internal representation of a Tensor.
+
+    It's a different type of tensor depending on the chosen backend.
+    """
 
     def __new__(cls, t: numpy.ndarray | torch.Tensor):
         match BACKEND:
@@ -54,6 +61,9 @@ class Tensor:
                 return PtTensor(t)
             case _:
                 raise NotImplementedError
+
+    def __add__(self, other: numpy.ndarray | torch.Tensor) -> Tensor:
+        return self + other
 
 
 # TODO move to configuration file
@@ -328,6 +338,33 @@ def identity(n: int, dtype=float) -> Tensor:
             raise NotImplementedError
 
 
+def diag(x: Tensor) -> Tensor:
+    """Returns a square matrix with the diagonal specified in the input
+
+    Parameters
+    ----------
+    x : Tensor
+        The diagonal Tensor
+
+    Returns
+    ----------
+    Tensor
+        The square Tensor with the diagonal specified in the input
+
+    """
+
+    if len(x.shape) > 1:
+        raise Exception('Only supports 1D tensors')
+
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.diag(x))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.diag(x))
+        case _:
+            raise NotImplementedError
+
+
 def matmul(x1: Tensor, x2: Tensor) -> Tensor:
     """Returns the matrix product of two tensors.
 
@@ -347,6 +384,32 @@ def matmul(x1: Tensor, x2: Tensor) -> Tensor:
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.matmul(x1, x2))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.matmul(x1, x2))
+        case _:
+            raise NotImplementedError
+
+
+def dot(x1: Tensor, x2: Tensor) -> Tensor:
+    """Returns the dot product of two (batches of) tensors.
+    Uses torch.matmul for PyTorch and numpy.dot for numpy
+
+    Parameters
+    ----------
+    x1 : Tensor
+        The first Tensor
+    x2 : Tensor
+        The second Tensor
+
+    Returns
+    ----------
+    Tensor
+        The computed output
+    """
+
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.dot(x1, x2))
         case BackEnd.PYTORCH:
             return Tensor(torch.matmul(x1, x2))
         case _:

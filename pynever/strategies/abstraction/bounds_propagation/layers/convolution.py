@@ -3,7 +3,7 @@ import torch
 
 from pynever.nodes import ConvNode
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds
-from pynever.strategies.abstraction.linearfunctions import TorchLinearFunctions
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 class LinearizeConv:
@@ -234,7 +234,7 @@ class LinearizeConv:
         # pos_offset = pos_offset.numpy()
         # neg_offset = neg_offset.numpy()
 
-        upper = TorchLinearFunctions(pos_matrix, pos_offset)
-        lower = TorchLinearFunctions(neg_matrix, neg_offset)
+        upper = LinearFunctions(pos_matrix, pos_offset)
+        lower = LinearFunctions(neg_matrix, neg_offset)
 
         return SymbolicLinearBounds(lower, upper)

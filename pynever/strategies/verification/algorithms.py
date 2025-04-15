@@ -9,7 +9,7 @@ import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
-from pynever.strategies.abstraction.bounds_propagation.utility.functions import StabilityInfo
+from pynever.strategies.abstraction.bounds_propagation.util import StabilityInfo
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds

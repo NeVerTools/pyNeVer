@@ -3,7 +3,7 @@ import torch
 
 from pynever.nodes import MaxPoolNode
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
-from pynever.strategies.abstraction.linearfunctions import TorchLinearFunctions
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 #NON COMPLETED
 
@@ -155,8 +155,8 @@ class MaxPoolLinearization:
         output_numeric_upper_bounds = output_numeric_upper_bounds.reshape(-1)
 
         output_hyperect = HyperRectangleBounds(output_numeric_lower_bounds, output_numeric_upper_bounds)
-        lower = TorchLinearFunctions(output_lower_matrix, output_lower_offset)
-        upper = TorchLinearFunctions(output_upper_matrix, output_upper_offset)
+        lower = LinearFunctions(output_lower_matrix, output_lower_offset)
+        upper = LinearFunctions(output_upper_matrix, output_upper_offset)
         output_symb = SymbolicLinearBounds(lower, upper)
 
         return output_symb, output_hyperect

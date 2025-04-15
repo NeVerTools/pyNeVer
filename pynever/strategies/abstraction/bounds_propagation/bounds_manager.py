@@ -6,7 +6,7 @@ the different layers of a neural network
 
 import numpy as np
 
-import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation.util as utilf
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
@@ -16,7 +16,7 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLin
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
-from pynever.strategies.abstraction.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
+from pynever.strategies.abstraction.bounds_propagation.util import get_positive_part, get_negative_part, \
     compute_lin_lower_and_upper
 from pynever.strategies.abstraction.bounds_propagation.utility.property_converter import PropertyFormatConverter
 from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection

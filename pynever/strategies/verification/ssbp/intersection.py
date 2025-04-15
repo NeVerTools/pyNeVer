@@ -7,7 +7,7 @@ from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.abstraction.bounds_propagation.utility import functions as utilf
+from pynever.strategies.abstraction.bounds_propagation import util as utilf
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation

@@ -1,7 +1,7 @@
 import numpy as np
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.abstraction.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation.util as utilf
 from pynever import networks
 from pynever.networks import SequentialNetwork
 from pynever.strategies.verification.ssbp.refinement import BoundsRefinement
