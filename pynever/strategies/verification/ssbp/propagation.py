@@ -1,4 +1,4 @@
-import pynever.strategies.abstraction.bounds_propagation.util as utilf
+from pynever.strategies.abstraction.bounds_propagation import util
 from pynever import networks, nodes, tensors
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
@@ -81,7 +81,7 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: Verbos
     relu_layer_id = new_star.ref_layer
 
     if relu_layer is not None:
-        layer_inactive = utilf.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
+        layer_inactive = util.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
                                                                                     relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)

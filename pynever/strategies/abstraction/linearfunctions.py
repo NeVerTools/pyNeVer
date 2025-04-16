@@ -1,6 +1,5 @@
 import copy
 
-from pynever import tensors
 from pynever.strategies.abstraction.bounds_propagation.util import *
 from pynever.tensors import Tensor
 
@@ -41,11 +40,11 @@ class LinearFunctions:
         return self.offset
 
     def compute_max_values(self, input_bounds):
-        return tensors.dot(get_positive_part(self.matrix), input_bounds.get_upper()) + \
-            tensors.dot(get_negative_part(self.matrix), input_bounds.get_lower()) + \
+        return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_upper()) + \
+            tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_lower()) + \
             self.offset
 
     def compute_min_values(self, input_bounds):
-        return tensors.dot(get_positive_part(self.matrix), input_bounds.get_lower()) + \
-            tensors.dot(get_negative_part(self.matrix), input_bounds.get_upper()) + \
+        return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_lower()) + \
+            tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_upper()) + \
             self.offset

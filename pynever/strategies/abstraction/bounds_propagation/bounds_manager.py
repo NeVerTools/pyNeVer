@@ -6,19 +6,18 @@ the different layers of a neural network
 
 import numpy as np
 
-import pynever.strategies.abstraction.bounds_propagation.util as utilf
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
 from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER
-from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
-    VerboseBounds, BoundsStats
+from pynever.strategies.abstraction.bounds_propagation import util
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, \
+    PRECISION_GUARD, VerboseBounds, BoundsStats
+from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
-from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
-from pynever.strategies.abstraction.bounds_propagation.util import get_positive_part, get_negative_part, \
-    compute_lin_lower_and_upper
 from pynever.strategies.abstraction.bounds_propagation.utility.property_converter import PropertyFormatConverter
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection
 
 
@@ -156,7 +155,7 @@ class BoundsManager:
 
         # sort the over-approximation areas ascending
         self.overapprox_area['sorted'] = sorted(self.overapprox_area['sorted'], key=lambda x: x[1])
-        self.overapprox_area['volume'] = utilf.compute_overapproximation_volume(self.overapprox_area['map'])
+        self.overapprox_area['volume'] = util.compute_overapproximation_volume(self.overapprox_area['map'])
 
         # Return all the computed bounds along to the statistics
         all_bounds.statistics = BoundsStats(self.stability_info, self.overapprox_area)
@@ -173,7 +172,7 @@ class BoundsManager:
             """ Fully Connected layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, layer_in_eq)
+                cur_layer_output_eq = compute_dense_output_bounds(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:
@@ -278,18 +277,18 @@ class BoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[utilf.StabilityInfo.INACTIVE][layer_id] = inactive
-        self.stability_info[utilf.StabilityInfo.ACTIVE][layer_id] = active
-        self.stability_info[utilf.StabilityInfo.UNSTABLE].extend(unstable)
+        self.stability_info[util.StabilityInfo.INACTIVE][layer_id] = inactive
+        self.stability_info[util.StabilityInfo.ACTIVE][layer_id] = active
+        self.stability_info[util.StabilityInfo.UNSTABLE].extend(unstable)
 
         return stable_count
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            utilf.StabilityInfo.INACTIVE: dict(),
-            utilf.StabilityInfo.ACTIVE: dict(),
-            utilf.StabilityInfo.UNSTABLE: list()
+            util.StabilityInfo.INACTIVE: dict(),
+            util.StabilityInfo.ACTIVE: dict(),
+            util.StabilityInfo.UNSTABLE: list()
         }
 
         self.overapprox_area = {
@@ -373,21 +372,3 @@ class BoundsManager:
         if layer.bias is None:
             layer.bias = np.zeros(layer.weight.shape[0])
         return LinearFunctions(layer.weight, layer.bias)
-
-    @staticmethod
-    def compute_dense_output_bounds(layer, inputs):
-        weights_plus = get_positive_part(layer.weight)
-        weights_minus = get_negative_part(layer.weight)
-
-        if layer.bias is None:
-            layer.bias = np.zeros(layer.weight.shape[0])
-
-        lower_matrix, lower_offset, upper_matrix, upper_offset = \
-            compute_lin_lower_and_upper(weights_minus, weights_plus, layer.bias,
-                                        inputs.get_lower().get_matrix(),
-                                        inputs.get_upper().get_matrix(),
-                                        inputs.get_lower().get_offset(),
-                                        inputs.get_upper().get_offset())
-
-        return SymbolicLinearBounds(LinearFunctions(lower_matrix, lower_offset),
-                                    LinearFunctions(upper_matrix, upper_offset))

@@ -1,7 +1,7 @@
 import numpy as np
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.abstraction.bounds_propagation.util as utilf
+from pynever.strategies.abstraction.bounds_propagation import util
 from pynever import networks
 from pynever.networks import SequentialNetwork
 from pynever.strategies.verification.ssbp.refinement import BoundsRefinement
@@ -20,13 +20,13 @@ def get_target_sequential(star: ExtendedStar, nn_bounds: VerboseBounds, network:
 
     """
 
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) > 0:
         for layer_id, neuron_n in unstable:
             if layer_id != star.ref_layer:
 
-                layer_unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds,
+                layer_unstable = util.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds,
                                                                                             star.fixed_neurons,
                                                                                             star.ref_layer)
                 # TODO: have the check as a method of Star? Or some other util?
@@ -51,11 +51,11 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: Ve
     """
 
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
-        layer_unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons,
+        layer_unstable = util.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons,
                                                                                     star.ref_layer)
         if len(layer_unstable) == 0:
             # The current layer is complete, so we need to move to the next layer
@@ -188,7 +188,7 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: VerboseBounds) \
     """
 
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
@@ -208,7 +208,7 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
     """
 
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:

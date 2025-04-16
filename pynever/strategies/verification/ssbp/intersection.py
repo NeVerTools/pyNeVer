@@ -5,9 +5,9 @@ from ortools.linear_solver import pywraplp
 
 from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
+from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.abstraction.bounds_propagation import util as utilf
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation
@@ -83,7 +83,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: Ver
 
     """
 
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) == 0:
         return intersect_bounds(star, nn, nn_bounds, prop)
@@ -221,7 +221,7 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    if len(nn_bounds.statistics.stability_info[utilf.StabilityInfo.UNSTABLE]) > 0:
+    if len(nn_bounds.statistics.stability_info[util.StabilityInfo.UNSTABLE]) > 0:
         # The constraints from the branching only if there are unstable neurons according to the bounds,
         # hence there was some approximation and the output equations are not exact
         for (layer_id, neuron_n), value in star.fixed_neurons.items():
@@ -322,7 +322,7 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
         conjunction = []
         for j in range(len(prop.out_coef_mat[i])):
             # the big M constant as not clear how to do indicator constraints
-            bigM = utilf.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            bigM = util.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
@@ -451,8 +451,8 @@ def check_disjunct_satisfied(bounds, matrix, bias):
 
     # Check every conjunct in the disjunction
     for j in range(len(matrix)):
-        max_value = utilf.compute_max(matrix[j], bounds) - bias[j][0]
-        min_value = utilf.compute_min(matrix[j], bounds) - bias[j][0]
+        max_value = compute_max(matrix[j], bounds) - bias[j][0]
+        min_value = compute_min(matrix[j], bounds) - bias[j][0]
 
         if min_value > PRECISION_GUARD:
             # the constraint j is definitely not satisfied, as it should be <= 0

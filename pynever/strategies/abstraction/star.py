@@ -9,10 +9,10 @@ import numpy as np
 import numpy.linalg as la
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.abstraction.bounds_propagation.util as utilf
 import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
+from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.tensors import Tensor
 
@@ -630,12 +630,12 @@ class ExtendedStar(Star):
 
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
-        inactive = utilf.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        inactive = util.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # Compute the set of unstable neurons.
         # Neuron i has been fixed before, so we don't need to
         # approximate it (as it might still appear unstable according to the bounds)
-        unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
+        unstable = util.compute_layer_unstable_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
 
         # We need to enforce the constraints from fixed neurons,
         # in case we used a branching heuristic that does not go layer by layer.

@@ -93,6 +93,7 @@ class BoundsStats:
 
     """
 
+    # TODO this makes absolutely no sense, stability info cannot be property of both classes
     def __init__(self, stability_info: dict, overapprox_area: dict):
         self.stability_info = copy.deepcopy(stability_info)
         self.overapprox_area = copy.deepcopy(overapprox_area)
