@@ -1,0 +1,9 @@
+python >= 3.11
+
+numpy
+onnx
+torch
+torchvision
+ortools
+pysmt
+multipledispatch
