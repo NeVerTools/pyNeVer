@@ -54,6 +54,9 @@ class Tensor:
     """
 
     def __new__(cls, t: numpy.ndarray | torch.Tensor):
+        # Set common parameters as parameters of cls
+        cls.shape = t.shape
+
         match BACKEND:
             case BACKEND.NUMPY:
                 return NpTensor(t)
@@ -62,15 +65,17 @@ class Tensor:
             case _:
                 raise NotImplementedError
 
-    def __add__(self, other: numpy.ndarray | torch.Tensor) -> Tensor:
+    def __add__(self, other: Tensor) -> Tensor:
         return self + other
 
+    def __sub__(self, other: Tensor) -> Tensor:
+        return self - other
 
-# TODO move to configuration file
+
+# TODO move to a configuration file
 BACKEND = BackEnd.PYTORCH
 
 
-# TODO is iterable in size correct?
 def random_uniform(low: float | int, high: float | int, size: int | Iterable | tuple[int]) -> Tensor:
     """Returns a Tensor containing samples drawn from a random uniform distribution.
 
@@ -93,7 +98,7 @@ def random_uniform(low: float | int, high: float | int, size: int | Iterable | t
         case BackEnd.NUMPY:
             return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
         case BackEnd.PYTORCH:
-            return Tensor((high - low) * torch.rand(size=size) + low)
+            return Tensor((high - low) * torch.rand(size) + low)
         case _:
             raise NotImplementedError
 
@@ -114,7 +119,6 @@ def ones(shape: int | tuple[int], dtype=float) -> Tensor:
         The Tensor filled with ones
 
     """
-
     if isinstance(shape, int):
         shape = (shape,)
 
@@ -143,7 +147,6 @@ def zeros(shape: int | tuple[int], dtype=float) -> Tensor:
         The Tensor filled with zeroes
 
     """
-
     if isinstance(shape, int):
         shape = (shape,)
 
@@ -156,7 +159,6 @@ def zeros(shape: int | tuple[int], dtype=float) -> Tensor:
             raise NotImplementedError
 
 
-# TODO should dtype be specified here?
 def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tensor:
     """Returns the product of the Tensor elements along a specified axis (or axes).
 
@@ -176,7 +178,6 @@ def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tenso
         A Tensor containing the product of the elements of the input Tensor along the axis
 
     """
-    # TODO specify keepdims in np.prod?
     match BACKEND:
         case BackEnd.NUMPY:
             return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
