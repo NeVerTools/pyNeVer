@@ -71,6 +71,12 @@ class Tensor:
     def __sub__(self, other: Tensor) -> Tensor:
         return self - other
 
+    def __getitem__(self, item):
+        return self[item]
+
+    def __setitem__(self, key, value):
+        self[key] = value
+
 
 # TODO move to a configuration file
 BACKEND = BackEnd.PYTORCH

@@ -873,7 +873,7 @@ class TransposeNode(ConcreteLayerNode):
         if len(perm) != len(in_dim):
             raise Exception("The perm parameter must be be a permutation of the input dimensions.")
 
-        out_dim = tuple(tensors.array(in_dim)[perm, :])
+        out_dim = tuple(tensors.array(in_dim)[perm])
         super().__init__(identifier, [in_dim], out_dim)
 
         self.perm = perm

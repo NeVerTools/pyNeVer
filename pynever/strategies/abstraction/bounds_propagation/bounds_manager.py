@@ -277,18 +277,18 @@ class BoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[util.StabilityInfo.INACTIVE][layer_id] = inactive
-        self.stability_info[util.StabilityInfo.ACTIVE][layer_id] = active
-        self.stability_info[util.StabilityInfo.UNSTABLE].extend(unstable)
+        self.stability_info[util.ReLUStability.INACTIVE][layer_id] = inactive
+        self.stability_info[util.ReLUStability.ACTIVE][layer_id] = active
+        self.stability_info[util.ReLUStability.UNSTABLE].extend(unstable)
 
         return stable_count
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            util.StabilityInfo.INACTIVE: dict(),
-            util.StabilityInfo.ACTIVE: dict(),
-            util.StabilityInfo.UNSTABLE: list()
+            util.ReLUStability.INACTIVE: dict(),
+            util.ReLUStability.ACTIVE: dict(),
+            util.ReLUStability.UNSTABLE: list()
         }
 
         self.overapprox_area = {

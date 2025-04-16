@@ -1,15 +1,15 @@
 import copy
 
-from pynever.strategies.abstraction.bounds_propagation.util import *
+from pynever import tensors
 from pynever.tensors import Tensor
 
 
 class LinearFunctions:
     """
+    A class representing a set of n linear functions f(i) of m input variables x
+
     matrix is an (n x m) Tensor
     offset is an (n) Tensor
-
-    An object represents n linear functions f(i) of m input variables x
 
     f(i) = matrix[i]*x + offset[i]
 
@@ -27,7 +27,6 @@ class LinearFunctions:
         mask = tensors.diag(
             Tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)])
         )
-
         return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
 
     def get_size(self):

@@ -9,7 +9,7 @@ import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
-from pynever.strategies.abstraction.bounds_propagation.util import StabilityInfo
+from pynever.strategies.abstraction.bounds_propagation.util import ReLUStability
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
@@ -323,11 +323,11 @@ class SSBPVerification(VerificationStrategy):
         else:
             raise NotImplementedError('Only SequentialNetwork objects are supported at present')
 
-        n_unstable = len(input_symb_bounds.statistics.stability_info[StabilityInfo.UNSTABLE])
+        n_unstable = len(input_symb_bounds.statistics.stability_info[ReLUStability.UNSTABLE])
         stable_ratio = input_symb_bounds.stable_count / (input_symb_bounds.stable_count + n_unstable)
         self.logger.info(f"Started {datetime.datetime.now()}\n"
-                         f"Inactive neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.INACTIVE]}\n"
-                         f"  Active neurons: {input_symb_bounds.statistics.stability_info[StabilityInfo.ACTIVE]}\n"
+                         f"Inactive neurons: {input_symb_bounds.statistics.stability_info[ReLUStability.INACTIVE]}\n"
+                         f"  Active neurons: {input_symb_bounds.statistics.stability_info[ReLUStability.ACTIVE]}\n"
                          f"    Stable count: {input_symb_bounds.stable_count}\n"
                          f"    Stable ratio: {stable_ratio}\n"
                          f"\n")

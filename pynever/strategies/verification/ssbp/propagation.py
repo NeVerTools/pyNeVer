@@ -82,7 +82,7 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: Verbos
 
     if relu_layer is not None:
         layer_inactive = util.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
-                                                                                    relu_layer_id)
+                                                                                   relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 

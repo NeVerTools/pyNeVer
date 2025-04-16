@@ -5,6 +5,7 @@ and numeric bounds for the verification of neural networks
 """
 
 import copy
+
 import torch
 
 PRECISION_GUARD = 10e-15
@@ -53,7 +54,6 @@ class HyperRectangleBounds(AbstractBounds):
 
     def get_lower(self):
         return torch.tensor(self.lower, dtype=torch.float)
-
 
     def get_upper(self):
         return torch.tensor(self.upper, dtype=torch.float)
@@ -133,11 +133,3 @@ class VerboseBounds:
         self.numeric_post_bounds = copy.deepcopy(numeric_post) if numeric_post is not None else dict()
         self.stable_count = stable_count
         self.statistics = None
-
-
-
-
-
-
-
-
