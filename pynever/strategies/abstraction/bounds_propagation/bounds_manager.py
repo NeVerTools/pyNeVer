@@ -9,10 +9,10 @@ import numpy as np
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, BOUNDS_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, \
-    PRECISION_GUARD, VerboseBounds, BoundsStats
+    VerboseBounds, BoundsStats
 from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
@@ -48,11 +48,11 @@ class BoundsManager:
         """
 
         # Positive stable
-        if lb >= PRECISION_GUARD:
+        if lb >= BOUNDS_PRECISION_GUARD:
             return NeuronState.POSITIVE_STABLE
 
         # Negative stable
-        elif ub <= -PRECISION_GUARD:
+        elif ub <= -BOUNDS_PRECISION_GUARD:
             return NeuronState.NEGATIVE_STABLE
 
         # Unstable

@@ -1,14 +1,13 @@
 """
-This file contains the different representations of symbolic
-and numeric bounds for the verification of neural networks
+Module bounds.py
 
+This file contains the different representations of symbolic and
+numeric bounds for the verification of neural networks
 """
 
 import copy
 
 import torch
-
-PRECISION_GUARD = 10e-15
 
 
 class AbstractBounds:
