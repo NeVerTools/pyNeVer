@@ -13,7 +13,7 @@ from pynever.strategies.abstraction.bounds_propagation.util import ReLUStability
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification import VERIFICATION_LOGGER
 from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
@@ -111,7 +111,7 @@ class SSLPVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         # TODO remove assert in bound propagation
         try:
-            manager = BoundsManager()
+            manager = OldBoundsManager()
             self.layers_bounds = manager.compute_bounds_from_property(network, prop)
 
         except AssertionError:
@@ -221,7 +221,7 @@ class SSBPVerification(VerificationStrategy):
         bounds = self.get_bounds(self.parameters.bounds, self.parameters.bounds_direction)
         star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
-        return star1, BoundsManager.get_input_bounds(self.prop), bounds
+        return star1, OldBoundsManager.get_input_bounds(self.prop), bounds
 
     def get_bounds(self, strategy: BoundsBackend, direction: BoundsDirection) -> VerboseBounds:
         """
@@ -245,7 +245,7 @@ class SSBPVerification(VerificationStrategy):
 
         match strategy:
             case BoundsBackend.SYMBOLIC:
-                return BoundsManager(direction).compute_bounds_from_property(self.network, self.prop)
+                return OldBoundsManager(direction).compute_bounds_from_property(self.network, self.prop)
 
             case _:
                 # TODO add more strategies

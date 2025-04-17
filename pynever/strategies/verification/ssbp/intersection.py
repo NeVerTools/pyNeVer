@@ -7,7 +7,7 @@ from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation
@@ -228,16 +228,16 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
             if value == 0:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[
+                        OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[
                             neuron_n]) +
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[
+                    OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[
                         neuron_n] <= 0)
             else:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[
+                        OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[
                             neuron_n]) +
-                    BoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[
+                    OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[
                         neuron_n] >= 0)
 
     # The constraints relating input and output variables

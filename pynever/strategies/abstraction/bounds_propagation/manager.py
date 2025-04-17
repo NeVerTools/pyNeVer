@@ -8,30 +8,59 @@ from pynever.nodes import LayerNode
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, \
     VerboseBounds
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
-from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork
+from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork, AbsNeuralNetwork
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsDirection
 from pynever.utilities import xnor
 
 
-class NewBoundsManager:
+class BoundsManager:
+    """
+    This class manages the symbolic bounds propagation framework for NeVer2.
+    It is designed to handle feed-forward neural networks as computational graphs and can be instantiated
+    either with fixed lower and upper bounds or with a structured verification property.
+
+    Attributes
+    ----------
+    ref_network : NeuralNetwork
+        The reference NN that defines the structure of the graph
+    abs_network : AbsNeuralNetwork
+        The abstract NN that contains the abstraction of the layers
+    topological_stack : list[str]
+        The topological sort of the layers in the NN used for the propagation
+    direction : BoundsDirection
+        The direction in which the bounds are computed, either forwards or backwards
+    bounds_dict : VerboseBounds
+        The data structure storing all bounds information
+    input_bounds : HyperRectangleBounds
+        The input bounds to propagate
+
+    Methods
+    ----------
+    init_symbolic_bounds()
+        Procedure to set up the initial symbolic bounds
+    propagate_bounds(HyperRectangleBounds | None, SymbolicLinearBounds | None, LayerNode | None)
+        Recursive procedure to propagate the bounds. When invoked as a root level, all parameters are None
+
+    """
+
     def __init__(self, network: NeuralNetwork, prop: NeverProperty = None, input_bounds: HyperRectangleBounds = None,
                  parameters: SSBPVerificationParameters = None):
         if prop is None and input_bounds is None:
             raise Exception('Please initialize with either a property or input bounds')
 
         # Initialize the parameters
-        self.network: NeuralNetwork = network
+        self.ref_network: NeuralNetwork = network
 
-        if isinstance(self.network, SequentialNetwork):
-            self.abs_network = AbsSeqNetwork(self.network, parameters)
-        elif isinstance(self.network, AcyclicNetwork):
-            self.abs_network = AbsAcyclicNetwork(self.network, parameters)
+        if isinstance(self.ref_network, SequentialNetwork):
+            self.abs_network: AbsNeuralNetwork = AbsSeqNetwork(self.ref_network, parameters)
+        elif isinstance(self.ref_network, AcyclicNetwork):
+            self.abs_network: AbsNeuralNetwork = AbsAcyclicNetwork(self.ref_network, parameters)
         else:
             raise NotImplementedError
 
-        self.topological_stack: list[str] = self.network.get_topological_order()
+        self.topological_stack: list[str] = self.ref_network.get_topological_order()
         self.direction: BoundsDirection = parameters.bounds_direction
 
         # Initialize the bounds data structure
@@ -55,7 +84,7 @@ class NewBoundsManager:
                          start_layer: LayerNode = None):
 
         if start_layer is None:
-            start_layer = self.network.get_roots()[0]
+            start_layer = self.ref_network.get_roots()[0]
 
             # TODO remove after debugging
             assert start_layer.identifier == self.topological_stack.pop()
@@ -72,7 +101,7 @@ class NewBoundsManager:
         cur_num_bounds = in_num_bounds
 
         # TODO remove after debugging
-        assert xnor(len(self.network.get_children(self.abs_network.get_concrete(cur_layer))) == 0,
+        assert xnor(len(self.ref_network.get_children(self.abs_network.get_concrete(cur_layer))) == 0,
                     len(self.topological_stack) == 0)
 
         # Compute bounds for this layer
@@ -88,5 +117,5 @@ class NewBoundsManager:
             return self.bounds_dict, out_num_bounds
 
         else:
-            next_layer = self.abs_network.get_abstract(self.network.nodes[self.topological_stack.pop()])
+            next_layer = self.abs_network.get_abstract(self.ref_network.nodes[self.topological_stack.pop()])
             return self.propagate_bounds(out_num_bounds, out_sym_bounds, next_layer)

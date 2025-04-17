@@ -33,7 +33,7 @@ class NeverProperty:
             The hyper rectangle approximation of the input property
 
         """
-
+        # TODO approximate if not already a hyperrectangle
         lbs = []
         ubs = []
 

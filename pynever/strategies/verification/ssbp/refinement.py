@@ -10,7 +10,7 @@ from ortools.linear_solver import pywraplp
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.bounds_manager import BoundsManager
+from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit, BoundsDirection
 from pynever.tensors import Tensor
@@ -57,8 +57,8 @@ class BoundsRefinement:
 
         negative_bounds = None if negative_branch_input is None else (
             pre_branch_bounds if negative_branch_input == input_bounds else
-            BoundsManager(self.direction).compute_bounds(negative_branch_input, nn,
-                                                         fixed_neurons=fixed_neurons | {target.to_pair(): 0})
+            OldBoundsManager(self.direction).compute_bounds(negative_branch_input, nn,
+                                                            fixed_neurons=fixed_neurons | {target.to_pair(): 0})
         )
 
         self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
@@ -75,8 +75,8 @@ class BoundsRefinement:
 
         positive_bounds = None if positive_branch_input is None else (
             pre_branch_bounds if positive_branch_input == input_bounds else
-            BoundsManager(self.direction).compute_bounds(positive_branch_input, nn,
-                                                         fixed_neurons=fixed_neurons | {target.to_pair(): 1})
+            OldBoundsManager(self.direction).compute_bounds(positive_branch_input, nn,
+                                                            fixed_neurons=fixed_neurons | {target.to_pair(): 1})
         )
 
         self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
@@ -452,8 +452,8 @@ class BoundsRefinement:
 
         lower_half, upper_half = BoundsRefinement.bisect_an_input_dimension(input_bounds)
 
-        negative_bounds = BoundsManager(self.direction).compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
-        positive_bounds = BoundsManager(self.direction).compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
+        negative_bounds = OldBoundsManager(self.direction).compute_bounds(lower_half, nn, fixed_neurons=fixed_neurons)
+        positive_bounds = OldBoundsManager(self.direction).compute_bounds(upper_half, nn, fixed_neurons=fixed_neurons)
 
         self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
             None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
@@ -520,7 +520,7 @@ class BoundsRefinement:
 
         """
 
-        symbolic_preact_bounds = BoundsManager.get_symbolic_preact_bounds_at(bounds, target.layer_id, nn)
+        symbolic_preact_bounds = OldBoundsManager.get_symbolic_preact_bounds_at(bounds, target.layer_id, nn)
 
         if value == 0:
             # The linear equation for the upper bound of the target neuron

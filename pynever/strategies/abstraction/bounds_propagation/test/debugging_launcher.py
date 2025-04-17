@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 import torch
 
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
-from pynever.strategies.abstraction.bounds_propagation.new_bounds_manager import NewBoundsManager
+from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
 from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
 from pynever.strategies.abstraction.networks import networks
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     upper = lower + 10e-8
     input = HyperRectangleBounds(lower, upper)
 
-    results_dict = NewBoundsManager(network, input_bounds=input)
+    results_dict = BoundsManager(network, input_bounds=input)
     start_time = time.time()
     bounds_dict, num_bounds = results_dict.propagate_bounds()
     end_time = time.time()

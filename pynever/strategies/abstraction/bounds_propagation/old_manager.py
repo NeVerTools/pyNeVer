@@ -21,7 +21,7 @@ from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection
 
 
-class BoundsManager:
+class OldBoundsManager:
     """
     This class handles the propagation of symbolic bounds with
     both forwards and backwards propagation
@@ -97,7 +97,7 @@ class BoundsManager:
         """
 
         # HyperRectBounds input bounds
-        input_hyper_rect = BoundsManager.get_input_bounds(prop)
+        input_hyper_rect = OldBoundsManager.get_input_bounds(prop)
 
         # Get layers
         if not isinstance(network, SequentialNetwork):
@@ -176,15 +176,15 @@ class BoundsManager:
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:
-                layer_eq = BoundsManager.get_linear_layer_equation(layer)
+                layer_eq = OldBoundsManager.get_linear_layer_equation(layer)
                 self.layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_eq, layer_eq)
 
                 lower_eq_from_input, lower_bounds = (
-                    BoundsManager._get_equation_from_input(network, layer.identifier, "lower",
-                                                           self.layer2layer_equations, input_hyper_rect))
+                    OldBoundsManager._get_equation_from_input(network, layer.identifier, "lower",
+                                                              self.layer2layer_equations, input_hyper_rect))
                 upper_eq_from_input, upper_bounds = (
-                    BoundsManager._get_equation_from_input(network, layer.identifier, "upper",
-                                                           self.layer2layer_equations, input_hyper_rect))
+                    OldBoundsManager._get_equation_from_input(network, layer.identifier, "upper",
+                                                              self.layer2layer_equations, input_hyper_rect))
 
                 cur_layer_output_num_bounds = HyperRectangleBounds(lower_bounds, upper_bounds)
                 cur_layer_output_eq = SymbolicLinearBounds(lower_eq_from_input, upper_eq_from_input)
@@ -260,7 +260,7 @@ class BoundsManager:
         for neuron_n in range(numeric_preactivation_bounds.size):
             l, u = numeric_preactivation_bounds.get_dimension_bounds(neuron_n)
 
-            stable_status = BoundsManager.check_stable(l, u)
+            stable_status = OldBoundsManager.check_stable(l, u)
             if stable_status == NeuronState.NEGATIVE_STABLE:
                 inactive.append(neuron_n)
                 stable_count += 1
@@ -320,7 +320,7 @@ class BoundsManager:
         prev_layer_id = network.get_previous_id(layer_id)
 
         while prev_layer_id is not None:
-            current_matrix, current_offset = BoundsManager._substitute_one_step_back(
+            current_matrix, current_offset = OldBoundsManager._substitute_one_step_back(
                 current_matrix, current_offset, symbolic_bounds[prev_layer_id], end
             )
             prev_layer_id = network.get_previous_id(prev_layer_id)
