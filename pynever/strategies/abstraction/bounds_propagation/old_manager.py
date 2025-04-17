@@ -16,9 +16,9 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLin
 from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
-from pynever.strategies.abstraction.bounds_propagation.utility.property_converter import PropertyFormatConverter
+from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
-from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection
+from pynever.strategies.verification.ssbp.constants import BoundsDirection
 
 
 class OldBoundsManager:
@@ -42,42 +42,22 @@ class OldBoundsManager:
         self.reset_info()
 
     @staticmethod
-    def check_stable(lb, ub) -> NeuronState:
+    def check_stable(lb, ub) -> ReLUStatus:
         """
         Static method, given the bounds of a neuron, whether it is stable
         """
 
         # Positive stable
         if lb >= BOUNDS_PRECISION_GUARD:
-            return NeuronState.POSITIVE_STABLE
+            return ReLUStatus.ACTIVE
 
         # Negative stable
         elif ub <= -BOUNDS_PRECISION_GUARD:
-            return NeuronState.NEGATIVE_STABLE
+            return ReLUStatus.INACTIVE
 
         # Unstable
         else:
-            return NeuronState.UNSTABLE
-
-    @staticmethod
-    def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
-        """
-        This method computes the numeric bounds of the input layer
-
-        Parameters
-        ----------
-        prop : NeverProperty
-            The property to verify
-
-        Returns
-        ----------
-        HyperRectangleBounds
-            The numeric bounds of the input layer
-
-        """
-
-        # HyperRectBounds input bounds
-        return PropertyFormatConverter(prop).get_vectors()
+            return ReLUStatus.UNSTABLE
 
     @staticmethod
     def get_symbolic_preact_bounds_at(bounds: VerboseBounds, layer_id: str,
@@ -97,7 +77,7 @@ class OldBoundsManager:
         """
 
         # HyperRectBounds input bounds
-        input_hyper_rect = OldBoundsManager.get_input_bounds(prop)
+        input_hyper_rect = prop.to_numeric_bounds()
 
         # Get layers
         if not isinstance(network, SequentialNetwork):
@@ -261,15 +241,15 @@ class OldBoundsManager:
             l, u = numeric_preactivation_bounds.get_dimension_bounds(neuron_n)
 
             stable_status = OldBoundsManager.check_stable(l, u)
-            if stable_status == NeuronState.NEGATIVE_STABLE:
+            if stable_status == ReLUStatus.INACTIVE:
                 inactive.append(neuron_n)
                 stable_count += 1
 
-            elif stable_status == NeuronState.POSITIVE_STABLE:
+            elif stable_status == ReLUStatus.ACTIVE:
                 active.append(neuron_n)
                 stable_count += 1
 
-            else:  # stable_status == NeuronState.UNSTABLE
+            else:  # stable_status == ReLUStatus.UNSTABLE
                 unstable.append((layer_id, neuron_n))
 
                 # Compute approximation area
@@ -277,18 +257,18 @@ class OldBoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[util.ReLUStability.INACTIVE][layer_id] = inactive
-        self.stability_info[util.ReLUStability.ACTIVE][layer_id] = active
-        self.stability_info[util.ReLUStability.UNSTABLE].extend(unstable)
+        self.stability_info[util.ReLUStatus.INACTIVE][layer_id] = inactive
+        self.stability_info[util.ReLUStatus.ACTIVE][layer_id] = active
+        self.stability_info[util.ReLUStatus.UNSTABLE].extend(unstable)
 
         return stable_count
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            util.ReLUStability.INACTIVE: dict(),
-            util.ReLUStability.ACTIVE: dict(),
-            util.ReLUStability.UNSTABLE: list()
+            util.ReLUStatus.INACTIVE: dict(),
+            util.ReLUStatus.ACTIVE: dict(),
+            util.ReLUStatus.UNSTABLE: list()
         }
 
         self.overapprox_area = {

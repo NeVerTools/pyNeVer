@@ -7,8 +7,8 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBoun
 from pynever.tensors import Tensor
 
 
-class ReLUStability(Enum):
-    """This enumerator registers the status of a reLU neuron
+class ReLUStatus(Enum):
+    """This enumerator registers the status of a ReLU neuron
 
     ACTIVE means that the input is positive, i.e., ReLU acts as identity
     INACTIVE means that the input is negative, i.e., ReLU outputs zero
@@ -128,7 +128,7 @@ def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
     list[int]
         The list of computed inactive neurons and fixed inactive neurons in the layer
     """
-    return (bounds.statistics.stability_info[ReLUStability.INACTIVE][layer_id] +
+    return (bounds.statistics.stability_info[ReLUStatus.INACTIVE][layer_id] +
             [i for (lay_id, i), value in fixed_neurons.items() if lay_id == layer_id and value == 0])
 
 
@@ -153,7 +153,7 @@ def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
     """
     layer_unstable = {
         neuron_n
-        for lay_id, neuron_n in bounds.statistics.stability_info[ReLUStability.UNSTABLE]
+        for lay_id, neuron_n in bounds.statistics.stability_info[ReLUStatus.UNSTABLE]
         if lay_id == layer_id
     }
     return [neuron_n for neuron_n in layer_unstable if (layer_id, neuron_n) not in fixed_neurons]
@@ -174,5 +174,5 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_
     list[int]
         The list of overall computed unstable neurons and fixed unstable neurons
     """
-    unstable = bounds.statistics.stability_info[ReLUStability.UNSTABLE]
+    unstable = bounds.statistics.stability_info[ReLUStatus.UNSTABLE]
     return [neuron for neuron in unstable if neuron not in fixed_neurons]

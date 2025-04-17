@@ -221,7 +221,7 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    if len(nn_bounds.statistics.stability_info[util.ReLUStability.UNSTABLE]) > 0:
+    if len(nn_bounds.statistics.stability_info[util.ReLUStatus.UNSTABLE]) > 0:
         # The constraints from the branching only if there are unstable neurons according to the bounds,
         # hence there was some approximation and the output equations are not exact
         for (layer_id, neuron_n), value in star.fixed_neurons.items():
