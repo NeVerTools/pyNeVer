@@ -9,6 +9,8 @@ import copy
 
 import torch
 
+from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus
+
 
 class AbstractBounds:
     def __init__(self, lower, upper):
@@ -87,15 +89,31 @@ class SymbolicLinearBounds(AbstractBounds):
 
 class BoundsStats:
     """
-    This class contains the statistics about stability and
+    This class collects the statistics about stability and
     approximation obtained through Bounds Propagation
+
+    Attributes
+    ----------
+    stability_info: dict[dict[str, list[int]] | dict[str, int]]
+        Container for the statistics about neuron stability
+    approximation_info: dict[tuple[str, int], float]
+        Container for the statistics about the approximation area
 
     """
 
-    # TODO this makes absolutely no sense, stability info cannot be property of both classes
-    def __init__(self, stability_info: dict, overapprox_area: dict):
-        self.stability_info = copy.deepcopy(stability_info)
-        self.overapprox_area = copy.deepcopy(overapprox_area)
+    def __init__(self):
+        self.stability_info = {
+            # These dictionaries are structured as
+            # <layer_id: str> -> list[neuron: int]
+            ReLUStatus.ACTIVE: dict(),
+            ReLUStatus.INACTIVE: dict(),
+            ReLUStatus.UNSTABLE: dict(),
+            'stable_count': 0
+        }
+
+        # This dictionary is structured as
+        # <(layer_id: str, neuron: int)> -> area: float
+        self.approximation_info = dict()
 
 
 class VerboseBounds:

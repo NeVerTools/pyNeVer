@@ -6,7 +6,7 @@ from pynever import tensors
 from pynever.networks import NeuralNetwork, SequentialNetwork, AcyclicNetwork
 from pynever.nodes import LayerNode, ConcreteLayerNode
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, \
-    VerboseBounds
+    VerboseBounds, BoundsStats
 from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus, check_stable
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork, AbsNeuralNetwork
@@ -36,7 +36,7 @@ class BoundsManager:
         The data structure storing all bounds information
     input_bounds : HyperRectangleBounds
         The input bounds to propagate
-    statistics : dict
+    statistics : BoundsStats
         Statistics about neurons stability
 
     Methods
@@ -45,8 +45,6 @@ class BoundsManager:
         Procedure to set up the initial symbolic bounds
     propagate_bounds(HyperRectangleBounds | None, SymbolicLinearBounds | None, LayerNode | None)
         Recursive procedure to propagate the bounds. When invoked as a root level, all parameters are None
-    reset_stats()
-        Procedure to reset statistics
     update_stats(AbsLayerNode, HyperRectangleBounds)
         Procedure to update statistics
 
@@ -74,15 +72,13 @@ class BoundsManager:
         self.bounds_dict = VerboseBounds()
 
         # Initialize the bounds
-        self.input_bounds = prop.to_numeric_bounds() if prop else input_bounds
+        self.input_bounds: HyperRectangleBounds = prop.to_numeric_bounds() if prop else input_bounds
 
         # Initialize the statistics
-        self.statistics = BoundsManager.reset_stats()
+        self.statistics = BoundsStats()
 
     def init_symbolic_bounds(self) -> SymbolicLinearBounds:
-        """
-        Initialize the input symbolic linear bounds
-        """
+        """Initialize the input symbolic linear bounds"""
         input_size = self.input_bounds.get_size()
         lower_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
         upper_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
@@ -153,39 +149,22 @@ class BoundsManager:
 
             match status:
                 case ReLUStatus.ACTIVE:
-                    self.statistics['relu'][ReLUStatus.ACTIVE][layer_id].append(neuron)
-                    self.statistics['relu']['stable_count'] += 1
+                    self.statistics.stability_info[ReLUStatus.ACTIVE][layer_id].append(neuron)
+                    self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.INACTIVE:
-                    self.statistics['relu'][ReLUStatus.INACTIVE][layer_id].append(neuron)
-                    self.statistics['relu']['stable_count'] += 1
+                    self.statistics.stability_info[ReLUStatus.INACTIVE][layer_id].append(neuron)
+                    self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.UNSTABLE:
-                    self.statistics['relu'][ReLUStatus.UNSTABLE][layer_id].append(neuron)
+                    self.statistics.stability_info[ReLUStatus.UNSTABLE][layer_id].append(neuron)
 
                     # Compute approximation area
                     area = 0.5 * (u - l) * u
-                    self.statistics['approximation'][(layer_id, neuron)] = area
+                    self.statistics.approximation_info[(layer_id, neuron)] = area
 
                 case _:
                     raise NotImplementedError
-
-    @staticmethod
-    def reset_stats() -> dict:
-        """Reset the dictionary of statistics about neurons"""
-        return {
-            'relu': {
-                # These dictionaries are structured as
-                # <layer_id: str> -> list[neuron: int]
-                ReLUStatus.ACTIVE: dict(),
-                ReLUStatus.INACTIVE: dict(),
-                ReLUStatus.UNSTABLE: dict(),
-                'stable_count': 0
-            },
-            # This dictionary is structured as
-            # <(layer_id: str, neuron: int)> -> area: float
-            'approximation': dict()
-        }
 
     @staticmethod
     def get_symbolic_preactivation_bounds_at(bounds: VerboseBounds, layer: ConcreteLayerNode,
