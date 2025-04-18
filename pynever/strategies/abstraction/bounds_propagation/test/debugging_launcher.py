@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
     results_dict = BoundsManager(network, input_bounds=input)
     start_time = time.time()
-    bounds_dict, num_bounds = results_dict.propagate_bounds()
+    bounds_dict, num_bounds = results_dict.compute_bounds()
     end_time = time.time()
     execution_time = end_time - start_time
 

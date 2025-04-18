@@ -79,8 +79,11 @@ class AbsNeuralNetwork(abc.ABC):
         """
         raise NotImplementedError
 
-    def get_abstract(self, node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode:
-        return self.nodes[f'ABS_{node.identifier}']
+    def get_abstract(self, node: nodes.ConcreteLayerNode, abs_id: bool = True) -> absnodes.AbsLayerNode:
+        node = self.nodes[f'ABS_{node.identifier}']
+        node.identifier = node.identifier.replace('ABS_', '') if not abs_id else node.identifier
+
+        return node
 
     def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
         return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]

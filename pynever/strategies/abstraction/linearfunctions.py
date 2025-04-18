@@ -29,21 +29,21 @@ class LinearFunctions:
         )
         return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
 
-    def get_size(self):
+    def get_size(self) -> int:
         return self.size
 
-    def get_matrix(self):
+    def get_matrix(self) -> Tensor:
         return self.matrix
 
-    def get_offset(self):
+    def get_offset(self) -> Tensor:
         return self.offset
 
-    def compute_max_values(self, input_bounds):
+    def compute_max_values(self, input_bounds) -> Tensor:
         return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_upper()) + \
             tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_lower()) + \
             self.offset
 
-    def compute_min_values(self, input_bounds):
+    def compute_min_values(self, input_bounds) -> Tensor:
         return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_lower()) + \
             tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_upper()) + \
             self.offset

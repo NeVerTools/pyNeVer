@@ -3,6 +3,7 @@ from enum import Enum
 import numpy
 
 from pynever import tensors
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
 from pynever.tensors import Tensor
 
@@ -18,6 +19,22 @@ class ReLUStatus(Enum):
     ACTIVE = 0
     INACTIVE = 1
     UNSTABLE = 2
+
+
+def check_stable(lb: float, ub: float) -> ReLUStatus:
+    """Return the status of a ReLU neuron given the values of the lower and upper pre-activation bounds"""
+
+    # Positive stable
+    if lb >= BOUNDS_PRECISION_GUARD:
+        return ReLUStatus.ACTIVE
+
+    # Negative stable
+    elif ub <= -BOUNDS_PRECISION_GUARD:
+        return ReLUStatus.INACTIVE
+
+    # Unstable
+    else:
+        return ReLUStatus.UNSTABLE
 
 
 def compute_lower(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tensor, input_upper: Tensor) -> Tensor:
