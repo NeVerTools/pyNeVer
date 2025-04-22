@@ -2,6 +2,7 @@
 This module controls the bounds propagation for neural networks
 
 """
+
 from pynever import tensors
 from pynever.networks import NeuralNetwork, SequentialNetwork, AcyclicNetwork
 from pynever.nodes import LayerNode, ConcreteLayerNode
@@ -94,10 +95,7 @@ class BoundsManager:
         N.B. inside the propagation we use abstract layers but with their concrete counterpart identifier
         """
         if start_layer is None:
-            start_layer = self.ref_network.get_roots()[0]
-
-            # TODO remove after debugging
-            assert start_layer.identifier == self.topological_stack.pop()
+            start_layer = self.ref_network.get_first_node()
             # Set the identifier for the abstract layer equal to the concrete
             start_layer = self.abs_network.get_abstract(start_layer, abs_id=False)
 

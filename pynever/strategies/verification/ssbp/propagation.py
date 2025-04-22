@@ -58,7 +58,7 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
         # we filter them when this occurs
         # =======================================
         elif ((isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_next_node(layer), nodes.ReshapeNode)) or
-              (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_prev_node(layer), nodes.ReshapeNode))):
+              (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_previous_node(layer), nodes.ReshapeNode))):
             # Do nothing
             continue
 
@@ -151,7 +151,7 @@ def propagate_until_relu(star: ExtendedStar, bounds: VerboseBounds, network: net
             # =======================================
             elif ((isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_next_node(layer),
                                                                        nodes.ReshapeNode)) or
-                  (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_prev_node(layer),
+                  (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_previous_node(layer),
                                                                        nodes.ReshapeNode))):
                 # Do nothing
                 pass

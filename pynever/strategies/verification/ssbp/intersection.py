@@ -352,7 +352,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
 
             variables.append(np.array(layer_vars))
 
-            prev_layer = nn.get_prev_node(layer)
+            prev_layer = nn.get_previous_node(layer)
             dot_product = np.array([
                 prev_layer.weight[i].dot(variables[-2]) + prev_layer.bias[i]
                 for i in range(prev_layer.weight.shape[0])
