@@ -9,10 +9,10 @@ import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
-from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification import VERIFICATION_LOGGER

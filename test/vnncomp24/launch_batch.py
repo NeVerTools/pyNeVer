@@ -2,6 +2,8 @@ import csv
 import logging
 import time
 
+from torch import Tensor
+
 from pynever import utilities
 from pynever.networks import SequentialNetwork, NeuralNetwork
 import pynever.strategies.conversion.representation as convrepr
@@ -9,7 +11,6 @@ from pynever.strategies.conversion.converters.onnx import ONNXConverter
 from pynever.strategies.verification.properties import VnnLibProperty
 import pynever.strategies.verification.algorithms as veralgs
 import pynever.strategies.verification.parameters as verparams
-from pynever.tensors import Tensor
 
 BENCHMARKS_PATH = '../../examples'
 

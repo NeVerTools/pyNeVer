@@ -154,10 +154,7 @@ class NeuralNetwork(abc.ABC):
         list[ConcreteLayerNode]
             The children of the node passed as argument.
         """
-        if self.has_children(node):
-            return [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
-        else:
-            return []
+        return [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
 
     def has_parents(self, node: nodes.ConcreteLayerNode) -> bool:
         """Procedure to check if a node has parents.
@@ -183,12 +180,9 @@ class NeuralNetwork(abc.ABC):
         list[ConcreteLayerNode]
             The parents of the node passed as argument.
         """
-        if self.has_parents(node):
-            return [self.nodes[parent_node_id]
-                    for parent_node_id, end_nodes_ids in self.edges.items()
-                    if node.identifier in end_nodes_ids]
-        else:
-            return []
+        return [self.nodes[parent_node_id]
+                for parent_node_id, end_nodes_ids in self.edges.items()
+                if node.identifier in end_nodes_ids]
 
     def get_input_id(self) -> str:
         """Procedure to return the input_id of the network, assuming there is a single input layer.
@@ -197,15 +191,7 @@ class NeuralNetwork(abc.ABC):
         str
             The input_id of the network.
         """
-        if self.is_empty():
-            raise EmptyNetworkError()
-
-        first_id = self.get_first_node().identifier
-        for k, v in self.input_ids.items():
-            if v == first_id:
-                return k
-
-        raise NotInNetworkError('Error retrieving the input id')
+        return list(self.input_ids.keys())[0]
 
     def get_roots(self) -> list[nodes.ConcreteLayerNode]:
         """Procedure to return the roots of the network as a list of ConcreteLayerNodes.
@@ -250,7 +236,6 @@ class NeuralNetwork(abc.ABC):
         result = []
         seen = set()
         recursive_dfs(self.get_roots()[0].identifier, seen, result)
-        result.reverse()
 
         return result
 

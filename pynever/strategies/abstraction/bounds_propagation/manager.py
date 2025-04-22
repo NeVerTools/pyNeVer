@@ -8,7 +8,8 @@ from pynever.networks import NeuralNetwork, SequentialNetwork, AcyclicNetwork
 from pynever.nodes import LayerNode, ConcreteLayerNode
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, \
     VerboseBounds, BoundsStats
-from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus, check_stable
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
+from pynever.strategies.abstraction.bounds_propagation.util import check_stable
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork, AbsNeuralNetwork
 from pynever.strategies.verification.parameters import SSBPVerificationParameters

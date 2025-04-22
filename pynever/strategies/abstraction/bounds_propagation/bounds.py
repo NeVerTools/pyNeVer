@@ -9,7 +9,7 @@ import copy
 
 import torch
 
-from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 
 
 class AbstractBounds:

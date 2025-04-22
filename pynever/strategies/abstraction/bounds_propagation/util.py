@@ -1,24 +1,9 @@
-from enum import Enum
-
 import numpy
 
 from pynever import tensors
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD, ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
 from pynever.tensors import Tensor
-
-
-class ReLUStatus(Enum):
-    """This enumerator registers the status of a ReLU neuron
-
-    ACTIVE means that the input is positive, i.e., ReLU acts as identity
-    INACTIVE means that the input is negative, i.e., ReLU outputs zero
-    UNSTABLE means that the input is both positive and negative
-
-    """
-    ACTIVE = 0
-    INACTIVE = 1
-    UNSTABLE = 2
 
 
 def check_stable(lb: float, ub: float) -> ReLUStatus:

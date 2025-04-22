@@ -6,17 +6,18 @@ the different layers of a neural network
 
 import numpy as np
 
+import pynever.strategies.abstraction.bounds_propagation
+import pynever.strategies.abstraction.bounds_propagation.bounds
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, BOUNDS_PRECISION_GUARD
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, BOUNDS_PRECISION_GUARD, ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, \
     VerboseBounds, BoundsStats
 from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
-from pynever.strategies.abstraction.bounds_propagation.util import ReLUStatus
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import BoundsDirection
 
@@ -257,18 +258,19 @@ class OldBoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[util.ReLUStatus.INACTIVE][layer_id] = inactive
-        self.stability_info[util.ReLUStatus.ACTIVE][layer_id] = active
-        self.stability_info[util.ReLUStatus.UNSTABLE].extend(unstable)
+        self.stability_info[pynever.strategies.abstraction.bounds_propagation.ReLUStatus.INACTIVE][layer_id] = inactive
+        self.stability_info[pynever.strategies.abstraction.bounds_propagation.ReLUStatus.ACTIVE][layer_id] = active
+        self.stability_info[
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.UNSTABLE].extend(unstable)
 
         return stable_count
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            util.ReLUStatus.INACTIVE: dict(),
-            util.ReLUStatus.ACTIVE: dict(),
-            util.ReLUStatus.UNSTABLE: list()
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.INACTIVE: dict(),
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.ACTIVE: dict(),
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.UNSTABLE: list()
         }
 
         self.overapprox_area = {

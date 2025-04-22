@@ -6,6 +6,8 @@ import re
 import sys
 import time
 
+from torch import Tensor
+
 import pynever.networks as networks
 import pynever.strategies.verification.algorithms as veralg
 import pynever.strategies.verification.parameters as verparams
@@ -13,7 +15,6 @@ import pynever.strategies.verification.properties as verprop
 import pynever.utilities as utilities
 from pynever.strategies.conversion.converters.onnx import ONNXConverter
 from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
-from pynever.tensors import Tensor
 
 # Log to stdout
 logger = logging.getLogger()
@@ -357,7 +358,7 @@ def reformat_counterexample(counterexample: Tensor) -> str:
 
     formatted = '['
     for component in counterexample:
-        formatted += str(float(component[0]))
+        formatted += str(component.item())
         formatted += ' '
     formatted = formatted[:-1]
     formatted += ']'
