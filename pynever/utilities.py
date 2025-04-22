@@ -7,9 +7,9 @@ import copy
 
 import numpy
 import torch
+from torch import Tensor
 
 from pynever import networks
-from pynever import tensors
 from pynever.strategies.conversion.converters import pytorch_layers as ptl
 from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
 from pynever.strategies.conversion.representation import PyTorchNetwork
@@ -22,35 +22,27 @@ def xnor(a: bool, b: bool) -> bool:
     return not xor(a, b)
 
 
-def execute_network(network: networks.NeuralNetwork, net_input: tensors.Tensor) -> tensors.Tensor:
-    """Applies the neural network function to an input Tensor using pyTorch backend.
+def execute_network(network: networks.NeuralNetwork, input_t: Tensor) -> Tensor:
+    """Applies the neural network function to an input Tensor using the pyTorch backend.
 
     Parameters
     ----------
-    network : NeuralNetwork
+    network: NeuralNetwork
         The network to execute
-    net_input : Tensor
+    input_t: Tensor
         The input value to feed
-
     Returns
     -------
     Tensor
         The computed output
-
     """
-
-    if net_input.dtype == numpy.object_:
-        print("net_input", net_input)
-
-    input_t = torch.Tensor(net_input)
-
     py_net = PyTorchConverter().from_neural_network(network)
     py_net.pytorch_network.eval()
     py_net.pytorch_network.float()
 
+    # ??
     output = py_net.pytorch_network(input_t.float().permute(*torch.arange(input_t.ndim - 1, -1, -1)))
-
-    return tensors.array(output.detach().numpy().T)
+    return output.detach()
 
 
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.Linear:
