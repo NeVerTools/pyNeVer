@@ -1,10 +1,10 @@
 import numpy as np
 import onnx
-import onnx.numpy_helper
+import torch
+from torch import Tensor
 
 import pynever.networks as networks
 import pynever.nodes as nodes
-import pynever.tensors as tensors
 from pynever.strategies.conversion.representation import ConversionStrategy, ONNXNetwork
 
 
@@ -103,13 +103,13 @@ class ONNXConverter(ConversionStrategy):
                                                                [current_node.out_features,
                                                                 current_node.in_features])
 
-        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.T, input_weight)
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy().T, input_weight)
 
         if current_node.has_bias:
             input_bias = current_node.identifier + "_bias"
             bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  [current_node.out_features])
-            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
 
             onnx_node = onnx.helper.make_node(
                 'Gemm',
@@ -157,10 +157,10 @@ class ONNXConverter(ConversionStrategy):
         var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.DOUBLE,
                                                             [current_node.num_features])
 
-        scale_tensor = onnx.numpy_helper.from_array(current_node.weight, input_scale)
-        bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
-        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean, input_mean)
-        var_tensor = onnx.numpy_helper.from_array(current_node.running_var, input_var)
+        scale_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy(), input_scale)
+        bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
+        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean.numpy(), input_mean)
+        var_tensor = onnx.numpy_helper.from_array(current_node.running_var.numpy(), input_var)
 
         onnx_node = onnx.helper.make_node(
             'BatchNormalization',
@@ -193,7 +193,7 @@ class ONNXConverter(ConversionStrategy):
         weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.DOUBLE,
                                                                weight_size)
 
-        weight_tensor = onnx.numpy_helper.from_array(current_node.weight, input_weight)
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy(), input_weight)
 
         if current_node.has_bias:
 
@@ -202,7 +202,7 @@ class ONNXConverter(ConversionStrategy):
 
             bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  bias_size)
-            bias_tensor = onnx.numpy_helper.from_array(current_node.bias, input_bias)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
 
             onnx_node = onnx.helper.make_node(
                 'Conv',
@@ -588,16 +588,13 @@ class ONNXConverter(ConversionStrategy):
         matmul_found = False
 
         for node in alt_rep.onnx_network.graph.node:
-
             """ This part of code handles the case when there is a MatMul + Add for a linear transformation """
             if matmul_found:
                 if node.op_type == "Add":
-
                     # We assume that the bias is always the second element of node.input
-
-                    bias = tensors.array(parameters[node.input[1]])
+                    bias = Tensor(parameters[node.input[1]])
                     network.append_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.get_input_dim(),
-                                                                 temp_fc.out_features, temp_fc.weight, bias, True))
+                                                                 temp_fc.out_features, temp_fc.weight, bias))
                     matmul_found = False
                     temp_fc = None
                     node_index += 1
@@ -606,25 +603,23 @@ class ONNXConverter(ConversionStrategy):
 
                 else:
                     network.append_node(nodes.FullyConnectedNode(temp_fc.identifier, temp_fc.get_input_dim(),
-                                                                 temp_fc.out_features, temp_fc.weight, None, False))
+                                                                 temp_fc.out_features, temp_fc.weight, has_bias=False))
                     matmul_found = False
                     temp_fc = None
                     node_index += 1
                     in_dim = network.get_last_node().out_dim
 
             if node.op_type == "MatMul":
-
                 # If the weight is the second parameter we need to transpose it
-
                 if node.input[0] in parameters.keys():
                     weight = parameters[node.input[0]]
                 else:
                     weight = parameters[node.input[1]].T
 
-                weight = tensors.array(weight)
+                weight = Tensor(weight)
 
                 out_features = weight.shape[0]
-                temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, None, False)
+                temp_fc = nodes.FullyConnectedNode(node.output[0], in_dim, out_features, weight, has_bias=False)
                 matmul_found = True
 
                 continue
@@ -638,48 +633,35 @@ class ONNXConverter(ConversionStrategy):
                 continue
 
             elif node.op_type == "Relu":
-
                 # We assume that the real input of the node is always the first element of node.input
                 # and the first element of the shape is the batch placeholder
-
                 network.append_node(nodes.ReLUNode(node.output[0], in_dim))
 
             elif node.op_type == "Elu":
-
                 alpha = 1.0
-
                 for att in node.attribute:
                     if att.name == 'alpha':
                         alpha = att.f
-
                 network.append_node(nodes.ELUNode(node.output[0], in_dim, alpha))
 
             elif node.op_type == "LeakyRelu":
-
                 negative_slope = 1.0
-
                 for att in node.attribute:
                     if att.name == 'alpha':
                         negative_slope = att.f
-
                 network.append_node(nodes.LeakyReLUNode(node.output[0], in_dim, negative_slope))
 
             elif node.op_type == "Celu":
-
                 alpha = 1.0
-
                 for att in node.attribute:
                     if att.name == 'alpha':
                         alpha = att.f
-
                 network.append_node(nodes.CELUNode(node.output[0], in_dim, alpha))
 
             elif node.op_type == "Sigmoid":
-
                 network.append_node(nodes.SigmoidNode(node.output[0], in_dim))
 
             elif node.op_type == "Tanh":
-
                 network.append_node(nodes.TanhNode(node.output[0], in_dim))
 
             elif node.op_type == "Gemm":
@@ -688,18 +670,17 @@ class ONNXConverter(ConversionStrategy):
                 # N.B: We do not support the attributes transA and transB,
                 # therefore we need to transpose the weight vector.
                 # TODO: Can we support transA and transB in some way?
-
-                weight = parameters[node.input[1]]
+                weight = Tensor(parameters[node.input[1]])
                 for att in node.attribute:
                     if (att.name == 'transA' or att.name == 'transB') and att.i == 0:
-                        weight = parameters[node.input[1]].T
+                        weight = Tensor(parameters[node.input[1]].T)
 
                 if len(node.input) <= 2:
                     has_bias = False
                     bias = None
                 else:
                     has_bias = True
-                    bias = parameters[node.input[2]]
+                    bias = Tensor(parameters[node.input[2]])
 
                 out_features = weight.shape[0]
                 network.append_node(nodes.FullyConnectedNode(node.output[0], in_dim,
@@ -709,10 +690,10 @@ class ONNXConverter(ConversionStrategy):
                 # is always the second, the bias tensor is always the third, the running_mean always the fourth
                 # and the running_var always the fifth.
 
-                weight = tensors.array(parameters[node.input[1]])
-                bias = tensors.array(parameters[node.input[2]])
-                running_mean = tensors.array(parameters[node.input[3]])
-                running_var = tensors.array(parameters[node.input[4]])
+                weight = Tensor(parameters[node.input[1]])
+                bias = Tensor(parameters[node.input[2]])
+                running_mean = Tensor(parameters[node.input[3]])
+                running_var = Tensor(parameters[node.input[4]])
 
                 eps = 1e-05
                 momentum = 0.9
@@ -730,7 +711,7 @@ class ONNXConverter(ConversionStrategy):
                 # We assume that the real input is always the first element of node.input, the weight tensor
                 # is always the second and the bias tensor is always the third.
 
-                weight = tensors.array(parameters[node.input[1]])
+                weight = Tensor(parameters[node.input[1]])
                 if len(node.input) <= 2:
                     has_bias = False
                     bias = None
@@ -743,9 +724,10 @@ class ONNXConverter(ConversionStrategy):
                 # TODO: at present we do not support auto_pad and implicit kernel_shape.
                 groups = 1
                 # We need to exclude the first axis (channels) from the following quantities.
-                dilation = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
-                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
-                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+                dilation = tuple(torch.ones(len(in_dim[1:])))
+                padding = tuple(torch.zeros(2 * len(in_dim[1:])))
+                stride = tuple(torch.ones(len(in_dim[1:])))
+                kernel_shape = None
 
                 for att in node.attribute:
                     if att.name == 'dilations':
@@ -763,13 +745,12 @@ class ONNXConverter(ConversionStrategy):
                                                    stride, padding, dilation, groups, has_bias, bias, weight))
 
             elif node.op_type == "AveragePool":
-
                 # TODO: at present we do not support auto_pad.
-
                 ceil_mode = False
                 count_include_pad = False
-                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
-                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+                padding = tuple(torch.zeros(2 * len(in_dim[1:])))
+                stride = tuple(torch.ones(len(in_dim[1:])))
+                kernel_shape = None
 
                 for att in node.attribute:
                     if att.name == 'ceil_mode':
@@ -787,11 +768,11 @@ class ONNXConverter(ConversionStrategy):
                                                           padding, ceil_mode, count_include_pad))
 
             elif node.op_type == "MaxPool":
-
                 ceil_mode = False
-                dilation = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
-                padding = tuple(np.zeros(2 * len(in_dim[1:]), dtype=np.intc))
-                stride = tuple(np.ones(len(in_dim[1:]), dtype=np.intc))
+                dilation = tuple(torch.ones(len(in_dim[1:])))
+                padding = tuple(torch.zeros(2 * len(in_dim[1:])))
+                stride = tuple(torch.ones(len(in_dim[1:])))
+                kernel_shape = None
 
                 for att in node.attribute:
                     if att.name == 'ceil_mode':
@@ -809,10 +790,10 @@ class ONNXConverter(ConversionStrategy):
                                                       dilation, ceil_mode))
 
             elif node.op_type == "LRN":
-
                 alpha = 0.0001
                 beta = 0.75
                 k = 1.0
+                size = 0
 
                 for att in node.attribute:
                     if att.name == 'alpha':
@@ -827,18 +808,15 @@ class ONNXConverter(ConversionStrategy):
                 network.append_node(nodes.LRNNode(node.output[0], in_dim, size, alpha, beta, k))
 
             elif node.op_type == "Softmax":
-
                 # Since the ONNX representation consider the batch dimension we need to scale the axis by 1
                 # when we pass to our representation.
                 axis = -1
                 for att in node.attribute:
                     if att.name == 'axis':
                         axis = att.i - 1
-
                 network.append_node(nodes.SoftMaxNode(node.output[0], in_dim, axis))
 
             elif node.op_type == "Unsqueeze":
-
                 temp_axes = tuple(parameters[node.input[1]])
                 # Since our representation do not consider the batch dimension we need to scale all the axes
                 # by 1 when we pass to the onnx representation.
@@ -846,7 +824,6 @@ class ONNXConverter(ConversionStrategy):
                 network.append_node(nodes.UnsqueezeNode(node.output[0], in_dim, axes))
 
             elif node.op_type == "Reshape":
-
                 shape = tuple(parameters[node.input[1]])
                 # We need to eliminate the first dimension corresponding to the batch dimension
                 shape = shape[1:]
@@ -854,11 +831,9 @@ class ONNXConverter(ConversionStrategy):
                 for att in node.attribute:
                     if att.name == 'allowzero':
                         allow_zero = att.i
-
                 network.append_node(nodes.ReshapeNode(node.output[0], in_dim, shape, allow_zero))
 
             elif node.op_type == "Flatten":
-
                 # We need to scale the axis value since our representation does not have the batch dimension
                 axis = 0
                 for att in node.attribute:
@@ -867,12 +842,10 @@ class ONNXConverter(ConversionStrategy):
                 network.append_node(nodes.FlattenNode(node.output[0], in_dim, axis))
 
             elif node.op_type == "Dropout":
-
-                ratio = tensors.array(parameters[node.input[1]][0])
+                ratio = float(parameters[node.input[1]][0])
                 network.append_node(nodes.DropoutNode(node.output[0], in_dim, ratio))
 
             elif node.op_type == "Transpose":
-
                 perm = None
                 for att in node.attribute:
                     if att.name == 'perm':
@@ -881,7 +854,6 @@ class ONNXConverter(ConversionStrategy):
                             perm = [att.ints[k] - 1 for k in range(1, len(att.ints))]
                         else:
                             perm = att.ints
-
                 network.append_node(nodes.TransposeNode(node.output[0], in_dim, perm))
 
             else:
