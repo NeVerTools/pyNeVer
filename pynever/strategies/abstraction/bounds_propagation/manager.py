@@ -2,13 +2,13 @@
 This module controls the bounds propagation for neural networks
 
 """
+import torch
 
-from pynever import tensors
 from pynever.networks import NeuralNetwork, SequentialNetwork, AcyclicNetwork
 from pynever.nodes import LayerNode, ConcreteLayerNode
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, SymbolicLinearBounds, \
     VerboseBounds, BoundsStats
-from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.util import check_stable
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork, AbsNeuralNetwork
@@ -82,8 +82,8 @@ class BoundsManager:
     def init_symbolic_bounds(self) -> SymbolicLinearBounds:
         """Initialize the input symbolic linear bounds"""
         input_size = self.input_bounds.get_size()
-        lower_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
-        upper_equation = LinearFunctions(tensors.identity(input_size), tensors.zeros(input_size))
+        lower_equation = LinearFunctions(torch.identity(input_size), torch.zeros(input_size))
+        upper_equation = LinearFunctions(torch.identity(input_size), torch.zeros(input_size))
 
         return SymbolicLinearBounds(lower_equation, upper_equation)
 
