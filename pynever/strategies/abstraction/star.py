@@ -5,16 +5,14 @@ import abc
 import time
 import uuid
 
-import numpy as np
-import numpy.linalg as la
+import torch
 from ortools.linear_solver import pywraplp
+from torch import Tensor
 
-import pynever.tensors as tensors
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
-from pynever.tensors import Tensor
 
 
 class AbsElement(abc.ABC):
@@ -79,8 +77,8 @@ class Star:
         self.predicate_bias: Tensor = predicate_bias
 
         if center is None and basis_matrix is None:
-            self.center: Tensor = tensors.zeros((predicate_matrix.shape[1], 1))
-            self.basis_matrix: Tensor = tensors.identity(predicate_matrix.shape[1])
+            self.center: Tensor = torch.zeros((predicate_matrix.shape[1], 1))
+            self.basis_matrix: Tensor = torch.eye(predicate_matrix.shape[1])
 
         else:
             center_dim_message = f"Error: the first dimension of the basis_matrix ({basis_matrix.shape[0]}) " \
@@ -203,8 +201,8 @@ class Star:
         if alpha_point.shape[0] != self.predicate_matrix.shape[1]:
             raise InvalidDimensionError(dim_error_msg)
 
-        tests = tensors.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
-        test = np.all(tests)
+        tests = torch.matmul(self.predicate_matrix, alpha_point) <= self.predicate_bias
+        test = torch.all(tests).item()
 
         return test
 
@@ -260,7 +258,7 @@ class Star:
 
         if self.__current_point is None or new_start:
             starting_point = self.__get_starting_point()
-            current_point = np.array(starting_point)
+            current_point = Tensor(starting_point)
         else:
             current_point = self.__current_point
 
@@ -268,31 +266,31 @@ class Star:
         samples = []
         while len(samples) < num_samples:
 
-            direction = np.random.randn(self.predicate_matrix.shape[1], 1)
-            direction = direction / la.norm(direction)
+            direction = torch.randn(self.predicate_matrix.shape[1], 1)
+            direction = direction / torch.linalg.vector_norm(direction)
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
 
-                if not np.isclose(np.matmul(self.predicate_matrix[i, :], direction), 0):
+                if not torch.isclose(torch.matmul(self.predicate_matrix[i, :], direction), Tensor(0)):
                     temp = auxiliary_points[i] - current_point
-                    lam = np.matmul(self.predicate_matrix[i, :], temp) / (np.matmul(self.predicate_matrix[i, :],
-                                                                                    direction))
+                    lam = torch.matmul(self.predicate_matrix[i, :], temp) / (torch.matmul(self.predicate_matrix[i, :],
+                                                                                          direction))
                     lambdas.append(lam)
 
-            lambdas = np.array(lambdas)
+            lambdas = Tensor(lambdas)
 
             try:
-                lam_upper = np.min(lambdas[lambdas >= 0])
-                lam_lower = np.max(lambdas[lambdas < 0])
+                lam_upper = torch.min(lambdas[lambdas >= 0]).item()
+                lam_lower = torch.max(lambdas[lambdas < 0]).item()
             except Exception:
                 raise RuntimeError("The current direction does not intersect"
                                    "any of the hyperplanes.")
 
-            increment = np.random.uniform(low=lam_lower, high=lam_upper)
+            increment = torch.FloatTensor().uniform_(lam_lower, lam_upper)
             next_point = current_point + increment * direction
             if self.check_alpha_inside(next_point):
                 current_point = next_point
-                star_point = self.center + np.matmul(self.basis_matrix, current_point)
+                star_point = self.center + torch.matmul(self.basis_matrix, current_point)
                 samples.append(star_point)
                 self.__current_point = current_point
 
@@ -305,11 +303,11 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.n_neurons)
+        mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
-        new_c = tensors.matmul(mask, self.center)
-        new_b = tensors.matmul(mask, self.basis_matrix)
+        new_c = torch.matmul(mask, self.center)
+        new_b = torch.matmul(mask, self.basis_matrix)
         new_pred = self.predicate_matrix
         new_bias = self.predicate_bias
 
@@ -321,33 +319,33 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.n_neurons)
+        mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
         # Build all components of the approximate star
         col_c_mat = self.predicate_matrix.shape[1]
         row_c_mat = self.predicate_matrix.shape[0]
 
-        c_mat_1 = tensors.zeros((1, col_c_mat + 1))
+        c_mat_1 = torch.zeros((1, col_c_mat + 1))
         c_mat_1[0, col_c_mat] = -1
-        c_mat_2 = tensors.hstack((tensors.array([self.basis_matrix[index, :]]), -tensors.ones((1, 1))))
+        c_mat_2 = torch.hstack((torch.array([self.basis_matrix[index, :]]), -torch.ones((1, 1))))
         coef_3 = - ub / (ub - lb)
-        c_mat_3 = tensors.hstack((tensors.array([coef_3 * self.basis_matrix[index, :]]), tensors.ones((1, 1))))
-        c_mat_0 = tensors.hstack((self.predicate_matrix, tensors.zeros((row_c_mat, 1))))
+        c_mat_3 = torch.hstack((torch.array([coef_3 * self.basis_matrix[index, :]]), torch.ones((1, 1))))
+        c_mat_0 = torch.hstack((self.predicate_matrix, torch.zeros((row_c_mat, 1))))
 
         d_0 = self.predicate_bias
-        d_1 = tensors.zeros((1, 1))
-        d_2 = -self.center[index] * tensors.ones((1, 1))
-        d_3 = tensors.array([(ub / (ub - lb)) * (self.center[index] - lb)])
+        d_1 = torch.zeros((1, 1))
+        d_2 = -self.center[index] * torch.ones((1, 1))
+        d_3 = torch.array([(ub / (ub - lb)) * (self.center[index] - lb)])
 
-        new_pred_mat = tensors.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
-        new_pred_bias = tensors.vstack((d_0, d_1, d_2, d_3))
+        new_pred_mat = torch.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
+        new_pred_bias = torch.vstack((d_0, d_1, d_2, d_3))
 
-        new_center = tensors.matmul(mask, self.center)
-        temp_basis_mat = tensors.matmul(mask, self.basis_matrix)
-        temp_vec = tensors.zeros((self.basis_matrix.shape[0], 1))
+        new_center = torch.matmul(mask, self.center)
+        temp_basis_mat = torch.matmul(mask, self.basis_matrix)
+        temp_vec = torch.zeros((self.basis_matrix.shape[0], 1))
         temp_vec[index, 0] = 1
-        new_basis_mat = tensors.hstack((temp_basis_mat, temp_vec))
+        new_basis_mat = torch.hstack((temp_basis_mat, temp_vec))
 
         return Star(new_pred_mat, new_pred_bias, new_center, new_basis_mat)
 
@@ -358,21 +356,21 @@ class Star:
 
         """
 
-        mask = tensors.identity(self.n_neurons)
+        mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
         # Lower star
-        lower_c = tensors.matmul(mask, self.center)
-        lower_b = tensors.matmul(mask, self.basis_matrix)
-        lower_pred = tensors.vstack((self.predicate_matrix, self.basis_matrix[index, :]))
-        lower_bias = tensors.vstack((self.predicate_bias, -self.center[index]))
+        lower_c = torch.matmul(mask, self.center)
+        lower_b = torch.matmul(mask, self.basis_matrix)
+        lower_pred = torch.vstack((self.predicate_matrix, self.basis_matrix[index, :]))
+        lower_bias = torch.vstack((self.predicate_bias, -self.center[index]))
         lower_star = Star(lower_pred, lower_bias, lower_c, lower_b)
 
         # Upper star
         upper_c = self.center
         upper_b = self.basis_matrix
-        upper_pred = tensors.vstack((self.predicate_matrix, -self.basis_matrix[index, :]))
-        upper_bias = tensors.vstack((self.predicate_bias, self.center[index]))
+        upper_pred = torch.vstack((self.predicate_matrix, -self.basis_matrix[index, :]))
+        upper_bias = torch.vstack((self.predicate_bias, self.center[index]))
         upper_star = Star(upper_pred, upper_bias, upper_c, upper_b)
 
         return lower_star, upper_star
@@ -390,9 +388,9 @@ class Star:
 
         aux_points = []
         for i in range(self.predicate_matrix.shape[0]):
-            p = np.zeros((self.predicate_matrix.shape[1], 1))
+            p = torch.zeros((self.predicate_matrix.shape[1], 1))
             plane = self.predicate_matrix[i, :]
-            max_nonzero_index = np.argmax(np.where(plane != 0, plane, -np.inf))
+            max_nonzero_index = torch.argmax(torch.where(plane != 0, plane, -torch.inf))
             p[max_nonzero_index] = self.predicate_bias[i] / plane[max_nonzero_index]
             aux_points.append(p)
 
@@ -400,7 +398,7 @@ class Star:
 
     def __get_starting_point_by_bounds(self) -> Tensor:
         """
-        Function used to get the starting point for the hit and run algorithm.
+        Function used to get the starting point for the hit-and-run algorithm.
 
         Return
         ---------
@@ -438,12 +436,12 @@ class Star:
 
             starting_point.append([(lb + ub) / 2.0])
 
-        starting_point = np.array(starting_point)
+        starting_point = Tensor(starting_point)
         return starting_point
 
     def __get_starting_point(self) -> Tensor:
         """
-        Function used to get the starting point for the hit and run algorithm.
+        Function used to get the starting point for the hit-and-run algorithm.
 
         Return
         ---------
@@ -466,7 +464,7 @@ class Star:
             new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0])
             for j in range(self.predicate_matrix.shape[1]):
                 new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j])
-            new_constraint.SetCoefficient(radius, np.linalg.norm(self.predicate_matrix[k, :], 2))
+            new_constraint.SetCoefficient(radius, torch.linalg.vector_norm(self.predicate_matrix[k, :], 2))
             constraints.append(new_constraint)
 
         objective = solver.Objective()
@@ -485,7 +483,7 @@ class Star:
             starting_point.append([alpha.solution_value()])
         # print(radius.solution_value())
 
-        starting_point = np.array(starting_point)
+        starting_point = Tensor(starting_point)
 
         return starting_point
 
@@ -525,10 +523,10 @@ class Star:
 
         new_center = self.center
         new_basis_matrix = self.basis_matrix
-        hs_pred_matrix = tensors.matmul(coef_mat, self.basis_matrix)
-        hs_pred_bias = bias_mat - tensors.matmul(coef_mat, self.center)
-        new_pred_matrix = tensors.vstack((self.predicate_matrix, hs_pred_matrix))
-        new_pred_bias = tensors.vstack((self.predicate_bias, hs_pred_bias))
+        hs_pred_matrix = torch.matmul(coef_mat, self.basis_matrix)
+        hs_pred_bias = bias_mat - torch.matmul(coef_mat, self.center)
+        new_pred_matrix = torch.vstack((self.predicate_matrix, hs_pred_matrix))
+        new_pred_bias = torch.vstack((self.predicate_bias, hs_pred_bias))
 
         new_star: Star = Star(new_pred_matrix, new_pred_bias, new_center, new_basis_matrix)
 
@@ -589,11 +587,11 @@ class ExtendedStar(Star):
 
         """
 
-        mask = tensors.diag(
+        mask = torch.diag(
             Tensor([0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])])
         )
 
-        return LinearFunctions(tensors.matmul(mask, self.basis_matrix), tensors.matmul(mask, self.center))
+        return LinearFunctions(torch.matmul(mask, self.basis_matrix), torch.matmul(mask, self.center))
 
     def single_fc_forward(self, weight: Tensor, bias: Tensor) -> ExtendedStar:
         """
@@ -604,8 +602,8 @@ class ExtendedStar(Star):
         if weight.shape[1] != self.basis_matrix.shape[0]:
             raise Exception
 
-        new_basis_matrix = tensors.matmul(weight, self.basis_matrix)
-        new_center = tensors.matmul(weight, self.center) + bias
+        new_basis_matrix = torch.matmul(weight, self.basis_matrix)
+        new_center = torch.matmul(weight, self.center) + bias
 
         return ExtendedStar(self.get_predicate_equation(), LinearFunctions(new_basis_matrix, new_center),
                             fixed_neurons=self.fixed_neurons, enforced_constraints=self.enforced_constraints)
@@ -625,9 +623,7 @@ class ExtendedStar(Star):
         ----------
         Star
             The abstract star result from the propagation
-
         """
-
         # Set the transformation for inactive neurons to 0
         # Include also the neurons that were fixed to be inactive
         inactive = util.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, self.fixed_neurons, layer_id)
@@ -677,17 +673,15 @@ class ExtendedStar(Star):
         (2) equation for the neuron in the basis matrix
         (3) - the upper triangular relaxation, that is    - ub / (ub - lb) * equation
         (4) zeros
-
         """
-
         pred_matrix = predicate_equation.matrix
         pred_bias = predicate_equation.offset
 
         def _get_left_matrix_for_unstable_neuron(neuron_n, lb, ub):
-            first_row = np.zeros(pred_matrix.shape[1])
+            first_row = torch.zeros(pred_matrix.shape[1])
             second_row = self.get_neuron_equation(neuron_n).matrix
             third_row = - ub / (ub - lb) * self.get_neuron_equation(neuron_n).matrix
-            fourth_row = np.zeros(pred_matrix.shape[1])
+            fourth_row = torch.zeros(pred_matrix.shape[1])
 
             return [first_row, second_row, third_row, fourth_row]
 
@@ -699,7 +693,7 @@ class ExtendedStar(Star):
             _get_left_matrix_for_unstable_neuron(unstable_neurons[i], lower_bounds[i], upper_bounds[i])
             for i in range(unstable_count)
         ]
-        lower_left_matrix = np.array(lower_left_matrix).reshape(4 * unstable_count, -1)
+        lower_left_matrix = Tensor(lower_left_matrix).reshape(4 * unstable_count, -1)
 
         # For every unstable neuron we add a column [-1, -1, 1, 1]^T to lower_right_matrix
         # that corresponds to the fresh variable z
@@ -710,15 +704,20 @@ class ExtendedStar(Star):
             [zero_column for _ in range(i + 1, unstable_count)]
             for i in range(unstable_count)
         ]
-        lower_right_matrix = np.array(lower_right_matrix).reshape(unstable_count, -1).transpose()
+        lower_right_matrix = Tensor(lower_right_matrix).reshape(unstable_count, -1).T
 
         # The new predicate matrix is made of 4 blocks, [[1, 2], [3, 4]], where
         # 1 is the original predicate matrix, 2 is zeros,
         # 3 is lower_left_matrix and 4 is lower_right_matrix
-        new_pred_matrix = np.block([
-            [pred_matrix, np.zeros((pred_matrix.shape[0], unstable_count))],
-            [lower_left_matrix, lower_right_matrix]
-        ])
+        # new_pred_matrix = np.block([
+        #     [pred_matrix, torch.zeros((pred_matrix.shape[0], unstable_count))],
+        #     [lower_left_matrix, lower_right_matrix]
+        # ])
+        # TODO This should be equivalent, check
+        new_pred_matrix = torch.cat([
+            torch.cat([pred_matrix, torch.zeros((pred_matrix.shape[0], unstable_count))], dim=1),
+            torch.cat([lower_left_matrix, lower_right_matrix], dim=1)
+        ], dim=0)
 
         # The new predicate bias adds the shifts from the above constraints.
         # So for each unstable neuron we append a vector
@@ -732,10 +731,10 @@ class ExtendedStar(Star):
              ]
             for i in range(unstable_count)
         ]
-        additional_bias = np.array(additional_bias).reshape(-1, 1)
+        additional_bias = Tensor(additional_bias).reshape(-1, 1)
 
         # Stack the new values
-        new_pred_bias = np.vstack([pred_bias, additional_bias])
+        new_pred_bias = torch.vstack([pred_bias, additional_bias])
 
         return LinearFunctions(new_pred_matrix, new_pred_bias)
 
@@ -753,11 +752,11 @@ class ExtendedStar(Star):
 
         # Add a 1 for each fresh variable z
         basis_height = self.basis_matrix.shape[0]
-        additional_basis_columns = np.zeros((basis_height, unstable_count))
+        additional_basis_columns = torch.zeros((basis_height, unstable_count))
         for i in range(unstable_count):
             additional_basis_columns[unstable_neurons[i]][i] = 1
 
-        new_basis_matrix = np.hstack((new_transformation.matrix, additional_basis_columns))
+        new_basis_matrix = torch.hstack((new_transformation.matrix, additional_basis_columns))
         new_transformation.matrix = new_basis_matrix
 
         return new_transformation
@@ -771,8 +770,8 @@ class ExtendedStar(Star):
         """
 
         eq = self.get_neuron_equation(index)
-        pred = np.vstack((self.predicate_matrix, -eq.matrix))
-        bias = np.vstack((self.predicate_bias, eq.offset))
+        pred = torch.vstack((self.predicate_matrix, -eq.matrix))
+        bias = torch.vstack((self.predicate_bias, eq.offset))
 
         return LinearFunctions(pred, bias)
 
@@ -785,8 +784,8 @@ class ExtendedStar(Star):
         """
 
         eq = self.get_neuron_equation(index)
-        pred = np.vstack((self.predicate_matrix, eq.matrix))
-        bias = np.vstack((self.predicate_bias, -eq.offset))
+        pred = torch.vstack((self.predicate_matrix, eq.matrix))
+        bias = torch.vstack((self.predicate_bias, -eq.offset))
 
         return LinearFunctions(pred, bias)
 
@@ -799,11 +798,11 @@ class ExtendedStar(Star):
                 eq = self.get_neuron_equation(neuron_n)
 
                 if value == 0:
-                    matrix = np.vstack((matrix, eq.matrix))
-                    bias = np.vstack((bias, -eq.offset))
+                    matrix = torch.vstack((matrix, eq.matrix))
+                    bias = torch.vstack((bias, -eq.offset))
                 else:
-                    matrix = np.vstack((matrix, -eq.matrix))
-                    bias = np.vstack((bias, eq.offset))
+                    matrix = torch.vstack((matrix, -eq.matrix))
+                    bias = torch.vstack((bias, eq.offset))
 
         return LinearFunctions(matrix, bias)
 
