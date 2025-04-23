@@ -612,3 +612,7 @@ class AcyclicNetwork(NeuralNetwork):
             self.remove_node(node)
             raise Exception(f"Adding {node.identifier} with the provided parents and children would create a cycle"
                             f" in the Network!")
+
+    def __repr__(self):
+        body = [self.nodes[k].__str__() for k in self.get_topological_order()]
+        return f"{self.identifier} : {body}"
