@@ -1,9 +1,8 @@
-import numpy
+import torch
+from torch import Tensor
 
-from pynever import tensors
 from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD, ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
-from pynever.tensors import Tensor
 
 
 def check_stable(lb: float, ub: float) -> ReLUStatus:
@@ -41,7 +40,7 @@ def compute_lower(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tens
     Tensor
         The lower bounds matrix
     """
-    return tensors.dot(weights_plus, input_lower) - tensors.dot(weights_minus, input_upper)
+    return torch.matmul(weights_plus, input_lower) - torch.matmul(weights_minus, input_upper)
 
 
 def compute_upper(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tensor, input_upper: Tensor) -> Tensor:
@@ -63,7 +62,7 @@ def compute_upper(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tens
     Tensor
         The upper bounds matrix
     """
-    return tensors.dot(weights_plus, input_upper) + tensors.dot(weights_minus, input_lower)
+    return torch.matmul(weights_plus, input_upper) + torch.matmul(weights_minus, input_lower)
 
 
 def compute_max(weights: Tensor, input_bounds: AbstractBounds) -> Tensor:
@@ -81,7 +80,7 @@ def compute_max(weights: Tensor, input_bounds: AbstractBounds) -> Tensor:
     Tensor
         The computed output
     """
-    return compute_upper(tensors.get_negative(weights), tensors.get_positive(weights),
+    return compute_upper(torch.clamp(weights, max=0), torch.clamp(weights, min=0),
                          input_bounds.get_lower(), input_bounds.get_upper())
 
 
@@ -100,15 +99,14 @@ def compute_min(weights: Tensor, input_bounds: AbstractBounds) -> Tensor:
     Tensor
         The computed output
     """
-    return compute_lower(tensors.get_negative(weights), tensors.get_positive(weights),
+    return compute_lower(torch.clamp(weights, max=0), torch.clamp(weights, min=0),
                          input_bounds.get_lower(), input_bounds.get_upper())
 
 
 def compute_overapproximation_volume(areas_map: dict) -> float:
     """Procedure that computes the volume of the approximation as the product of the areas.
-    For some reason raises a warning on data types
     """
-    return numpy.prod(list(areas_map.values()))
+    return torch.prod(Tensor(list(areas_map.values()))).item()
 
 
 def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
