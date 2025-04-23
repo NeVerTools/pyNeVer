@@ -92,6 +92,10 @@ class NeuralNetwork(abc.ABC):
         self.identifier = identifier
         self.input_ids: dict[str, str | None] = {i: None for i in input_ids}
 
+    def __repr__(self):
+        body = [self.nodes[k].__str__() for k in self.get_topological_order()]
+        return f"{self.identifier} : {body}"
+
     def is_empty(self) -> bool:
         """Procedure to check whether the network is empty.
         Returns
@@ -586,10 +590,6 @@ class SequentialNetwork(NeuralNetwork):
             parents = [self.get_last_node()]
             self.generic_add_node(node, parents=parents)
 
-    def __repr__(self):
-        body = [node.__str__() for node in self.nodes.values()]
-        return f"{self.identifier} : {body}"
-
 
 class AcyclicNetwork(NeuralNetwork):
     """
@@ -612,7 +612,3 @@ class AcyclicNetwork(NeuralNetwork):
             self.remove_node(node)
             raise Exception(f"Adding {node.identifier} with the provided parents and children would create a cycle"
                             f" in the Network!")
-
-    def __repr__(self):
-        body = [self.nodes[k].__str__() for k in self.get_topological_order()]
-        return f"{self.identifier} : {body}"
