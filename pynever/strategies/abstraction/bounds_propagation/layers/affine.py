@@ -1,12 +1,11 @@
 import torch
+from torch import Tensor
 
-from pynever import tensors
 from pynever.networks import NeuralNetwork
 from pynever.nodes import FullyConnectedNode
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
-from pynever.tensors import Tensor
 
 
 def get_layer_equation(layer: FullyConnectedNode) -> LinearFunctions:
@@ -37,19 +36,19 @@ def substitute_one_step_back(equation: LinearFunctions, prev: SymbolicLinearBoun
     prev_lower = prev.get_lower()
     prev_upper = prev.get_upper()
 
-    matrix_pos = tensors.get_positive(equation.get_matrix())
-    matrix_neg = tensors.get_negative(equation.get_matrix())
+    matrix_pos = torch.clamp(equation.get_matrix(), min=0)
+    matrix_neg = torch.clamp(equation.get_matrix(), max=0)
 
     if lower:
-        cur_matrix = tensors.dot(matrix_pos, prev_lower.get_matrix()) + \
-                     tensors.dot(matrix_neg, prev_upper.get_matrix())
-        cur_offset = tensors.dot(matrix_pos, prev_lower.get_offset()) + \
-                     tensors.dot(matrix_neg, prev_upper.get_offset()) + equation.get_offset()
+        cur_matrix = torch.matmul(matrix_pos, prev_lower.get_matrix()) + \
+                     torch.matmul(matrix_neg, prev_upper.get_matrix())
+        cur_offset = torch.matmul(matrix_pos, prev_lower.get_offset()) + \
+                     torch.matmul(matrix_neg, prev_upper.get_offset()) + equation.get_offset()
     else:
-        cur_matrix = tensors.dot(matrix_pos, prev_upper.get_matrix()) + \
-                     tensors.dot(matrix_neg, prev_lower.get_matrix())
-        cur_offset = tensors.dot(matrix_pos, prev_upper.get_offset()) + \
-                     tensors.dot(matrix_neg, prev_lower.get_offset()) + equation.get_offset()
+        cur_matrix = torch.matmul(matrix_pos, prev_upper.get_matrix()) + \
+                     torch.matmul(matrix_neg, prev_lower.get_matrix())
+        cur_offset = torch.matmul(matrix_pos, prev_upper.get_offset()) + \
+                     torch.matmul(matrix_neg, prev_lower.get_offset()) + equation.get_offset()
 
     return LinearFunctions(cur_matrix, cur_offset)
 
@@ -88,10 +87,7 @@ def get_backwards_layer_equation(layer: FullyConnectedNode,
         cur_offset = equations_in[layer.identifier].get_upper().get_offset()
 
     cur_equation = LinearFunctions(cur_matrix, cur_offset)
-
-    # Linear layers have a single parent
-    # TODO refactor method get_previous_id(...) in NeuralNetwork class
-    prev_layer_id = network.get_parents(layer)[0].identifier
+    prev_layer_id = network.get_previous_id(layer.identifier)
 
     while prev_layer_id is not None:
         cur_equation = substitute_one_step_back(cur_equation, equations_in[prev_layer_id], lower)
@@ -117,8 +113,8 @@ def compute_dense_output_bounds(layer: FullyConnectedNode, inputs: SymbolicLinea
         The symbolic output bounds for the layer
     """
     weights = torch.from_numpy(layer.weight).float()
-    weights_plus = tensors.get_positive(weights)
-    weights_minus = tensors.get_negative(weights)
+    weights_plus = torch.clamp(weights, min=0)
+    weights_minus = torch.clamp(weights, max=0)
 
     lm = inputs.get_lower().get_matrix()
     um = inputs.get_upper().get_matrix()

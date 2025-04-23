@@ -1,7 +1,7 @@
 import copy
 
-from pynever import tensors
-from pynever.tensors import Tensor
+import torch
+from torch import Tensor
 
 
 class LinearFunctions:
@@ -24,10 +24,10 @@ class LinearFunctions:
         return LinearFunctions(copy.deepcopy(self.matrix), copy.deepcopy(self.offset))
 
     def mask_zero_outputs(self, zero_outputs):
-        mask = tensors.diag(
+        mask = torch.diag(
             Tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)])
         )
-        return LinearFunctions(tensors.matmul(mask, self.matrix), tensors.matmul(mask, self.offset))
+        return LinearFunctions(torch.matmul(mask, self.matrix), torch.matmul(mask, self.offset))
 
     def get_size(self) -> int:
         return self.size
@@ -39,11 +39,11 @@ class LinearFunctions:
         return self.offset
 
     def compute_max_values(self, input_bounds) -> Tensor:
-        return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_upper()) + \
-            tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_lower()) + \
+        return torch.matmul(torch.clamp(self.matrix, min=0), input_bounds.get_upper()) + \
+            torch.matmul(torch.clamp(self.matrix, max=0), input_bounds.get_lower()) + \
             self.offset
 
     def compute_min_values(self, input_bounds) -> Tensor:
-        return tensors.dot(tensors.get_positive(self.matrix), input_bounds.get_lower()) + \
-            tensors.dot(tensors.get_negative(self.matrix), input_bounds.get_upper()) + \
+        return torch.matmul(torch.clamp(self.matrix, min=0), input_bounds.get_lower()) + \
+            torch.matmul(torch.clamp(self.matrix, max=0), input_bounds.get_upper()) + \
             self.offset

@@ -26,7 +26,7 @@ class BoundsManager:
 
     Attributes
     ----------
-    ref_network : NeuralNetwork
+    ref_nn : NeuralNetwork
         The reference NN that defines the structure of the graph
     abs_network : AbsNeuralNetwork
         The abstract NN that contains the abstraction of the layers
@@ -58,16 +58,16 @@ class BoundsManager:
             raise Exception('Please initialize with either a property or input bounds')
 
         # Initialize the parameters
-        self.ref_network: NeuralNetwork = network
+        self.ref_nn: NeuralNetwork = network
 
-        if isinstance(self.ref_network, SequentialNetwork):
-            self.abs_network: AbsNeuralNetwork = AbsSeqNetwork(self.ref_network, parameters)
-        elif isinstance(self.ref_network, AcyclicNetwork):
-            self.abs_network: AbsNeuralNetwork = AbsAcyclicNetwork(self.ref_network, parameters)
+        if isinstance(self.ref_nn, SequentialNetwork):
+            self.abs_nn: AbsNeuralNetwork = AbsSeqNetwork(self.ref_nn, parameters)
+        elif isinstance(self.ref_nn, AcyclicNetwork):
+            self.abs_nn: AbsNeuralNetwork = AbsAcyclicNetwork(self.ref_nn, parameters)
         else:
             raise NotImplementedError
 
-        self.topological_stack: list[str] = self.ref_network.get_topological_order()
+        self.topological_stack: list[str] = self.ref_nn.get_topological_order(reverse=True)
         self.direction: BoundsDirection = parameters.bounds_direction
 
         # Initialize the bounds data structure
@@ -96,14 +96,16 @@ class BoundsManager:
         N.B. inside the propagation we use abstract layers but with their concrete counterpart identifier
         """
         if start_layer is None:
-            start_layer = self.ref_network.get_first_node()
             # Set the identifier for the abstract layer equal to the concrete
-            start_layer = self.abs_network.get_abstract(start_layer, abs_id=False)
+            start_layer = self.abs_nn.get_abstract(self.ref_nn.get_first_node(), abs_id=False)
 
             if in_sym_bounds is None:
                 in_sym_bounds = self.init_symbolic_bounds()
             if in_num_bounds is None:
                 in_num_bounds = self.input_bounds
+
+        # Pop the current layer
+        self.topological_stack.pop()
 
         # Current layer data
         cur_layer = start_layer
@@ -111,7 +113,7 @@ class BoundsManager:
         cur_num_bounds = in_num_bounds
 
         # TODO remove after debugging
-        assert xnor(len(self.ref_network.get_children(self.abs_network.get_concrete(cur_layer))) == 0,
+        assert xnor(len(self.ref_nn.get_children(self.abs_nn.get_concrete(cur_layer))) == 0,
                     len(self.topological_stack) == 0)
 
         # Compute bounds for this layer
@@ -128,8 +130,7 @@ class BoundsManager:
             return self.bounds_dict, out_num_bounds
 
         else:
-            next_layer = self.abs_network.get_abstract(self.ref_network.nodes[self.topological_stack.pop()],
-                                                       abs_id=False)
+            next_layer = self.abs_nn.get_abstract(self.ref_nn.nodes[self.topological_stack[-1]], abs_id=False)
             return self.compute_bounds(out_num_bounds, out_sym_bounds, start_layer=next_layer)
 
     def update_stats(self, layer_id: str, num_bounds: HyperRectangleBounds) -> None:
