@@ -219,11 +219,14 @@ class NeuralNetwork(abc.ABC):
                 for leaf_node_id, leaf_node in self.nodes.items()
                 if not self.has_children(leaf_node)]
 
-    def get_topological_order(self) -> list[str]:
-        """Procedure to walk the network with a DFS and build the
-        topological sort.
+    def get_topological_order(self, reverse: bool = False) -> list[str]:
+        """Procedure to walk the network with a DFS and build the topological sort.
+        Parameters
+        ----------
+        reverse: bool
+            Flag to reverse the order
         Returns
-        -------
+        ----------
         list[str]
             The topological sort of the network nodes identifiers as a stack.
         """
@@ -240,6 +243,9 @@ class NeuralNetwork(abc.ABC):
         result = []
         seen = set()
         recursive_dfs(self.get_roots()[0].identifier, seen, result)
+
+        if reverse:
+            result.reverse()
 
         return result
 
