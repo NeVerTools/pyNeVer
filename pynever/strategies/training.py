@@ -5,7 +5,6 @@ import os
 import shutil
 from collections.abc import Callable
 
-import numpy as np
 import torch
 import torch.optim.lr_scheduler as schedulers
 import torch.utils.data as tdt
@@ -273,7 +272,7 @@ class PytorchTraining(TrainingStrategy):
             start_epoch = 0
 
         # history_score is used to keep track of the evolution of training loss and validation loss
-        history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
+        history_score = torch.zeros((self.n_epochs - start_epoch + 1, 2))
 
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
         # epoch until termination we consider all the batches
@@ -311,7 +310,7 @@ class PytorchTraining(TrainingStrategy):
                 if batch_idx % self.verbose_rate == 0:
                     logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                         epoch, batch_idx * len(data), len(training_set),
-                        100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
+                               100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
                         loss.data.item()))
 
             # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
