@@ -3,8 +3,8 @@ This file contains the branching refinement algorithms for the
 bounds propagation over ReLU layers
 
 """
-
 import numpy as np
+import torch
 from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
@@ -13,15 +13,12 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectan
 from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit, BoundsDirection
-from pynever.tensors import Tensor
 
 
 class BoundsRefinement:
     """
     This class handles the refinement of the input bounds after a branch split
-
     """
-
     INPUT_DIMENSIONS_TO_REFINE = 50
 
     def __init__(self, direction: BoundsDirection):
@@ -34,19 +31,13 @@ class BoundsRefinement:
         Update the bounds for after splitting the target neuron.
         Attempts to refine the input bounds for each of the two splits.
         If the input bounds have been updated, recomputes the bounds.
-
         """
-
         self.logger.debug("\tTarget {} "
                           "Overapprox. area {:10.4}".format(target,
                                                             pre_branch_bounds.statistics.overapprox_area['map'][
                                                                 target.to_pair()]))
 
         input_bounds = pre_branch_bounds.numeric_pre_bounds[nn.get_id_from_index(0)]
-
-        # self.logger.debug(f"--- Input bounds\n"
-        #              f"{input_bounds} --- stable count {pre_branch_bounds.stable_count}"
-        #              f" Volume {pre_branch_bounds.statistics.overapprox_area['volume']}")
 
         """
         NEGATIVE BRANCH
@@ -125,9 +116,7 @@ class BoundsRefinement:
         Returns
         -------
         Tighter input bounds induced by the split
-
         """
-
         # the bounds for the input layer that we try to refine
         input_bounds = pre_branch_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
 
@@ -146,28 +135,27 @@ class BoundsRefinement:
         return refined_bounds
 
     @staticmethod
-    def _choose_dimensions_to_consider(coef: Tensor) -> Tensor:
+    def _choose_dimensions_to_consider(coef: torch.Tensor) -> torch.Tensor:
         """
         This method performs an optimisation for a high-dimensional input
-
         """
-
         n_input_dimensions = len(coef)
 
-        dimensions_to_consider = np.array(range(n_input_dimensions))
+        dimensions_to_consider = torch.Tensor(range(n_input_dimensions))
 
         if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
             # with the coefficient that is large enough in absolute terms
             # and at most BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE
             percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
-            cutoff_c = np.quantile(abs(coef), percentage)
+            cutoff_c = torch.quantile(abs(coef), percentage)
             mask = (abs(coef) > cutoff_c)
-            dimensions_to_consider = Tensor(dimensions_to_consider[mask])
+            dimensions_to_consider = torch.Tensor(dimensions_to_consider[mask])
 
         return dimensions_to_consider
 
-    def _refine_input_bounds_for_equation(self, coef: Tensor, shift: Tensor, input_bounds: HyperRectangleBounds) \
+    def _refine_input_bounds_for_equation(self, coef: torch.Tensor, shift: torch.Tensor,
+                                          input_bounds: HyperRectangleBounds) \
             -> HyperRectangleBounds | None:
         """
         We have a constraint from the input variables
@@ -189,9 +177,7 @@ class BoundsRefinement:
         it means the corresponding split/branch is not feasible. We return None.
 
         We only update the bound if it improves the previous one.
-
         """
-
         refined_input_bounds = input_bounds
 
         for i in BoundsRefinement._choose_dimensions_to_consider(coef):
@@ -225,9 +211,7 @@ class BoundsRefinement:
                                         pre_branch_bounds: VerboseBounds) -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
-
         """
-
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
@@ -273,22 +257,20 @@ class BoundsRefinement:
             -> HyperRectangleBounds | None:
         """
         We assume that the refinement is done when setting the equations to be <= 0
-
         """
-
         # Collecting the equations in normal form (<= 0) from all the fixes, including the latest
         # If value is 0, we take the lower bound.
         # Otherwise, we take the negation of the upper bound.
         equations = self.get_equations_from_fixed_neurons(branch, pre_branch_bounds, nn)
-        coefs = equations.matrix
-        shifts = equations.offset
+        coefs = equations.get_matrix()
+        shifts = equations.get_offset()
 
         # The rest is similar to _refine_input_bounds,
         # but we get two different equations for each input dimension i,
         # obtained as the sum of the equations where i appears with the same sign
         n_input_dimensions = len(coefs[0])
 
-        all_dimensions = np.array(range(n_input_dimensions))
+        all_dimensions = torch.Tensor(range(n_input_dimensions))
         dimensions_to_consider = []
         # An optimisation for very high-dimensional inputs
         if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
@@ -297,12 +279,14 @@ class BoundsRefinement:
             # and at most BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE
             percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
 
-            filtering_pos_coefs = abs(np.array([coefs[(coefs[:, i] > 0), i].sum() for i in range(n_input_dimensions)]))
-            cutoff_c = np.quantile(filtering_pos_coefs, percentage)
+            filtering_pos_coefs = abs(
+                torch.Tensor([coefs[(coefs[:, i] > 0), i].sum() for i in range(n_input_dimensions)]))
+            cutoff_c = torch.quantile(filtering_pos_coefs, percentage)
             dimensions_to_consider.append(all_dimensions[(filtering_pos_coefs > cutoff_c)])
 
-            filtering_neg_coefs = abs(np.array([coefs[(coefs[:, i] < 0), i].sum() for i in range(n_input_dimensions)]))
-            cutoff_c = np.quantile(filtering_neg_coefs, percentage)
+            filtering_neg_coefs = abs(
+                torch.Tensor([coefs[(coefs[:, i] < 0), i].sum() for i in range(n_input_dimensions)]))
+            cutoff_c = torch.quantile(filtering_neg_coefs, percentage)
             dimensions_to_consider.append(all_dimensions[(filtering_neg_coefs > cutoff_c)])
 
         else:
@@ -326,7 +310,7 @@ class BoundsRefinement:
                     # Nothing to be done
                     continue
 
-                coef_i = coef_i.sum(axis=0)
+                coef_i = coef_i.sum(dim=0)
                 i_bounds = self.refine_input_dimension(refined_input_bounds, coef_i, shift_i, i)
 
                 if i_bounds is None:
@@ -351,11 +335,12 @@ class BoundsRefinement:
         return refined_input_bounds
 
     def _refine_input_dimension_for_neuron_and_branch(self, input_bounds: HyperRectangleBounds,
-                                                      equations: LinearFunctions, coef: Tensor, shift: Tensor,
+                                                      equations: LinearFunctions, coef: torch.Tensor,
+                                                      shift: torch.Tensor,
                                                       i: int) -> tuple | int | None:
 
-        coefs = equations.matrix
-        shifts = equations.offset
+        coefs = equations.get_matrix()
+        shifts = equations.get_offset()
 
         # Find equations where the coefficient is the same sign as coef[i]
         if coef[i] > 0:
@@ -472,7 +457,7 @@ class BoundsRefinement:
         HyperRectangleBounds, HyperRectangleBounds]:
 
         diff = input_bounds.get_upper() - input_bounds.get_lower()
-        widest_dim = np.argmax(diff)
+        widest_dim = torch.argmax(diff)
         mid = diff[widest_dim] / 2
 
         lower_half = input_bounds.clone()
@@ -498,9 +483,7 @@ class BoundsRefinement:
         Conversely, if y is constrained to be positive, then we have that upper_bound >= y >= 0.
         In the normal form it gives us
             -upper_bound <= 0.
-
         """
-
         coefs = []
         shifts = []
         for ((layer_id, neuron_n), value) in fixed_neurons.items():
@@ -510,16 +493,14 @@ class BoundsRefinement:
             coefs.append(coef)
             shifts.append(shift)
 
-        return LinearFunctions(np.array(coefs), np.array(shifts))
+        return LinearFunctions(torch.Tensor(coefs), torch.Tensor(shifts))
 
     @staticmethod
     def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: VerboseBounds, nn) \
-            -> tuple[Tensor, Tensor]:
+            -> tuple[torch.Tensor, torch.Tensor]:
         """
         See _get_equations_from_fixed_neurons
-
         """
-
         symbolic_preact_bounds = OldBoundsManager.get_symbolic_preact_bounds_at(bounds, target.layer_id, nn)
 
         if value == 0:
@@ -535,7 +516,7 @@ class BoundsRefinement:
         return coef, shift
 
     @staticmethod
-    def refine_input_dimension(input_bounds: HyperRectangleBounds, coef: Tensor, shift: Tensor,
+    def refine_input_dimension(input_bounds: HyperRectangleBounds, coef: torch.Tensor, shift: torch.Tensor,
                                i: int) -> tuple[float, float] | int | None:
         """
         We are given the constraint
@@ -553,23 +534,21 @@ class BoundsRefinement:
         None    if the constraint is infeasible
         0       if no changes
         (l, u)  the new bounds for input dimension i
-
         """
-
         c = coef[i]
 
         if c == 0:
             return None
 
         # the rest is moved to the other side, so we have the minus and divided by c
-        negated_rem_coef = - np.array(list(coef[:i]) + list(coef[i + 1:])) / c
+        negated_rem_coef = - torch.Tensor(list(coef[:i]) + list(coef[i + 1:])) / c
         shift_div_c = - shift / c
-        pos_rem_coef = np.maximum(np.zeros(len(coef) - 1), negated_rem_coef)
-        neg_rem_coef = np.minimum(np.zeros(len(coef) - 1), negated_rem_coef)
+        pos_rem_coef = torch.max(torch.zeros(len(coef) - 1), negated_rem_coef)
+        neg_rem_coef = torch.min(torch.zeros(len(coef) - 1), negated_rem_coef)
 
-        rem_lower_input_bounds = np.array(
+        rem_lower_input_bounds = torch.Tensor(
             list(input_bounds.get_lower()[:i]) + list(input_bounds.get_lower()[i + 1:]))
-        rem_upper_input_bounds = np.array(
+        rem_upper_input_bounds = torch.Tensor(
             list(input_bounds.get_upper()[:i]) + list(input_bounds.get_upper()[i + 1:]))
 
         if c > 0:
@@ -586,7 +565,7 @@ class BoundsRefinement:
                 # new_upper = compute_input_new_max(coef, shift, input_bounds, i)
                 # if new_upper != new_upper_i:
                 #     print("Different new upper", new_upper_i, new_upper)
-                return input_bounds.get_lower()[i], new_upper_i
+                return input_bounds.get_lower()[i].item(), new_upper_i
 
         elif c < 0:
             # compute minimum of xi, xi >= (-coefi * rem_xi - b)/c
@@ -602,7 +581,7 @@ class BoundsRefinement:
                 # new_lower = compute_input_new_min(coef, shift, input_bounds, i)
                 # if new_lower != new_lower_i:
                 #     print("Different new lower", new_lower_i, new_lower)
-                return new_lower_i, input_bounds.get_upper()[i]
+                return new_lower_i, input_bounds.get_upper()[i].item()
 
         return 0
 
@@ -612,9 +591,7 @@ class BoundsRefinement:
         Optimises input bounds by building a MILP that has
         input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
         The solves for each input variable two optimisation problems: minimising and maximising it.
-
         """
-
         input_bounds = bounds.numeric_pre_bounds[nn.get_first_node().identifier]
         n_input_dimensions = input_bounds.get_size()
 
@@ -643,7 +620,7 @@ class BoundsRefinement:
         new_input_bounds = input_bounds.clone()
         bounds_improved = False
 
-        dimensions_to_consider = np.array(range(n_input_dimensions))
+        dimensions_to_consider = torch.Tensor(range(n_input_dimensions))
         # An optimisation for very high-dimensional inputs
         if n_input_dimensions > BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE:
             # we will only consider the dimensions
@@ -653,8 +630,8 @@ class BoundsRefinement:
             # This part needs checking
             percentage = 1 - BoundsRefinement.INPUT_DIMENSIONS_TO_REFINE / n_input_dimensions
             max_coefs = abs(equations.matrix).max(axis=0)
-            cutoff_c = np.quantile(max_coefs, percentage)
-            all_dimensions = np.array(range(n_input_dimensions))
+            cutoff_c = torch.quantile(max_coefs, percentage)
+            all_dimensions = torch.Tensor(range(n_input_dimensions))
             dimensions_to_consider = all_dimensions[(max_coefs > cutoff_c)]
 
         for i_dim in dimensions_to_consider:
@@ -670,7 +647,7 @@ class BoundsRefinement:
                     # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
                     # self.logger.debug(f"Dual solution: {dual_sol}")
 
-                    # eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
+                    # eq_mult = torch.Tensor([worker_constraints[i].dual_value() for i in worker_constraints])
                     # coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
                     # shift = -(eq_mult * equations.offset).sum()
                     # print("Equation", list(coef), shift)
@@ -689,7 +666,7 @@ class BoundsRefinement:
                     # dual_sol = [worker_constraints[i].dual_value() for i in worker_constraints]
                     # self.logger.debug(f"Dual solution: {dual_sol}")
 
-                    # eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
+                    # eq_mult = torch.Tensor([worker_constraints[i].dual_value() for i in worker_constraints])
                     # coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
                     # shift = -(eq_mult * equations.offset).sum()
                     # print("Equation", list(coef), shift)

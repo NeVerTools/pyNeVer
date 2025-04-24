@@ -1,29 +1,26 @@
 from enum import Enum
 
 import numpy as np
+import torch
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.abstraction.bounds_propagation
-import pynever.strategies.abstraction.bounds_propagation.bounds
 from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation import util
-from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
+from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
+from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation
-from pynever.tensors import Tensor
 
 
 def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: SequentialNetwork, nn_bounds: VerboseBounds) \
-        -> tuple[bool, Tensor | None]:
+        -> tuple[bool, torch.Tensor | None]:
     """
     This method computes the intersection between a star and one or
     more hyper planes specified by a property using an LP
-
     """
-
     # Compute the output abstract star from star/bounds
     out_star = propagation.abs_propagation(star, network, nn_bounds)
 
@@ -46,20 +43,18 @@ def check_star_intersection(star: ExtendedStar, prop: NeverProperty) -> tuple[bo
 
     Parameters
     ----------
-    star : Star
+    star: Star
         The star to intersect with the output property
-    prop : NeverProperty
+    prop: NeverProperty
         The property of interest
 
     Returns
     -------
-    (bool, list)
+    tuple[bool, list[ExtendedStar]]
         A tuple containing the result of the intersection check (True/False) and
         the list of unfeasible stars. If the result is True the list must contain
         at least one element, otherwise the list must be empty
-
     """
-
     intersects = False
     unsafe_stars = []
 
@@ -82,9 +77,7 @@ def intersect_adaptive(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: Ver
     ----------
     tuple[bool, list[float]]
         A tuple with the result (True or False) and the counterexample, if present
-
     """
-
     unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) == 0:
@@ -115,11 +108,8 @@ def intersect_bounds(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: Verbo
     ----------
     tuple[bool, list[float]]
         A tuple with the result (True or False) and the counterexample, if present
-
     """
-
     output_bounds = nn_bounds.numeric_post_bounds[nn.get_last_node().identifier]
-
     return check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds)
 
 
@@ -132,9 +122,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     ----------
     tuple[bool, list[float]]
         A tuple with the result (True or False) and the counterexample, if present
-
     """
-
     star = propagation.abs_propagation(star, nn, nn_bounds)
 
     input_bounds = nn_bounds.numeric_pre_bounds[nn.get_id_from_index(0)]
@@ -162,12 +150,12 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(star.basis_matrix[j]) + star.center[j][0] - output_vars[j] == 0)
+            input_vars.dot(star.basis_matrix[j].numpy()) + star.center[j][0].numpy() - output_vars[j] == 0)
 
     # The constraints from the predicate
     for j in range(star.predicate_matrix.shape[0]):
         solver.Add(
-            input_vars.dot(star.predicate_matrix[j]) - star.predicate_bias[j][0] <= 0)
+            input_vars.dot(star.predicate_matrix[j].numpy()) - star.predicate_bias[j][0].numpy() <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -180,7 +168,7 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
 
     else:
         # Only return the values of the original input vars
-        # cex = Tensor(np.array([input_vars[i].solution_value() for i in range(input_bounds.get_size())]))
+        # cex = torch.Tensor(torch.Tensor([input_vars[i].solution_value() for i in range(input_bounds.get_size())]))
         # if not check_valid_counterexample(cex, nn, prop):
         #     return intersect_complete_milp(star, nn, nn_bounds, prop)
         return True, [input_vars[i].solution_value() for i in range(input_bounds.get_size())]
@@ -201,13 +189,11 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
 
     Returns
     -------
-    a pair
+    tuple[bool, list[float]]
         - True if there is a solution to the above program, and
           the values to the input variables in this solution in an array
         - False otherwise, and empty array []
-
     """
-
     input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     n_input_dimensions = input_bounds.get_size()
     output_bounds = nn_bounds.numeric_post_bounds[nn.get_last_node().identifier]
@@ -223,34 +209,37 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
         solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
         for j in range(n_output_dimensions)])
 
-    if len(nn_bounds.statistics.stability_info[
-               pynever.strategies.abstraction.bounds_propagation.ReLUStatus.UNSTABLE]) > 0:
+    if len(nn_bounds.statistics.stability_info[ReLUStatus.UNSTABLE]) > 0:
         # The constraints from the branching only if there are unstable neurons according to the bounds,
         # hence there was some approximation and the output equations are not exact
         for (layer_id, neuron_n), value in star.fixed_neurons.items():
             if value == 0:
                 solver.Add(
                     input_vars.dot(
-                        OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_matrix()[
-                            neuron_n]) +
-                    OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_lower().get_offset()[
-                        neuron_n] <= 0)
+                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                        .get_lower().get_matrix()[neuron_n].numpy()) +
+                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                    .get_lower().get_offset()[neuron_n].numpy() <= 0)
             else:
                 solver.Add(
                     input_vars.dot(
-                        OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_matrix()[
-                            neuron_n]) +
-                    OldBoundsManager.get_symbolic_preact_bounds_at(nn_bounds, layer_id, nn).get_upper().get_offset()[
-                        neuron_n] >= 0)
+                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                        .get_upper().get_matrix()[neuron_n].numpy()) +
+                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                    .get_upper().get_offset()[neuron_n].numpy() >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_matrix()[j]) +
-            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_offset()[j] - output_vars[j] >= 0)
+            input_vars.dot(
+                nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_matrix()[j].numpy()) +
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_offset()[j].numpy() -
+            output_vars[j] >= 0)
         solver.Add(
-            input_vars.dot(nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_matrix()[j]) +
-            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_offset()[j] - output_vars[j] <= 0)
+            input_vars.dot(
+                nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_matrix()[j].numpy()) +
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_offset()[j].numpy() -
+            output_vars[j] <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -266,20 +255,18 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
         return True, [input_vars[i].solution_value() for i in range(n_input_dimensions)]
 
 
-def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
+def intersect_complete_milp(nn: SequentialNetwork, nn_bounds: VerboseBounds, prop: NeverProperty) \
         -> tuple[bool, list[float]]:
     """
     Checks for an intersection by building a complete MILP encoding
 
     Returns
     -------
-    a pair
+    tuple[bool, list[float]]
         - True if there is a solution to the above program, and
           the values to the input variables in this solution in an array
         - False otherwise, and empty array []
-
     """
-
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
 
     variables = _create_variables_and_constraints(solver, nn, nn_bounds)
@@ -300,7 +287,7 @@ def intersect_complete_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
 
 
 def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProperty,
-                                        output_bounds: dict, output_vars: np.ndarray) -> None:
+                                        output_bounds: AbstractBounds, output_vars: np.ndarray) -> None:
     """
     Encodes and adds to the solver the constraints from encoding the output property.
 
@@ -310,9 +297,7 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
     prop
     output_bounds
     output_vars
-
     """
-
     n_disjunctions = len(prop.out_coef_mat)
 
     # binary variables for each of the disjunctions
@@ -329,9 +314,9 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
-                output_vars.dot(prop.out_coef_mat[i][j])
-                - (1 - deltas[i]) * bigM
-                - prop.out_bias_mat[i][j][0] <= 0
+                output_vars.dot(prop.out_coef_mat[i][j].numpy())
+                - (1 - deltas[i]) * bigM.item()
+                - prop.out_bias_mat[i][j][0].numpy() <= 0
             ))
 
 
@@ -340,7 +325,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
 
     input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+        solver.NumVar(input_bounds.get_lower()[j].numpy(), input_bounds.get_upper()[j].numpy(), f'alpha_{j}')
         for j in range(input_bounds.get_size())])
     variables.append(input_vars)
 
@@ -350,14 +335,15 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
             upper_bounds = nn_bounds.numeric_pre_bounds[layer.identifier].get_upper()
 
             layer_vars = np.array([
-                solver.NumVar(lower_bounds[node_n], upper_bounds[node_n], f'x_{layer.identifier}_{node_n}')
+                solver.NumVar(lower_bounds[node_n].numpy(), upper_bounds[node_n].numpy(),
+                              f'x_{layer.identifier}_{node_n}')
                 for node_n in range(lower_bounds.size)])
 
             variables.append(np.array(layer_vars))
 
             prev_layer = nn.get_previous_node(layer)
             dot_product = np.array([
-                prev_layer.weight[i].dot(variables[-2]) + prev_layer.bias[i]
+                prev_layer.weight[i].numpy().dot(variables[-2]) + prev_layer.bias[i].numpy()
                 for i in range(prev_layer.weight.shape[0])
             ])
 
@@ -380,18 +366,19 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
                     The BIG-M constraints
                     """
                     solver.Add(node_var >= dot_product[node_n])
-                    solver.Add(node_var <= dot_product[node_n] - lower_bounds[node_n] * (1 - delta))
-                    solver.Add(node_var <= upper_bounds[node_n] * delta)
+                    solver.Add(node_var <= dot_product[node_n] - lower_bounds[node_n].numpy() * (1 - delta))
+                    solver.Add(node_var <= upper_bounds[node_n].numpy() * delta)
 
     last_layer = nn.get_last_node()
     output_bounds = nn_bounds.numeric_post_bounds[last_layer.identifier]
-    output_vars = np.array([
-        solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
+    output_vars = torch.Tensor([
+        solver.NumVar(output_bounds.get_lower()[j].numpy(), output_bounds.get_upper()[j].numpy(), f'beta_{j}')
         for j in range(output_bounds.get_size())])
     variables.append(output_vars)
 
     for node_n in range(output_bounds.size):
-        solver.Add(output_vars[node_n] == last_layer.weight[node_n].dot(variables[-2]) + last_layer.bias[node_n])
+        solver.Add(output_vars[node_n] == last_layer.weight[node_n].numpy().dot(variables[-2]) + last_layer.bias[
+            node_n].numpy())
 
     return variables
 
@@ -473,7 +460,7 @@ def check_disjunct_satisfied(bounds, matrix, bias):
     return PropertySatisfied.Yes
 
 
-def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, prop: NeverProperty) -> bool:
+def check_valid_counterexample(candidate_cex: torch.Tensor, nn: SequentialNetwork, prop: NeverProperty) -> bool:
     """
     This functions checks if a candidate counterexample is a true counterexample for the property
 
@@ -489,7 +476,7 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
         # Every condition
         satisfied = True
         for j in range(len(prop.out_coef_mat[i])):
-            if prop.out_coef_mat[i][j].dot(candidate_output) - prop.out_bias_mat[i][j][0] > GUARD:
+            if torch.matmul(prop.out_coef_mat[i][j], candidate_output) - prop.out_bias_mat[i][j][0] > GUARD:
                 # this conjunct is not satisfied, as it should be <= 0
                 satisfied = False
                 break
@@ -498,77 +485,3 @@ def check_valid_counterexample(candidate_cex: Tensor, nn: SequentialNetwork, pro
             return True
 
     return False
-
-# def check_input_refining_one_equation_feasible_with_lp(coef, shift, input_bounds) -> bool:
-#     """
-#     Check if equation <= 0 is satisfiable with respect to the input bounds using an LP
-#     """
-#
-#     n_input_dimensions = input_bounds.get_size()
-#
-#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-#
-#     input_vars = np.array([
-#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-#         for j in range(n_input_dimensions)])
-#
-#     solver.Add(input_vars.dot(coef) + shift <= 0)
-#
-#     solver.Maximize(0)
-#     status = solver.Solve()
-#
-#     if status == pywraplp.Solver.INFEASIBLE:
-#         return False
-#
-#     elif status == pywraplp.Solver.OPTIMAL:
-#         return True
-#
-#     raise Exception("Neither infeasible, not optimal")
-#
-#
-# def compute_input_new_max(coef, shift, input_bounds, i) -> bool:
-#     """
-#     Given equation <= 0, compute the max value of the input dimension i
-#     """
-#
-#     n_input_dimensions = input_bounds.get_size()
-#
-#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-#
-#     input_vars = np.array([
-#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-#         for j in range(n_input_dimensions)])
-#
-#     solver.Add(input_vars.dot(coef) + shift <= 0)
-#
-#     solver.Maximize(input_vars[i])
-#     status = solver.Solve()
-#
-#     if status == pywraplp.Solver.OPTIMAL:
-#         return input_vars[i].solution_value()
-#
-#     raise Exception("Cannot compute new max")
-#
-#
-# def compute_input_new_min(coef, shift, input_bounds, i) -> bool:
-#     """
-#     Given equation <= 0, compute the max value of the input dimension i
-#     """
-#
-#     n_input_dimensions = input_bounds.get_size()
-#
-#     solver = pywraplp.Solver("GLOP", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
-#
-#     input_vars = np.array([
-#         solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
-#         for j in range(n_input_dimensions)])
-#
-#     solver.Add(input_vars.dot(coef) + shift <= 0)
-#
-#     solver.Minimize(input_vars[i])
-#     status = solver.Solve()
-#
-#     if status == pywraplp.Solver.OPTIMAL:
-#         return input_vars[i].solution_value()
-#
-#     raise Exception("Cannot compute new max")
