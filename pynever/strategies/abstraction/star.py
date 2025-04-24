@@ -7,7 +7,6 @@ import uuid
 
 import torch
 from ortools.linear_solver import pywraplp
-from torch import Tensor
 
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
@@ -22,7 +21,7 @@ class AbsElement(abc.ABC):
 
     Attributes
     ----------
-    identifier : str
+    identifier: str
         Identifier of the AbsElement.
     """
 
@@ -47,13 +46,13 @@ class Star:
 
     Attributes
     ----------
-    center : Tensor
+    center: torch.Tensor
         Center of the Star.
-    basis_matrix : Tensor
+    basis_matrix: torch.Tensor
         Matrix composed by the basis vectors of the Star
-    predicate_matrix : Tensor
+    predicate_matrix: torch.Tensor
         Matrix of the Predicate.
-    predicate_bias : Tensor
+    predicate_bias: torch.Tensor
         Bias of the Predicate.
 
     Methods
@@ -62,23 +61,22 @@ class Star:
         Function used to get the upper and lower bounds of the n variables of the star.
     check_if_empty()
         Function used to check if the star corresponds to an empty set.
-
     """
 
-    def __init__(self, predicate_matrix: Tensor, predicate_bias: Tensor, center: Tensor = None,
-                 basis_matrix: Tensor = None):
+    def __init__(self, predicate_matrix: torch.Tensor, predicate_bias: torch.Tensor, center: torch.Tensor = None,
+                 basis_matrix: torch.Tensor = None):
 
         predicate_dim_message = f"Error: the first dimension of the predicate_matrix ({predicate_matrix.shape[0]}) " \
                                 f"must be equal to the dimension of the predicate_bias ({predicate_bias.shape[0]})."
         if predicate_matrix.shape[0] != predicate_bias.shape[0]:
             raise InvalidDimensionError(predicate_dim_message)
 
-        self.predicate_matrix: Tensor = predicate_matrix
-        self.predicate_bias: Tensor = predicate_bias
+        self.predicate_matrix: torch.Tensor = predicate_matrix
+        self.predicate_bias: torch.Tensor = predicate_bias
 
         if center is None and basis_matrix is None:
-            self.center: Tensor = torch.zeros((predicate_matrix.shape[1], 1))
-            self.basis_matrix: Tensor = torch.eye(predicate_matrix.shape[1])
+            self.center: torch.Tensor = torch.zeros((predicate_matrix.shape[1], 1))
+            self.basis_matrix: torch.Tensor = torch.eye(predicate_matrix.shape[1])
 
         else:
             center_dim_message = f"Error: the first dimension of the basis_matrix ({basis_matrix.shape[0]}) " \
@@ -92,14 +90,14 @@ class Star:
             if basis_matrix.shape[1] != predicate_matrix.shape[1]:
                 raise InvalidDimensionError(basis_dim_message)
 
-            self.center: Tensor = center
-            self.basis_matrix: Tensor = basis_matrix
+            self.center: torch.Tensor = center
+            self.basis_matrix: torch.Tensor = basis_matrix
 
         self.n_neurons: int = self.center.shape[0]
 
         # Private Attributes used for the sampling of the star.
-        self.__auxiliary_points: list[Tensor] | None = None
-        self.__current_point: Tensor | None = None
+        self.__auxiliary_points: list[torch.Tensor] | None = None
+        self.__current_point: torch.Tensor | None = None
 
     def check_if_empty(self) -> bool:
         """
@@ -109,9 +107,7 @@ class Star:
         ---------
         bool
             True if the star defines an empty set of points, False otherwise.
-
         """
-
         start_time = time.perf_counter()
 
         solver, alphas, constraints = self.__get_predicate_lp_solver()
@@ -138,11 +134,9 @@ class Star:
 
         Return
         ---------
-        (float, float)
+        tuple[float | None, float | None]
             Tuple containing the lower and upper bounds of the variable i of the star
-
         """
-
         start_time = time.perf_counter()
 
         solver, alphas, constraints = self.__get_predicate_lp_solver()
@@ -180,23 +174,21 @@ class Star:
 
         return lb, ub
 
-    def check_alpha_inside(self, alpha_point: Tensor) -> bool:
+    def check_alpha_inside(self, alpha_point: torch.Tensor) -> bool:
         """
         Function which checks if the alpha point passed as input is valid with respect to the constraints defined by the
         predicate matrix and bias of the star.
 
         Parameters
         ----------
-        alpha_point : Tensor
+        alpha_point: torch.Tensor
             Point (with respect ot the predicate variables) whose validity is to test.
 
         Returns
         -------
         bool
             The result of the check as a boolean (True if the point is valid, False otherwise)
-
         """
-
         dim_error_msg = f"Wrong dimensionality for alpha_point: it should be {self.predicate_matrix.shape[1]} by one."
         if alpha_point.shape[0] != self.predicate_matrix.shape[1]:
             raise InvalidDimensionError(dim_error_msg)
@@ -206,25 +198,23 @@ class Star:
 
         return test
 
-    def check_point_inside(self, point: Tensor, epsilon: float) -> bool:
+    def check_point_inside(self, point: torch.Tensor, epsilon: float) -> bool:
         """
         Function which checks if the point passed as input is valid with respect to the constraints defined by the
         predicate matrix and bias of the star.
 
         Parameters
         ----------
-        point : Tensor
+        point: torch.Tensor
             Point whose validity is to test.
-        epsilon : float
+        epsilon: float
             Acceptable deviation from real point.
 
         Returns
         -------
         bool
             The result of the check as a boolean (True if the point is valid, False otherwise)
-
         """
-
         solver, alphas, constraints = self.__get_predicate_lp_solver()
 
         for i in range(self.basis_matrix.shape[0]):
@@ -245,7 +235,8 @@ class Star:
 
         return status == pywraplp.Solver.FEASIBLE or status == pywraplp.Solver.OPTIMAL
 
-    def get_samples(self, num_samples: int, reset_auxiliary: bool = False, new_start: bool = False) -> list[Tensor]:
+    def get_samples(self, num_samples: int, reset_auxiliary: bool = False,
+                    new_start: bool = False) -> list[torch.Tensor]:
 
         # As first thing we need to get a valid starting point:
         if self.check_if_empty():
@@ -258,7 +249,7 @@ class Star:
 
         if self.__current_point is None or new_start:
             starting_point = self.__get_starting_point()
-            current_point = Tensor(starting_point)
+            current_point = torch.Tensor(starting_point)
         else:
             current_point = self.__current_point
 
@@ -271,13 +262,13 @@ class Star:
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
 
-                if not torch.isclose(torch.matmul(self.predicate_matrix[i, :], direction), Tensor(0)):
+                if not torch.isclose(torch.matmul(self.predicate_matrix[i, :], direction), torch.Tensor(0)):
                     temp = auxiliary_points[i] - current_point
                     lam = torch.matmul(self.predicate_matrix[i, :], temp) / (torch.matmul(self.predicate_matrix[i, :],
                                                                                           direction))
                     lambdas.append(lam)
 
-            lambdas = Tensor(lambdas)
+            lambdas = torch.Tensor(lambdas)
 
             try:
                 lam_upper = torch.min(lambdas[lambdas >= 0]).item()
@@ -286,7 +277,7 @@ class Star:
                 raise RuntimeError("The current direction does not intersect"
                                    "any of the hyperplanes.")
 
-            increment = torch.FloatTensor().uniform_(lam_lower, lam_upper)
+            increment = torch.Floattorch.Tensor().uniform_(lam_lower, lam_upper)
             next_point = current_point + increment * direction
             if self.check_alpha_inside(next_point):
                 current_point = next_point
@@ -300,9 +291,7 @@ class Star:
         """
         Function to build the negative stable processing of this star throughout
         a single ReLU neuron
-
         """
-
         mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
@@ -316,9 +305,7 @@ class Star:
     def create_approx(self, index: int, lb: float, ub: float) -> Star:
         """
         Function to build the approximate star for the given ReLU neuron
-
         """
-
         mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
@@ -353,9 +340,7 @@ class Star:
         """
         Function to build the two stars obtained by splitting the current star
         throughout a ReLU neuron
-
         """
-
         mask = torch.eye(self.n_neurons)
         mask[index, index] = 0
 
@@ -375,17 +360,15 @@ class Star:
 
         return lower_star, upper_star
 
-    def __get_auxiliary_points(self) -> list[Tensor]:
+    def __get_auxiliary_points(self) -> list[torch.Tensor]:
         """
         Function which returns the auxiliary points for each plane of the predicate.
 
         Returns
         -------
-        List[Tensor]
+        list[torch.Tensor]
             List of the auxiliary points: one for each plane of the predicate.
-
         """
-
         aux_points = []
         for i in range(self.predicate_matrix.shape[0]):
             p = torch.zeros((self.predicate_matrix.shape[1], 1))
@@ -396,60 +379,15 @@ class Star:
 
         return aux_points
 
-    def __get_starting_point_by_bounds(self) -> Tensor:
+    def __get_starting_point(self) -> torch.Tensor:
         """
         Function used to get the starting point for the hit-and-run algorithm.
 
         Return
         ---------
-        (float, float)
-            Tuple containing the lower and upper bounds of the variables of the predicate
-
+        torch.Tensor
+            Starting point generated by the linear solver
         """
-
-        starting_point = []
-        for i in range(self.predicate_matrix.shape[1]):
-
-            solver, alphas, constraints = self.__get_predicate_lp_solver()
-            objective = solver.Objective()
-            for j in range(self.predicate_matrix.shape[1]):
-                if j == i:
-                    objective.SetCoefficient(alphas[j], 1)
-                else:
-                    objective.SetCoefficient(alphas[j], 0)
-
-            objective.SetMinimization()
-            status = solver.Solve()
-
-            if status != pywraplp.Solver.OPTIMAL:
-                raise NonOptimalLPError()
-
-            lb = solver.Objective().Value()
-
-            objective.SetMaximization()
-            status = solver.Solve()
-
-            if status != pywraplp.Solver.OPTIMAL:
-                raise NonOptimalLPError()
-
-            ub = solver.Objective().Value()
-
-            starting_point.append([(lb + ub) / 2.0])
-
-        starting_point = Tensor(starting_point)
-        return starting_point
-
-    def __get_starting_point(self) -> Tensor:
-        """
-        Function used to get the starting point for the hit-and-run algorithm.
-
-        Return
-        ---------
-        (float, float)
-            Tuple containing the lower and upper bounds of the variables of the predicate
-
-        """
-
         starting_point = []
 
         solver = pywraplp.Solver.CreateSolver('GLOP')
@@ -483,7 +421,7 @@ class Star:
             starting_point.append([alpha.solution_value()])
         # print(radius.solution_value())
 
-        starting_point = Tensor(starting_point)
+        starting_point = torch.Tensor(starting_point)
 
         return starting_point
 
@@ -494,11 +432,9 @@ class Star:
 
         Returns
         ---------
-        (pywraplp.Solver, list, list)
+        tuple[pywraplp.Solver, list, list]
             Respectively the lp solver, the variables and the constraints.
-
         """
-
         solver = pywraplp.Solver.CreateSolver('GLOP')
         alphas = []
         for j in range(self.basis_matrix.shape[1]):
@@ -514,13 +450,12 @@ class Star:
 
         return solver, alphas, constraints
 
-    def intersect_with_halfspace(self, coef_mat: Tensor, bias_mat: Tensor) -> Star:
+    def intersect_with_halfspace(self, coef_mat: torch.Tensor, bias_mat: torch.Tensor) -> Star:
         """
         Function which takes as input a Star and a halfspace defined by its coefficient matrix and bias vector
         and returns the Star resulting from the intersection of the input Star with the halfspace.
 
         """
-
         new_center = self.center
         new_basis_matrix = self.basis_matrix
         hs_pred_matrix = torch.matmul(coef_mat, self.basis_matrix)
@@ -561,7 +496,6 @@ class ExtendedStar(Star):
         This method creates the linear function for a neuron
 
         """
-
         return LinearFunctions(self.basis_matrix[neuron_idx, :], self.center[neuron_idx])
 
     def get_predicate_equation(self) -> LinearFunctions:
@@ -569,7 +503,6 @@ class ExtendedStar(Star):
         This method creates the linear function for the predicate of the star
 
         """
-
         return LinearFunctions(self.predicate_matrix, self.predicate_bias)
 
     def get_transformation_equation(self) -> LinearFunctions:
@@ -577,7 +510,6 @@ class ExtendedStar(Star):
         This method creates the linear function for the transformation of the star
 
         """
-
         return LinearFunctions(self.basis_matrix, self.center)
 
     def mask_for_inactive_neurons(self, inactive_neurons: list) -> LinearFunctions:
@@ -586,19 +518,17 @@ class ExtendedStar(Star):
         to set the transformation of the corresponding neurons to 0
 
         """
-
         mask = torch.diag(
-            Tensor([0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])])
+            torch.Tensor([0 if neuron_n in inactive_neurons else 1 for neuron_n in range(self.basis_matrix.shape[0])])
         )
 
         return LinearFunctions(torch.matmul(mask, self.basis_matrix), torch.matmul(mask, self.center))
 
-    def single_fc_forward(self, weight: Tensor, bias: Tensor) -> ExtendedStar:
+    def single_fc_forward(self, weight: torch.Tensor, bias: torch.Tensor) -> ExtendedStar:
         """
         Static copy of the forward pass of the fully connected layer
 
         """
-
         if weight.shape[1] != self.basis_matrix.shape[0]:
             raise Exception
 
@@ -614,9 +544,9 @@ class ExtendedStar(Star):
 
         Parameters
         ----------
-        bounds : dict
+        bounds: VerboseBounds
             The bounds for this star
-        layer_id : int
+        layer_id: int
             The identifier of the layer to approximate
 
         Returns
@@ -693,7 +623,7 @@ class ExtendedStar(Star):
             _get_left_matrix_for_unstable_neuron(unstable_neurons[i], lower_bounds[i], upper_bounds[i])
             for i in range(unstable_count)
         ]
-        lower_left_matrix = Tensor(lower_left_matrix).reshape(4 * unstable_count, -1)
+        lower_left_matrix = torch.Tensor(lower_left_matrix).reshape(4 * unstable_count, -1)
 
         # For every unstable neuron we add a column [-1, -1, 1, 1]^T to lower_right_matrix
         # that corresponds to the fresh variable z
@@ -704,7 +634,7 @@ class ExtendedStar(Star):
             [zero_column for _ in range(i + 1, unstable_count)]
             for i in range(unstable_count)
         ]
-        lower_right_matrix = Tensor(lower_right_matrix).reshape(unstable_count, -1).T
+        lower_right_matrix = torch.Tensor(lower_right_matrix).reshape(unstable_count, -1).T
 
         # The new predicate matrix is made of 4 blocks, [[1, 2], [3, 4]], where
         # 1 is the original predicate matrix, 2 is zeros,
@@ -731,7 +661,7 @@ class ExtendedStar(Star):
              ]
             for i in range(unstable_count)
         ]
-        additional_bias = Tensor(additional_bias).reshape(-1, 1)
+        additional_bias = torch.Tensor(additional_bias).reshape(-1, 1)
 
         # Stack the new values
         new_pred_bias = torch.vstack([pred_bias, additional_bias])
@@ -814,7 +744,7 @@ class StarSet(AbsElement):
 
     Attributes
     ----------
-    stars : Set[Star]
+    stars: set[Star]
         Set of Star objects.
 
     """
