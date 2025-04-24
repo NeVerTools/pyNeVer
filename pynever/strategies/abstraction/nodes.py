@@ -7,7 +7,6 @@ This module defines the abstraction of NN layers both for star and bounds propag
 import abc
 import math
 import multiprocessing
-from warnings import deprecated
 
 import torch
 
@@ -472,7 +471,6 @@ class AbsSigmoidNode(AbsLayerNode):
 
         self.approx_levels = approx_levels
 
-    @deprecated
     # This will be removed or refined
     def forward_star(self, abs_input: AbsElement, bounds: AbstractBounds | None = None) -> AbsElement:
         """

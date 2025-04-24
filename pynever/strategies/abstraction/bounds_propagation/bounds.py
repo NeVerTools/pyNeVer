@@ -32,7 +32,7 @@ class AbstractBounds:
     def __init__(self, lower, upper):
         self.lower = lower
         self.upper = upper
-        self.size = len(self.lower)
+        self.size = self.get_size()
 
     def __repr__(self):
         return ', '.join(["({:.5f}, {:.5f})".format(self.lower[i], self.upper[i])
@@ -46,8 +46,9 @@ class AbstractBounds:
     def get_upper(self):
         raise NotImplementedError
 
-    def get_size(self):
-        return self.size
+    @abstractmethod
+    def get_size(self) -> int:
+        raise NotImplementedError
 
 
 class HyperRectangleBounds(AbstractBounds):
@@ -69,6 +70,9 @@ class HyperRectangleBounds(AbstractBounds):
 
     def get_upper(self) -> torch.Tensor:
         return self.upper
+
+    def get_size(self) -> int:
+        return len(self.lower)
 
     def clone(self):
         return HyperRectangleBounds(copy.deepcopy(self.lower), copy.deepcopy(self.upper))
@@ -106,6 +110,9 @@ class SymbolicLinearBounds(AbstractBounds):
 
     def get_upper(self) -> LinearFunctions:
         return self.upper
+
+    def get_size(self) -> int:
+        return self.lower.get_size()
 
     def get_upper_bounds(self, input_bounds: HyperRectangleBounds) -> torch.Tensor:
         """Procedure to compute the numeric upper bounds
