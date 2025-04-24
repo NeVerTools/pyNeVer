@@ -3,116 +3,127 @@ import copy
 import datetime
 import time
 
-import numpy as np
+import torch
 
 import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
-from pynever.strategies.abstraction.networks import AbsSeqNetwork
-from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
-from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.networks import AbsSeqNetwork
+from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.verification import VERIFICATION_LOGGER
-from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters
+from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters, \
+    VerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
-from pynever.strategies.verification.ssbp.constants import BoundsBackend, IntersectionStrategy, RefinementTarget, \
-    RefinementStrategy, BoundsDirection
-from pynever.tensors import Tensor
+from pynever.strategies.verification.ssbp.constants import (
+    BoundsBackend,
+    IntersectionStrategy,
+    RefinementTarget,
+    RefinementStrategy,
+    BoundsDirection
+)
 
 
 class VerificationStrategy(abc.ABC):
     """
     An abstract class used to represent a Verification Strategy.
 
+    Attributes
+    ----------
+    parameters: VerificationParameters
+        Parameters to guide the verification algorithm
+    logger: Logger
+        Custom logger for the verification package
+
     Methods
     ----------
     verify(NeuralNetwork, NeverProperty)
         Verify that the neural network of interest satisfy the property given as argument
         using a verification strategy determined in the concrete children.
-
     """
 
+    def __init__(self, parameters: VerificationParameters):
+        self.parameters = parameters
+        self.logger = VERIFICATION_LOGGER
+
     @abc.abstractmethod
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, torch.Tensor | None]:
         """
         Verify that the neural network of interest satisfy the property given as argument
         using a verification strategy determined in the concrete children.
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The neural network to train.
-        prop : Dataset
+        prop: Dataset
             The property which the neural network must satisfy.
 
         Returns
         ----------
         bool
             True is the neural network satisfy the property, False otherwise.
-
         """
-
         raise NotImplementedError
 
 
 class SSLPVerification(VerificationStrategy):
     """
-    Class used to represent the Never verification strategy.
+    Class used to represent the SSLP verification strategy.
 
     Attributes
     ----------
+    counterexample_stars: list[Star]
+        List of Star objects containing a counterexample
+    layers_bounds: dict
+        Bounds obtained through bounds propagation to support verification
 
     Methods
     ----------
-    verify(NeuralNetwork, NeverProperty)
-        Verify that the neural network of interest satisfy the property given as argument.
-
+    get_counterexample_stars()
+        Procedure to obtain the counterexample stars from the output
     """
 
     def __init__(self, params: SSLPVerificationParameters):
-
-        self.params = params
-        self.logger = VERIFICATION_LOGGER
+        super().__init__(params)
 
         self.counterexample_stars = None
         self.layers_bounds = {}
 
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, torch.Tensor | None]:
         """
         Entry point for the verification algorithm for a network and a property
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The network model in the internal representation
-        prop : NeverProperty
+        prop: NeverProperty
             The property specification
 
         Returns
         ----------
         bool
             True if the network is safe, False otherwise
-
         """
-
         self.counterexample_stars = None
 
         if not isinstance(network, networks.SequentialNetwork):
             raise NotImplementedError('Only Sequential Networks are currently supported by NeverVerification')
 
-        abst_network = AbsSeqNetwork(network, self.params)
+        abst_network = AbsSeqNetwork(network, self.parameters)
 
         ver_start_time = time.perf_counter()
-
         # Compute symbolic bounds first. If the network architecture or the property
         # does not have a corresponding bound propagation method we skip the computation
-        # TODO remove assert in bound propagation
         try:
-            manager = OldBoundsManager()
-            self.layers_bounds = manager.compute_bounds_from_property(network, prop)
+            manager = BoundsManager(network, prop)
+            self.layers_bounds = manager.compute_bounds()[0]
 
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
@@ -130,7 +141,6 @@ class SSLPVerification(VerificationStrategy):
         # Now we check the intersection of the output starset with the output halfspaces defined by the output
         # constraints of our property of interest. We recall that the property is satisfiable if there exist at least
         # one non-void intersection between the output starset and the halfspaces and SAFE = NOT SAT.
-
         unsafe_stars = []
         all_empty = []
         for i in range(len(prop.out_coef_mat)):
@@ -142,14 +152,14 @@ class SSLPVerification(VerificationStrategy):
                 temp_star = star.intersect_with_halfspace(out_coef, out_bias)
                 if not temp_star.check_if_empty():
                     empty = False
-                    if self.params.heuristic == 'complete':
+                    if self.parameters.heuristic == 'complete':
                         unsafe_stars.append(temp_star)
 
             all_empty.append(empty)
 
         is_satisfied = not all(all_empty)
 
-        counterexample: Tensor | None = None
+        counterexample: torch.Tensor | None = None
         if len(unsafe_stars) > 0:
             self.counterexample_stars = SSLPVerification.get_counterexample_stars(prop, unsafe_stars)
             counterexample = self.counterexample_stars[0].get_samples(num_samples=1)[0]
@@ -182,35 +192,35 @@ class SSBPVerification(VerificationStrategy):
 
     Attributes
     ----------
-    parameters : dict
-        The parameters to guide the search algorithm
-    network : networks.SequentialNetwork
+    network: networks.SequentialNetwork
         The neural network to verify
-    prop : NeverProperty
+    prop: NeverProperty
         The property specification
 
     Methods
     ----------
-    verify(SequentialNetwork, NeVerProperty)
-        Verify that the neural network of interest satisfies the property given as argument
-
+    init_search(SequentialNetwork, NeverProperty)
+        Procedure to initialize the bounds
+    get_bounds(BoundsBackend, BoundsDirection)
+        Procedure to compute the bounds
+    compute_intersection(ExtendedStar, VerboseBounds)
+        Procedure to compute the intersection between the Star and the property
+    get_next_target(ExtendedStar, VerboseBounds)
+        Procedure to compute the next refinement target
     """
 
     def __init__(self, parameters: SSBPVerificationParameters):
-        self.parameters = parameters
+        super().__init__(parameters)
+
         self.network = None
         self.prop = None
-
-        self.logger = VERIFICATION_LOGGER
 
     def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
             -> tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]:
         """
         Initialize the search algorithm and compute the
         starting values for the bounds, the star and the target
-
         """
-
         self.network = network
         self.prop = prop
 
@@ -231,18 +241,16 @@ class SSBPVerification(VerificationStrategy):
 
         Parameters
         ----------
-        strategy : BoundsBackend
+        strategy: BoundsBackend
             The strategy to use for computing the bounds
-        direction : BoundsDirection
+        direction: BoundsDirection
             The direction to compute the bounds (forwards or backwards)
 
         Returns
         ----------
         VerboseBounds
             The collection of the bounds computed by the Bounds Manager
-
         """
-
         match strategy:
             case BoundsBackend.SYMBOLIC:
                 return OldBoundsManager(direction).compute_bounds_from_property(self.network, self.prop)
@@ -251,20 +259,18 @@ class SSBPVerification(VerificationStrategy):
                 # TODO add more strategies
                 raise NotImplementedError
 
-    def compute_intersection(self, star: ExtendedStar, nn_bounds: VerboseBounds) -> tuple[bool, Tensor]:
+    def compute_intersection(self, star: ExtendedStar, nn_bounds: VerboseBounds) -> tuple[bool, torch.Tensor]:
         """
         This method computes the intersection between a star and the output property
         using the intersection algorithm specified by the parameters
-
         """
-
         match self.parameters.intersection:
             case IntersectionStrategy.STAR_LP:
                 return ssbp_intersect.intersect_star_lp(star, self.prop, self.network, nn_bounds)
 
             case IntersectionStrategy.ADAPTIVE:
                 intersects, candidate = ssbp_intersect.intersect_adaptive(star, self.network, nn_bounds, self.prop)
-                cex = None if len(candidate) == 0 else Tensor(np.array(candidate))
+                cex = None if len(candidate) == 0 else torch.Tensor(torch.Tensor(candidate))
 
                 return intersects, cex
 
@@ -276,9 +282,7 @@ class SSBPVerification(VerificationStrategy):
         """
         This method computes the next refinement target for the verification algorithm
         based on the strategy specified by the parameters
-
         """
-
         match self.parameters.heuristic:
 
             case RefinementStrategy.SEQUENTIAL:
@@ -296,23 +300,22 @@ class SSBPVerification(VerificationStrategy):
             case _:
                 raise NotImplementedError('Only sequential refinement supported')
 
-    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, Tensor | None]:
+    def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, torch.Tensor | None]:
         """
         Entry point for the abstraction-refinement search algorithm
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The network model in the internal representation
-        prop : Property
+        prop: Property
             The property specification
 
         Returns
         ----------
-        bool, Optional[Tensor]
+        bool, Optional[torch.Tensor]
             True if the network is safe, False otherwise. If the result is False and the
             search is complete it also returns a counterexample
-
         """
         # Start timer
         timer = 0
@@ -374,7 +377,6 @@ class SSBPVerification(VerificationStrategy):
                         # We can end up here because the bounds might not be aware that all neurons have been fixed.
                         # So there can be some over-approximation.
                         # We should detect and throw more exact intersection check
-
                         input_num_bounds = nn_bounds.numeric_pre_bounds[self.network.get_first_node().identifier]
 
                         self.logger.info(f"\tBranch {current_star.fixed_neurons} is inconsistent with bounds, "

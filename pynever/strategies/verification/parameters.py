@@ -1,7 +1,11 @@
 import abc
 
-from pynever.strategies.verification.ssbp.constants import RefinementStrategy, BoundsBackend, IntersectionStrategy, \
+from pynever.strategies.verification.ssbp.constants import (
+    RefinementStrategy,
+    BoundsBackend,
+    IntersectionStrategy,
     BoundsDirection
+)
 
 
 # TODO add documentation
@@ -34,7 +38,7 @@ class SSBPVerificationParameters(VerificationParameters):
                  bounds: BoundsBackend = BoundsBackend.SYMBOLIC,
                  bounds_direction: BoundsDirection = BoundsDirection.BACKWARDS,
                  intersection: IntersectionStrategy = IntersectionStrategy.ADAPTIVE,
-                 timeout: int = 1200):
+                 timeout: int = 60):
         self.heuristic = heuristic
         self.bounds = bounds
         self.bounds_direction = bounds_direction

@@ -49,7 +49,6 @@ class BoundsManager:
         Recursive procedure to propagate the bounds. When invoked as a root level, all parameters are None
     update_stats(AbsLayerNode, HyperRectangleBounds)
         Procedure to update statistics
-
     """
 
     def __init__(self, network: NeuralNetwork, prop: NeverProperty = None, input_bounds: HyperRectangleBounds = None,
@@ -68,7 +67,7 @@ class BoundsManager:
             raise NotImplementedError
 
         self.topological_stack: list[str] = self.ref_nn.get_topological_order(reverse=True)
-        self.direction: BoundsDirection = parameters.bounds_direction
+        self.direction: BoundsDirection = parameters.bounds_direction if parameters else BoundsDirection.FORWARDS
 
         # Initialize the bounds data structure
         self.bounds_dict = VerboseBounds()
