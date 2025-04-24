@@ -17,8 +17,11 @@ from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
 from pynever.strategies.verification import VERIFICATION_LOGGER
-from pynever.strategies.verification.parameters import SSLPVerificationParameters, SSBPVerificationParameters, \
-    VerificationParameters
+from pynever.strategies.verification.parameters import (
+    VerificationParameters,
+    SSLPVerificationParameters,
+    SSBPVerificationParameters
+)
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import (
     BoundsBackend,
