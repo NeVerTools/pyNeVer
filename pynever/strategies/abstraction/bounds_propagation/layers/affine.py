@@ -1,5 +1,4 @@
 import torch
-from torch import Tensor
 
 from pynever.networks import NeuralNetwork
 from pynever.nodes import FullyConnectedNode
@@ -57,7 +56,7 @@ def get_backwards_layer_equation(layer: FullyConnectedNode,
                                  network: NeuralNetwork,
                                  equations_in: dict[str, SymbolicLinearBounds],
                                  input_bounds: HyperRectangleBounds,
-                                 lower: bool = False) -> tuple[LinearFunctions, Tensor]:
+                                 lower: bool = False) -> tuple[LinearFunctions, torch.Tensor]:
     """Compute the lower or upper bound equation of the layer by backwards substitution
     of the previous layers from the variables of the input layer
 
@@ -76,7 +75,7 @@ def get_backwards_layer_equation(layer: FullyConnectedNode,
 
     Returns
     ----------
-    tuple[LinearFunctions, Tensor]
+    tuple[LinearFunctions, torch.Tensor]
         The bound equation from the input and the bound values
     """
     if lower:

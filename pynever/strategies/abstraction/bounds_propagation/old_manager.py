@@ -11,7 +11,8 @@ import pynever.strategies.abstraction.bounds_propagation.bounds
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, BOUNDS_PRECISION_GUARD, ReLUStatus
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, ReLUStatus
+from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, \
     VerboseBounds, BoundsStats
@@ -49,11 +50,11 @@ class OldBoundsManager:
         """
 
         # Positive stable
-        if lb >= BOUNDS_PRECISION_GUARD:
+        if lb >= ABSTRACTION_PRECISION_GUARD:
             return ReLUStatus.ACTIVE
 
         # Negative stable
-        elif ub <= -BOUNDS_PRECISION_GUARD:
+        elif ub <= -ABSTRACTION_PRECISION_GUARD:
             return ReLUStatus.INACTIVE
 
         # Unstable

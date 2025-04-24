@@ -1,7 +1,8 @@
 import torch
 from torch import Tensor
 
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD, ReLUStatus
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
+from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
 
 
@@ -9,11 +10,11 @@ def check_stable(lb: float, ub: float) -> ReLUStatus:
     """Return the status of a ReLU neuron given the values of the lower and upper pre-activation bounds"""
 
     # Positive stable
-    if lb >= BOUNDS_PRECISION_GUARD:
+    if lb >= ABSTRACTION_PRECISION_GUARD:
         return ReLUStatus.ACTIVE
 
     # Negative stable
-    elif ub <= -BOUNDS_PRECISION_GUARD:
+    elif ub <= -ABSTRACTION_PRECISION_GUARD:
         return ReLUStatus.INACTIVE
 
     # Unstable

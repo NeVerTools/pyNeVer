@@ -26,19 +26,19 @@ class BoundsManager:
 
     Attributes
     ----------
-    ref_nn : NeuralNetwork
+    ref_nn: NeuralNetwork
         The reference NN that defines the structure of the graph
-    abs_network : AbsNeuralNetwork
+    abs_nn: AbsNeuralNetwork
         The abstract NN that contains the abstraction of the layers
-    topological_stack : list[str]
+    topological_stack: list[str]
         The topological sort of the layers in the NN used for the propagation
-    direction : BoundsDirection
+    direction: BoundsDirection
         The direction in which the bounds are computed, either forwards or backwards
-    bounds_dict : VerboseBounds
+    bounds_dict: VerboseBounds
         The data structure storing all bounds information
-    input_bounds : HyperRectangleBounds
+    input_bounds: HyperRectangleBounds
         The input bounds to propagate
-    statistics : BoundsStats
+    statistics: BoundsStats
         Statistics about neurons stability
 
     Methods
@@ -138,9 +138,9 @@ class BoundsManager:
 
         Parameters
         ----------
-        layer_id : str
+        layer_id: str
             The identifier of the layer
-        num_bounds : HyperRectangleBounds
+        num_bounds: HyperRectangleBounds
             The numeric pre-activation bounds
         """
         for neuron in range(num_bounds.get_size()):

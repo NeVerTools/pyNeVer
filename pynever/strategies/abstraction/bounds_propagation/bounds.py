@@ -8,7 +8,7 @@ numeric bounds for the verification of neural networks
 import copy
 from abc import abstractmethod
 
-from torch import Tensor
+import torch
 
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
@@ -61,13 +61,13 @@ class HyperRectangleBounds(AbstractBounds):
         Procedure to get the bounds for a specific dimension
     """
 
-    def __init__(self, lower: Tensor, upper: Tensor):
+    def __init__(self, lower: torch.Tensor, upper: torch.Tensor):
         super(HyperRectangleBounds, self).__init__(lower, upper)
 
-    def get_lower(self) -> Tensor:
+    def get_lower(self) -> torch.Tensor:
         return self.lower
 
-    def get_upper(self) -> Tensor:
+    def get_upper(self) -> torch.Tensor:
         return self.upper
 
     def clone(self):
@@ -88,11 +88,11 @@ class SymbolicLinearBounds(AbstractBounds):
 
     Methods
     -------
-    get_upper_bounds(HyperRectangleBounds) -> Tensor
+    get_upper_bounds(HyperRectangleBounds) -> torch.Tensor
         Procedure to compute the numeric upper bounds
-    get_lower_bounds(HyperRectangleBounds) -> Tensor
+    get_lower_bounds(HyperRectangleBounds) -> torch.Tensor
         Procedure to compute the numeric lower bounds
-    get_all_bounds(HyperRectangleBounds) -> tuple[Tensor, Tensor, Tensor, Tensor]
+    get_all_bounds(HyperRectangleBounds) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
         Procedure to compute all bounds
     to_hyper_rectangle_bounds(HyperRectangleBounds) -> HyperRectangleBounds
         Procedure to compute the hyper-rectangle bounds
@@ -107,7 +107,7 @@ class SymbolicLinearBounds(AbstractBounds):
     def get_upper(self) -> LinearFunctions:
         return self.upper
 
-    def get_upper_bounds(self, input_bounds: HyperRectangleBounds) -> Tensor:
+    def get_upper_bounds(self, input_bounds: HyperRectangleBounds) -> torch.Tensor:
         """Procedure to compute the numeric upper bounds
         Parameters
         ----------
@@ -116,7 +116,7 @@ class SymbolicLinearBounds(AbstractBounds):
         """
         return self.upper.compute_max_values(input_bounds)
 
-    def get_lower_bounds(self, input_bounds: HyperRectangleBounds) -> Tensor:
+    def get_lower_bounds(self, input_bounds: HyperRectangleBounds) -> torch.Tensor:
         """Procedure to compute the numeric lower bounds
         Parameters
         ----------
@@ -125,7 +125,8 @@ class SymbolicLinearBounds(AbstractBounds):
         """
         return self.lower.compute_min_values(input_bounds)
 
-    def get_all_bounds(self, input_bounds: HyperRectangleBounds) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def get_all_bounds(self, input_bounds: HyperRectangleBounds) -> tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Procedure to compute all bounds
         Parameters
         ----------

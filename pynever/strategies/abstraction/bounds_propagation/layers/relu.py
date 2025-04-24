@@ -8,7 +8,7 @@ from torch import Tensor
 
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
-from pynever.strategies.abstraction.bounds_propagation import BOUNDS_PRECISION_GUARD
+from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
@@ -183,8 +183,8 @@ class LinearizeReLU:
                 new_eq.upper.matrix[neuron_n] = 0 * new_eq.upper.matrix[neuron_n]
                 new_eq.upper.offset[neuron_n] = 0
 
-                new_bounds.lower[neuron_n] = -BOUNDS_PRECISION_GUARD
-                new_bounds.upper[neuron_n] = -BOUNDS_PRECISION_GUARD  # TODO is the sign correct?
+                new_bounds.lower[neuron_n] = -ABSTRACTION_PRECISION_GUARD
+                new_bounds.upper[neuron_n] = -ABSTRACTION_PRECISION_GUARD  # TODO is the sign correct?
 
         return new_eq, new_bounds
 

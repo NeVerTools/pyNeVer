@@ -2,9 +2,8 @@ import abc
 import copy
 import time
 
-import pynever.networks as networks
-import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
+from pynever import networks, nodes
 from pynever.strategies.abstraction import LOGGER_LAYER
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.star import AbsElement

@@ -1,7 +1,6 @@
 import copy
 
 import torch
-from torch import Tensor
 
 
 class LinearFunctions:
@@ -15,7 +14,7 @@ class LinearFunctions:
 
     """
 
-    def __init__(self, matrix: Tensor, offset: Tensor):
+    def __init__(self, matrix: torch.Tensor, offset: torch.Tensor):
         self.size = matrix.shape[0]
         self.matrix = matrix
         self.offset = offset
@@ -25,25 +24,25 @@ class LinearFunctions:
 
     def mask_zero_outputs(self, zero_outputs):
         mask = torch.diag(
-            Tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)])
+            torch.Tensor([0 if neuron_n in zero_outputs else 1 for neuron_n in range(self.size)])
         )
         return LinearFunctions(torch.matmul(mask, self.matrix), torch.matmul(mask, self.offset))
 
     def get_size(self) -> int:
         return self.size
 
-    def get_matrix(self) -> Tensor:
+    def get_matrix(self) -> torch.Tensor:
         return self.matrix
 
-    def get_offset(self) -> Tensor:
+    def get_offset(self) -> torch.Tensor:
         return self.offset
 
-    def compute_max_values(self, input_bounds) -> Tensor:
+    def compute_max_values(self, input_bounds) -> torch.Tensor:
         return torch.matmul(torch.clamp(self.matrix, min=0), input_bounds.get_upper()) + \
             torch.matmul(torch.clamp(self.matrix, max=0), input_bounds.get_lower()) + \
             self.offset
 
-    def compute_min_values(self, input_bounds) -> Tensor:
+    def compute_min_values(self, input_bounds) -> torch.Tensor:
         return torch.matmul(torch.clamp(self.matrix, min=0), input_bounds.get_lower()) + \
             torch.matmul(torch.clamp(self.matrix, max=0), input_bounds.get_upper()) + \
             self.offset
