@@ -19,6 +19,9 @@ class LinearFunctions:
         self.matrix = matrix
         self.offset = offset
 
+    def __repr__(self):
+        return "LinearFunctions({})".format(self.size)
+
     def clone(self):
         return LinearFunctions(copy.deepcopy(self.matrix), copy.deepcopy(self.offset))
 

@@ -35,8 +35,7 @@ class AbstractBounds:
         self.size = self.get_size()
 
     def __repr__(self):
-        return ', '.join(["({:.5f}, {:.5f})".format(self.lower[i], self.upper[i])
-                          for i in range(self.size)])
+        return ', '.join(["({}, {})".format(self.lower[i], self.upper[i]) for i in range(self.size)])
 
     @abstractmethod
     def get_lower(self):
@@ -64,6 +63,10 @@ class HyperRectangleBounds(AbstractBounds):
 
     def __init__(self, lower: torch.Tensor, upper: torch.Tensor):
         super(HyperRectangleBounds, self).__init__(lower, upper)
+
+    def __repr__(self):
+        return ', '.join(["(lb[{}]: {:.5f}, ub[{}]: {:.5f})".format(i, self.lower[i], i, self.upper[i])
+                          for i in range(self.size)])
 
     def get_lower(self) -> torch.Tensor:
         return self.lower
