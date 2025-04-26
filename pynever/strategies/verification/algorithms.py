@@ -12,7 +12,6 @@ import pynever.strategies.verification.ssbp.split as ssbp_split
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
-from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
 from pynever.strategies.abstraction.star import StarSet, Star, ExtendedStar
@@ -189,7 +188,7 @@ class SSLPVerification(VerificationStrategy):
 
 class SSBPVerification(VerificationStrategy):
     """
-    Class used to represent the search-based verification strategy. It employs
+    Class used to represent the search-based verification strategy. It uses
     star propagation with Symbolic Bounds Propagation and an abstraction-refinement
     loop for better readability, structure and functionality
 
@@ -256,7 +255,7 @@ class SSBPVerification(VerificationStrategy):
         """
         match strategy:
             case BoundsBackend.SYMBOLIC:
-                return OldBoundsManager(direction).compute_bounds_from_property(self.network, self.prop)
+                return BoundsManager(self.network, self.prop).compute_bounds()[0]
 
             case _:
                 # TODO add more strategies
@@ -273,7 +272,7 @@ class SSBPVerification(VerificationStrategy):
 
             case IntersectionStrategy.ADAPTIVE:
                 intersects, candidate = ssbp_intersect.intersect_adaptive(star, self.network, nn_bounds, self.prop)
-                cex = None if len(candidate) == 0 else torch.Tensor(torch.Tensor(candidate))
+                cex = None if len(candidate) == 0 else torch.Tensor(candidate)
 
                 return intersects, cex
 

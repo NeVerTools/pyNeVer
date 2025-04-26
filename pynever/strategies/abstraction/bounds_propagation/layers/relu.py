@@ -58,8 +58,8 @@ class LinearizeReLU:
         cur_layer_inactive = LinearizeReLU.extract_layer_inactive_from_fixed_neurons(self.fixed_neurons, layer_id)
 
         cur_layer_output_num_bounds = HyperRectangleBounds(
-            torch.maximum(cur_numeric_bounds.get_lower(), Tensor(0)),
-            torch.maximum(cur_numeric_bounds.get_upper(), Tensor(0)))
+            torch.max(cur_numeric_bounds.get_lower(), torch.zeros(cur_numeric_bounds.get_size())),
+            torch.max(cur_numeric_bounds.get_upper(), torch.zeros(cur_numeric_bounds.get_size())))
 
         if LinearizeReLU.USE_FIXED_NEURONS:
             LinearizeReLU.force_inactive_neurons(cur_symbolic_bounds, cur_layer_output_num_bounds, cur_layer_inactive)

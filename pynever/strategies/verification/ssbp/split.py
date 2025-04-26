@@ -6,7 +6,7 @@ from pynever import networks
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import util
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.abstraction.bounds_propagation.old_manager import OldBoundsManager
+from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.ssbp import propagation
@@ -170,7 +170,7 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
         new_input_bounds.get_upper()[i_dim] = new_upper
 
     if bounds_improved:
-        new_bounds, _ = OldBoundsManager().compute_bounds(new_input_bounds, nn, star.fixed_neurons)
+        new_bounds, _ = BoundsManager(nn, input_bounds=new_input_bounds).compute_bounds()
         return new_bounds
 
     return nn_bounds

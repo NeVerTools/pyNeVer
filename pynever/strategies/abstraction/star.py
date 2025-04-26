@@ -262,7 +262,7 @@ class Star:
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
 
-                if not torch.isclose(torch.matmul(self.predicate_matrix[i, :], direction), torch.Tensor(0)):
+                if not torch.isclose(torch.matmul(self.predicate_matrix[i, :], direction), torch.zeros(1)):
                     temp = auxiliary_points[i] - current_point
                     lam = torch.matmul(self.predicate_matrix[i, :], temp) / (torch.matmul(self.predicate_matrix[i, :],
                                                                                           direction))

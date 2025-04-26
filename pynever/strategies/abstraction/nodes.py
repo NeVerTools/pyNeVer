@@ -258,9 +258,6 @@ class AbsReLUNode(AbsLayerNode):
     """
 
     def __init__(self, identifier: str, ref_node: nodes.ReLUNode, parameters: VerificationParameters):
-        if not hasattr(parameters, 'heuristic') or not hasattr(parameters, 'neurons_to_refine'):
-            raise Exception('Verification parameters must include attributes "heuristic" and "neurons_to_refine"')
-
         super().__init__(identifier, ref_node, parameters)
         self.layer_bounds = None
         self.n_areas = None

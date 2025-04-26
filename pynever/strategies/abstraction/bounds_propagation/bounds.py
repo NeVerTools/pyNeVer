@@ -221,4 +221,4 @@ class VerboseBounds:
         self.numeric_pre_bounds = copy.deepcopy(numeric_pre) if numeric_pre is not None else dict()
         self.numeric_post_bounds = copy.deepcopy(numeric_post) if numeric_post is not None else dict()
         self.stable_count = stable_count
-        self.statistics = None
+        self.statistics = BoundsStats()

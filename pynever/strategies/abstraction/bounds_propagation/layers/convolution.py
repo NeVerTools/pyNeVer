@@ -159,8 +159,8 @@ class LinearizeConv:
                     else:
                         assert False, "Case not implemented."
 
-                    pos_filter = torch.maximum(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
-                    neg_filter = torch.minimum(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
+                    pos_filter = torch.max(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
+                    neg_filter = torch.min(filter, torch.tensor(0.).to(DATA_TYPE).to(device))
                     pos_filter = pos_filter[padding_re_indexing_list[in_ch_idx]]
                     neg_filter = neg_filter[padding_re_indexing_list[in_ch_idx]]
 

@@ -81,8 +81,8 @@ class BoundsManager:
     def init_symbolic_bounds(self) -> SymbolicLinearBounds:
         """Initialize the input symbolic linear bounds"""
         input_size = self.input_bounds.get_size()
-        lower_equation = LinearFunctions(torch.identity(input_size), torch.zeros(input_size))
-        upper_equation = LinearFunctions(torch.identity(input_size), torch.zeros(input_size))
+        lower_equation = LinearFunctions(torch.eye(input_size), torch.zeros(input_size))
+        upper_equation = LinearFunctions(torch.eye(input_size), torch.zeros(input_size))
 
         return SymbolicLinearBounds(lower_equation, upper_equation)
 
@@ -148,14 +148,20 @@ class BoundsManager:
 
             match status:
                 case ReLUStatus.ACTIVE:
+                    if layer_id not in self.statistics.stability_info[ReLUStatus.ACTIVE].keys():
+                        self.statistics.stability_info[ReLUStatus.ACTIVE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.ACTIVE][layer_id].append(neuron)
                     self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.INACTIVE:
+                    if layer_id not in self.statistics.stability_info[ReLUStatus.INACTIVE].keys():
+                        self.statistics.stability_info[ReLUStatus.INACTIVE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.INACTIVE][layer_id].append(neuron)
                     self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.UNSTABLE:
+                    if layer_id not in self.statistics.stability_info[ReLUStatus.UNSTABLE].keys():
+                        self.statistics.stability_info[ReLUStatus.UNSTABLE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.UNSTABLE][layer_id].append(neuron)
 
                     # Compute approximation area

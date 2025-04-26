@@ -111,7 +111,7 @@ def compute_dense_output_bounds(layer: FullyConnectedNode, inputs: SymbolicLinea
     SymbolicLinearBounds
         The symbolic output bounds for the layer
     """
-    weights = torch.from_numpy(layer.weight).float()
+    weights = layer.weight
     weights_plus = torch.clamp(weights, min=0)
     weights_minus = torch.clamp(weights, max=0)
 
