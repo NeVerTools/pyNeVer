@@ -1,8 +1,8 @@
 import torch
 from torch import Tensor
 
-from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
+from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
 
 
@@ -27,13 +27,13 @@ def compute_lower(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tens
 
     Parameters
     ----------
-    weights_minus : Tensor
+    weights_minus: Tensor
         The negative part of the weights
-    weights_plus : Tensor
+    weights_plus: Tensor
         The positive part of the weights
-    input_lower : Tensor
+    input_lower: Tensor
         The lower input bounds
-    input_upper : Tensor
+    input_upper: Tensor
         The upper input bounds
 
     Returns
@@ -49,13 +49,13 @@ def compute_upper(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tens
 
     Parameters
     ----------
-    weights_minus : Tensor
+    weights_minus: Tensor
         The negative part of the weights
-    weights_plus : Tensor
+    weights_plus: Tensor
         The positive part of the weights
-    input_lower : Tensor
+    input_lower: Tensor
         The lower input bounds
-    input_upper : Tensor
+    input_upper: Tensor
         The upper input bounds
 
     Returns
@@ -71,9 +71,9 @@ def compute_max(weights: Tensor, input_bounds: AbstractBounds) -> Tensor:
 
     Parameters
     ----------
-    weights : Tensor
+    weights: Tensor
         The weights matrix
-    input_bounds : AbstractBounds
+    input_bounds: AbstractBounds
         The input bounds
 
     Returns
@@ -90,9 +90,9 @@ def compute_min(weights: Tensor, input_bounds: AbstractBounds) -> Tensor:
 
     Parameters
     ----------
-    weights : Tensor
+    weights: Tensor
         The weights matrix
-    input_bounds : AbstractBounds
+    input_bounds: AbstractBounds
         The input bounds
 
     Returns
@@ -117,11 +117,11 @@ def compute_layer_inactive_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
 
     Parameters
     ----------
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The bounds information
-    fixed_neurons : dict
+    fixed_neurons: dict
         The fixed neurons so far
-    layer_id : str
+    layer_id: str
         The layer id
 
     Returns
@@ -140,11 +140,11 @@ def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
 
     Parameters
     ----------
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The bounds information
-    fixed_neurons : dict
+    fixed_neurons: dict
         The fixed neurons so far
-    layer_id : str
+    layer_id: str
         The layer id
 
     Returns
@@ -152,11 +152,11 @@ def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
     list[int]
         The list of computed unstable neurons and fixed unstable neurons in the layer
     """
-    layer_unstable = {
-        neuron_n
-        for lay_id, neuron_n in bounds.statistics.stability_info[ReLUStatus.UNSTABLE]
-        if lay_id == layer_id
-    }
+    layer_unstable = []
+    for lay_id, neurons in bounds.statistics.stability_info[ReLUStatus.UNSTABLE].items():
+        if lay_id == layer_id:
+            layer_unstable.extend(neurons)
+
     return [neuron_n for neuron_n in layer_unstable if (layer_id, neuron_n) not in fixed_neurons]
 
 
@@ -165,9 +165,9 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_
 
     Parameters
     ----------
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The bounds information
-    fixed_neurons : dict
+    fixed_neurons: dict
         The fixed neurons so far
 
     Returns

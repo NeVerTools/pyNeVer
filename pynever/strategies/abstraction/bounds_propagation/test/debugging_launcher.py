@@ -7,26 +7,26 @@ Authors: Stefano Demarchi, Pedro Achete
 
 """
 
+import os
 import re
+import time
+import warnings
 from argparse import ArgumentParser
 
 import torch
 
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
-from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
-from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
 from pynever.strategies.abstraction.networks import networks
 from pynever.strategies.conversion.converters.onnx import ONNXConverter
+from pynever.strategies.conversion.converters.pytorch import PyTorchConverter
+from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
 from pynever.strategies.verification.properties import VnnLibProperty
-import os
-import time
-import warnings
+
 warnings.simplefilter("error", RuntimeWarning)
 
 # Set the environment variable
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 
 POST_CONDITIONS_TEMP_FILE = r'C:\Users\andr3\PycharmProjects\pyNeVer\pynever\strategies\bounds_propagation\test\test\intermediate.vnnlib'
 
@@ -57,6 +57,7 @@ def add_options(p: ArgumentParser):
                       default='complete', help='Verification strategy to use, complete by default')
 
     return p
+
 
 def neg_post_condition(prop_path: str) -> None:
     """
@@ -121,6 +122,7 @@ def neg_post_condition(prop_path: str) -> None:
                 new_prop.write(row)
             new_prop.write('\n))')
 
+
 if __name__ == '__main__':
     nn_path = r"C:\Users\andr3\PycharmProjects\pyNeVer\pynever\strategies\bounds_propagation\test\mnist_fcnn_double_conv.onnx"
     prop_path = r"C:\Users\andr3\PycharmProjects\pyNeVer\pynever\strategies\bounds_propagation\test\test\loc_rob_property_0.vnnlib"
@@ -139,7 +141,6 @@ if __name__ == '__main__':
 
     network = ONNXConverter().to_neural_network(alt_repr)
 
-
     if not isinstance(network, networks.SequentialNetwork):
         raise Exception('The network is not a sequential network!')
 
@@ -156,18 +157,18 @@ if __name__ == '__main__':
 
     results_dict = BoundsManager(network, input_bounds=input)
     start_time = time.time()
-    bounds_dict, num_bounds = results_dict.compute_bounds()
+    bounds_dict = results_dict.compute_bounds()
+    num_bounds = bounds_dict.numeric_post_bounds[network.get_last_node().identifier]
     end_time = time.time()
     execution_time = end_time - start_time
-
 
     py_net = PyTorchConverter().from_neural_network(network)
     py_net.pytorch_network.eval()
     py_net.pytorch_network.float()
-    output_nn = py_net.pytorch_network(lower.view(1,1,28,28))
+    output_nn = py_net.pytorch_network(lower.view(1, 1, 28, 28))
 
-    lower_output =  bounds_dict.numeric_post_bounds[bounds_dict.identifiers[-1]].lower
-    upper_output =  bounds_dict.numeric_post_bounds[bounds_dict.identifiers[-1]].upper
+    lower_output = bounds_dict.numeric_post_bounds[bounds_dict.identifiers[-1]].lower
+    upper_output = bounds_dict.numeric_post_bounds[bounds_dict.identifiers[-1]].upper
 
     assert ((output_nn >= lower_output) & (output_nn <= upper_output)).all(), "Bounds errati"
 
@@ -178,10 +179,6 @@ if __name__ == '__main__':
         upper_num_bounds = bounds_dict.numeric_post_bounds[id].upper
         print(f'Dims {lower_num_bounds.shape}')
         assert (lower_num_bounds <= upper_num_bounds).all(), "Lower bounds greater than upper bounds"
-
-
-
-
 
     print(execution_time)
 

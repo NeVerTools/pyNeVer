@@ -253,7 +253,7 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
             compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.POSITIVE, nn_bounds,
                                                       network, params)
 
-    stars = sorted(stars, key=lambda x: x[1].stable_count)
+    stars = sorted(stars, key=lambda x: x[1].statistics.stability_info['stable_count'])
 
     return stars
 
@@ -281,7 +281,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
                                     enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
-    if bounds.stable_count - pre_split_bounds.stable_count <= 2:
+    if bounds.statistics.stability_info['stable_count'] - pre_split_bounds.statistics.stability_info['stable_count'] <= 2:
         negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_bisect_input(bounds,
                                                                                                          network,
                                                                                                          fixed_so_far)

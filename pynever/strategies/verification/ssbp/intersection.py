@@ -138,13 +138,13 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
 
     # Create the input and the output variables
     input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j] if j < input_bounds.get_size() else 0,
-                      input_bounds.get_upper()[j] if j < input_bounds.get_size() else solver.infinity(),
+        solver.NumVar(input_bounds.get_lower()[j].item() if j < input_bounds.get_size() else 0,
+                      input_bounds.get_upper()[j].item() if j < input_bounds.get_size() else solver.infinity(),
                       f'alpha_{j}')
         for j in range(n_input_dimensions)])
 
     output_vars = np.array([
-        solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
+        solver.NumVar(output_bounds.get_lower()[j].item(), output_bounds.get_upper()[j].item(), f'beta_{j}')
         for j in range(n_output_dimensions)])
 
     # The constraints relating input and output variables
@@ -202,11 +202,11 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
     solver = pywraplp.Solver("", pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING)
 
     input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+        solver.NumVar(input_bounds.get_lower()[j].item(), input_bounds.get_upper()[j].item(), f'alpha_{j}')
         for j in range(n_input_dimensions)])
 
     output_vars = np.array([
-        solver.NumVar(output_bounds.get_lower()[j], output_bounds.get_upper()[j], f'beta_{j}')
+        solver.NumVar(output_bounds.get_lower()[j].item(), output_bounds.get_upper()[j].item(), f'beta_{j}')
         for j in range(n_output_dimensions)])
 
     if len(nn_bounds.statistics.stability_info[ReLUStatus.UNSTABLE]) > 0:

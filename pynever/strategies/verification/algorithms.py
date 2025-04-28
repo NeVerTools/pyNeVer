@@ -9,6 +9,7 @@ import pynever.networks as networks
 import pynever.strategies.verification.ssbp.intersection as ssbp_intersect
 import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
+from pynever.networks import NeuralNetwork
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
@@ -125,7 +126,7 @@ class SSLPVerification(VerificationStrategy):
         # does not have a corresponding bound propagation method we skip the computation
         try:
             manager = BoundsManager(network, prop)
-            self.layers_bounds = manager.compute_bounds()[0]
+            self.layers_bounds = manager.compute_bounds()
 
         except AssertionError:
             self.logger.warning(f"Warning: Bound propagation unsupported")
@@ -217,7 +218,7 @@ class SSBPVerification(VerificationStrategy):
         self.network = None
         self.prop = None
 
-    def init_search(self, network: networks.SequentialNetwork, prop: NeverProperty) \
+    def init_search(self, network: networks.NeuralNetwork, prop: NeverProperty) \
             -> tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]:
         """
         Initialize the search algorithm and compute the
@@ -230,32 +231,25 @@ class SSBPVerification(VerificationStrategy):
         star0 = ExtendedStar(LinearFunctions(star0.predicate_matrix, star0.predicate_bias),
                              LinearFunctions(star0.basis_matrix, star0.center))
 
-        bounds = self.get_bounds(self.parameters.bounds, self.parameters.bounds_direction)
+        bounds = self.get_bounds()
         star1 = ssbp_prop.propagate_and_init_star_before_relu_layer(star0, bounds, self.network, skip=False)
 
         return star1, self.prop.to_numeric_bounds(), bounds
 
-    def get_bounds(self, strategy: BoundsBackend, direction: BoundsDirection) -> VerboseBounds:
+    def get_bounds(self) -> VerboseBounds:
         """
         This method gets the bounds of the neural network for the given property
         of interest. The bounds are computed based on a strategy that allows to
         plug and play different bound propagation algorithms
 
-        Parameters
-        ----------
-        strategy: BoundsBackend
-            The strategy to use for computing the bounds
-        direction: BoundsDirection
-            The direction to compute the bounds (forwards or backwards)
-
         Returns
-        ----------
+        -------
         VerboseBounds
             The collection of the bounds computed by the Bounds Manager
         """
-        match strategy:
+        match self.parameters.bounds:
             case BoundsBackend.SYMBOLIC:
-                return BoundsManager(self.network, self.prop).compute_bounds()[0]
+                return BoundsManager(self.network, self.prop).compute_bounds()
 
             case _:
                 # TODO add more strategies
@@ -323,17 +317,15 @@ class SSBPVerification(VerificationStrategy):
         timer = 0
         start_time = time.perf_counter()
 
-        if isinstance(network, networks.SequentialNetwork):
-            in_star, input_num_bounds, input_symb_bounds = self.init_search(network, prop)
-        else:
-            raise NotImplementedError('Only SequentialNetwork objects are supported at present')
+        in_star, input_num_bounds, input_symb_bounds = self.init_search(network, prop)
 
-        n_unstable = len(input_symb_bounds.statistics.stability_info[ReLUStatus.UNSTABLE])
-        stable_ratio = input_symb_bounds.stable_count / (input_symb_bounds.stable_count + n_unstable)
+        n_unstable = input_symb_bounds.statistics.count_unstable()
+        stable_ratio = (input_symb_bounds.statistics.stability_info['stable_count'] /
+                        (input_symb_bounds.statistics.stability_info['stable_count'] + n_unstable))
         self.logger.info(f"Started {datetime.datetime.now()}\n"
                          f"Inactive neurons: {input_symb_bounds.statistics.stability_info[ReLUStatus.INACTIVE]}\n"
                          f"  Active neurons: {input_symb_bounds.statistics.stability_info[ReLUStatus.ACTIVE]}\n"
-                         f"    Stable count: {input_symb_bounds.stable_count}\n"
+                         f"    Stable count: {input_symb_bounds.statistics.stability_info['stable_count']}\n"
                          f"    Stable ratio: {stable_ratio}\n"
                          f"\n")
 
@@ -348,7 +340,7 @@ class SSBPVerification(VerificationStrategy):
             current_star, nn_bounds = frontier.pop()
             self.logger.info(f"Node {node_counter}. Frontier size {len(frontier) + 1}. "
                              f"Depth {len(current_star.fixed_neurons)}. "
-                             f"Stable count {nn_bounds.stable_count}")
+                             f"Stable count {nn_bounds.statistics.stability_info['stable_count']}")
 
             intersects, candidate_cex = self.compute_intersection(current_star, nn_bounds)
 

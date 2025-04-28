@@ -52,7 +52,7 @@ class BoundsRefinement:
         )
 
         self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
+            None if negative_bounds is None else "{:4}".format(negative_bounds.statistics.stability_info['stable_count']),
             None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
             negative_branch_input))
 
@@ -69,7 +69,7 @@ class BoundsRefinement:
         )
 
         self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds.stable_count),
+            None if positive_bounds is None else "{:4}".format(positive_bounds.statistics.stability_info['stable_count']),
             None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
             positive_branch_input))
 
@@ -439,12 +439,12 @@ class BoundsRefinement:
         positive_bounds = BoundsManager(nn, input_bounds=upper_half).compute_bounds()
 
         self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds.stable_count),
+            None if negative_bounds is None else "{:4}".format(negative_bounds.statistics.stability_info['stable_count']),
             None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
             lower_half))
 
         self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds.stable_count),
+            None if positive_bounds is None else "{:4}".format(positive_bounds.statistics.stability_info['stable_count']),
             None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
             upper_half))
 

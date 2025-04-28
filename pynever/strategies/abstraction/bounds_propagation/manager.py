@@ -12,6 +12,7 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectan
 from pynever.strategies.abstraction.bounds_propagation.util import check_stable
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork, AbsAcyclicNetwork, AbsNeuralNetwork
+from pynever.strategies.abstraction.nodes import AbsReLUNode
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp.constants import BoundsDirection
@@ -88,7 +89,7 @@ class BoundsManager:
 
     def compute_bounds(self, in_num_bounds: HyperRectangleBounds | list[HyperRectangleBounds] | None = None,
                        in_sym_bounds: SymbolicLinearBounds | list[SymbolicLinearBounds] | None = None,
-                       start_layer: LayerNode = None):
+                       start_layer: LayerNode = None) -> VerboseBounds:
         """
         Entry point
         
@@ -117,51 +118,57 @@ class BoundsManager:
 
         # Compute bounds for this layer
         out_sym_bounds, out_num_bounds = cur_layer.forward_bounds(cur_sym_bounds, cur_num_bounds, self.input_bounds)
-        self.update_stats(cur_layer.identifier, cur_num_bounds)
+        self.update_stats(cur_layer, cur_num_bounds)
 
         # Fill the bounds dictionary for this layer
         self.bounds_dict.identifiers.append(cur_layer.identifier)
         self.bounds_dict.numeric_pre_bounds[cur_layer.identifier] = cur_num_bounds
         self.bounds_dict.symbolic_bounds[cur_layer.identifier] = out_sym_bounds
         self.bounds_dict.numeric_post_bounds[cur_layer.identifier] = out_num_bounds
+        self.bounds_dict.statistics = self.statistics
 
         if len(self.topological_stack) == 0:
-            return self.bounds_dict, out_num_bounds
+            return self.bounds_dict
 
         else:
             next_layer = self.abs_nn.get_abstract(self.ref_nn.nodes[self.topological_stack[-1]], abs_id=False)
             return self.compute_bounds(out_num_bounds, out_sym_bounds, start_layer=next_layer)
 
-    def update_stats(self, layer_id: str, num_bounds: HyperRectangleBounds) -> None:
+    def update_stats(self, layer: LayerNode, num_bounds: HyperRectangleBounds) -> None:
         """Update the statistics for this layer
 
         Parameters
         ----------
-        layer_id: str
-            The identifier of the layer
+        layer: LayerNode
+            The current layer
         num_bounds: HyperRectangleBounds
             The numeric pre-activation bounds
         """
+
+        # Update statistics for ReLU layers only
+        if not isinstance(layer, AbsReLUNode):
+            return
+
+        layer_id = layer.identifier
+
         for neuron in range(num_bounds.get_size()):
             l, u = num_bounds.get_dimension_bounds(neuron)
             status = check_stable(l, u)
 
+            for relu in [ReLUStatus.ACTIVE, ReLUStatus.INACTIVE, ReLUStatus.UNSTABLE]:
+                if layer_id not in self.statistics.stability_info[relu].keys():
+                    self.statistics.stability_info[relu][layer_id] = list()
+
             match status:
                 case ReLUStatus.ACTIVE:
-                    if layer_id not in self.statistics.stability_info[ReLUStatus.ACTIVE].keys():
-                        self.statistics.stability_info[ReLUStatus.ACTIVE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.ACTIVE][layer_id].append(neuron)
                     self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.INACTIVE:
-                    if layer_id not in self.statistics.stability_info[ReLUStatus.INACTIVE].keys():
-                        self.statistics.stability_info[ReLUStatus.INACTIVE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.INACTIVE][layer_id].append(neuron)
                     self.statistics.stability_info['stable_count'] += 1
 
                 case ReLUStatus.UNSTABLE:
-                    if layer_id not in self.statistics.stability_info[ReLUStatus.UNSTABLE].keys():
-                        self.statistics.stability_info[ReLUStatus.UNSTABLE][layer_id] = list()
                     self.statistics.stability_info[ReLUStatus.UNSTABLE][layer_id].append(neuron)
 
                     # Compute approximation area
