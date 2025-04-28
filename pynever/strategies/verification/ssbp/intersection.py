@@ -150,12 +150,12 @@ def intersect_abstract_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
-            input_vars.dot(star.basis_matrix[j].numpy()) + star.center[j][0].numpy() - output_vars[j] == 0)
+            input_vars.dot(star.basis_matrix[j].numpy()) + star.center[j][0].item() - output_vars[j] == 0)
 
     # The constraints from the predicate
     for j in range(star.predicate_matrix.shape[0]):
         solver.Add(
-            input_vars.dot(star.predicate_matrix[j].numpy()) - star.predicate_bias[j][0].numpy() <= 0)
+            input_vars.dot(star.predicate_matrix[j].numpy()) - star.predicate_bias[j][0].item() <= 0)
 
     # The constraints for the property
     _encode_output_property_constraints(solver, prop, output_bounds, output_vars)
@@ -219,26 +219,26 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
                         BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
                         .get_lower().get_matrix()[neuron_n].numpy()) +
                     BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
-                    .get_lower().get_offset()[neuron_n].numpy() <= 0)
+                    .get_lower().get_offset()[neuron_n].item() <= 0)
             else:
                 solver.Add(
                     input_vars.dot(
                         BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
                         .get_upper().get_matrix()[neuron_n].numpy()) +
                     BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
-                    .get_upper().get_offset()[neuron_n].numpy() >= 0)
+                    .get_upper().get_offset()[neuron_n].item() >= 0)
 
     # The constraints relating input and output variables
     for j in range(n_output_dimensions):
         solver.Add(
             input_vars.dot(
                 nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_matrix()[j].numpy()) +
-            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_offset()[j].numpy() -
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_upper().get_offset()[j].item() -
             output_vars[j] >= 0)
         solver.Add(
             input_vars.dot(
                 nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_matrix()[j].numpy()) +
-            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_offset()[j].numpy() -
+            nn_bounds.symbolic_bounds[nn.get_last_node().identifier].get_lower().get_offset()[j].item() -
             output_vars[j] <= 0)
 
     # The constraints for the property
@@ -316,7 +316,7 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
             conjunction.append(solver.Add(
                 output_vars.dot(prop.out_coef_mat[i][j].numpy())
                 - (1 - deltas[i]) * bigM.item()
-                - prop.out_bias_mat[i][j][0].numpy() <= 0
+                - prop.out_bias_mat[i][j][0].item() <= 0
             ))
 
 
@@ -325,7 +325,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
 
     input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     input_vars = np.array([
-        solver.NumVar(input_bounds.get_lower()[j].numpy(), input_bounds.get_upper()[j].numpy(), f'alpha_{j}')
+        solver.NumVar(input_bounds.get_lower()[j].item(), input_bounds.get_upper()[j].item(), f'alpha_{j}')
         for j in range(input_bounds.get_size())])
     variables.append(input_vars)
 
@@ -335,7 +335,7 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
             upper_bounds = nn_bounds.numeric_pre_bounds[layer.identifier].get_upper()
 
             layer_vars = np.array([
-                solver.NumVar(lower_bounds[node_n].numpy(), upper_bounds[node_n].numpy(),
+                solver.NumVar(lower_bounds[node_n].item(), upper_bounds[node_n].item(),
                               f'x_{layer.identifier}_{node_n}')
                 for node_n in range(lower_bounds.size)])
 
@@ -366,19 +366,19 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
                     The BIG-M constraints
                     """
                     solver.Add(node_var >= dot_product[node_n])
-                    solver.Add(node_var <= dot_product[node_n] - lower_bounds[node_n].numpy() * (1 - delta))
-                    solver.Add(node_var <= upper_bounds[node_n].numpy() * delta)
+                    solver.Add(node_var <= dot_product[node_n] - lower_bounds[node_n].item() * (1 - delta))
+                    solver.Add(node_var <= upper_bounds[node_n].item() * delta)
 
     last_layer = nn.get_last_node()
     output_bounds = nn_bounds.numeric_post_bounds[last_layer.identifier]
     output_vars = torch.Tensor([
-        solver.NumVar(output_bounds.get_lower()[j].numpy(), output_bounds.get_upper()[j].numpy(), f'beta_{j}')
+        solver.NumVar(output_bounds.get_lower()[j].item(), output_bounds.get_upper()[j].item(), f'beta_{j}')
         for j in range(output_bounds.get_size())])
     variables.append(output_vars)
 
     for node_n in range(output_bounds.size):
-        solver.Add(output_vars[node_n] == last_layer.weight[node_n].numpy().dot(variables[-2]) + last_layer.bias[
-            node_n].numpy())
+        solver.Add(output_vars[node_n] == last_layer.weight[node_n].item().dot(variables[-2]) + last_layer.bias[
+            node_n].item())
 
     return variables
 
