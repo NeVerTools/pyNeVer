@@ -189,8 +189,8 @@ def ssbp_verify_single(model_file: str, property_file: str, out_dir: str, logfil
             raise Exception(f'Error: parameters file {params_path} does not contain valid parameters')
         ver_params = verparams.SSBPVerificationParameters(params['heuristic'],
                                                           params['bounds'],
-                                                          params['intersection'],
-                                                          timeout)
+                                                          intersection=params['intersection'],
+                                                          timeout=timeout)
 
     ver_strategy = veralg.SSBPVerification(ver_params)
 

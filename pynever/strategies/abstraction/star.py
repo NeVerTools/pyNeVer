@@ -613,7 +613,7 @@ class ExtendedStar(Star):
             third_row = - ub / (ub - lb) * self.get_neuron_equation(neuron_n).matrix
             fourth_row = torch.zeros(pred_matrix.shape[1])
 
-            return [first_row, second_row, third_row, fourth_row]
+            return torch.stack([first_row, second_row, third_row, fourth_row])
 
         unstable_count = len(unstable_neurons)
         lower_bounds = [layer_bounds.get_lower()[neuron_n] for neuron_n in unstable_neurons]
@@ -623,7 +623,7 @@ class ExtendedStar(Star):
             _get_left_matrix_for_unstable_neuron(unstable_neurons[i], lower_bounds[i], upper_bounds[i])
             for i in range(unstable_count)
         ]
-        lower_left_matrix = torch.Tensor(lower_left_matrix).reshape(4 * unstable_count, -1)
+        lower_left_matrix = torch.stack(lower_left_matrix).reshape(4 * unstable_count, -1)
 
         # For every unstable neuron we add a column [-1, -1, 1, 1]^T to lower_right_matrix
         # that corresponds to the fresh variable z
