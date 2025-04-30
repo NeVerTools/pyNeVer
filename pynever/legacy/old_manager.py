@@ -6,23 +6,24 @@ the different layers of a neural network
 
 import numpy as np
 
-import pynever.strategies.bounds_propagation.utility.functions as utilf
+import pynever.strategies.abstraction.bounds_propagation
+import pynever.strategies.abstraction.bounds_propagation.bounds
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
 from pynever.networks import SequentialNetwork, NeuralNetwork
-from pynever.strategies.bounds_propagation import BOUNDS_LOGGER
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD, \
+from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER, ReLUStatus
+from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
+from pynever.strategies.abstraction.bounds_propagation import util
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, \
     VerboseBounds, BoundsStats
-from pynever.strategies.bounds_propagation.convolution import LinearizeConv
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
-from pynever.strategies.bounds_propagation.relu import LinearizeReLU
-from pynever.strategies.bounds_propagation.utility.functions import get_positive_part, get_negative_part, \
-    compute_lin_lower_and_upper
-from pynever.strategies.bounds_propagation.utility.property_converter import PropertyFormatConverter
-from pynever.strategies.verification.ssbp.constants import NeuronState, BoundsDirection
+from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
+from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
+from pynever.strategies.verification.ssbp.constants import BoundsDirection
 
 
-class BoundsManager:
+class OldBoundsManager:
     """
     This class handles the propagation of symbolic bounds with
     both forwards and backwards propagation
@@ -43,42 +44,22 @@ class BoundsManager:
         self.reset_info()
 
     @staticmethod
-    def check_stable(lb, ub) -> NeuronState:
+    def check_stable(lb, ub) -> ReLUStatus:
         """
         Static method, given the bounds of a neuron, whether it is stable
         """
 
         # Positive stable
-        if lb >= PRECISION_GUARD:
-            return NeuronState.POSITIVE_STABLE
+        if lb >= ABSTRACTION_PRECISION_GUARD:
+            return ReLUStatus.ACTIVE
 
         # Negative stable
-        elif ub <= -PRECISION_GUARD:
-            return NeuronState.NEGATIVE_STABLE
+        elif ub <= -ABSTRACTION_PRECISION_GUARD:
+            return ReLUStatus.INACTIVE
 
         # Unstable
         else:
-            return NeuronState.UNSTABLE
-
-    @staticmethod
-    def get_input_bounds(prop: 'NeverProperty') -> HyperRectangleBounds:
-        """
-        This method computes the numeric bounds of the input layer
-
-        Parameters
-        ----------
-        prop : NeverProperty
-            The property to verify
-
-        Returns
-        ----------
-        HyperRectangleBounds
-            The numeric bounds of the input layer
-
-        """
-
-        # HyperRectBounds input bounds
-        return PropertyFormatConverter(prop).get_vectors()
+            return ReLUStatus.UNSTABLE
 
     @staticmethod
     def get_symbolic_preact_bounds_at(bounds: VerboseBounds, layer_id: str,
@@ -98,7 +79,7 @@ class BoundsManager:
         """
 
         # HyperRectBounds input bounds
-        input_hyper_rect = BoundsManager.get_input_bounds(prop)
+        input_hyper_rect = prop.to_numeric_bounds()
 
         # Get layers
         if not isinstance(network, SequentialNetwork):
@@ -156,7 +137,7 @@ class BoundsManager:
 
         # sort the over-approximation areas ascending
         self.overapprox_area['sorted'] = sorted(self.overapprox_area['sorted'], key=lambda x: x[1])
-        self.overapprox_area['volume'] = utilf.compute_overapproximation_volume(self.overapprox_area['map'])
+        self.overapprox_area['volume'] = util.compute_overapproximation_volume(self.overapprox_area['map'])
 
         # Return all the computed bounds along to the statistics
         all_bounds.statistics = BoundsStats(self.stability_info, self.overapprox_area)
@@ -173,19 +154,19 @@ class BoundsManager:
             """ Fully Connected layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = BoundsManager.compute_dense_output_bounds(layer, layer_in_eq)
+                cur_layer_output_eq = compute_dense_output_bounds(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:
-                layer_eq = BoundsManager.get_linear_layer_equation(layer)
+                layer_eq = OldBoundsManager.get_linear_layer_equation(layer)
                 self.layer2layer_equations[layer.identifier] = SymbolicLinearBounds(layer_eq, layer_eq)
 
                 lower_eq_from_input, lower_bounds = (
-                    BoundsManager._get_equation_from_input(network, layer.identifier, "lower",
-                                                           self.layer2layer_equations, input_hyper_rect))
+                    OldBoundsManager._get_equation_from_input(network, layer.identifier, "lower",
+                                                              self.layer2layer_equations, input_hyper_rect))
                 upper_eq_from_input, upper_bounds = (
-                    BoundsManager._get_equation_from_input(network, layer.identifier, "upper",
-                                                           self.layer2layer_equations, input_hyper_rect))
+                    OldBoundsManager._get_equation_from_input(network, layer.identifier, "upper",
+                                                              self.layer2layer_equations, input_hyper_rect))
 
                 cur_layer_output_num_bounds = HyperRectangleBounds(lower_bounds, upper_bounds)
                 cur_layer_output_eq = SymbolicLinearBounds(lower_eq_from_input, upper_eq_from_input)
@@ -194,7 +175,7 @@ class BoundsManager:
             """ Convolutional layer """
 
             if self.direction == BoundsDirection.FORWARDS:
-                cur_layer_output_eq = LinearizeConv().compute_output_equation(layer, layer_in_eq)
+                cur_layer_output_eq = LinearizeConv().compute_output_equations(layer, layer_in_eq)
                 cur_layer_output_num_bounds = cur_layer_output_eq.to_hyper_rectangle_bounds(input_hyper_rect)
 
             else:
@@ -261,16 +242,16 @@ class BoundsManager:
         for neuron_n in range(numeric_preactivation_bounds.size):
             l, u = numeric_preactivation_bounds.get_dimension_bounds(neuron_n)
 
-            stable_status = BoundsManager.check_stable(l, u)
-            if stable_status == NeuronState.NEGATIVE_STABLE:
+            stable_status = OldBoundsManager.check_stable(l, u)
+            if stable_status == ReLUStatus.INACTIVE:
                 inactive.append(neuron_n)
                 stable_count += 1
 
-            elif stable_status == NeuronState.POSITIVE_STABLE:
+            elif stable_status == ReLUStatus.ACTIVE:
                 active.append(neuron_n)
                 stable_count += 1
 
-            else:  # stable_status == NeuronState.UNSTABLE
+            else:  # stable_status == ReLUStatus.UNSTABLE
                 unstable.append((layer_id, neuron_n))
 
                 # Compute approximation area
@@ -278,18 +259,19 @@ class BoundsManager:
                 self.overapprox_area['sorted'].append(((layer_id, neuron_n), area))
                 self.overapprox_area['map'][(layer_id, neuron_n)] = area
 
-        self.stability_info[utilf.StabilityInfo.INACTIVE][layer_id] = inactive
-        self.stability_info[utilf.StabilityInfo.ACTIVE][layer_id] = active
-        self.stability_info[utilf.StabilityInfo.UNSTABLE].extend(unstable)
+        self.stability_info[pynever.strategies.abstraction.bounds_propagation.ReLUStatus.INACTIVE][layer_id] = inactive
+        self.stability_info[pynever.strategies.abstraction.bounds_propagation.ReLUStatus.ACTIVE][layer_id] = active
+        self.stability_info[
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.UNSTABLE].extend(unstable)
 
         return stable_count
 
     def reset_info(self) -> None:
         # Here we save information about the stable and unstable neurons
         self.stability_info = {
-            utilf.StabilityInfo.INACTIVE: dict(),
-            utilf.StabilityInfo.ACTIVE: dict(),
-            utilf.StabilityInfo.UNSTABLE: list()
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.INACTIVE: dict(),
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.ACTIVE: dict(),
+            pynever.strategies.abstraction.bounds_propagation.ReLUStatus.UNSTABLE: list()
         }
 
         self.overapprox_area = {
@@ -321,7 +303,7 @@ class BoundsManager:
         prev_layer_id = network.get_previous_id(layer_id)
 
         while prev_layer_id is not None:
-            current_matrix, current_offset = BoundsManager._substitute_one_step_back(
+            current_matrix, current_offset = OldBoundsManager._substitute_one_step_back(
                 current_matrix, current_offset, symbolic_bounds[prev_layer_id], end
             )
             prev_layer_id = network.get_previous_id(prev_layer_id)
@@ -373,21 +355,3 @@ class BoundsManager:
         if layer.bias is None:
             layer.bias = np.zeros(layer.weight.shape[0])
         return LinearFunctions(layer.weight, layer.bias)
-
-    @staticmethod
-    def compute_dense_output_bounds(layer, inputs):
-        weights_plus = get_positive_part(layer.weight)
-        weights_minus = get_negative_part(layer.weight)
-
-        if layer.bias is None:
-            layer.bias = np.zeros(layer.weight.shape[0])
-
-        lower_matrix, lower_offset, upper_matrix, upper_offset = \
-            compute_lin_lower_and_upper(weights_minus, weights_plus, layer.bias,
-                                        inputs.get_lower().get_matrix(),
-                                        inputs.get_upper().get_matrix(),
-                                        inputs.get_lower().get_offset(),
-                                        inputs.get_upper().get_offset())
-
-        return SymbolicLinearBounds(LinearFunctions(lower_matrix, lower_offset),
-                                    LinearFunctions(upper_matrix, upper_offset))

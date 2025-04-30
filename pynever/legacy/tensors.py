@@ -3,6 +3,8 @@
 This module contains out internal representation of a tensor and some relevant tensor operations.
 
 """
+from __future__ import annotations
+
 import enum
 from collections.abc import Iterable
 
@@ -18,7 +20,7 @@ class BackEnd(enum.Enum):
 
 
 class NpTensor(numpy.ndarray):
-    """Our internal representation of a Tensor. Right now it just a placeholder."""
+    """Representation of a numpy tensor"""
 
     def __new__(cls, t: numpy.ndarray):
         obj = numpy.asarray(t).view(cls)
@@ -36,6 +38,8 @@ class NpTensor(numpy.ndarray):
 
 
 class PtTensor(torch.Tensor):
+    """Representation of a pytorch tensor"""
+
     def __getitem__(self, item):
         try:
             return super().__getitem__(item).item()
@@ -44,9 +48,15 @@ class PtTensor(torch.Tensor):
 
 
 class Tensor:
-    """Our internal representation of a Tensor. It's a different type of tensor depending on the chosen backend."""
+    """Our internal representation of a Tensor.
+
+    It's a different type of tensor depending on the chosen backend.
+    """
 
     def __new__(cls, t: numpy.ndarray | torch.Tensor):
+        # Set common parameters as parameters of cls
+        cls.shape = t.shape
+
         match BACKEND:
             case BACKEND.NUMPY:
                 return NpTensor(t)
@@ -55,165 +65,21 @@ class Tensor:
             case _:
                 raise NotImplementedError
 
+    def __add__(self, other: Tensor) -> Tensor:
+        return self + other
 
-# TODO move to configuration file
-BACKEND = BackEnd.NUMPY
+    def __sub__(self, other: Tensor) -> Tensor:
+        return self - other
 
+    def __getitem__(self, item):
+        return self[item]
 
-# TODO is iterable in size correct?
-def random_uniform(low: float | int, high: float | int, size: int | Iterable | tuple[int]) -> Tensor:
-    """Returns a Tensor containing samples drawn from a random uniform distribution.
-
-    Parameters
-    ----------
-    low : float | int
-        The lower bound of the distribution
-    high : float | int
-        The upper bound of the distribution
-    size : int | Iterable | tuple[int]
-        The shape of the returned Tensor, specified as a tuple or an integer
-
-    Returns
-    -------
-    Tensor
-        The computed output
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
-        case BackEnd.PYTORCH:
-            return Tensor((high - low) * torch.rand(size=size) + low)
-        case _:
-            raise NotImplementedError
+    def __setitem__(self, key, value):
+        self[key] = value
 
 
-def ones(shape: tuple[int], dtype=float) -> Tensor:
-    """Returns a Tensor filled with ones.
-
-    Parameters
-    ----------
-    shape : tuple
-        The shape of the tensor to return
-    dtype : type
-        The type of its elements
-
-    Returns
-    -------
-    Tensor
-        The Tensor filled with ones
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.ones(shape=shape, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.ones(size=shape, dtype=dtype))
-        case _:
-            raise NotImplementedError
-
-
-def zeros(shape: tuple, dtype=float) -> Tensor:
-    """Returns a Tensor filled with zeroes.
-
-    Parameters
-    ----------
-    shape : tuple
-        The shape of the tensor to return
-    dtype : type
-        The type of its elements
-
-    Returns
-    -------
-    Tensor
-        The Tensor filled with zeroes
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.zeros(shape=shape, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.zeros(size=shape, dtype=dtype))
-        case _:
-            raise NotImplementedError
-
-
-# TODO should dtype be specified here?
-def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tensor:
-    """Returns the product of the Tensor elements along a specified axis (or axes).
-
-    Parameters
-    ----------
-    in_tensor : Tensor
-        The Tensor on which we want to calculate the product
-    axis : int | tuple[int] | None
-        The axis (or axes) along which we calculate the product. If None is given the product of all the elements is
-        returned
-    dtype: type
-        The type of the elements of the returned Tensor
-
-    Returns
-    -------
-    Tensor
-        A Tensor containing the product of the elements of the input Tensor along the axis
-
-    """
-    # TODO specify keepdims in np.prod?
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.prod(input=in_tensor, dim=axis, dtype=dtype))
-        case _:
-            raise NotImplementedError
-
-
-def sqrt(in_tensor: Tensor) -> Tensor:
-    """Returns the element-wise square root of a Tensor.
-
-    Parameters
-    ----------
-    in_tensor : Tensor
-        The Tensor on which we want to calculate the square root
-
-    Returns
-    -------
-    Tensor
-        A Tensor containing the square root of the elements of the input Tensor
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.sqrt(in_tensor))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.sqrt(in_tensor))
-        case _:
-            raise NotImplementedError
-
-
-def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor:
-    """Returns a reshaped Tensor with a specified new shape
-
-    Parameters
-    ----------
-    in_tensor : Tensor
-        The Tensor to be reshaped
-    new_shape : int | Iterable | tuple[int]
-        The new shape of the Tensor
-
-    Returns
-    -------
-    Tensor
-        The reshaped Tensor
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.reshape(a=in_tensor, newshape=new_shape))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.reshape(input=in_tensor, shape=new_shape))
-        case _:
-            raise NotImplementedError
+# TODO move to a configuration file
+BACKEND = BackEnd.PYTORCH
 
 
 def array(array_like: ArrayLike) -> Tensor:
@@ -267,30 +133,58 @@ def loadtxt(fname: str, dtype=float, delimiter: str = ' ') -> Tensor:
             raise NotImplementedError
 
 
-def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
-                  size: int | tuple[int]) -> Tensor:
-    """Returns a Tensor containing samples drawn from a random normal distribution.
+def ones(shape: int | tuple[int], dtype=float) -> Tensor:
+    """Returns a Tensor filled with ones.
 
     Parameters
     ----------
-    mean : float | Iterable[float]
-        The mean of the normal distribution
-    std : float | Iterable[float]
-        The standard deviation of the distribution
-    size : int | Iterable | tuple[int]
-        The shape of the returned Tensor, specified as a tuple or an integer
+    shape : tuple
+        The shape of the tensor to return
+    dtype : type
+        The type of its elements
 
     Returns
     -------
     Tensor
-        The computed output
+        The Tensor filled with ones
 
     """
+    if isinstance(shape, int):
+        shape = (shape,)
+
     match BACKEND:
         case BackEnd.NUMPY:
-            return Tensor(numpy.random.default_rng().normal(loc=mean, scale=std, size=size))
+            return Tensor(numpy.ones(shape=shape, dtype=dtype))
         case BackEnd.PYTORCH:
-            return Tensor(torch.normal(mean=mean, std=std, size=size))
+            return Tensor(torch.ones(size=shape, dtype=dtype))
+        case _:
+            raise NotImplementedError
+
+
+def zeros(shape: int | tuple[int], dtype=float) -> Tensor:
+    """Returns a Tensor filled with zeroes.
+
+    Parameters
+    ----------
+    shape : tuple
+        The shape of the tensor to return
+    dtype : type
+        The type of its elements
+
+    Returns
+    -------
+    Tensor
+        The Tensor filled with zeroes
+
+    """
+    if isinstance(shape, int):
+        shape = (shape,)
+
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.zeros(shape=shape, dtype=dtype))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.zeros(size=shape, dtype=dtype))
         case _:
             raise NotImplementedError
 
@@ -320,15 +214,44 @@ def identity(n: int, dtype=float) -> Tensor:
             raise NotImplementedError
 
 
-def matmul(x1: Tensor, x2: Tensor) -> Tensor:
-    """Returns the matrix product of two tensors.
+def diag(in_tensor: Tensor) -> Tensor:
+    """Returns a square matrix with the diagonal specified in the input
 
     Parameters
     ----------
-    x1 : Tensor
-        The first Tensor
-    x2 : Tensor
-        The second Tensor
+    in_tensor : Tensor
+        The diagonal Tensor
+
+    Returns
+    ----------
+    Tensor
+        The square Tensor with the diagonal specified in the input
+
+    """
+
+    if len(in_tensor.shape) > 1:
+        raise Exception('Only supports 1D tensors')
+
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.diag(in_tensor))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.diag(in_tensor))
+        case _:
+            raise NotImplementedError
+
+
+def random_uniform(low: float | int, high: float | int, size: int | Iterable | tuple[int]) -> Tensor:
+    """Returns a Tensor containing samples drawn from a random uniform distribution.
+
+    Parameters
+    ----------
+    low : float | int
+        The lower bound of the distribution
+    high : float | int
+        The upper bound of the distribution
+    size : int | Iterable | tuple[int]
+        The shape of the returned Tensor, specified as a tuple or an integer
 
     Returns
     -------
@@ -338,34 +261,37 @@ def matmul(x1: Tensor, x2: Tensor) -> Tensor:
     """
     match BACKEND:
         case BackEnd.NUMPY:
-            return Tensor(numpy.matmul(x1, x2))
+            return Tensor(numpy.random.default_rng().uniform(low=low, high=high, size=size))
         case BackEnd.PYTORCH:
-            return Tensor(torch.matmul(x1, x2))
+            return Tensor((high - low) * torch.rand(size) + low)
         case _:
             raise NotImplementedError
 
 
-def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
-    """Checks whether all the elements of a Tensor over a given axis evaluate to True.
+def random_normal(mean: float | Iterable[float], std: float | Iterable[float],
+                  size: int | tuple[int]) -> Tensor:
+    """Returns a Tensor containing samples drawn from a random normal distribution.
 
     Parameters
     ----------
-    in_tensor : Tensor
-        The Tensor to evaluate
-    axis : int | Iterable | tuple[int] | None
-        The axis along which we want to evaluate the elements
+    mean : float | Iterable[float]
+        The mean of the normal distribution
+    std : float | Iterable[float]
+        The standard deviation of the distribution
+    size : int | Iterable | tuple[int]
+        The shape of the returned Tensor, specified as a tuple or an integer
 
     Returns
     -------
     Tensor
-        A Tensor with reduced dimensions along the axis containing the results of the evaluation
+        The computed output
 
     """
     match BACKEND:
         case BackEnd.NUMPY:
-            return Tensor(numpy.all(a=in_tensor, axis=axis))
+            return Tensor(numpy.random.default_rng().normal(loc=mean, scale=std, size=size))
         case BackEnd.PYTORCH:
-            return Tensor(torch.all(input=in_tensor, dim=axis))
+            return Tensor(torch.normal(mean=mean, std=std, size=size))
         case _:
             raise NotImplementedError
 
@@ -395,8 +321,69 @@ def random_standard_normal(size: int | Iterable | tuple[int], dtype=float) -> Te
             raise NotImplementedError
 
 
-def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> bool:
-    """Checks whether two Tensors are element-wise almost equal (i.e. equal within a tolerance value).
+# TODO torch does not support endpoint and axis
+def linspace(start: Tensor | Iterable | int | float, stop: Tensor | Iterable | int | float,
+             num: int = 50, endpoint: bool = True, axis: int = 0) -> Tensor:
+    """Generates `num` evenly spaced values between `start` and `stop`.
+
+    Parameters
+    ----------
+    start : Tensor | Iterable | int | float
+        The first value
+    stop : Tensor | Iterable | int | float
+        The last value if `endpoint` is `True`, otherwise it's excluded
+    num : int | float
+        The number of values
+    endpoint : bool
+        Include `stop` if True
+    axis : int
+        The axis where the samples are stored, by default a new axis at the beginning
+
+    Returns
+    -------
+    Tensor
+        The generated values
+
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.linspace(start=start, end=stop, steps=num))
+        case _:
+            raise NotImplementedError
+
+
+def prod(in_tensor: Tensor, axis: int | tuple[int] | None, dtype=float) -> Tensor:
+    """Returns the product of the Tensor elements along a specified axis (or axes).
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor on which we want to calculate the product
+    axis : int | tuple[int] | None
+        The axis (or axes) along which we calculate the product. If None is given the product of all the elements is
+        returned
+    dtype: type
+        The type of the elements of the returned Tensor
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the product of the elements of the input Tensor along the axis
+
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.prod(a=in_tensor, axis=axis, dtype=dtype))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.prod(input=in_tensor, dim=axis, dtype=dtype))
+        case _:
+            raise NotImplementedError
+
+
+def matmul(x1: Tensor, x2: Tensor) -> Tensor:
+    """Returns the matrix product of two tensors.
 
     Parameters
     ----------
@@ -404,20 +391,94 @@ def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, e
         The first Tensor
     x2 : Tensor
         The second Tensor
-    rtol : float
-        The relative tolerance parameter
-    atol : float
-        The absolute tolerance parameter
-    equal_nan : bool
-        Should be set to True if NaNs are considered to be equal, False otherwise
 
     Returns
     -------
     Tensor
-        True if they are close, False otherwise
+        The computed output
 
     """
-    return bool(numpy.isclose(x1, x2, rtol, atol, equal_nan).any())
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.matmul(x1, x2))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.matmul(x1, x2))
+        case _:
+            raise NotImplementedError
+
+
+def dot(x1: Tensor, x2: Tensor) -> Tensor:
+    """Returns the dot product of two (batches of) tensors.
+    Uses torch.matmul for PyTorch and numpy.dot for numpy
+
+    Parameters
+    ----------
+    x1 : Tensor
+        The first Tensor
+    x2 : Tensor
+        The second Tensor
+
+    Returns
+    ----------
+    Tensor
+        The computed output
+    """
+
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.dot(x1, x2))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.matmul(x1, x2))
+        case _:
+            raise NotImplementedError
+
+
+def sqrt(in_tensor: Tensor) -> Tensor:
+    """Returns the element-wise square root of a Tensor.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor on which we want to calculate the square root
+
+    Returns
+    -------
+    Tensor
+        A Tensor containing the square root of the elements of the input Tensor
+
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.sqrt(in_tensor))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.sqrt(in_tensor))
+        case _:
+            raise NotImplementedError
+
+
+def reshape(in_tensor: Tensor, new_shape: int | Iterable | tuple[int]) -> Tensor:
+    """Returns a reshaped Tensor with a specified new shape
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to be reshaped
+    new_shape : int | Iterable | tuple[int]
+        The new shape of the Tensor
+
+    Returns
+    -------
+    Tensor
+        The reshaped Tensor
+
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.reshape(a=in_tensor, newshape=new_shape))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.reshape(input=in_tensor, shape=new_shape))
+        case _:
+            raise NotImplementedError
 
 
 def reduce_min(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdims: bool = False) -> Tensor:
@@ -472,6 +533,56 @@ def reduce_max(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0, keepdim
             return Tensor(torch.max(input=in_tensor, dim=axis, keepdim=keepdims))
         case _:
             raise NotImplementedError
+
+
+def reduce_all(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
+    """Checks whether all the elements of a Tensor over a given axis evaluate to True.
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The Tensor to evaluate
+    axis : int | Iterable | tuple[int] | None
+        The axis along which we want to evaluate the elements
+
+    Returns
+    -------
+    Tensor
+        A Tensor with reduced dimensions along the axis containing the results of the evaluation
+
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.all(a=in_tensor, axis=axis))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.all(input=in_tensor, dim=axis))
+        case _:
+            raise NotImplementedError
+
+
+def is_close(x1: Tensor, x2: Tensor, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False) -> bool:
+    """Checks whether two Tensors are element-wise almost equal (i.e. equal within a tolerance value).
+
+    Parameters
+    ----------
+    x1 : Tensor
+        The first Tensor
+    x2 : Tensor
+        The second Tensor
+    rtol : float
+        The relative tolerance parameter
+    atol : float
+        The absolute tolerance parameter
+    equal_nan : bool
+        Should be set to True if NaNs are considered to be equal, False otherwise
+
+    Returns
+    -------
+    Tensor
+        True if they are close, False otherwise
+
+    """
+    return bool(numpy.isclose(x1, x2, rtol, atol, equal_nan).any())
 
 
 def argmax(in_tensor: Tensor, axis: int | Iterable | tuple[int] = 0) -> Tensor:
@@ -598,32 +709,6 @@ def hstack(tup: tuple[Tensor]) -> Tensor:
             raise NotImplementedError
 
 
-# TODO Iterable incorrect but concrete data structures correct?
-def stack(arrays: Iterable[Tensor], axis: int = 0) -> Tensor:
-    """Stacks tensors along specified axis.
-
-    Parameters
-    ----------
-    arrays : Iterable[Tensor]
-        The sequence of tensors to stack
-    axis : int
-        The axis along which we want to stack
-
-    Returns
-    -------
-    Tensor
-        The stacked tensor
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.stack(arrays, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.stack(arrays, axis))
-        case _:
-            raise NotImplementedError
-
-
 def flip(in_tensor: Tensor, axis: int | Iterable | tuple[int] | None = None) -> Tensor:
     """Reverses the order of elements of a Tensor.
 
@@ -674,39 +759,6 @@ def argsort(in_tensor: Tensor, axis: int = -1) -> Tensor:
             raise NotImplementedError
 
 
-# TODO torch does not support endpoint and axis
-def linspace(start: Tensor | Iterable | int | float, stop: Tensor | Iterable | int | float,
-             num: int = 50, endpoint: bool = True, axis: int = 0) -> Tensor:
-    """Generates `num` evenly spaced values between `start` and `stop`.
-
-    Parameters
-    ----------
-    start : Tensor | Iterable | int | float
-        The first value
-    stop : Tensor | Iterable | int | float
-        The last value if `endpoint` is `True`, otherwise it's excluded
-    num : int | float
-        The number of values
-    endpoint : bool
-        Include `stop` if True
-    axis : int
-        The axis where the samples are stored, by default a new axis at the beginning
-
-    Returns
-    -------
-    Tensor
-        The generated values
-
-    """
-    match BACKEND:
-        case BackEnd.NUMPY:
-            return Tensor(numpy.linspace(start=start, stop=stop, num=num, endpoint=endpoint, axis=axis))
-        case BackEnd.PYTORCH:
-            return Tensor(torch.linspace(start=start, end=stop, steps=num))
-        case _:
-            raise NotImplementedError
-
-
 def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable | tuple[int]) -> Tensor:
     """Expands the shape of a Tensor by adding an axis.
 
@@ -725,6 +777,50 @@ def expand_dims(in_tensor: Tensor | Iterable | int | float, axis: int | Iterable
         case BackEnd.NUMPY:
             return Tensor(numpy.expand_dims(a=in_tensor, axis=axis))
         case BackEnd.PYTORCH:
-            return Tensor(torch.expand(input=in_tensor, dim=axis))
+            return Tensor(torch.unsqueeze(in_tensor, axis))
+        case _:
+            raise NotImplementedError
+
+
+def get_negative(in_tensor: Tensor) -> Tensor:
+    """Procedure to return the negative coefficients of a Tensor
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The input Tensor
+
+    Returns
+    ----------
+    Tensor
+        The computed output
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.minimum(in_tensor, numpy.zeros(in_tensor.shape)))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.clamp(in_tensor, max=0))
+        case _:
+            raise NotImplementedError
+
+
+def get_positive(in_tensor: Tensor) -> Tensor:
+    """Procedure to return the positive coefficients of a Tensor
+
+    Parameters
+    ----------
+    in_tensor : Tensor
+        The input Tensor
+
+    Returns
+    ----------
+    Tensor
+        The computed output
+    """
+    match BACKEND:
+        case BackEnd.NUMPY:
+            return Tensor(numpy.maximum(in_tensor, numpy.zeros(in_tensor.shape)))
+        case BackEnd.PYTORCH:
+            return Tensor(torch.clamp(in_tensor, min=0))
         case _:
             raise NotImplementedError

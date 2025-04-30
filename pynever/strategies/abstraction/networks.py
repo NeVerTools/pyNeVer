@@ -2,13 +2,12 @@ import abc
 import copy
 import time
 
-import pynever.networks as networks
-import pynever.nodes as nodes
 import pynever.strategies.abstraction.nodes as absnodes
+from pynever import networks, nodes
 from pynever.strategies.abstraction import LOGGER_LAYER
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.star import AbsElement
-from pynever.strategies.bounds_propagation.bounds import AbstractBounds, HyperRectangleBounds
-from pynever.strategies.verification.parameters import SSLPVerificationParameters
+from pynever.strategies.verification.parameters import VerificationParameters
 
 
 # TODO update documentation
@@ -27,36 +26,28 @@ class AbsNeuralNetwork(abc.ABC):
         Dictionary containing str keys and AbsLayerNodes values. It contains the nodes of the graph,
         the identifier of the node of interest is used as a key in the nodes dictionary.
 
-    edges : dict <str, list <str>>
-        Dictionary of identifiers of AbsLayerNodes, it contains for each nodes identified by the keys, the list of nodes
-        connected to it.
-
     Methods
     ----------
     forward(AbsElement)
         Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the AbsLayerNodes
-        to control the refinement component of the abstraction. At present the function is just a placeholder
-        for future implementations.
-
     """
 
     corresponding_classes = {
         'FullyConnectedNode': absnodes.AbsFullyConnectedNode,
+        'ConvNode': absnodes.AbsConvNode,
+        'ReshapeNode': absnodes.AbsReshapeNode,
+        'FlattenNode': absnodes.AbsFlattenNode,
         'ReLUNode': absnodes.AbsReLUNode,
         'SigmoidNode': absnodes.AbsSigmoidNode,
         'ConcatNode': absnodes.AbsConcatNode,
         'SumNode': absnodes.AbsSumNode,
     }
 
-    def __init__(self, ref_network: networks.NeuralNetwork, parameters: SSLPVerificationParameters,
-                 bounds: dict[str, AbstractBounds] | None = None):
+    def __init__(self, ref_network: networks.NeuralNetwork, parameters: VerificationParameters):
         self.nodes: dict[str, absnodes.AbsLayerNode] = {}
         self.ref_network = ref_network
-        self.bounds = bounds
 
         for node_id, node in ref_network.nodes.items():
             self.nodes[f'ABS_{node_id}'] = AbsNeuralNetwork.__get_abstract_node_class(node)(f'ABS_{node_id}',
@@ -68,12 +59,6 @@ class AbsNeuralNetwork(abc.ABC):
             return AbsNeuralNetwork.corresponding_classes[type(node).__name__]
         except KeyError:
             raise Exception(f'Node {type(node).__name__} is not supported')
-
-    def get_abstract(self, node: nodes.ConcreteLayerNode) -> absnodes.AbsLayerNode:
-        return self.nodes[f'ABS_{node.identifier}']
-
-    def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
-        return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]
 
     @abc.abstractmethod
     def forward(self, abs_input: AbsElement | list[AbsElement]) -> AbsElement | list[AbsElement]:
@@ -93,17 +78,14 @@ class AbsNeuralNetwork(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
+    def get_abstract(self, node: nodes.ConcreteLayerNode, abs_id: bool = True) -> absnodes.AbsLayerNode:
+        node = self.nodes[f'ABS_{node.identifier}']
+        node.identifier = node.identifier.replace('ABS_', '') if not abs_id else node.identifier
 
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError
+        return node
+
+    def get_concrete(self, absnode: absnodes.AbsLayerNode) -> nodes.ConcreteLayerNode:
+        return self.ref_network.nodes[absnode.identifier.replace('ABS_', '', 1)]
 
 
 class AbsSeqNetwork(AbsNeuralNetwork):
@@ -112,11 +94,6 @@ class AbsSeqNetwork(AbsNeuralNetwork):
     It consists of a graph of LayerNodes. The computational graph of a SequentialNetwork must
     correspond to a standard list. The method forward and backward calls the corresponding methods
     in the AbsLayerNodes following the correct order to compute the output AbsElement.
-
-    Attributes
-    ----------
-    identifier : str
-        Identifier of the Sequential AbsNeuralNetwork.
 
     Methods
     -------
@@ -136,14 +113,9 @@ class AbsSeqNetwork(AbsNeuralNetwork):
         Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
-    backward(RefinementState)
-        Function which takes a reference to the refinement state and update both it and the state of the AbsLayerNodes
-        to control the refinement component of the abstraction. At present the function is just a placeholder for
-        future implementations.
-
     """
 
-    def __init__(self, ref_network: networks.SequentialNetwork, parameters: SSLPVerificationParameters):
+    def __init__(self, ref_network: networks.SequentialNetwork, parameters: VerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
         self.bounds = None
@@ -174,9 +146,9 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
             if self.bounds:
                 identifier = current_node.identifier.replace('ABS_', '')
-                abs_input = current_node.forward(abs_input, self.bounds[identifier])
+                abs_input = current_node.forward_star(abs_input, self.bounds[identifier])
             else:
-                abs_input = current_node.forward(abs_input)
+                abs_input = current_node.forward_star(abs_input)
 
             time_end = time.perf_counter()
 
@@ -188,21 +160,10 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
         return abs_input
 
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError
-
 
 class AbsAcyclicNetwork(AbsNeuralNetwork):
 
-    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: SSLPVerificationParameters):
+    def __init__(self, ref_network: networks.AcyclicNetwork, parameters: VerificationParameters):
         super().__init__(ref_network, parameters)
         self.ref_network = ref_network
         self.input_ids: dict[str, str | None] = {k: self.get_abstract(v).identifier
@@ -250,7 +211,7 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
 
             current_node_inputs = filter(lambda i: i.identifier in input_ids, temp_abs_inputs)
 
-            current_abs_output = current_node.forward(current_node_inputs)
+            current_abs_output = current_node.forward_star(current_node_inputs)
 
             current_abs_output.identifier = current_node.identifier
             temp_abs_inputs.append(current_abs_output)
@@ -265,14 +226,3 @@ class AbsAcyclicNetwork(AbsNeuralNetwork):
         final_outputs = filter(lambda fo: fo.identifier in leaves_ids, temp_abs_inputs)
 
         return final_outputs
-
-    def backward(self, ref_state: absnodes.RefinementState):
-        """
-        Update the RefinementState. At present the function is just a placeholder for future implementations.
-
-        Parameters
-        ----------
-        ref_state: RefinementState
-            The RefinementState to update.
-        """
-        raise NotImplementedError

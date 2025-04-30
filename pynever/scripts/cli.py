@@ -6,6 +6,8 @@ import re
 import sys
 import time
 
+from torch import Tensor
+
 import pynever.networks as networks
 import pynever.strategies.verification.algorithms as veralg
 import pynever.strategies.verification.parameters as verparams
@@ -13,7 +15,6 @@ import pynever.strategies.verification.properties as verprop
 import pynever.utilities as utilities
 from pynever.strategies.conversion.converters.onnx import ONNXConverter
 from pynever.strategies.conversion.representation import load_network_path, ONNXNetwork
-from pynever.tensors import Tensor
 
 # Log to stdout
 logger = logging.getLogger()
@@ -188,8 +189,8 @@ def ssbp_verify_single(model_file: str, property_file: str, out_dir: str, logfil
             raise Exception(f'Error: parameters file {params_path} does not contain valid parameters')
         ver_params = verparams.SSBPVerificationParameters(params['heuristic'],
                                                           params['bounds'],
-                                                          params['intersection'],
-                                                          timeout)
+                                                          intersection=params['intersection'],
+                                                          timeout=timeout)
 
     ver_strategy = veralg.SSBPVerification(ver_params)
 
@@ -357,7 +358,7 @@ def reformat_counterexample(counterexample: Tensor) -> str:
 
     formatted = '['
     for component in counterexample:
-        formatted += str(float(component[0]))
+        formatted += str(component.item())
         formatted += ' '
     formatted = formatted[:-1]
     formatted += ']'

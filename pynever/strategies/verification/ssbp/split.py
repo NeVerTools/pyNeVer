@@ -1,34 +1,33 @@
 import numpy as np
+import torch
 from ortools.linear_solver import pywraplp
 
-import pynever.strategies.bounds_propagation.utility.functions as utilf
 from pynever import networks
 from pynever.networks import SequentialNetwork
+from pynever.strategies.abstraction.bounds_propagation import util
+from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.bounds_propagation.bounds_manager import BoundsManager
-from pynever.strategies.bounds_propagation.refinement import BoundsRefinement
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit
+from pynever.strategies.verification.ssbp.refinement import BoundsRefinement
 
 
 def get_target_sequential(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork) \
         -> tuple[RefinementTarget | None, ExtendedStar]:
     """
     This function selects the next refinement target in sequential order
-
     """
-
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     if len(unstable) > 0:
         for layer_id, neuron_n in unstable:
             if layer_id != star.ref_layer:
 
-                layer_unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds,
-                                                                                            star.fixed_neurons,
-                                                                                            star.ref_layer)
+                layer_unstable = util.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds,
+                                                                                           star.fixed_neurons,
+                                                                                           star.ref_layer)
                 # TODO: have the check as a method of Star? Or some other util?
                 if len(layer_unstable) == 0:
                     # the current layer is complete, so we need to move to the next layer
@@ -47,16 +46,14 @@ def get_target_lowest_overapprox_current_layer(star: ExtendedStar, nn_bounds: Ve
                                                network: networks.SequentialNetwork) \
         -> tuple[RefinementTarget | None, ExtendedStar]:
     """
-
     """
-
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
-        layer_unstable = utilf.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons,
-                                                                                    star.ref_layer)
+        layer_unstable = util.compute_layer_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons,
+                                                                                   star.ref_layer)
         if len(layer_unstable) == 0:
             # The current layer is complete, so we need to move to the next layer
 
@@ -108,9 +105,7 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
     Optimises input bounds by building a MILP that has
     input variables and, for each fixed neuron, a constraint using its symbolic lower or upper bound.
     The solves for each input variable two optimisation problems: minimising and maximising it.
-
     """
-
     input_bounds = nn_bounds.numeric_pre_bounds[nn.get_first_node().identifier]
     n_input_dimensions = input_bounds.get_size()
 
@@ -155,11 +150,11 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
 
         elif status == pywraplp.Solver.OPTIMAL:
             if input_vars[i_dim].solution_value() > new_lower:
-                eq_mult = np.array([worker_constraints[i].dual_value() for i in worker_constraints])
+                eq_mult = torch.Tensor([worker_constraints[i].dual_value() for i in worker_constraints])
                 print("Dual solution", list(eq_mult))
 
                 # the equation that optimises the bound found my LP
-                coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(axis=0)
+                coef = -(eq_mult.reshape(-1, 1) * equations.matrix).sum(dim=0)
                 shift = -(eq_mult * equations.offset).sum()
                 print("Selected equations", equations.matrix[(eq_mult != 0), :])
                 print("Equation", list(coef), shift)
@@ -175,7 +170,7 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
         new_input_bounds.get_upper()[i_dim] = new_upper
 
     if bounds_improved:
-        new_bounds, _ = BoundsManager().compute_bounds(new_input_bounds, nn, star.fixed_neurons)
+        new_bounds, _ = BoundsManager(nn, input_bounds=new_input_bounds).compute_bounds()
         return new_bounds
 
     return nn_bounds
@@ -184,11 +179,9 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
 def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: VerboseBounds) \
         -> tuple[RefinementTarget | None, ExtendedStar]:
     """
-
     """
-
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
@@ -204,11 +197,9 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: VerboseBounds) \
 def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork,
                                  params: SSBPVerificationParameters) -> tuple[RefinementTarget | None, ExtendedStar]:
     """
-
     """
-
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
-    unstable = utilf.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
+    unstable = util.compute_unstable_from_bounds_and_fixed_neurons(nn_bounds, star.fixed_neurons)
 
     # There are still unstable neurons
     if len(unstable) > 0:
@@ -251,9 +242,7 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
     Optimized split method
 
     target is known to be unstable wrt bounds.
-
     """
-
     # Update the bounds after the split
     negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_update_bounds(nn_bounds,
                                                                                                       network, target,
@@ -264,7 +253,7 @@ def split_star_opt(star: ExtendedStar, target: RefinementTarget, network: networ
             compute_star_after_fixing_target_to_value(star, positive_bounds, target, NeuronSplit.POSITIVE, nn_bounds,
                                                       network, params)
 
-    stars = sorted(stars, key=lambda x: x[1].stable_count)
+    stars = sorted(stars, key=lambda x: x[1].statistics.stability_info['stable_count'])
 
     return stars
 
@@ -276,9 +265,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
     """
     This function creates the star after fixing target according to the split
     with the new constraints and updated bounds
-
     """
-
     if bounds is None:
         return []
 
@@ -294,7 +281,7 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
                                     enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
-    if bounds.stable_count - pre_split_bounds.stable_count <= 2:
+    if bounds.statistics.stability_info['stable_count'] - pre_split_bounds.statistics.stability_info['stable_count'] <= 2:
         negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_bisect_input(bounds,
                                                                                                          network,
                                                                                                          fixed_so_far)
@@ -309,9 +296,7 @@ def compute_star_after_input_split(star: ExtendedStar, bounds: VerboseBounds) \
         -> list[tuple[ExtendedStar, VerboseBounds]]:
     """
     This function creates the star after splitting an input dimension
-
     """
-
     if bounds is None:
         return []
 
