@@ -1,15 +1,14 @@
 #!/bin/bash
 
 # Download benchmarks from the VNN-LIB repository
-
 if [ -z "$1" ]
   then
-    echo "Please select the directory to download the benchmarks"
-    exit 1
+    echo "No cloning directory specified, reverting to default..."
+    DIRECTORY="../RegressionBenchmarks"
+  else
+    DIRECTORY=$1
 fi
 
-DIRECTORY=$1
+echo "Downloading benchmarks in $DIRECTORY..."
 
-echo "Downloading $CATEGORY VNN-LIB benchmarks in ./$DIRECTORY/..."
-
-git clone --recursive https://github.com/AndyVale/benchmarks_vnncomp "$DIRECTORY"
+git clone https://github.com/nevertools/RegressionBenchmarks "$DIRECTORY"
