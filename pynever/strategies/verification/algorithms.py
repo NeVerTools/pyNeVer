@@ -27,8 +27,7 @@ from pynever.strategies.verification.ssbp.constants import (
     BoundsBackend,
     IntersectionStrategy,
     RefinementTarget,
-    RefinementStrategy,
-    BoundsDirection
+    RefinementStrategy
 )
 
 
