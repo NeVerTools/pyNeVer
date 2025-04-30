@@ -20,20 +20,20 @@ class LinearizeConv:
 
         # Conversion torch: this conversion in only temporary
         if isinstance(sym_lower_bounds.matrix, np.ndarray):
-            sym_lower_bounds.matrix = torch.from_numpy(sym_lower_bounds.matrix).to(device)
-            sym_upper_bounds.matrix = torch.from_numpy(sym_upper_bounds.matrix).to(device)
-            sym_lower_bounds.offset = torch.from_numpy(sym_lower_bounds.offset).to(device)
-            sym_upper_bounds.offset = torch.from_numpy(sym_upper_bounds.offset).to(device)
+            sym_lower_bounds.matrix = sym_lower_bounds.matrix
+            sym_upper_bounds.matrix = sym_upper_bounds.matrix
+            sym_lower_bounds.offset = sym_lower_bounds.offset
+            sym_upper_bounds.offset = sym_upper_bounds.offset
         elif isinstance(sym_lower_bounds.matrix, torch.Tensor):
-            sym_lower_bounds.matrix = sym_lower_bounds.matrix.to(device)
-            sym_upper_bounds.matrix = sym_upper_bounds.matrix.to(device)
-            sym_lower_bounds.offset = sym_lower_bounds.offset.to(device)
-            sym_upper_bounds.offset = sym_upper_bounds.offset.to(device)
+            sym_lower_bounds.matrix = sym_lower_bounds.matrix
+            sym_upper_bounds.matrix = sym_upper_bounds.matrix
+            sym_lower_bounds.offset = sym_lower_bounds.offset
+            sym_upper_bounds.offset = sym_upper_bounds.offset
 
-        weights = torch.from_numpy(conv_node.weight).to(device)
+        weights = conv_node.weight
 
         if conv_node.has_bias:
-            bias_weights = torch.from_numpy(conv_node.bias).to(device)
+            bias_weights = conv_node.bias
 
         # Extract kernel dimensions
         if isinstance(conv_node.kernel_size, tuple) and len(conv_node.kernel_size) == 2:

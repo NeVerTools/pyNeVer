@@ -5,19 +5,18 @@ import subprocess
 if __name__ == '__main__':
     # Clone regression tests repository in this directory
     print('Regression test started.')
-    if not os.path.exists('../../Regression'):
+    if not os.path.exists('Regression'):
         print('Downloading repository...')
-        subprocess.run(['../../download_benchmarks.sh', 'Regression'])
+        subprocess.run(['./download_benchmarks.sh', 'Regression'])
 
     print('Benchmarks repository found.')
-    for dirname in os.listdir('Regression'):
-        if os.path.isdir(os.path.join('Regression', dirname)):
-            print('Running benchmarks for {}...'.format(dirname))
-            subprocess.run(
-                ['../../never2_batch.py',
-                 '-o', f'results_batch_{dirname}',
-                 f'Regression/{dirname}/instances.csv',
-                 'ssbp'])
-            print('Completed.')
+    for dirname in ['ACAS_XU', 'RL']:  # CIFAR and resnet to come
+        print('Running benchmarks for {}...'.format(dirname))
+        subprocess.run(
+            ['python', 'never2_batch.py',
+             '-o', f'results_batch_{dirname}.csv',
+             f'Regression/{dirname}/instances.csv',
+             'ssbp'])
+        print('Completed.')
 
     print('regression test completed. Results are saved in CSV.')

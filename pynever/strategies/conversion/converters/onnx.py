@@ -717,7 +717,7 @@ class ONNXConverter(ConversionStrategy):
                     bias = None
                 else:
                     has_bias = True
-                    bias = parameters[node.input[2]]
+                    bias = Tensor(parameters[node.input[2]])
 
                 out_channels = weight.shape[0]
 
