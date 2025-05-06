@@ -19,4 +19,12 @@ if __name__ == '__main__':
              'ssbp'])
         print('Completed.')
 
-    print('regression test completed. Results are saved in CSV.')
+        # Check all verified
+        with open(f'results_batch_{dirname}.csv', 'r') as f:
+            for line in f:
+                if line.strip('\n').split(',')[2] != 'Verified':
+                    print('Test failed!')
+                    exit(1)
+
+    print('Regression test completed. All tests passed.')
+    exit(0)
