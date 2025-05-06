@@ -88,6 +88,8 @@ _Other contributors_:
 * __Pedro Henrique Simão Achete__ - Command-line interface and convolutional linearization
 * __Karim Pedemonte__ - Design and refactoring
 
+To contribute to this project, start by looking at the [CONTRIBUTING](CONTRIBUTING.md) file!
+
 Publications
 ----------------------
 
