@@ -29,7 +29,7 @@ class AbsNeuralNetwork(abc.ABC):
     Methods
     ----------
     forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
+        Procedure which takes an AbsElement and computes the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
     """
@@ -40,7 +40,6 @@ class AbsNeuralNetwork(abc.ABC):
         'ReshapeNode': absnodes.AbsReshapeNode,
         'FlattenNode': absnodes.AbsFlattenNode,
         'ReLUNode': absnodes.AbsReLUNode,
-        'SigmoidNode': absnodes.AbsSigmoidNode,
         'ConcatNode': absnodes.AbsConcatNode,
         'SumNode': absnodes.AbsSumNode,
     }
@@ -97,20 +96,8 @@ class AbsSeqNetwork(AbsNeuralNetwork):
 
     Methods
     -------
-    add_node(SingleInputLayerNode)
-        Procedure to add a new AbsLayerNode to the sequential AbsNeuralNetwork.
-
-    get_first_node()
-        Procedure to extract the first AbsLayerNode of the sequential AbsNeuralNetwork.
-
-    get_next_node(SingleInputLayerNode)
-        Procedure to get the next AbsLayerNode of the AbsNeuralNetwork given an input AbsLayerNode
-
-    get_last_node()
-        Procedure to extract the last AbsLayerNode of the sequential AbsNeuralNetwork.
-
     forward(AbsElement)
-        Function which takes an AbsElement and compute the corresponding output AbsElement based on the AbsLayerNode
+        Procedure which takes an AbsElement and computes the corresponding output AbsElement based on the AbsLayerNode
         of the network.
 
     """
