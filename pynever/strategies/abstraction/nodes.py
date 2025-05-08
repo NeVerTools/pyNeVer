@@ -16,6 +16,7 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBou
     HyperRectangleBounds
 from pynever.strategies.abstraction.bounds_propagation.layers.affine import compute_dense_output_bounds
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
+from pynever.strategies.abstraction.bounds_propagation.layers.logistic import LinearizeSigmoid, LinearizeTanh
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
 from pynever.strategies.verification.parameters import VerificationParameters
@@ -439,6 +440,52 @@ class AbsReLUNode(AbsLayerNode):
         symbolic_out = relu_lin.compute_output_linear_bounds(symbolic_in)
         numeric_out = relu_lin.compute_output_numeric_bounds(self.ref_node, numeric_in, symbolic_in)
         return symbolic_out, numeric_out
+
+
+class AbsSigmoidNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Sigmoid Abstract transformer.
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.SigmoidNode, parameters: VerificationParameters | None = None):
+        super().__init__(identifier, ref_node, parameters)
+
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
+        raise NotImplementedError
+
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
+        """
+        Bounds propagation for a sigmoid layer
+        """
+        relaxations = LinearizeSigmoid(initial_bounds).compute_linear_relaxation()
+        symbolic_out = LinearizeSigmoid.compute_output_linear_bounds(symbolic_in, *relaxations)
+
+        return symbolic_out, symbolic_out.to_hyper_rectangle_bounds(initial_bounds)
+
+
+class AbsTanhNode(AbsLayerNode):
+    """
+    A class used for our internal representation of a Tanh Abstract transformer.
+    """
+
+    def __init__(self, identifier: str, ref_node: nodes.TanhNode, parameters: VerificationParameters | None = None):
+        super().__init__(identifier, ref_node, parameters)
+
+    def forward_star(self, abs_input: AbsElement | list[AbsElement],
+                     bounds: AbstractBounds | None = None) -> AbsElement:
+        raise NotImplementedError
+
+    def forward_bounds(self, symbolic_in: SymbolicLinearBounds, numeric_in: HyperRectangleBounds,
+                       initial_bounds: HyperRectangleBounds) -> tuple[SymbolicLinearBounds, HyperRectangleBounds]:
+        """
+        Bounds propagation for a tanh layer
+        """
+        relaxations = LinearizeTanh(initial_bounds).compute_linear_relaxation()
+        symbolic_out = LinearizeTanh.compute_output_linear_bounds(symbolic_in, *relaxations)
+
+        return symbolic_out, symbolic_out.to_hyper_rectangle_bounds(initial_bounds)
 
 
 class AbsConcatNode(AbsLayerNode):

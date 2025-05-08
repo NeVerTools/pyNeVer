@@ -40,6 +40,8 @@ class AbsNeuralNetwork(abc.ABC):
         'ReshapeNode': absnodes.AbsReshapeNode,
         'FlattenNode': absnodes.AbsFlattenNode,
         'ReLUNode': absnodes.AbsReLUNode,
+        'SigmoidNode': absnodes.AbsSigmoidNode,
+        'TanhNode': absnodes.AbsTanhNode,
         'ConcatNode': absnodes.AbsConcatNode,
         'SumNode': absnodes.AbsSumNode,
     }
