@@ -155,8 +155,8 @@ class SymbolicLinearBounds(AbstractBounds):
         input_bounds: HyperRectangleBounds
             The initial bounds
         """
-        return HyperRectangleBounds(self.lower.compute_min_values(input_bounds),
-                                    self.upper.compute_max_values(input_bounds))
+        return HyperRectangleBounds(self.get_lower_bounds(input_bounds),
+                                    self.get_upper_bounds(input_bounds))
 
 
 class BoundsStats:
