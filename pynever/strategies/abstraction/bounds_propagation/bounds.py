@@ -4,7 +4,7 @@ Module bounds.py
 This file contains the different representations of symbolic and
 numeric bounds for the verification of neural networks
 """
-
+import abc
 import copy
 from abc import abstractmethod
 
@@ -15,7 +15,7 @@ from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
-class AbstractBounds:
+class AbstractBounds(abc.ABC):
     """
     Abstract class that defines the abstraction of lower and upper bounds for a neural network layer
 
@@ -159,6 +159,7 @@ class SymbolicLinearBounds(AbstractBounds):
                                     self.upper.compute_max_values(input_bounds))
 
 
+# TODO move in verification?
 class BoundsStats:
     """
     This class collects the statistics about stability and
@@ -192,6 +193,7 @@ class BoundsStats:
         return sum([len(v) for v in self.stability_info[ReLUStatus.UNSTABLE].values()])
 
 
+# TODO this too
 class VerboseBounds:
     """
     This class is a complete collection of different bounds and information

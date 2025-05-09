@@ -8,6 +8,9 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectan
 from pynever.strategies.abstraction.star import Star
 
 
+ # TODO handle sets of properties?
+ # TODO specify convex properties
+
 class NeverProperty:
     """
     An abstract class used to represent a generic property for a NeuralNetwork.

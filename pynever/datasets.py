@@ -28,21 +28,20 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
 
     Attributes
     ----------
-    data_path : str
+    data_path: str
         Path to the folder in which the dataset will be saved.
-    train : bool
+    train: bool
         If True then the training set is loaded otherwise the test set is loaded.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-    download : bool
+    download: bool
         True if the dataset must be downloaded, False otherwise.
-
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -63,21 +62,20 @@ class TorchFMNIST(Dataset, tv.datasets.FashionMNIST):
 
     Attributes
     ----------
-    data_path : str
+    data_path: str
         Path to the folder in which the dataset will be saved.
-    train : bool
+    train: bool
         If True then the training set is loaded otherwise the test set is loaded.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-    download : bool
+    download: bool
         True if the dataset must be downloaded, False otherwise.
-
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -101,24 +99,23 @@ class GenericFileDataset(Dataset, tdata.Dataset):
 
     Attributes
     ----------
-    filepath : str
+    filepath: str
         Path to the file containing the dataset.
         N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be tested or train.
-    target_index : int
+    target_index: int
         Index of the first element of the outputs.
-    dtype : type, Optional
+    dtype: type, Optional
         Data type of the values of the data-points. Refer to numpy.loadtxt for more details.
-    delimiter : str, Optional
+    delimiter: str, Optional
         Delimiter between the different values of the data-points. Refer to numpy.loadtxt for more details.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-
     """
 
     def __init__(self, filepath: str, target_index: int, dtype: type = float, delimiter: str = ",",

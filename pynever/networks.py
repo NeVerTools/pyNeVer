@@ -83,7 +83,6 @@ class NeuralNetwork(abc.ABC):
         Procedure to remove the last layer
     count_relu_layers()
         Procedure to count the number of relu layers
-
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
