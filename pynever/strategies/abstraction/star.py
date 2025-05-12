@@ -277,7 +277,7 @@ class Star:
                 raise RuntimeError("The current direction does not intersect"
                                    "any of the hyperplanes.")
 
-            increment = torch.Floattorch.Tensor().uniform_(lam_lower, lam_upper)
+            increment = torch.FloatTensor().uniform_(lam_lower, lam_upper)
             next_point = current_point + increment * direction
             if self.check_alpha_inside(next_point):
                 current_point = next_point
