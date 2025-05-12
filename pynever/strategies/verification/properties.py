@@ -1,36 +1,63 @@
 from fractions import Fraction
 
-import pynever.strategies.smt_reading as reading
-from pynever import tensors
-from pynever.exceptions import InvalidDimensionError
-from pynever.strategies.abstraction.star import Star
-from pynever.tensors import Tensor
+import torch
 
+import pynever.strategies.smt_reading as reading
+from pynever.exceptions import InvalidDimensionError
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
+from pynever.strategies.abstraction.star import Star
+
+
+ # TODO handle sets of properties?
+ # TODO specify convex properties
 
 class NeverProperty:
     """
     An abstract class used to represent a generic property for a NeuralNetwork.
-
     """
 
-    def __init__(self, in_coef_mat: Tensor = None, in_bias_mat: Tensor = None,
-                 out_coef_mat: list[Tensor] = None, out_bias_mat: list[Tensor] = None):
+    def __init__(self, in_coef_mat: torch.Tensor = None, in_bias_mat: torch.Tensor = None,
+                 out_coef_mat: list[torch.Tensor] = None, out_bias_mat: list[torch.Tensor] = None):
         self.in_coef_mat = in_coef_mat
         self.in_bias_mat = in_bias_mat
         self.out_coef_mat = out_coef_mat
         self.out_bias_mat = out_bias_mat
 
-    def to_input_star(self) -> Star:
+    def to_numeric_bounds(self) -> HyperRectangleBounds:
+        """
+        This method creates a HyperRectangleBounds object from the property specification.
+        If the property is already a hyper rectangle it just initializes the object, otherwise
+        it returns the hyper rectangle approximation of the input property.
+
+        Returns
+        -------
+        HyperRectangleBounds
+            The hyper rectangle approximation of the input property
+        """
+        # TODO approximate if not already a hyperrectangle
+        lbs = []
+        ubs = []
+
+        for i in range(self.in_bias_mat.shape[0]):
+            if 1 in self.in_coef_mat[i, :]:
+                lbs.append(self.in_bias_mat[i, :])
+            else:
+                ubs.append(self.in_bias_mat[i, :])
+
+        # debug
+        assert len(lbs) == len(ubs) == self.in_bias_mat.shape[0] // 2
+
+        return HyperRectangleBounds(torch.Tensor(lbs), torch.Tensor(ubs))
+
+    def to_star(self) -> Star:
         """
         This method creates the input star based on the property specification
 
         Returns
-        ----------
+        -------
         Star
             The input star
-
         """
-
         return Star(self.in_coef_mat, self.in_bias_mat)
 
     def to_smt_file(self, filepath: str, input_id: str = 'X', output_id: str = 'Y'):
@@ -46,9 +73,7 @@ class NeverProperty:
             Identifier of the output node (default: 'Y')
         filepath : str
             Path to the SMT-LIB file to create
-
         """
-
         with open(filepath, 'w+') as f:
             # Variables definition
             input_vars = [f"{input_id}_{i}" for i in range(self.in_coef_mat.shape[1])]
@@ -101,7 +126,7 @@ class NeverProperty:
                 f.write(s)
 
     @staticmethod
-    def __create_infix_constraints(variables: list, coef_mat: Tensor, bias_mat: Tensor) -> list:
+    def __create_infix_constraints(variables: list, coef_mat: torch.Tensor, bias_mat: torch.Tensor) -> list[str]:
         c_list = []
 
         for row in range(coef_mat.shape[0]):
@@ -137,15 +162,14 @@ class VnnLibProperty(NeverProperty):
 
     Attributes
     ----------
-    in_coef_mat: Tensor
+    in_coef_mat: torch.Tensor
         Matrix of the coefficients for the input constraints.
-    in_bias_mat: Tensor
+    in_bias_mat: torch.Tensor
         Matrix of the biases for the input constraints.
-    out_coef_mat: List[Tensor]
+    out_coef_mat: List[torch.Tensor]
         Matrices of the coefficients for the output constraints.
-    out_bias_mat: List[Tensor]
+    out_bias_mat: List[torch.Tensor]
         Matrices of the biases for the output constraints.
-
     """
 
     def __init__(self, filepath: str):
@@ -158,27 +182,26 @@ class LocalRobustnessProperty(NeverProperty):
     """
     TODO
 
-    sample : Tensor
+    sample : torch.Tensor
     epsilon : float
     label : str
     max_output : bool
-
     """
 
-    def __init__(self, sample: Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool):
+    def __init__(self, sample: torch.Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool):
         super().__init__(*LocalRobustnessProperty.build_matrices(sample, epsilon, n_outputs, label, max_output))
 
     @staticmethod
-    def build_matrices(sample: Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool) -> tuple[
-            Tensor, Tensor, list[Tensor], list[Tensor]]:
+    def build_matrices(sample: torch.Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool) -> tuple[
+        torch.Tensor, torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
 
         if sample.shape[1] != 1:
-            raise InvalidDimensionError('Wrong shape for the sample, should be mono-dimensional')
+            raise InvalidDimensionError('Wrong shape for the sample, should be single-dimensional')
 
         # Input property
         n_dims = sample.shape[0]
-        in_coef_mat = tensors.zeros((2 * n_dims, n_dims))
-        in_bias_mat = tensors.zeros((2 * n_dims, 1))
+        in_coef_mat = torch.zeros((2 * n_dims, n_dims))
+        in_bias_mat = torch.zeros((2 * n_dims, 1))
 
         for i, x_i in enumerate(sample):
 
@@ -195,8 +218,8 @@ class LocalRobustnessProperty(NeverProperty):
         if label >= n_outputs:
             raise Exception
 
-        out_coef_mat = tensors.zeros((n_outputs - 1, n_outputs))
-        out_bias_mat = tensors.zeros((n_outputs - 1, 1))
+        out_coef_mat = torch.zeros((n_outputs - 1, n_outputs))
+        out_bias_mat = torch.zeros((n_outputs - 1, 1))
 
         outputs = set(range(n_outputs))
         outputs.remove(label)

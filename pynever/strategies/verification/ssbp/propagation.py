@@ -1,8 +1,10 @@
-import pynever.strategies.bounds_propagation.utility.functions as utilf
-from pynever import networks, nodes, tensors
+import torch
+
+from pynever import networks, nodes
+from pynever.strategies.abstraction.bounds_propagation import util
+from pynever.strategies.verification.statistics import VerboseBounds
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.star import ExtendedStar
-from pynever.strategies.bounds_propagation.bounds import VerboseBounds
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
 
 
 def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bounds: VerboseBounds) -> ExtendedStar:
@@ -13,20 +15,18 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
 
     Parameters
     ----------
-    star : ExtendedStar
+    star: ExtendedStar
         The star to process
-    network : networks.SequentialNetwork
+    network: networks.SequentialNetwork
         The neural network to propagate through
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The bounds of the network layers
 
     Returns
     ----------
     ExtendedStar
         The resulting star approximate with the abstract propagation
-
     """
-
     if star.ref_layer is None:
         return star
 
@@ -58,7 +58,8 @@ def abs_propagation(star: ExtendedStar, network: networks.SequentialNetwork, bou
         # we filter them when this occurs
         # =======================================
         elif ((isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_next_node(layer), nodes.ReshapeNode)) or
-              (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_prev_node(layer), nodes.ReshapeNode))):
+              (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_previous_node(layer),
+                                                                   nodes.ReshapeNode))):
             # Do nothing
             continue
 
@@ -74,15 +75,13 @@ def propagate_and_init_star_before_relu_layer(star: ExtendedStar, bounds: Verbos
     Compute the initial star which will always start from the first layer and
     where we will use the bounds to determine the inactive nodes,
     so that we could set the transformation for them to 0.
-
     """
-
     new_star, relu_layer = propagate_until_relu(star, bounds, network, skip=skip)
     relu_layer_id = new_star.ref_layer
 
     if relu_layer is not None:
-        layer_inactive = utilf.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
-                                                                                    relu_layer_id)
+        layer_inactive = util.compute_layer_inactive_from_bounds_and_fixed_neurons(bounds, new_star.fixed_neurons,
+                                                                                   relu_layer_id)
 
         new_transformation = new_star.mask_for_inactive_neurons(layer_inactive)
 
@@ -102,22 +101,20 @@ def propagate_until_relu(star: ExtendedStar, bounds: VerboseBounds, network: net
 
     Parameters
     ----------
-    star : ExtendedStar
+    star: ExtendedStar
         The star to process
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The bounds collection
-    network : networks.SequentialNetwork
+    network: networks.SequentialNetwork
         The neural network
-    skip : bool
+    skip: bool
         Flag to signal end of propagation
 
     Returns
     ----------
     tuple[ExtendedStar, nodes.ReLUNode]
         The resulting star before the next ReLU layer and the ReLU layer
-
     """
-
     relu_layer = None
     for layer in network.layers_iterator():
         if skip:
@@ -151,7 +148,7 @@ def propagate_until_relu(star: ExtendedStar, bounds: VerboseBounds, network: net
             # =======================================
             elif ((isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_next_node(layer),
                                                                        nodes.ReshapeNode)) or
-                  (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_prev_node(layer),
+                  (isinstance(layer, nodes.ReshapeNode) and isinstance(network.get_previous_node(layer),
                                                                        nodes.ReshapeNode))):
                 # Do nothing
                 pass
@@ -176,18 +173,16 @@ def make_star_from_bounds(bounds: VerboseBounds, layer_id: str) -> ExtendedStar:
 
     Parameters
     ----------
-    bounds : VerboseBounds
+    bounds: VerboseBounds
         The collection of the symbolic and concrete bounds
-    layer_id : str
+    layer_id: str
         The identifier of the current layer
 
     Returns
     ----------
     ExtendedStar
         The ExtendedStar with the constraints specified by the bounds
-
     """
-
     symbolic_bounds = bounds.symbolic_bounds[layer_id]
     numeric_bounds = bounds.numeric_post_bounds[layer_id]
 
@@ -205,7 +200,7 @@ def make_star_from_bounds(bounds: VerboseBounds, layer_id: str) -> ExtendedStar:
         predicate_bias.append(-symbolic_bounds.lower.offset[i] - numeric_bounds.lower[i])
         predicate_bias.append(symbolic_bounds.upper.offset[i] + numeric_bounds.upper[i])
 
-    predicate = LinearFunctions(tensors.array(predicate_matrix), tensors.array(predicate_bias))
-    identity_transformation = LinearFunctions(tensors.identity(input_size), tensors.zeros((input_size, 1)))
+    predicate = LinearFunctions(torch.Tensor(predicate_matrix), torch.Tensor(predicate_bias))
+    identity_transformation = LinearFunctions(torch.eye(input_size), torch.zeros((input_size, 1)))
 
     return ExtendedStar(predicate, identity_transformation, ref_layer=layer_id)

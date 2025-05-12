@@ -6,7 +6,7 @@
 -----
 
 Neural networks Verifier (__NeVer 2__) is a tool for the design, training and verification of neural networks.
-It supports sequential fully connected and convolutional neural networks with ReLU and Sigmoid activation functions.
+It supports feed-forward and residual neural networks with ReLU and activation functions.
 __pyNeVer__ is the corresponding python package providing all the main capabilities of __NeVer 2__
 and can be easily installed using pip. 
 
@@ -24,55 +24,53 @@ The packages required for the correct execution are the following:
 * _pysmt_
 * _multipledispatch_
 
-To install __pyNeVer__, just run the command:
-
+To install __pyNeVer__ as an API, run the command:
 ```bash
 pip install pynever
 ```
 
-To run some examples, further packages may be required. If an example requires a specific package, it will be 
-detailed in the example directory.
+To run __pyNeVer__ as a standalone tool you should clone this repository and create a conda environment
+```bash
+git clone https://github.com/nevertools/pyNeVer
+cd pyNeVer
 
-[//]: # (#### DOCUMENTATION)
+conda env create -f environment.yml
+conda activate pynever
+```
 
-[//]: # (The documentation related to the __pyNeVer__ package can be found in the directory docs/pynever/ as html files.)
+Command-line interface
+----------------------
+To verify [VNN-LIB](https://www.vnnlib.org) specifications on ONNX models we provide two scripts: one for single instances and another one for multiple instances.
+To verify a single instance run
+```bash
+python never2_launcher.py [-o OUTPUT] [-t TIMEOUT] model.onnx property.vnnlib {sslp|ssbp}
+```
 
-Supported inputs
+For multiple instances collected in a CSV file run
+```bash
+python never2_batch.py [-o OUTPUT] [-t TIMEOUT] instances.csv {sslp|ssbp}
+```
+* The -o option should be used to specify the output CSV file to save results, otherwise it will be generated in the same directory
+* The -t option specifies the timeout for each run
+* sslp and ssbp are the two algorithms employed by _NeVer2_:
+  * SSLP (Star-set with Linear Programming) is our first algorithm based on star sets presented in [this paper](https://link.springer.com/article/10.1007/s00500-024-09907-5).
+  * SSBP (Star-set with Bounds Propagation) enhances SSLP with an abstraction-refinement search and symbolic interval propagation. This is the algorithm used in VNNCOMP 2024.
+
+Supported layers
 ----------------------
 
-At present the __pyNeVer__ package supports only the abstraction and verification of fully connected and convolutional 
-neural networks with ReLU and Sigmoid activation functions. The training and conversion supports also batch normalization
-layers. A network with batchnorm layers following fully connected layers can be converted to a "pure" fully connected
-neural networks using the capabilities provided in the [utilities.py](pynever/utilities.py) module.  
+At present the __pyNeVer__ package supports abstraction and verification of fully connected and convolutional 
+neural networks with ReLU activation functions.
+
+Training and conversion support all the layers supported by [VNN-LIB](https://easychair.org/publications/paper/Qgdn).
+
 The [conversion](pynever/strategies/conversion) package provides the capabilities for the conversion of PyTorch and ONNX
 networks: therefore this kind of networks can be loaded using the respective frameworks and then converted to the
 internal representation used by __pyNeVer__.  
+
 The properties for the verification and abstraction of the networks must be defined either in python code following
 the specification which can be found in the documentation, or via an SMT-LIB file compliant to the 
-[VNN-LIB](http://www.vnnlib.org) standard.
-
-Examples
-----------------------
-
-**NB: All the scripts should be executed INSIDE the related directory!**
-
-***All the examples described below are guaranteed to work until [Release v0.1.1a4](https://github.com/NeVerTools/pyNeVer/releases/tag/v0.1.1a4). 
-After this release, changes in the interface structure may add inconsistencies between test scripts and API, so
-the old examples will be removed and new examples will be created in future releases.***
-
-* The directory examples/ contains some examples of application of the __pyNeVer__ package. In particular the 
-[jupyter notebook](examples/notebooks/bidimensional_example_with_sigmoid.ipynb) shows a graphical example of the 
-application of the abstraction module for the reachability of a small network with bi-dimensional input and outputs.  
-  
-* The [pruning_example.py](examples/pruning_example/pruning_example.py) script show how to train and prune some small
-fully connected neural networks with relu activation function. It also show how it is possible to combine batch norm
-layer and fully connected layers to make the networks compliant with the requirements of the verification and 
-abstraction modules.  
-
-* The directory examples/submissions/ATVA2021 contains the experimental setup used for the experimental evaluation
-in our ATVA2021 paper. The experiments can be easily replicated by executing the python scripts 
-[acas_experiment.py](examples/submissions/2021_ATVA/acas_experiments.py) from within the ATVA2021/ directory. 
-The log files will be generated and will be saved in the logs/ directory.
+[VNN-LIB](https://www.vnnlib.org) standard.
 
 Contributors
 ----------------------
@@ -88,6 +86,8 @@ _Other contributors_:
 * __Pedro Henrique Simão Achete__ - Command-line interface and convolutional linearization
 * __Karim Pedemonte__ - Design and refactoring
 
+To contribute to this project, start by looking at the [CONTRIBUTING](CONTRIBUTING.md) file!
+
 Publications
 ----------------------
 
@@ -96,27 +96,33 @@ the list of BibTeX entries.
 
 ```
 @article{demarchi2024never2,
-  title={NeVer2: Learning and Verification of Neural Networks},
-  author={Demarchi, Stefano and Guidotti, Dario and Pulina, Luca and Tacchella, Armando},
-  journal={Soft Computing},
-  year={2024}
+	author = {Demarchi, S. and Guidotti, D. and Pulina, L. and Tacchella, A.},
+	journal = {Soft Computing},
+	number = {19},
+	pages = {11647-11665},
+	title = {{NeVer2}: learning and verification of neural networks},
+	volume = {28},
+	year = {2024}
+}
+
+@inproceedings{demarchi2024improving,
+	author = {Demarchi, S. and Gimelli, A. and Tacchella, A.},
+	booktitle = {{ECMS} International Conference on Modelling and Simulation},
+	title = {Improving Abstract Propagation for Verification of Neural Networks},
+	year = {2024}
 }
 
 @inproceedings{demarchi2022formal,
-  title={Formal Verification Of Neural Networks: A Case Study About Adaptive Cruise Control.},
-  author={Demarchi, Stefano and Guidotti, Dario and Pitto, Andrea and Tacchella, Armando},
-  booktitle={ECMS},
-  pages={310--316},
-  year={2022}
+	author = {Demarchi, S. and Guidotti, D. and Pitto, A. and Tacchella, A.},
+	booktitle = {{ECMS} International Conference on Modelling and Simulation},
+	title = {Formal Verification of Neural Networks: {A} Case Study About Adaptive Cruise Control},
+	year = {2022}
 }
 
 @inproceedings{guidotti2021pynever,
-  title={pynever: A framework for learning and verification of neural networks},
-  author={Guidotti, Dario and Pulina, Luca and Tacchella, Armando},
-  booktitle={Automated Technology for Verification and Analysis: 19th International Symposium, ATVA 2021, Gold Coast, QLD, Australia, October 18--22, 2021, Proceedings 19},
-  pages={357--363},
-  year={2021},
-  organization={Springer}
+    author={Guidotti, D. and Pulina, L. and Tacchella, A.},
+    booktitle={International Symposium on Automated Technology for Verification and Analysis},
+    title={pynever: A framework for learning and verification of neural networks},
+    year={2021},
 }
-
 ```

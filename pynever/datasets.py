@@ -28,21 +28,20 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
 
     Attributes
     ----------
-    data_path : str
+    data_path: str
         Path to the folder in which the dataset will be saved.
-    train : bool
+    train: bool
         If True then the training set is loaded otherwise the test set is loaded.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-    download : bool
+    download: bool
         True if the dataset must be downloaded, False otherwise.
-
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -63,21 +62,20 @@ class TorchFMNIST(Dataset, tv.datasets.FashionMNIST):
 
     Attributes
     ----------
-    data_path : str
+    data_path: str
         Path to the folder in which the dataset will be saved.
-    train : bool
+    train: bool
         If True then the training set is loaded otherwise the test set is loaded.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-    download : bool
+    download: bool
         True if the dataset must be downloaded, False otherwise.
-
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -101,24 +99,23 @@ class GenericFileDataset(Dataset, tdata.Dataset):
 
     Attributes
     ----------
-    filepath : str
+    filepath: str
         Path to the file containing the dataset.
         N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be tested or train.
-    target_index : int
+    target_index: int
         Index of the first element of the outputs.
-    dtype : type, Optional
+    dtype: type, Optional
         Data type of the values of the data-points. Refer to numpy.loadtxt for more details.
-    delimiter : str, Optional
+    delimiter: str, Optional
         Delimiter between the different values of the data-points. Refer to numpy.loadtxt for more details.
-    transform : Callable, Optional
+    transform: Callable, Optional
         Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
         The parameters of the callable (other than the object subject to the transformation) should be attributes of
         the object.
-    target_transform : Callable, Optional
+    target_transform: Callable, Optional
         Transformation to apply to the targets. We assume this is an object like the transforms presented in
         torchvision. The parameters of the callable (other than the object subject to the transformation) should be
         attributes of the object.
-
     """
 
     def __init__(self, filepath: str, target_index: int, dtype: type = float, delimiter: str = ",",
@@ -132,7 +129,6 @@ class GenericFileDataset(Dataset, tdata.Dataset):
         self.target_transform = target_transform
 
         dataset = np.loadtxt(filepath, dtype=self.dtype, delimiter=self.delimiter)
-
         self.__data, self.__targets = (dataset[:, 0:self.target_index], dataset[:, self.target_index:])
 
     def __getitem__(self, index: int) -> tuple:
@@ -147,40 +143,3 @@ class GenericFileDataset(Dataset, tdata.Dataset):
 
     def __len__(self):
         return len(self.__data)
-
-
-class DynamicsJamesPos(GenericFileDataset, tdata.Dataset):
-    """
-    A concrete class used to represent the Dynamic James Dataset presented in the paper
-    "Challenging SMT solvers to verify neural networks" by Pulina and Tacchella (2012).
-    Automatic download is at present not supported, therefore the dataset must be downloaded manually.
-
-    Attributes
-    ----------
-    data_path : str
-        Path to the folder containing the training set and the test set.
-        N.B.: the names of the dataset are supposed to be james_pos_*.txt where * can be tested or train.
-    train : bool
-        If True then the training set is loaded otherwise the test set is loaded.
-    transform : Callable, Optional
-        Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
-        The parameters of the callable (other than the object subject to the transformation) should be attributes of
-        the object.
-    target_transform : Callable, Optional
-        Transformation to apply to the targets. We assume this is an object like the transforms presented in
-        torchvision. The parameters of the callable (other than the object subject to the transformation) should be
-        attributes of the object.
-
-    """
-
-    def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
-                 target_transform: Callable | None = None):
-
-        tdata.Dataset.__init__(self)
-
-        if train:
-            dataset_path = data_path + "james_pos_train.txt"
-        else:
-            dataset_path = data_path + "james_pos_test.txt"
-
-        GenericFileDataset.__init__(self, dataset_path, 8, transform=transform, target_transform=target_transform)

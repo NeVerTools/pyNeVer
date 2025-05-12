@@ -3,13 +3,14 @@ This file contains specialized methods that provide
 the linearization of ReLU activation functions
 
 """
-
-import numpy as np
+import torch
+from torch import Tensor
 
 from pynever import nodes
 from pynever.exceptions import FixedConflictWithBounds
-from pynever.strategies.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds, PRECISION_GUARD
-from pynever.strategies.bounds_propagation.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
+from pynever.strategies.abstraction.bounds_propagation.bounds import SymbolicLinearBounds, HyperRectangleBounds
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 class LinearizeReLU:
@@ -19,7 +20,7 @@ class LinearizeReLU:
 
     """
 
-    USE_FIXED_NEURONS = True
+    USE_FIXED_NEURONS = False
 
     def __init__(self, fixed_neurons: dict, input_hyper_rect: HyperRectangleBounds):
         self.fixed_neurons = fixed_neurons
@@ -54,15 +55,14 @@ class LinearizeReLU:
 
         layer_id = relu.identifier
 
-        current_layer_inactive = LinearizeReLU.extract_layer_inactive_from_fixed_neurons(self.fixed_neurons, layer_id)
+        cur_layer_inactive = LinearizeReLU.extract_layer_inactive_from_fixed_neurons(self.fixed_neurons, layer_id)
 
         cur_layer_output_num_bounds = HyperRectangleBounds(
-            np.maximum(cur_numeric_bounds.get_lower(), 0),
-            np.maximum(cur_numeric_bounds.get_upper(), 0))
+            torch.max(cur_numeric_bounds.get_lower(), torch.zeros(cur_numeric_bounds.get_size())),
+            torch.max(cur_numeric_bounds.get_upper(), torch.zeros(cur_numeric_bounds.get_size())))
 
         if LinearizeReLU.USE_FIXED_NEURONS:
-            LinearizeReLU.force_inactive_neurons(cur_symbolic_bounds, cur_layer_output_num_bounds,
-                                                 current_layer_inactive)
+            LinearizeReLU.force_inactive_neurons(cur_symbolic_bounds, cur_layer_output_num_bounds, cur_layer_inactive)
 
         return cur_layer_output_num_bounds
 
@@ -90,10 +90,10 @@ class LinearizeReLU:
         size = len(preact_lower_bounds)
 
         # matrix and offset for the relaxation
-        matrix = np.identity(size)
-        offset = np.zeros(size)
+        matrix = torch.eye(size)
+        offset = torch.zeros(size)
 
-        postact_lower_bounds = np.array(preact_lower_bounds)
+        postact_lower_bounds = Tensor(preact_lower_bounds)
 
         for i in range(size):
             if preact_lower_bounds[i] >= 0:
@@ -127,10 +127,10 @@ class LinearizeReLU:
         size = len(preact_lower_bounds)
 
         # matrix and offset for the relaxation
-        matrix = np.identity(size)
-        offset = np.zeros(size)
+        matrix = torch.eye(size)
+        offset = torch.zeros(size)
 
-        postact_upper_bounds = np.array(preact_upper_bounds)
+        postact_upper_bounds = Tensor(preact_upper_bounds)
         for i in range(size):
             if preact_lower_bounds[i] >= 0:
                 # the upper bound is exactly the preactivation
@@ -183,8 +183,8 @@ class LinearizeReLU:
                 new_eq.upper.matrix[neuron_n] = 0 * new_eq.upper.matrix[neuron_n]
                 new_eq.upper.offset[neuron_n] = 0
 
-                new_bounds.lower[neuron_n] = -PRECISION_GUARD
-                new_bounds.upper[neuron_n] = -PRECISION_GUARD  # TODO is the sign correct?
+                new_bounds.lower[neuron_n] = -ABSTRACTION_PRECISION_GUARD
+                new_bounds.upper[neuron_n] = -ABSTRACTION_PRECISION_GUARD  # TODO is the sign correct?
 
         return new_eq, new_bounds
 
@@ -239,8 +239,8 @@ class LinearizeReLU:
 
     @staticmethod
     def get_array_lin_lower_bound_coefficients(lower, upper):
-        ks = np.zeros(len(lower))
-        bs = np.zeros(len(lower))
+        ks = torch.zeros(len(lower))
+        bs = torch.zeros(len(lower))
 
         for i in range(len(lower)):
             k, b = LinearizeReLU.get_lin_lower_bound_coefficients(lower[i], upper[i])
@@ -251,8 +251,8 @@ class LinearizeReLU:
 
     @staticmethod
     def get_array_lin_upper_bound_coefficients(lower, upper):
-        ks = np.zeros(len(lower))
-        bs = np.zeros(len(lower))
+        ks = torch.zeros(len(lower))
+        bs = torch.zeros(len(lower))
 
         for i in range(len(lower)):
             k, b = LinearizeReLU.get_lin_upper_bound_coefficients(lower[i], upper[i])

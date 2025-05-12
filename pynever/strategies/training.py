@@ -5,7 +5,6 @@ import os
 import shutil
 from collections.abc import Callable
 
-import numpy as np
 import torch
 import torch.optim.lr_scheduler as schedulers
 import torch.utils.data as tdt
@@ -36,9 +35,9 @@ class TrainingStrategy(abc.ABC):
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The neural network to train.
-        dataset : Dataset
+        dataset: Dataset
             The dataset to use to train the neural network.
 
         Returns
@@ -69,9 +68,9 @@ class TestingStrategy(abc.ABC):
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The neural network to test.
-        dataset : Dataset
+        dataset: Dataset
             The dataset to use to test the neural network.
 
         Returns
@@ -91,59 +90,59 @@ class PytorchTraining(TrainingStrategy):
 
     Attributes
     ----------
-    optimizer_con : type
+    optimizer_con: type
         Reference to the class constructor for the Optimizer of choice for the training strategy.
 
-    opt_params : Dict
+    opt_params: Dict
         Dictionary of the parameters to pass to the constructor of the optimizer excluding the first which is always
         assumed to be the parameters to optimize
 
-    loss_function : Callable
+    loss_function: Callable
         Loss function for the training strategy. We assume it to take as parameters two pytorch Tensor
         corresponding to the output of the network and the target. Other parameter should be given as attribute of
         the callable object.
 
-    n_epochs : int
+    n_epochs: int
         Number of epochs for the training procedure.
 
-    validation_percentage : float
+    validation_percentage: float
         Percentage of the dataset to use as the validation set
 
-    train_batch_size : int
+    train_batch_size: int
         Dimension for the train batch size for the training procedure
 
-    validation_batch_size : int
+    validation_batch_size: int
         Dimension for the validation batch size for the training procedure
 
-    scheduler_con : type, Optional
+    scheduler_con: type, Optional
         Reference to the class constructor for the Scheduler for the learning rate of choice for the training strategy
         (default: None)
 
-    sch_params : Dict, Optional
+    sch_params: Dict, Optional
         Dictionary of the parameters to pass to the constructor of the scheduler excluding the first which is always
         assumed to be the optimizer whose learning rate must be updated. (default: None)
 
-    precision_metric : Callable, Optional
+    precision_metric: Callable, Optional
         Function for measuring the precision of the neural network. It is used to choose the best model and to control
         the Plateau Scheduler and the early stopping. We assume it to take as parameters two pytorch Tensor
         corresponding to the output of the network and the target.It should produce a float value and such value should
         decrease for increasing correctness of the network (as the traditional loss value).
         Optional supplementary parameters should be given as attributes of the object. (default: None)
 
-    network_transform : Callable, Optional
+    network_transform: Callable, Optional
         We provide the possibility to define a function which will be applied to the network after
         the computation of backward and before the optimizer step. In practice, we use it for the manipulation
         needed to the pruning oriented training. It should take a pytorch module (i.e., the neural network) as
         input and optional supplementary parameters () should be given as attributes of the object. (default: None)
 
-    train_patience : int, Optional
+    train_patience: int, Optional
         The number of epochs in which the loss may not decrease before the
         training procedure is interrupted with early stopping (default: None).
 
-    checkpoints_root : str, Optional
+    checkpoints_root: str, Optional
         Where to store the checkpoints of the training strategy. (default: '')
 
-    verbose_rate : int, Optional
+    verbose_rate: int, Optional
         After how many batch the strategy prints information about how the training is going.
 
 
@@ -206,9 +205,9 @@ class PytorchTraining(TrainingStrategy):
 
         Parameters
         ----------
-        net : PyTorchNetwork
+        net: PyTorchNetwork
             The PyTorchNetwork to train.
-        dataset : Dataset
+        dataset: Dataset
             The dataset to use for the training of the PyTorchNetwork
 
         Returns
@@ -273,7 +272,7 @@ class PytorchTraining(TrainingStrategy):
             start_epoch = 0
 
         # history_score is used to keep track of the evolution of training loss and validation loss
-        history_score = np.zeros((self.n_epochs - start_epoch + 1, 2))
+        history_score = torch.zeros((self.n_epochs - start_epoch + 1, 2))
         train_accuracy = 0
 
         # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
@@ -399,18 +398,18 @@ class PytorchTesting(TestingStrategy):
     Attributes
     ----------
 
-    metric : Callable
+    metric: Callable
         Function for measuring the precision/correctness of the neural network.
 
-    metric_params : Dict
+    metric_params: Dict
         Supplementary parameters for the metric other than the output and the target (which should always be the first
         two parameters of the metric). It is assumed that it produce a float value and such value
         decrease for increasing correctness of the network (as the traditional loss value).
 
-    test_batch_size : int
+    test_batch_size: int
         Dimension for the test batch size for the testing procedure
 
-    save_results : bool, Optional
+    save_results: bool, Optional
         Whether to save outputs, targets and losses as attributes.
 
     """
@@ -508,9 +507,9 @@ class PytorchMetrics:
 
         Parameters
         ----------
-        output : torch.Tensor
+        output: torch.Tensor
             Output predicted by the network. It should be a Tensor of shape (n, d)
-        target : torch.Tensor
+        target: torch.Tensor
             Correct class for the prediction. It should be a Tensor of shape (n, 1)
 
         Returns

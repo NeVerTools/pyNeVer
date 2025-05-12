@@ -4,9 +4,7 @@ import enum
 class RefinementTarget:
     """
     This class represents the refinement target for the verification.
-
     """
-
     def __init__(self, layer_id: str, neuron_n: int):
         self.layer_id = layer_id
         self.neuron_idx = neuron_n
@@ -22,9 +20,7 @@ class NeuronSplit(enum.Enum):
     """
     This class is used as an enumerator to distinguish the two outputs
     of a neuron split (positive or negative)
-
     """
-
     NEGATIVE = 0
     POSITIVE = 1
 
@@ -33,27 +29,9 @@ class BoundsDirection(enum.Enum):
     """
     This class is used as an enumerator to choose the direction of
     the bounds computation (forwards or backwards)
-
     """
-
     FORWARDS = 0
     BACKWARDS = 1
-
-
-class NeuronState(enum.Enum):
-    """
-    This class is used as an enumerator to represent the state of a neuron.
-    The possible states are:
-
-    - positive stable when the lower bound is greater than zero
-    - negative stable when the upper bound is lower than zero
-    - unstable when the upper bound is greater than zero and the lower bound lower than zero
-
-    """
-
-    POSITIVE_STABLE = 1
-    NEGATIVE_STABLE = -1
-    UNSTABLE = 0
 
 
 class BoundsBackend(enum.Enum):
@@ -62,9 +40,7 @@ class BoundsBackend(enum.Enum):
     strategies.
 
     - symbolic bounds propagation from the Venus2 verifier
-
     """
-
     SYMBOLIC = 1
 
 
@@ -76,9 +52,7 @@ class RefinementStrategy(enum.Enum):
     - lowest approx selects the neuron that contributes with the lowest approximation
     - lowest approx - current layer selects the neuron that contributes with the lowest approximation in the layer
     - input bounds change selects the neuron that contributes most to change the input bounds when refined
-
     """
-
     SEQUENTIAL = 1
     LOWEST_APPROX = 2
     LOWEST_APPROX_CURRENT_LAYER = 3
@@ -91,8 +65,6 @@ class IntersectionStrategy(enum.Enum):
 
     - star with LP propagates the star abstraction and uses an LP to check for an intersection
     - adaptive uses different (precise or approximate) intersection checks based on the state of the search
-
     """
-
     STAR_LP = 1
     ADAPTIVE = 2

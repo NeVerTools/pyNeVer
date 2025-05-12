@@ -1,9 +1,8 @@
 import re
 
-import numpy as np
+import torch
 from pysmt.smtlib.parser import SmtLibParser
-
-from pynever.tensors import Tensor
+from torch import Tensor
 
 
 class ExprNode:
@@ -29,7 +28,6 @@ class ExprNode:
         Procedure to create the infix string describing the tree.
     get_disjunctions_infix()
         Procedure to return the list of disjunct atoms, if present.
-
     """
 
     def __init__(self, char: str):
@@ -40,27 +38,21 @@ class ExprNode:
     def is_leaf(self) -> bool:
         """
         This method checks whether the node is a leaf or not.
-
         Returns
         ----------
         bool
             True if node_left and node_right are None, False otherwise.
-
         """
-
         return self.node_left is None and self.node_right is None
 
     def as_prefix(self) -> str:
         """
         This method converts the Expression Tree in a prefix string
-
         Returns
         ----------
         str
             The tree representation as a prefix string
-
         """
-
         if self.data.startswith('-'):
             data = self.data.replace('-', '(- ')
             self.data = data + ')'
@@ -76,14 +68,11 @@ class ExprNode:
     def as_infix(self) -> str:
         """
         This method converts the Expression Tree in an infix string
-
         Returns
         ----------
         str
             The tree representation as an infix string
-
         """
-
         if self.node_left is None:
             return self.data
         else:
@@ -96,14 +85,11 @@ class ExprNode:
         """
         This method is used in order to separate OR statements in
         the input file
-
         Returns
         ----------
         list
             The list of infix-notated disjunctions
-
         """
-
         if self.data != '|':
             raise Exception('No disjunctions detected')
 
@@ -119,9 +105,7 @@ class ExprNode:
 class ExpressionTreeConverter:
     """
     Class for converting infix expressions to expression trees.
-
     Courtesy of Nikhil Kumar Singh(nickzuck_007) and aashish1995.
-
     Attributes
     ----------
     precedence: dict
@@ -130,12 +114,10 @@ class ExpressionTreeConverter:
         Stack for operands, needed in the conversion routine.
     nodeStack: list
         Stack for operators, needed in the conversion routine.
-
     Methods
     ----------
     build_from_infix(str)
         Procedure to generate an expression tree from an infix string.
-
     """
 
     def __init__(self):
@@ -146,19 +128,15 @@ class ExpressionTreeConverter:
     def build_from_infix(self, infix: str) -> ExprNode:
         """
         This method builds an Expression Tree using the ExprNode class.
-
         Parameters
         ----------
         infix: str
             The infix-notated string to be converted.
-
         Returns
         ----------
         ExprNode
             The root node containing the Expression Tree.
-
         """
-
         infix = '(' + infix + ')'  # Redundancy for correctness
         # Expand parentheses in order to split correctly
         infix = infix.replace('(', '( ').replace(')', ' )')
@@ -232,7 +210,6 @@ class SmtPropertyParser:
         List of matrices of the coefficients for the output constraints.
     out_bias_mat: list
         List of matrices of the biases for the output constraints.
-
     Methods
     -------
     __as_script()
@@ -250,7 +227,6 @@ class SmtPropertyParser:
         i.e., the declared variables beginning with 'str' in the SMTLIB file.
     parse_property()
         Exposed procedure to parse the SMTLIB file and build the NeVerProperty.
-
     """
 
     def __init__(self, smtlib_path: str):
@@ -268,33 +244,26 @@ class SmtPropertyParser:
     def __as_script(self):
         """
         This method makes use of pysmt for extracting the commands.
-
         Returns
         ----------
         SmtLibScript
             The list of SMTLIB commands contained in the file.
-
         """
-
         parser = SmtLibParser()
         return parser.get_script_fname(self.smtlib_path)
 
     def __get_assert_commands_for(self, x: str) -> list:
         """
         Utility method for retrieving the SMTLIB assertions regarding the variable 'x'.
-
         Parameters
         ----------
         x: str
             The name of the literal of interest.
-
         Returns
         ----------
         list
             The list of SMTLIB commands obtained via pysmt.
-
         """
-
         script = self.__as_script()
         assertions = script.filter_by_command_name('assert')
         assert_var = []
@@ -311,9 +280,7 @@ class SmtPropertyParser:
         """
         This method extracts the name of the declared variables in the file
         and returns them in the form of a tuple (input, output)
-
         """
-
         script = self.__as_script()
         declarations = script.filter_by_command_name(['declare-fun', 'declare-const'])
 
@@ -338,7 +305,6 @@ class SmtPropertyParser:
         """
         This method reads the assertions and extracts the coefficients
         for the given vector.
-
         Parameters
         ----------
         vector: list
@@ -347,18 +313,15 @@ class SmtPropertyParser:
             The vector name.
         asserts: list
             The list of SMTLIB 'assert' commands obtained via pysmt.
-
         Returns
         ----------
         Tensor
             The coefficient matrix associated to 'vec_name' and the
             assertion list.
-
         """
-
         # Prepare output
         n_var = len(vector)
-        coef_mat = np.zeros((len(asserts), n_var))
+        coef_mat = torch.zeros((len(asserts), n_var))
 
         # Row counter
         loop = 0
@@ -366,7 +329,7 @@ class SmtPropertyParser:
         for a in asserts:
             # Tokenize
             line = a.replace('(', ' ( ').replace(')', ' ) ').split()
-            row = np.zeros(n_var)
+            row = torch.zeros(n_var)
             idx = []
 
             # Get variables index
@@ -412,21 +375,17 @@ class SmtPropertyParser:
         """
         This method reads the assertions and extracts the
         known terms in order to build the bias vector.
-
         Parameters
         ----------
         asserts: list
             The list of SMTLIB 'assert' commands obtained via pysmt.
-
         Returns
         ----------
         Tensor
             The bias matrix associated to the assertion list.
-
         """
-
         # Init
-        bias_mat = np.zeros((len(asserts), 1))
+        bias_mat = torch.zeros((len(asserts), 1))
         tree_converter = ExpressionTreeConverter()
 
         # Row counter
@@ -467,19 +426,15 @@ class SmtPropertyParser:
         """
         This method reads the components of the given named vector and
         returns the corresponding list.
-
         Parameters
         ----------
         vec_name: str
             The vector name to find the components of.
-
         Returns
         ----------
         list
             A list containing the input vector components.
-
         """
-
         script = self.__as_script()
         declarations = script.filter_by_command_name(['declare-fun', 'declare-const'])
         vec_list = []
@@ -496,14 +451,11 @@ class SmtPropertyParser:
         """
         This method exposes the propriety parsing, performing all the steps and
         filling the Tensors.
-
         Returns
         ----------
         NeVerProperty
             The parsed property wrapped in the corresponding class
-
         """
-
         x_assert = self.__get_assert_commands_for(self.x_name)
         y_assert = self.__get_assert_commands_for(self.y_name)
 
@@ -577,19 +529,15 @@ class SmtPropertyParser:
 def is_operator(c: str):
     """
     Utility for checking operators.
-
     Parameters
     ----------
     c: str
         The character or string to check.
-
     Returns
     ----------
     bool
         True if c is part of the operators set, False otherwise.
-
     """
-
     return c == '*' or c == '+' or c == '-' or c == '/' or c == '>' \
         or c == '>=' or c == '<' or c == '<=' or c == '=' \
         or c == '&' or c == '|'
@@ -598,21 +546,17 @@ def is_operator(c: str):
 def read_smt_num(val: str):
     """
     Procedure to convert a SMTLIB string to a number.
-
     Parameters
     ----------
     val: str
         A string containing a number from a SMT file.
-
     Returns
     ----------
     Any
         int if the given string represents an integer,
         float if it represents a float or
         None if it does not represent a number.
-
     """
-
     try:
         if '.' in val:
             return float(val)
@@ -622,25 +566,21 @@ def read_smt_num(val: str):
         else:
             return int(val)
     except ValueError:
-        return
+        return None
 
 
 def prefix2infix(prefix: str) -> str:
     """
     Procedure for converting a prefix string to an infix string.
-
     Parameters
     ----------
     prefix: str
         The prefix string that should be converted.
-
     Returns
     ----------
     str
         The infix-converted string.
-
     """
-
     # Preprocess
     prefix = prefix.replace('(', ' ').replace(')', ' ').replace('assert', '').split()
     stack = []
@@ -666,22 +606,18 @@ def refine_smt_statement(assertion: str, vec_name: str) -> str:
     This method refines a SMTLIB statement by intercepting
     malformed Normal Form formulas and rewriting them
     correctly.
-
     Parameters
     ----------
     assertion
         The SMT formula to verify.
     vec_name
         The variable name in use
-
     Returns
     -------
     str
         The formula in input if it is already well-formed,
         its refinement otherwise.
-
     """
-
     tree_converter = ExpressionTreeConverter()
     tree = tree_converter.build_from_infix(assertion)
 

@@ -16,7 +16,7 @@ class AlternativeRepresentation(abc.ABC):
 
     Attributes
     ----------
-    identifier : str
+    identifier: str
         identifier for the alternative representation
 
     """
@@ -39,7 +39,7 @@ class ONNXNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-    onnx_network : onnx.ModelProto
+    onnx_network: onnx.ModelProto
         Real ONNX network.
 
     """
@@ -70,7 +70,7 @@ class PyTorchNetwork(AlternativeRepresentation):
     Attributes
     ----------
         identifier for the alternative representation
-    pytorch_network : torch.nn.Module
+    pytorch_network: torch.nn.Module
         Real PyTorch network.
 
     """
@@ -104,7 +104,6 @@ class ConversionStrategy(abc.ABC):
         Convert the neural network of interest to an alternative representation determined in the concrete children.
     to_neural_network(AlternativeRepresentation)
         Convert the alternative representation of interest to our internal representation of a Neural Network.
-
     """
 
     @abc.abstractmethod
@@ -114,7 +113,7 @@ class ConversionStrategy(abc.ABC):
 
         Parameters
         ----------
-        network : NeuralNetwork
+        network: NeuralNetwork
             The neural network to convert.
 
         Returns
@@ -131,7 +130,7 @@ class ConversionStrategy(abc.ABC):
 
         Parameters
         ----------
-        alt_rep : AlternativeRepresentation
+        alt_rep: AlternativeRepresentation
             The Alternative Representation to convert.
 
         Returns
@@ -148,7 +147,7 @@ def load_network_path(path: str) -> AlternativeRepresentation:
 
     Parameters
     ----------
-    path : str
+    path: str
         Path to the network.
 
     Returns
