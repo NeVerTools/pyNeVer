@@ -48,9 +48,9 @@ relu1 = nodes.ReLUNode('ReLU', (2,))
 relu2 = nodes.ReLUNode('ReLU2', (2,))
 
 nn = SequentialNetwork('NN', 'X')
-nn.append_node(fc_2)
+nn.append_node(fc_1)
 nn.append_node(relu1)
-# nn.append_node(fc_2)
-# nn.append_node(relu1)
+nn.append_node(fc_2)
+nn.append_node(sig_1)
 
 plot_output_bounds(HyperRectangleBounds(torch.Tensor([-1, -1]), torch.Tensor([1, 1])), nn)
