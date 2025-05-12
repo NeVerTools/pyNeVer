@@ -12,7 +12,7 @@ def get_layer_equation(layer: FullyConnectedNode) -> LinearFunctions:
 
     Parameters
     ----------
-    layer : FullyConnectedNode
+    layer: FullyConnectedNode
         The linear layer
 
     Returns
@@ -62,9 +62,9 @@ def get_backwards_layer_equation(layer: FullyConnectedNode,
 
     Parameters
     ----------
-    layer : FullyConnectedNode
+    layer: FullyConnectedNode
         The linear layer
-    network : NeuralNetwork
+    network: NeuralNetwork
         The neural network
     equations_in: dict[str, SymbolicLinearBounds]
         The layer-to-layer symbolic bounds
@@ -101,9 +101,9 @@ def compute_dense_output_bounds(layer: FullyConnectedNode, inputs: SymbolicLinea
 
     Parameters
     ----------
-    layer : FullyConnectedNode
+    layer: FullyConnectedNode
         The linear layer
-    inputs : SymbolicLinearBounds
+    inputs: SymbolicLinearBounds
         The input symbolic bounds
 
     Returns
@@ -111,20 +111,18 @@ def compute_dense_output_bounds(layer: FullyConnectedNode, inputs: SymbolicLinea
     SymbolicLinearBounds
         The symbolic output bounds for the layer
     """
-    weights = layer.weight
-    weights_plus = torch.clamp(weights, min=0)
-    weights_minus = torch.clamp(weights, max=0)
+    weights_plus = torch.clamp(layer.weight, min=0)
+    weights_minus = torch.clamp(layer.weight, max=0)
 
     lm = inputs.get_lower().get_matrix()
     um = inputs.get_upper().get_matrix()
     lo = inputs.get_lower().get_offset()
     uo = inputs.get_upper().get_offset()
 
-    lower_matrix, lower_offset, upper_matrix, upper_offset = \
-        util.compute_lower(weights_minus, weights_plus, lm, um), \
-            util.compute_lower(weights_minus, weights_plus, lo, uo) + layer.bias, \
-            util.compute_upper(weights_minus, weights_plus, lm, um), \
-            util.compute_upper(weights_minus, weights_plus, lo, uo) + layer.bias
+    lower_matrix = util.compute_lower(weights_minus, weights_plus, lm, um)
+    lower_offset = util.compute_lower(weights_minus, weights_plus, lo, uo) + layer.bias
+    upper_matrix = util.compute_upper(weights_minus, weights_plus, lm, um)
+    upper_offset = util.compute_upper(weights_minus, weights_plus, lo, uo) + layer.bias
 
     return SymbolicLinearBounds(LinearFunctions(lower_matrix, lower_offset),
                                 LinearFunctions(upper_matrix, upper_offset))

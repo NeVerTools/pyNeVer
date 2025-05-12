@@ -42,7 +42,7 @@ def compute_lower(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tens
     Tensor
         The lower bounds matrix
     """
-    return torch.matmul(weights_plus, input_lower) - torch.matmul(weights_minus, input_upper)
+    return torch.matmul(weights_plus, input_lower) + torch.matmul(weights_minus, input_upper)
 
 
 def compute_upper(weights_minus: Tensor, weights_plus: Tensor, input_lower: Tensor, input_upper: Tensor) -> Tensor:
