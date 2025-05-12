@@ -71,11 +71,11 @@ class PyTorchConverter(ConversionStrategy):
                                              in_features=layer.in_features, out_features=layer.out_features,
                                              bias=has_bias)
 
-                    weight = torch.from_numpy(layer.weight)
+                    weight = layer.weight
                     new_layer.weight.data = weight
 
                     if has_bias:
-                        bias = torch.from_numpy(layer.bias)
+                        bias = layer.bias
                         new_layer.bias.data = bias
 
                 elif isinstance(layer, nodes.BatchNormNode):
