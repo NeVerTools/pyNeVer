@@ -8,11 +8,12 @@ from pynever import utilities, nodes
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
 from pynever.strategies.abstraction.bounds_propagation import util
-from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.properties import NeverProperty
 from pynever.strategies.verification.ssbp import propagation
+from pynever.strategies.verification.statistics import VerboseBounds
 
 
 def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: SequentialNetwork, nn_bounds: VerboseBounds) \

@@ -3,7 +3,8 @@ from torch import Tensor
 
 from pynever.strategies.abstraction import ABSTRACTION_PRECISION_GUARD
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
-from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds, AbstractBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import AbstractBounds
+from pynever.strategies.verification.statistics import VerboseBounds
 
 
 def check_stable(lb: float, ub: float) -> ReLUStatus:

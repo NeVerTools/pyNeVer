@@ -9,10 +9,11 @@ from ortools.linear_solver import pywraplp
 
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import BOUNDS_LOGGER
-from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit, BoundsDirection
+from pynever.strategies.verification.statistics import VerboseBounds
 
 
 class BoundsRefinement:

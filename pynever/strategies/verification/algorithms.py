@@ -11,7 +11,7 @@ import pynever.strategies.verification.ssbp.propagation as ssbp_prop
 import pynever.strategies.verification.ssbp.split as ssbp_split
 from pynever.networks import NeuralNetwork
 from pynever.strategies.abstraction.bounds_propagation import ReLUStatus
-from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds, VerboseBounds
+from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.networks import AbsSeqNetwork
@@ -29,6 +29,7 @@ from pynever.strategies.verification.ssbp.constants import (
     RefinementTarget,
     RefinementStrategy
 )
+from pynever.strategies.verification.statistics import VerboseBounds
 
 
 class VerificationStrategy(abc.ABC):

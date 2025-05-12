@@ -2,7 +2,7 @@ import torch
 
 from pynever import networks, nodes
 from pynever.strategies.abstraction.bounds_propagation import util
-from pynever.strategies.abstraction.bounds_propagation.bounds import VerboseBounds
+from pynever.strategies.verification.statistics import VerboseBounds
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 from pynever.strategies.abstraction.star import ExtendedStar
 
