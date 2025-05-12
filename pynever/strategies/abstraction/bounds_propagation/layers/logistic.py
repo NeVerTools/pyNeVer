@@ -1,7 +1,7 @@
 """Module logistic.py
 
 This module contains the classes for the linearization of s-like functions
-such as sigmoid and tanh. Following the method used by the Venus2 verifier.
+such as sigmoid and tanh. Following the method used by the VeriNet verifier.
 
 """
 
@@ -95,7 +95,7 @@ class LinearizeSLikeActivation:
         xl = atleast1d(lower_bounds)
         xu = atleast1d(upper_bounds)
 
-        a = (self.activation(xu) - self.activation(xl)) / xu - xl
+        a = (self.activation(xu) - self.activation(xl)) / (xu - xl)
         b = self.activation(xu) - a * xu
 
         return torch.cat((a.unsqueeze(1), b.unsqueeze(1)), dim=1)
@@ -203,13 +203,12 @@ class LinearizeSLikeActivation:
         out_symbolic = copy.deepcopy(input_eq)
 
         # relaxations:
-        # A 2xNx2 tensor where the first dimension indicates the lower and upper
-        # relaxation, the second dimension contains the neurons in the current
-        # node and the last dimension contains the parameters
+        # A Nx2 tensor where the first dimension contains the neurons
+        # in the current node and the last dimension contains the parameters
         # [a, b] in l(const_terms) = ax + b.
 
-        out_symbolic.get_lower().matrix *= lower_relax[:, 0:1]
-        out_symbolic.get_upper().matrix *= upper_relax[:, 0:1]
+        out_symbolic.get_lower().matrix *= lower_relax[:, 0]
+        out_symbolic.get_upper().matrix *= upper_relax[:, 0]
 
         out_symbolic.get_lower().offset += lower_relax[:, 1]
         out_symbolic.get_upper().offset += upper_relax[:, 1]
@@ -225,7 +224,9 @@ class LinearizeSLikeActivation:
         -------
             The two relaxation tensors, lower and upper
         """
-        return self.__single_linear_relaxation(upper=False), self.__single_linear_relaxation(upper=True)
+        low_relax = self.__single_linear_relaxation(upper=False)
+        upp_relax = self.__single_linear_relaxation(upper=True)
+        return low_relax, upp_relax
 
     def __single_linear_relaxation(self, upper: bool) -> torch.Tensor:
         """
@@ -272,7 +273,7 @@ class LinearizeSLikeActivation:
 
         if not all(solved):
             # Try 2: the optimal tangent line
-            lines = self.get_tangent_lines(unstable_lbs[solved != 1], unstable_ubs[solved != 1])
+            lines = self.get_tangent_lines(unstable_lbs, unstable_ubs)
 
             if upper:
                 valid = torch.nonzero(lines[:, 0] * unstable_lbs + lines[:, 1] >= activation)
@@ -345,7 +346,7 @@ class LinearizeTanh(LinearizeSLikeActivation):
         super().__init__(input_hyper_rect, num_iterations)
 
     def activation(self, x: torch.Tensor) -> torch.Tensor:
-        return (torch.exp(x) - torch.exp(-x)) / (torch.exp(x) + torch.exp(-x))
+        return torch.tanh(x)
 
     def derivative(self, x: torch.Tensor) -> torch.Tensor:
         tanh = self.activation(x)
