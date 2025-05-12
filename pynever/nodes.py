@@ -238,7 +238,7 @@ class FullyConnectedNode(ConcreteLayerNode):
 
         # We assume the Linear operation is x * W^T
         if weight is None:
-            weight = torch.FloatTensor([out_features, in_features]).uniform_(-math.sqrt(1 / in_features),
+            weight = torch.FloatTensor(*(out_features, in_features)).uniform_(-math.sqrt(1 / in_features),
                                                                              math.sqrt(1 / in_features))
 
         weight_error = f"Weight dimensions should be equal to out_features ({out_features}) " \
