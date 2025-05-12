@@ -459,7 +459,7 @@ class ConvNode(ConcreteLayerNode):
             weight_size.append(s)
         weight_size = tuple(weight_size)
         if weight is None:
-            weight = torch.FloatTensor(weight_size).uniform_(-math.sqrt(k), math.sqrt(k))
+            weight = torch.FloatTensor(*weight_size).uniform_(-math.sqrt(k), math.sqrt(k))
 
         if weight.shape != weight_size:
             raise InvalidDimensionError(f"Weight shape is wrong: it should be {weight_size}")
