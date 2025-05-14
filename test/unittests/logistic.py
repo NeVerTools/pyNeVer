@@ -38,7 +38,7 @@ def plot_output_bounds(input_bounds: HyperRectangleBounds, network: SequentialNe
 
 
 W = torch.Tensor([[1.0, 1.0], [-1.0, 1.0]])
-b = torch.Tensor([1.0, 1.0])
+b = torch.Tensor([0.0, 0.0])
 
 fc_1 = nodes.FullyConnectedNode('FC', (2,), 2, W, b)
 sig_1 = nodes.SigmoidNode('Sig_0', (2,))
@@ -49,9 +49,8 @@ relu2 = nodes.ReLUNode('ReLU2', (2,))
 
 nn = SequentialNetwork('NN', 'X')
 nn.append_node(fc_1)
-# nn.append_node(relu1)
-# nn.append_node(fc_2)
-# nn.append_node(relu2)
 nn.append_node(sig_1)
+nn.append_node(fc_2)
+nn.append_node(sig_2)
 
 plot_output_bounds(HyperRectangleBounds(torch.Tensor([-1, -1]), torch.Tensor([1, 1])), nn)

@@ -1,7 +1,10 @@
 """Module logistic.py
 
 This module contains the classes for the linearization of s-like functions
-such as sigmoid and tanh. Following the method used by the VeriNet verifier.
+such as sigmoid and tanh following the method used by the VeriNet verifier.
+
+This source code is taken from the VeriNet repository:
+https://github.com/vas-group-imperial/VeriNet
 
 """
 
@@ -162,24 +165,6 @@ class LinearizeSLikeActivation:
             xi = self._update_xi(xi, x_bound, upper)
 
         return self.get_tangent_lines(lower_bounds, upper_bounds, xi)
-
-    def compute_output_numeric_bounds(self, cur_numeric_bounds: HyperRectangleBounds) -> HyperRectangleBounds:
-        """
-        Computes the concrete output bounds for this layer given the input concrete bounds
-
-        Parameters
-        ----------
-        cur_numeric_bounds: HyperRectangleBounds
-            The input numeric bounds
-
-        Returns
-        -------
-            The output numeric bounds
-        """
-        return HyperRectangleBounds(
-            self.activation(cur_numeric_bounds.get_lower()),
-            self.activation(cur_numeric_bounds.get_upper())
-        )
 
     @staticmethod
     def compute_output_linear_bounds(input_eq: SymbolicLinearBounds, lower_relax: torch.Tensor,
