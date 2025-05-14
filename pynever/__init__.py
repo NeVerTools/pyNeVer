@@ -6,7 +6,7 @@ import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-with open('configuration.txt', 'r') as f:
+with open(os.path.join(os.path.dirname(__file__), 'config/configuration.ini'), 'r') as f:
     config_data = dict()
     for line in f:
         l = line.strip('\n').split()
