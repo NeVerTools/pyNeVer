@@ -1,0 +1,6 @@
+# This configuration file defines the name and the value of internal variables
+# on which pyNeVer is based on.
+# This file is intended for developers.
+
+ARITHMETIC = torch
+YEAR = 2025
