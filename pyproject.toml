@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyNeVer"
+version = "1.1.4"
+dependencies = [
+    "numpy",
+    "onnx",
+    "torch",
+    "torchvision",
+    "ortools",
+    "pysmt",
+    "multipledispatch"
+]
+requires-python = ">=3.11"
+authors = [
+    {name = "Dario Guidotti", email = "dguidotti@uniss.it"},
+    {name = "Stefano Demarchi", email = "stefano.demarchi@edu.unige.it"},
+]
+maintainers = [
+    {name = "Stefano Demarchi", email = "stefano.demarchi@edu.unige.it"},
+    {name = "Andrea Gimelli", email = "andrea.gimelli@edu.unige.it"},
+]
+description = "API for the design, training and verification of neural networks."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE.txt"]
+keywords = ["artificial intelligence", "formal verification", "neural networks"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent"
+]
+
+[project.optional-dependencies]
+docs = ["sphinx"]
+
+[project.urls]
+Homepage = "https://neuralverification.org"
+# Documentation = "https://readthedocs.org"
+Repository = "https://github.com/nevertools/pynever.git"
+Issues = "https://github.com/nevertools/pynever/issues"
