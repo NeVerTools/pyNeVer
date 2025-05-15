@@ -10,7 +10,6 @@ class Dataset(abc.ABC):
     """
     An abstract class used to represent a Dataset. The concrete descendant must
     implement the methods __getitem__ and __len__.
-
     """
 
     @abc.abstractmethod
@@ -26,22 +25,18 @@ class TorchMNIST(Dataset, tv.datasets.MNIST):
     """
     A concrete class used to represent the MNIST Dataset. It leverages the torch dataset MNIST.
 
-    Attributes
-    ----------
-    data_path: str
-        Path to the folder in which the dataset will be saved.
-    train: bool
-        If True then the training set is loaded otherwise the test set is loaded.
-    transform: Callable, Optional
-        Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
-        The parameters of the callable (other than the object subject to the transformation) should be attributes of
-        the object.
-    target_transform: Callable, Optional
-        Transformation to apply to the targets. We assume this is an object like the transforms presented in
-        torchvision. The parameters of the callable (other than the object subject to the transformation) should be
-        attributes of the object.
-    download: bool
-        True if the dataset must be downloaded, False otherwise.
+    :param data_path: Path to the folder in which the dataset will be saved 
+    :type data_path: str
+    :param train: If True then the training set is loaded otherwise the test set is loaded
+    :type train: bool
+    :param transform: Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
+                     The parameters of the callable (other than the object subject to the transformation) should be attributes of the object.
+    :type transform: Callable, optional
+    :param target_transform: Transformation to apply to the targets. We assume this is an object like the transforms presented in torchvision. 
+                           The parameters of the callable (other than the object subject to the transformation) should be attributes of the object.
+    :type target_transform: Callable, optional 
+    :param download: True if the dataset must be downloaded, False otherwise
+    :type download: bool
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -60,22 +55,18 @@ class TorchFMNIST(Dataset, tv.datasets.FashionMNIST):
     """
     A concrete class used to represent the FMNIST Dataset. It leverages the torch dataset FMNIST.
 
-    Attributes
-    ----------
-    data_path: str
-        Path to the folder in which the dataset will be saved.
-    train: bool
-        If True then the training set is loaded otherwise the test set is loaded.
-    transform: Callable, Optional
-        Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
-        The parameters of the callable (other than the object subject to the transformation) should be attributes of
-        the object.
-    target_transform: Callable, Optional
-        Transformation to apply to the targets. We assume this is an object like the transforms presented in
-        torchvision. The parameters of the callable (other than the object subject to the transformation) should be
-        attributes of the object.
-    download: bool
-        True if the dataset must be downloaded, False otherwise.
+    :param data_path: Path to the folder in which the dataset will be saved
+    :type data_path: str 
+    :param train: If True then the training set is loaded otherwise the test set is loaded
+    :type train: bool
+    :param transform: Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
+                     The parameters of the callable (other than the object subject to the transformation) should be attributes of the object.
+    :type transform: Callable, optional
+    :param target_transform: Transformation to apply to the targets. We assume this is an object like the transforms presented in torchvision.
+                           The parameters of the callable (other than the object subject to the transformation) should be attributes of the object. 
+    :type target_transform: Callable, optional
+    :param download: True if the dataset must be downloaded, False otherwise
+    :type download: bool
     """
 
     def __init__(self, data_path: str, train: bool, transform: Callable | None = None,
@@ -97,25 +88,20 @@ class GenericFileDataset(Dataset, tdata.Dataset):
     For each line we assume that the first n values are the input and the following are the target. The index of the
     first element of the target is identified by the target_index attribute.
 
-    Attributes
-    ----------
-    filepath: str
-        Path to the file containing the dataset.
-        N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be tested or train.
-    target_index: int
-        Index of the first element of the outputs.
-    dtype: type, Optional
-        Data type of the values of the data-points. Refer to numpy.loadtxt for more details.
-    delimiter: str, Optional
-        Delimiter between the different values of the data-points. Refer to numpy.loadtxt for more details.
-    transform: Callable, Optional
-        Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
-        The parameters of the callable (other than the object subject to the transformation) should be attributes of
-        the object.
-    target_transform: Callable, Optional
-        Transformation to apply to the targets. We assume this is an object like the transforms presented in
-        torchvision. The parameters of the callable (other than the object subject to the transformation) should be
-        attributes of the object.
+    :param filepath: Path to the file containing the dataset. N.B.: the names of the dataset are supposed to be jame_pos_*.txt where * can be tested or train.
+    :type filepath: str
+    :param target_index: Index of the first element of the outputs
+    :type target_index: int
+    :param dtype: Data type of the values of the data-points. Refer to numpy.loadtxt for more details.
+    :type dtype: type
+    :param delimiter: Delimiter between the different values of the data-points. Refer to numpy.loadtxt for more details.
+    :type delimiter: str
+    :param transform: Transformation to apply to the data. We assume this is an object like the transforms presented in torchvision.
+                     The parameters of the callable (other than the object subject to the transformation) should be attributes of the object.
+    :type transform: Callable, optional
+    :param target_transform: Transformation to apply to the targets. We assume this is an object like the transforms presented in torchvision.
+                           The parameters of the callable (other than the object subject to the transformation) should be attributes of the object.
+    :type target_transform: Callable, optional
     """
 
     def __init__(self, filepath: str, target_index: int, dtype: type = float, delimiter: str = ",",
