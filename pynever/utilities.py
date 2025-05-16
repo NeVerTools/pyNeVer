@@ -18,6 +18,7 @@ from pynever.strategies.conversion.representation import PyTorchNetwork
 def xor(a: bool, b: bool) -> bool:
     return (a and not b) or (b and not a)
 
+
 def xnor(a: bool, b: bool) -> bool:
     return not xor(a, b)
 
@@ -25,40 +26,30 @@ def xnor(a: bool, b: bool) -> bool:
 def execute_network(network: networks.NeuralNetwork, input_t: Tensor) -> Tensor:
     """Applies the neural network function to an input Tensor using the pyTorch backend.
 
-    Parameters
-    ----------
-    network: NeuralNetwork
-        The network to execute
-    input_t: Tensor
-        The input value to feed
-    Returns
-    -------
-    Tensor
-        The computed output
+    :param network: The network to execute
+    :type network: NeuralNetwork
+    :param input_t: The input value to feed 
+    :type input_t: Tensor
+    :return: The computed output
+    :rtype: Tensor
     """
     py_net = PyTorchConverter().from_neural_network(network)
     py_net.pytorch_network.eval()
     py_net.pytorch_network.float()
 
-    # ??
     output = py_net.pytorch_network(input_t.float().permute(*torch.arange(input_t.ndim - 1, -1, -1)))
     return output.detach()
 
 
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.Linear:
-    """
-    Utility function to combine a BatchNorm1D node with a Linear node in a corresponding Linear node.
-    Parameters
-    ----------
-    linear : Linear
-        Linear to combine.
-    batchnorm : BatchNorm1D
-        BatchNorm1D to combine.
-    Return
-    ----------
-    Linear
-        The Linear resulting from the fusion of the two input nodes.
+    """Utility function to combine a BatchNorm1D node with a Linear node in a corresponding Linear node.
 
+    :param linear: Linear to combine
+    :type linear: Linear 
+    :param batchnorm: BatchNorm1D to combine
+    :type batchnorm: BatchNorm1D
+    :return: The Linear resulting from the fusion of the two input nodes
+    :rtype: Linear
     """
 
     l_weight = linear.weight
@@ -90,18 +81,13 @@ def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.L
 
 
 def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.NeuralNetwork:
-    """
-    Utilities function to combine all the FullyConnectedNodes followed by BatchNorm1DNodes in corresponding
+    """Utilities function to combine all the FullyConnectedNodes followed by BatchNorm1DNodes in corresponding
     FullyConnectedNodes.
-    Parameters
-    ----------
-    network : SequentialNetwork
-        Sequential Network of interest of which we want to combine the nodes.
-    Return
-    ----------
-    SequentialNetwork
-        Corresponding Sequential Network with the combined nodes.
 
+    :param network: Sequential Network of interest of which we want to combine the nodes 
+    :type network: SequentialNetwork
+    :return: Corresponding Sequential Network with the combined nodes
+    :rtype: SequentialNetwork
     """
 
     py_net = PyTorchConverter().from_neural_network(network)
