@@ -17,4 +17,4 @@ Software: pyNeVer
 
 License: GNU General Public License v3.0
 
-Licensor: Dario Guidotti, Armando Tacchella, Luca Pulina
+Licensor: Dario Guidotti, Stefano Demarchi, Armando Tacchella, Luca Pulina
