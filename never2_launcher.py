@@ -14,9 +14,12 @@ from pynever.scripts import cli
 
 
 def add_options(p: ArgumentParser):
-    """
-    Common options for the execution of NeVer2
+    """Common options for the execution of NeVer2
 
+    :param p: ArgumentParser object to add options to
+    :type p: ArgumentParser
+    :return: Modified ArgumentParser with added options
+    :rtype: ArgumentParser
     """
 
     # Options
@@ -25,15 +28,15 @@ def add_options(p: ArgumentParser):
     p.add_argument('-t', '--timeout', type=int, default=300,
                    help='execution timeout in seconds')
 
-    # Algorithm
+    #: Add verification algorithm subparsers
     algorithm = p.add_subparsers(dest='algorithm', description='Verification algorithm to use')
 
-    # SSBP
+    #: Add SSBP subparser
     ssbp = algorithm.add_parser('ssbp', description='Starset with bounds propagation')
     ssbp.add_argument('-p', '--params', nargs='?', default='', metavar='FILE',
                       help='JSON file with parameters')
 
-    # SSLP
+    #: Add SSLP subparser 
     sslp = algorithm.add_parser('sslp', description='Starset with linear programs')
     sslp.add_argument('-s', '--strategy', choices=['overapprox', 'mixed', 'complete'], metavar='STRATEGY',
                       default='complete', help='Verification strategy to use, complete by default')
@@ -46,7 +49,7 @@ if __name__ == '__main__':
                             description='Neural Network verifier',
                             epilog='Università degli Studi di Genova')
 
-    # Instance
+    #: Add instance arguments
     parser.add_argument('model', help='network model in ONNX format')
     parser.add_argument('property', help='property specification in VNN-LIB format')
 
@@ -54,18 +57,18 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())
 
-    # Clear default log file
+    #: Clear default log file
     try:
         os.remove('output.csv')
     except OSError:
         pass
 
-    # Check log file specification
+    #: Check log file specification
     logfile = 'output.csv'
     if 'out' in args.keys():
         logfile = args['out']
 
-    # Execute
+    #: Execute verification
     if args['algorithm'] == 'ssbp':
         try:
             cli.ssbp_verify_single(args['model'], args['property'], './', logfile, args['timeout'], args['params'])
