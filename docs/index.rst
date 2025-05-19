@@ -12,6 +12,6 @@ Welcome to pyNeVer's documentation. pyNeVer is a Python library for Neural Netwo
    :maxdepth: 2
    :caption: Contents:
 
-   usage/api
+   api
 
 
