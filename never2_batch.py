@@ -17,7 +17,7 @@ parser = ArgumentParser(prog='NeVer2',
                         description='Neural Network verifier',
                         epilog='Università degli Studi di Genova')
 
-#: Instances
+# Instances
 parser.add_argument('csv', help='Collection of instances to verify')
 
 parser = never2_launcher.add_options(parser)
@@ -25,18 +25,18 @@ parser = never2_launcher.add_options(parser)
 if __name__ == '__main__':
     args = vars(parser.parse_args())
 
-    #: Clear default log file 
+    # Clear default log file
     try:
         os.remove('output.csv')
     except OSError:
         pass
 
-    #: Check log file specification
+    # Check log file specification
     logfile = 'output.csv'
     if 'out' in args.keys():
         logfile = args['out']
 
-    #: Execute verification
+    # Execute
     if args['algorithm'] == 'ssbp':
         try:
             cli.ssbp_verify_batch(args['csv'], '.\\', logfile, args['timeout'], args['params'])
