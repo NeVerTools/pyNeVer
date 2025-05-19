@@ -13,24 +13,76 @@ from pynever.nodes import ConcreteLayerNode
 
 
 class NeuralNetwork(abc.ABC):
-    """An abstract class used for our internal representation of a generic NeuralNetwork.
-    
-    It consists of a graph of LayerNodes and a list of AlternativeRepresentations. 
-    It should be noted that this data structure it is not able to compute the input-output 
-    relation defined by the network. The properties of the computational graph are
+    """
+    An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of
+    LayerNodes and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
+    to compute the input-output relation defined by the network. The properties of the computational graph are
     specialized in the concrete classes.
 
-    :param nodes: Dictionary containing str keys and LayerNodes values. It contains the nodes of the graph,
-                the identifier of the node of interest is used as a key in the nodes' dictionary.
-    :type nodes: dict[str, LayerNode]
-    :param edges: Dictionary of identifiers of LayerNodes, it contains for each node identified by the keys,
-                the list of nodes connected to it.
-    :type edges: dict[str, list[str]]
-    :param identifier: Identifier of the Sequential Neural Network.
-    :type identifier: str
-    :param input_ids: Dictionary containing the inputs of the networks as keys and the corresponding layer
-                    identifier of the Node of which they are the input.
-    :type input_ids: dict[str, str | None]
+    Attributes
+    ----------
+    nodes: dict[str, LayerNode]
+        Dictionary containing str keys and LayerNodes values. It contains the nodes of the graph,
+        the identifier of the node of interest is used as a key in the nodes' dictionary.
+    edges: dict[str, list[str]]
+        Dictionary of identifiers of LayerNodes, it contains for each node identified by the keys, the list of nodes
+        connected to it.
+    identifier: str
+        Identifier of the Sequential Neural Network.
+    input_ids: dict[str, str | None]
+        Dictionary containing the inputs of the networks as keys and the corresponding layer identifier of the Node of
+        which they are the input.
+
+    Methods
+    ---------
+    is_empty()
+        Procedure to check whether the network is empty
+    is_acyclic()
+        Procedure to check whether the network is acyclic
+    has_children(ConcreteLayerNode)
+        Procedure to check whether the layer has children
+    get_children(ConcreteLayerNode)
+        Procedure to get the layer children
+    has_parents(ConcreteLayerNode)
+        Procedure to check whether the layer has parents
+    get_parents(ConcreteLayerNode)
+        Procedure to get the layer parents
+    get_input_id()
+        Procedure to get the input identifier
+    get_roots()
+        Procedure to get the root layers
+    get_leaves()
+        Procedure to get the leave layers
+    get_topological_order()
+        Procedure to get the topological sort of the network
+    layers_iterator(int)
+        Procedure to get an ordered generator of layers
+    get_first_node()
+        Procedure to get the first layer
+    get_next_node(ConcreteLayerNode)
+        Procedure to get the layer following another
+    get_previous_node(ConcreteLayerNode)
+        Procedure to get the layer before another
+    get_last_node()
+        Procedure to get the last layer
+    get_input_len()
+        Procedure to count the input dimensions
+    get_output_len()
+        Procedure to count the output dimensions
+    get_id_from_index(int)
+        Procedure to get the identifier of a layer given its index
+    get_index_from_id(str)
+        Procedure to get the index of a layer given its identifier
+    layer_precedes(str, str)
+        Procedure to check whether a layer precedes another
+    generic_add_node(ConcreteLayerNode, list[ConcreteLayerNode] | None, list[ConcreteLayerNode] | None, list[str] | None)
+        Procedure to generically add a layer to the graph
+    remove_node(ConcreteLayerNode)
+        Procedure to remove a layer
+    delete_last_node()
+        Procedure to remove the last layer
+    count_relu_layers()
+        Procedure to count the number of relu layers
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
@@ -44,18 +96,20 @@ class NeuralNetwork(abc.ABC):
         return f"{self.identifier} : {body}"
 
     def is_empty(self) -> bool:
-        """Check whether the network is empty.
-
-        :return: True if there are no nodes in the network, False otherwise.
-        :rtype: bool
+        """Procedure to check whether the network is empty.
+        Returns
+        -------
+        bool
+            True if there are no nodes in the network, False otherwise.
         """
         return len(self.nodes) == 0
 
     def is_acyclic(self) -> bool:
-        """Check whether the network is acyclic.
-
-        :return: True if network is acyclic, False otherwise. 
-        :rtype: bool
+        """Procedure to check whether the network is acyclic.
+        Returns
+        -------
+        bool
+            True if network is acyclic, False otherwise.
         """
         aux_network = copy.deepcopy(self)
         root_nodes = aux_network.get_roots()
@@ -80,82 +134,100 @@ class NeuralNetwork(abc.ABC):
         return not has_edges
 
     def has_children(self, node: nodes.ConcreteLayerNode) -> bool:
-        """Check if a node has children.
-
-        :param node: The node of which the existence of its children should be checked.
-        :type node: ConcreteLayerNode
-        :return: True if the node has children, False otherwise.
-        :rtype: bool
+        """Procedure to check if a node has children.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node of which the existence of its children should be checked.
+        Returns
+        -------
+        bool
+            True if the node has children, False otherwise.
         """
         return len(self.get_children(node)) != 0
 
     def get_children(self, node: nodes.ConcreteLayerNode) -> list[nodes.ConcreteLayerNode]:
-        """Return the children of a node as a list of ConcreteLayerNodes.
-
-        :param node: The node whose children should be returned.
-        :type node: ConcreteLayerNode
-        :return: The children of the node passed as argument.
-        :rtype: list[ConcreteLayerNode]
+        """Procedure to return the children of a node as a list of ConcreteLayerNodes.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node whose children should be returned.
+        Returns
+        -------
+        list[ConcreteLayerNode]
+            The children of the node passed as argument.
         """
         return [self.nodes[child_node_id] for child_node_id in self.edges[node.identifier]]
 
     def has_parents(self, node: nodes.ConcreteLayerNode) -> bool:
-        """Check if a node has parents.
-
-        :param node: The node of which the existence of its parents should be checked.
-        :type node: ConcreteLayerNode
-        :return: True if the node has parents, False otherwise.
-        :rtype: bool
+        """Procedure to check if a node has parents.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node of which the existence of its parents should be checked.
+        Returns
+        -------
+        bool
+            True if the node has parents, False otherwise.
         """
         return len(self.get_parents(node)) != 0
 
     def get_parents(self, node: nodes.ConcreteLayerNode) -> list[nodes.ConcreteLayerNode]:
-        """Return the parents of a node as a list of ConcreteLayerNodes.
-
-        :param node: The node whose parents should be returned.
-        :type node: ConcreteLayerNode
-        :return: The parents of the node passed as argument.
-        :rtype: list[ConcreteLayerNode]
+        """Procedure to return the parents of a node as a list of ConcreteLayerNodes.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node whose parents should be returned
+        Returns
+        -------
+        list[ConcreteLayerNode]
+            The parents of the node passed as argument.
         """
         return [self.nodes[parent_node_id]
                 for parent_node_id, end_nodes_ids in self.edges.items()
                 if node.identifier in end_nodes_ids]
 
     def get_input_id(self) -> str:
-        """Return the input_id of the network, assuming there is a single input layer.
-
-        :return: The input_id of the network.
-        :rtype: str
+        """Procedure to return the input_id of the network, assuming there is a single input layer.
+        Returns
+        -------
+        str
+            The input_id of the network.
         """
         return list(self.input_ids.keys())[0]
 
     def get_roots(self) -> list[nodes.ConcreteLayerNode]:
-        """Return the roots of the network as a list of ConcreteLayerNodes.
-
-        :return: The roots of the network as a list of ConcreteLayerNodes. 
-        :rtype: list[ConcreteLayerNode]
+        """Procedure to return the roots of the network as a list of ConcreteLayerNodes.
+        Returns
+        -------
+        list[ConcreteLayerNode]
+            The roots of the network as a list of ConcreteLayerNodes.
         """
         return [root_node
                 for root_node_id, root_node in self.nodes.items()
                 if not self.has_parents(root_node)]
 
     def get_leaves(self) -> list[nodes.ConcreteLayerNode]:
-        """Return the leaves of the network as a list of ConcreteLayerNodes.
-
-        :return: The leaves of the network as a list of ConcreteLayerNodes.
-        :rtype: list[ConcreteLayerNode]
+        """Procedure to return the leaves of the network as a list of ConcreteLayerNodes.
+        Returns
+        -------
+        list[ConcreteLayerNode]
+            The leaves of the network as a list of ConcreteLayerNodes.
         """
         return [leaf_node
                 for leaf_node_id, leaf_node in self.nodes.items()
                 if not self.has_children(leaf_node)]
 
     def get_topological_order(self, reverse: bool = False) -> list[str]:
-        """Walk the network with a DFS and build the topological sort.
- 
-        :param reverse: Flag to reverse the order.
-        :type reverse: bool
-        :return: The topological sort of the network nodes identifiers as a stack.
-        :rtype: list[str]
+        """Procedure to walk the network with a DFS and build the topological sort.
+        Parameters
+        ----------
+        reverse: bool
+            Flag to reverse the order
+        Returns
+        ----------
+        list[str]
+            The topological sort of the network nodes identifiers as a stack.
         """
 
         def recursive_dfs(node_id: str, visited: set[str], order: list[str]) -> None:
@@ -177,14 +249,16 @@ class NeuralNetwork(abc.ABC):
         return result
 
     def layers_iterator(self, offset: int = 0) -> collections.abc.Generator[nodes.ConcreteLayerNode | None, None, None]:
-        """Build a generator for the layers of the network in sequential order.
-
-        It allows to have an iterable interface when needed.
-
-        :param offset: Offset to start the generation.
-        :type offset: int
-        :return: The generator object.
-        :rtype: Generator[ConcreteLayerNode | None, None]
+        """Procedure to build a generator for the layers of the network in sequential order.
+        It allows to have an iterable interface when needed
+        Parameters
+        ----------
+        offset: int
+            Offset to start the generation
+        Returns
+        ----------
+        Generator[ConcreteLayerNode | None, None]
+            The generator object
         """
 
         if self.is_empty():
@@ -201,11 +275,11 @@ class NeuralNetwork(abc.ABC):
                 counter += 1
 
     def get_first_node(self) -> nodes.ConcreteLayerNode:
-        """Get the first ConcreteLayerNode of the network.
-
-        :return: The first node of the network.
-        :rtype: ConcreteLayerNode
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to get the first ConcreteLayerNode of the network.
+        Returns
+        -------
+        ConcreteLayerNode
+            The first node of the network.
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -213,13 +287,11 @@ class NeuralNetwork(abc.ABC):
         return self.nodes[self.get_topological_order()[0]]
 
     def get_next_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode | None:
-        """Get the next ConcreteLayerNode of the network given an input ConcreteLayerNode.
-
-        :param node: The input node.
-        :type node: ConcreteLayerNode
-        :return: The next node of the network.
-        :rtype: ConcreteLayerNode | None
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to get the next ConcreteLayerNode of the network given an input ConcreteLayerNode.
+        Returns
+        -------
+        ConcreteLayerNode
+            The next node of the network.
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -229,12 +301,11 @@ class NeuralNetwork(abc.ABC):
         return self.nodes[order[this_idx + 1]] if this_idx + 1 < len(order) else None
 
     def get_previous_node(self, node: nodes.ConcreteLayerNode) -> nodes.ConcreteLayerNode | None:
-        """Get the previous ConcreteLayerNode of the network given an input ConcreteLayerNode.
-
-        :param node: The input node.
-        :type node: ConcreteLayerNode  
-        :return: The previous node in the network.
-        :rtype: ConcreteLayerNode | None
+        """Procedure to get the previous ConcreteLayerNode of the network given an input ConcreteLayerNode.
+        Returns
+        -------
+        ConcreteLaterNode
+            The previous node in the network.
         """
         if node == self.get_first_node():
             return None
@@ -244,11 +315,11 @@ class NeuralNetwork(abc.ABC):
         return self.nodes[order[this_idx - 1]]
 
     def get_last_node(self) -> nodes.ConcreteLayerNode:
-        """Get the last ConcreteLayerNode of the network.
-
-        :return: The last node of the network.
-        :rtype: ConcreteLayerNode
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to get the last ConcreteLayerNode of the network.
+        Returns
+        -------
+        ConcreteLayerNode
+            The last node of the network.
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -256,11 +327,11 @@ class NeuralNetwork(abc.ABC):
         return self.nodes[self.get_topological_order()[-1]]
 
     def get_input_len(self) -> int:
-        """Count the number of inputs in in_dim.
-
-        :return: The number of single inputs.
-        :rtype: int
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to count the number of inputs in in_dim
+        Returns
+        -------
+        int
+            The number of single inputs
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -272,11 +343,11 @@ class NeuralNetwork(abc.ABC):
         return count
 
     def get_output_len(self) -> int:
-        """Count the number of outputs in out_dim.
-
-        :return: The number of single outputs.
-        :rtype: int
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to count the number of outputs in out_dim
+        Returns
+        -------
+        int
+            The number of single outputs
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -288,13 +359,15 @@ class NeuralNetwork(abc.ABC):
         return count
 
     def get_id_from_index(self, index: int) -> str:
-        """Return the identifier of the layer at the given index.
-
-        :param index: Index of the layer to return.
-        :type index: int
-        :return: The identifier of the layer at the given index.
-        :rtype: str
-        :raises: IndexError if index out of range
+        """This method returns the identifier of the layer at the given index
+        Parameters
+        ----------
+        index: int
+            Index of the layer to return
+        Returns
+        ----------
+        str
+            The identifier of the layer at the given index
         """
         if abs(index) > len(self.nodes):
             raise IndexError
@@ -313,13 +386,15 @@ class NeuralNetwork(abc.ABC):
         raise IndexError
 
     def get_index_from_id(self, identifier: str) -> int:
-        """Return the index of the layer with the given identifier.
-
-        :param identifier: Identifier of the layer to return.
-        :type identifier: str
-        :return: The index of the layer with the given identifier.
-        :rtype: int
-        :raises: NotInNetworkError if layer not found
+        """This method returns the index of the layer with the given identifier
+        Parameters
+        ----------
+        identifier: str
+            Identifier of the layer to return
+        Returns
+        ----------
+        int
+            The index of the layer with the given identifier
         """
         counter = 0
 
@@ -331,13 +406,15 @@ class NeuralNetwork(abc.ABC):
         raise NotInNetworkError(f'There is no layer with identifier {identifier}')
 
     def get_previous_id(self, identifier: str) -> str | None:
-        """Get the identifier of the previous layer given another layer identifier.
-
-        :param identifier: Identifier of the layer.
-        :type identifier: str  
-        :return: The identifier of the previous layer.
-        :rtype: str | None
-        :raises: NotInNetworkError if layer not found
+        """Procedure to get the identifier of the previous layer given another layer identifier
+        Parameters
+        ----------
+        identifier: str
+            Identifier of the layer
+        Returns
+        ----------
+        str
+            The identifier of the previous layer
         """
         prev_layer = None
 
@@ -349,14 +426,17 @@ class NeuralNetwork(abc.ABC):
         raise NotInNetworkError(f'There is no layer with identifier {identifier}')
 
     def layer_precedes(self, layer_id1: str, layer_id2: str) -> bool:
-        """Check whether a given layer precedes another or not.
-
-        :param layer_id1: Identifier of the first layer.
-        :type layer_id1: str
-        :param layer_id2: Identifier of the second layer.
-        :type layer_id2: str
-        :return: True if layer1 precedes layer2, False otherwise.
-        :rtype: bool
+        """Procedure to check whether a given layer precedes another or not
+        Parameters
+        ----------
+        layer_id1: str
+            Identifier of the first layer
+        layer_id2: str
+            Identifier of the second layer
+        Returns
+        ----------
+        bool
+            True if layer1 precedes layer2, False otherwise
         """
         found_id1 = False
         for layer in self.layers_iterator():
@@ -371,18 +451,17 @@ class NeuralNetwork(abc.ABC):
     def generic_add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
                          children: list[nodes.ConcreteLayerNode] | None = None,
                          input_ids: list[str] | None = None):
-        """Add a node to the network. A node cannot have both parents and inputs.
-
-        :param node: The node to be added to the network.
-        :type node: ConcreteLayerNode  
-        :param parents: The parents of the node, defaults to None.
-        :type parents: list[ConcreteLayerNode] | None
-        :param children: The children of the node, defaults to None.
-        :type children: list[ConcreteLayerNode] | None
-        :param input_ids: The inputs of the node, defaults to None.
-        :type input_ids: list[ConcreteLayerNode] | None
-        :raises: Exception if node has both parents and inputs
-        :raises: NotInNetworkError if parent/child doesn't exist
+        """Procedure to add a node to the network. A node cannot have both parents and inputs.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node to be added to the network.
+        parents: list[ConcreteLayerNode] | None
+            The parents of the node. (Optional)
+        children: list[ConcreteLayerNode] | None
+            The children of the node. (Optional)
+        input_ids: list[ConcreteLayerNode] | None
+            The inputs of the node. (Optional)
         """
         if input_ids is not None and parents is not None:
             raise Exception("A node cannot have both a parent and an input!")
@@ -415,10 +494,11 @@ class NeuralNetwork(abc.ABC):
             self.input_ids[input_id] = node.identifier
 
     def remove_node(self, node: nodes.ConcreteLayerNode):
-        """Remove a node from the network.
-
-        :param node: The node to be removed.
-        :type node: ConcreteLayerNode
+        """Procedure to remove a node from the network.
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            The node to be removed.
         """
         for parent_node in self.get_parents(node):
             self.edges[parent_node.identifier].remove(node.identifier)
@@ -431,11 +511,11 @@ class NeuralNetwork(abc.ABC):
                 self.input_ids[i] = None
 
     def delete_last_node(self) -> nodes.ConcreteLayerNode:
-        """Remove the last ConcreteLayerNode from the network.
-
-        :return: The last node of the network.
-        :rtype: ConcreteLayerNode
-        :raises: EmptyNetworkError if network is empty
+        """Procedure to remove the last ConcreteLayerNode from the network.
+        Returns
+        ---------
+        ConcreteLayerNode
+            The last node of the network.
         """
         if self.is_empty():
             raise EmptyNetworkError()
@@ -446,10 +526,11 @@ class NeuralNetwork(abc.ABC):
         return last_node
 
     def count_relu_layers(self) -> int:
-        """Count the number of ReLU layers of the NN.
-
-        :return: The number of ReLU layers.
-        :rtype: int
+        """Procedure to count the number of ReLU layers of the NN.
+        Returns
+        -------
+        int
+            The number of ReLU layers
         """
         relu_count = 0
 
@@ -461,11 +542,16 @@ class NeuralNetwork(abc.ABC):
 
 
 class SequentialNetwork(NeuralNetwork):
-    """Concrete child of NeuralNetwork representing a sequential NeuralNetwork.
-    
+    """
+    Concrete child of NeuralNetwork representing a sequential NeuralNetwork.
     It consists of a graph of ConcreteLayerNodes. It should be noted that this data structure
     is not able to compute the input-output relation defined by the network.
     The computational graph of a SequentialNetwork must correspond to a standard list.
+
+    Methods
+    -------
+    append_node(ConcreteLayerNode)
+        Procedure to add a node to the network sequentially.
     """
 
     def __init__(self, identifier: str, input_id: str):
@@ -473,12 +559,19 @@ class SequentialNetwork(NeuralNetwork):
 
     @staticmethod
     def __is_single_concrete(node: nodes.LayerNode) -> bool:
-        """Check whether the LayerNode given as a parameter is a ConcreteLayerNode with a single input.
+        """
+        Procedure to check whether the LayerNode given as a parameter is a ConcreteLayerNode with a single input.
 
-        :param node: The node to be checked.
-        :type node: LayerNode
-        :return: True if the LayerNode is a ConcreteLayerNode with a single input, False otherwise.
-        :rtype: bool
+        Parameters
+        ----------
+        node: LayerNode
+            The node to be checked.
+
+        Returns
+        -------
+        bool
+            True if the LayerNode is a ConcreteLayerNode with a single input, False otherwise.
+
         """
 
         return ((node is not None) and
@@ -486,13 +579,12 @@ class SequentialNetwork(NeuralNetwork):
                 isinstance(node.get_input_dim(), tuple))
 
     def append_node(self, node: nodes.ConcreteLayerNode):
-        """Add a new ConcreteLayerNode.
-
+        """Procedure to add a new ConcreteLayerNode.
         In a sequential network the new node must be connected directly to the previous node forming a list.
-
-        :param node: New node to add to the Sequential network.
-        :type node: ConcreteLayerNode
-        :raises: InvalidNodeError if node is not valid
+        Parameters
+        ----------
+        node: ConcreteLayerNode
+            New node to add to the Sequential network.
         """
         if not SequentialNetwork.__is_single_concrete(node):
             raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
@@ -505,9 +597,14 @@ class SequentialNetwork(NeuralNetwork):
 
 
 class AcyclicNetwork(NeuralNetwork):
-    """Concrete child of NeuralNetwork representing an acyclic NeuralNetwork.
-    
+    """
+    Concrete child of NeuralNetwork representing an acyclic NeuralNetwork.
     The computational graph of a AcyclicNetwork must correspond to a standard list.
+
+    Methods
+    -------
+    add_node(ConcreteLayerNode, list[ConcreteLayerNode] | None, list[ConcreteLayerNode] | None)
+        Procedure to add a node to the network only if it preserves the acyclic property
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
@@ -515,16 +612,6 @@ class AcyclicNetwork(NeuralNetwork):
 
     def add_node(self, node: nodes.ConcreteLayerNode, parents: list[nodes.ConcreteLayerNode] | None = None,
                  children: list[nodes.LayerNode] | None = None):
-        """Add a node to the network only if it preserves the acyclic property.
-
-        :param node: The node to add.
-        :type node: ConcreteLayerNode
-        :param parents: Parent nodes to connect to, defaults to None.
-        :type parents: list[ConcreteLayerNode] | None 
-        :param children: Child nodes to connect to, defaults to None.
-        :type children: list[ConcreteLayerNode] | None
-        :raises: Exception if adding the node creates a cycle
-        """
         self.generic_add_node(node, parents, children)
         if not self.is_acyclic():
             self.remove_node(node)
