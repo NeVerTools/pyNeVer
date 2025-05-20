@@ -69,7 +69,6 @@ class PyTorchNetwork(AlternativeRepresentation):
 
     Attributes
     ----------
-        identifier for the alternative representation
     pytorch_network: torch.nn.Module
         Real PyTorch network.
 
@@ -97,13 +96,6 @@ class PyTorchNetwork(AlternativeRepresentation):
 class ConversionStrategy(abc.ABC):
     """
     An abstract class used to represent a Conversion Strategy.
-
-    Methods
-    ----------
-    from_neural_network(NeuralNetwork)
-        Convert the neural network of interest to an alternative representation determined in the concrete children.
-    to_neural_network(AlternativeRepresentation)
-        Convert the alternative representation of interest to our internal representation of a Neural Network.
     """
 
     @abc.abstractmethod

@@ -11,14 +11,6 @@ from pynever.strategies.conversion.representation import ConversionStrategy, ONN
 class ONNXConverter(ConversionStrategy):
     """
     A class used to represent the conversion strategy for ONNX models.
-
-    Methods
-    ----------
-    from_neural_network(NeuralNetwork)
-        Convert the neural network of interest to a ONNXNetwork model.
-    to_neural_network(ONNXNetwork)
-        Convert the ONNXNetwork of interest to our internal representation of a Neural Network.
-
     """
 
     @staticmethod
