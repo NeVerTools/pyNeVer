@@ -48,4 +48,4 @@ jobs:
         cd gh-pages
         git add pynever
         git commit -m "Update API docs from pynever" || echo "No changes to commit"
-        git push origin main
+        git push origin master
