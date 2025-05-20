@@ -1,3 +1,5 @@
+"""This module contains the classes used to represent and use datasets.
+"""
 import abc
 from collections.abc import Callable
 
@@ -10,7 +12,6 @@ class Dataset(abc.ABC):
     """
     An abstract class used to represent a Dataset. The concrete descendant must
     implement the methods __getitem__ and __len__.
-
     """
 
     @abc.abstractmethod

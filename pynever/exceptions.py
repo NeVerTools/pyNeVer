@@ -1,3 +1,5 @@
+"""This module contains customized exceptions used in pynever.
+"""
 from multipledispatch import dispatch
 
 
