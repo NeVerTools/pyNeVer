@@ -1,9 +1,11 @@
+docs/build
 docs/_build/
 docs/_autosummary/
-docs/_generated/
+docs/source/_generated/
 
-.doctrees/
-.buildinfo
+docs/.doctrees/
+docs/.buildinfo
+docs/*.log
 
 __pycache__/
 *.py[cod]
