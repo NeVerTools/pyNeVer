@@ -3,7 +3,7 @@ name: Deploy Sphinx Docs to GitHub Pages
 on:
   push:
     branches:
-      - docs  # or your default branch
+      - dev  # or your default branch
 
 jobs:
   build-and-deploy:
@@ -27,7 +27,7 @@ jobs:
     - name: Build Sphinx documentation
       run: |
         cd docs
-        make html
+        sphinx-build -M html docs/ docs/_build
 
     - name: Clone GitHub Pages repo
       run: |
