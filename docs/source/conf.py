@@ -5,14 +5,13 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 project = 'pyNeVer'
-copyright = '2025, Università degli Studi di Genova'
-author = 'Stefano Demarchi, Andrea Gimelli, Dario Guidotti'
+copyright = '2025, NeverTools'
+author = 'NeverTools'
 release = '1.1.4'
 
 # -- General configuration ---------------------------------------------------
@@ -20,18 +19,17 @@ release = '1.1.4'
 
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
+    'sphinx_autodoc_typehints'
 ]
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = []
 
-autosummary_generate = True
-add_module_names = False
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
