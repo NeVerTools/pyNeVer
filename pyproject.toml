@@ -14,12 +14,6 @@ dependencies = [
     "pysmt",
     "multipledispatch"
 ]
-[project.optional-dependencies]
-docs = ["sphinx"]
-
-[tool.setuptools]
-packages = ["pynever"]
-
 requires-python = ">=3.11"
 authors = [
     {name = "Dario Guidotti", email = "dguidotti@uniss.it"},
@@ -40,6 +34,12 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Operating System :: OS Independent"
 ]
+
+[project.optional-dependencies]
+docs = ["sphinx"]
+
+[tool.setuptools]
+packages = ["pynever"]
 
 [project.urls]
 Homepage = "https://neuralverification.org"
