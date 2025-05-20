@@ -1,0 +1,50 @@
+name: Deploy Sphinx Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - docs  # or your default branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+
+    - name: Build Sphinx documentation
+      run: |
+        cd docs
+        make html
+
+    - name: Clone GitHub Pages repo
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git clone https://x-access-token:${{ secrets.GH_PAGES_DEPLOY }}@github.com/nevertools/nevertools.github.io.git gh-pages
+      env:
+        GH_PAGES_DEPLOY_TOKEN: ${{ secrets.GH_PAGES_DEPLOY }}
+
+    - name: Copy docs to gh-pages/pynever
+      run: |
+        rm -rf gh-pages/pynever
+        mkdir -p gh-pages/pynever
+        cp -r docs/_build/html/* gh-pages/pynever/
+
+    - name: Commit and push changes
+      run: |
+        cd gh-pages
+        git add pynever
+        git commit -m "Update API docs from pynever" || echo "No changes to commit"
+        git push origin main
