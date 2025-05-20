@@ -1,7 +1,4 @@
-"""Internal representation of neural network layers
-
-This module contains all the currently supported neural network layers
-
+"""This module defines the internal representation of all the currently supported neural network layers
 """
 import abc
 import copy
@@ -14,7 +11,7 @@ from pynever.exceptions import InvalidDimensionError, OutOfRangeError
 
 class LayerNode(abc.ABC):
     """
-    An abstract class used for our internal representation of a generic Layer of a Neural Network.
+    An abstract class used for our internal representation of a generic Layer.
 
     Attributes
     ----------
@@ -28,7 +25,7 @@ class LayerNode(abc.ABC):
 
 class ConcreteLayerNode(LayerNode):
     """
-    An abstract class used for our internal representation of a generic Layer of a Neural Network.
+    An abstract class used for our internal representation of a generic Layer.
     Its concrete children correspond to real network layers.
 
     Attributes
@@ -39,14 +36,6 @@ class ConcreteLayerNode(LayerNode):
         Dimension of the input torch.Tensors as a tuples (ndarray.shape like).
     out_dim: tuple
         Dimension of the output torch.Tensor as a tuple (ndarray.shape like).
-
-    Methods
-    ----------
-    get_input_dim()
-        Abstract method that should return the input dimension or dimensions of the layer when implemented in children
-        classes.
-    get_output_dim()
-        Abstract method that should return the output dimension of the layer when implemented in children classes.
     """
 
     def __init__(self, identifier: str, in_dims: list[tuple], out_dim: tuple):
@@ -68,18 +57,18 @@ class ConcreteLayerNode(LayerNode):
         Returns
         -------
         list[tuple] | tuple
-            The list of input dimensions if the layer more than one input dimension, otherwise the first element.
-
+            The list of input dimensions if the layer has more than one input, otherwise the first element.
         """
         raise NotImplementedError
 
     def get_output_dim(self) -> tuple:
+        """Procedure to get the output dimension of the layer."""
         return self.out_dim
 
 
 class ReLUNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a ReLU Layer of a Neural Network.
+    A class used for our internal representation of a ReLU Layer.
     """
 
     def __init__(self, identifier: str, in_dim: tuple):
@@ -95,11 +84,11 @@ class ReLUNode(ConcreteLayerNode):
 
 class ELUNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of an ELU Layer of a Neural Network.
+    A class used for our internal representation of an ELU Layer.
 
     Attributes
     ----------
-    alpha: float, optional
+    alpha: float, Optional
         The alpha value for the ELU formulation (default: 1.0).
     """
 
@@ -118,13 +107,12 @@ class ELUNode(ConcreteLayerNode):
 
 class CELUNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a CELU Layer of a Neural Network.
+    A class used for our internal representation of a CELU Layer.
 
     Attributes
     ----------
-    alpha: float, optional
+    alpha: float, Optional
         The alpha value for the CELU formulation (default: 1.0).
-
     """
 
     def __init__(self, identifier: str, in_dim: tuple, alpha: float = 1.0):
@@ -142,13 +130,12 @@ class CELUNode(ConcreteLayerNode):
 
 class LeakyReLUNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Leaky ReLU Layer of a Neural Network.
+    A class used for our internal representation of a Leaky ReLU Layer.
 
     Attributes
     ----------
-    negative_slope: float, optional
+    negative_slope: float, Optional
         Controls the angle of the negative slope (default: 1e-2).
-
     """
 
     def __init__(self, identifier: str, in_dim: tuple, negative_slope: float = 1e-2):
@@ -166,11 +153,7 @@ class LeakyReLUNode(ConcreteLayerNode):
 
 class SigmoidNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Sigmoid Layer of a Neural Network.
-
-    Attributes
-    ----------
-
+    A class used for our internal representation of a Sigmoid Layer.
     """
 
     def __init__(self, identifier: str, in_dim: tuple):
@@ -186,11 +169,7 @@ class SigmoidNode(ConcreteLayerNode):
 
 class TanhNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Tanh Layer of a Neural Network.
-
-    Attributes
-    ----------
-
+    A class used for our internal representation of a Tanh Layer.
     """
 
     def __init__(self, identifier: str, in_dim: tuple):
@@ -206,7 +185,7 @@ class TanhNode(ConcreteLayerNode):
 
 class FullyConnectedNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Fully Connected layer of a Neural Network
+    A class used for our internal representation of a Fully Connected layer
 
     Attributes
     ----------
@@ -214,13 +193,12 @@ class FullyConnectedNode(ConcreteLayerNode):
         Number of input features of the fully connected layer.
     out_features: int
         Number of output features of the fully connected layer.
-    weight: torch.Tensor, optional
+    weight: torch.Tensor, Optional
         torch.Tensor containing the weight parameters of the fully connected layer.
-    bias: torch.Tensor, optional
+    bias: torch.Tensor, Optional
         torch.Tensor containing the bias parameters of the fully connected layer.
-    has_bias: bool, optional
+    has_bias: bool, Optional
         Flag True if the fully connected layer has bias, False otherwise (default: True)
-
     """
 
     def __init__(self, identifier: str, in_dim: tuple, out_features: int,
@@ -239,7 +217,7 @@ class FullyConnectedNode(ConcreteLayerNode):
         # We assume the Linear operation is x * W^T
         if weight is None:
             weight = torch.FloatTensor(*(out_features, in_features)).uniform_(-math.sqrt(1 / in_features),
-                                                                             math.sqrt(1 / in_features))
+                                                                              math.sqrt(1 / in_features))
 
         weight_error = f"Weight dimensions should be equal to out_features ({out_features}) " \
                        f"and in_features ({in_features}) respectively."
@@ -265,6 +243,10 @@ class FullyConnectedNode(ConcreteLayerNode):
         This method expands the bias since they are memorized
         like one-dimensional vectors in FC nodes.
 
+        Returns
+        -------
+        torch.Tensor
+            The new bias with explicit dimensions
         """
 
         return self.bias if self.bias.shape == (self.weight.shape[0], 1) else torch.unsqueeze(self.bias, 1)
@@ -286,32 +268,31 @@ class BatchNormNode(ConcreteLayerNode):
 
     Attributes
     ----------
-
     num_features: int
         Number of input and output feature of the Batch Normalization Layer.
-    weight: torch.Tensor, optional
+    weight: torch.Tensor, Optional
         torch.Tensor containing the weight parameters of the Batch Normalization Layer. (default: None)
-    bias: torch.Tensor, optional
+    bias: torch.Tensor, Optional
         torch.Tensor containing the bias parameter of the Batch Normalization Layer. (default: None)
-    running_mean: torch.Tensor, optional
+    running_mean: torch.Tensor, Optional
         torch.Tensor containing the running mean parameter of the Batch Normalization Layer. (default: None)
-    running_var: torch.Tensor, optional
+    running_var: torch.Tensor, Optional
         torch.Tensor containing the running var parameter of the Batch Normalization Layer. (default: None)
-    eps: float, optional
+    eps: float, Optional
         Value added to the denominator for numerical stability (default: 1e-5).
-    momentum: float, optional
+    momentum: float, Optional
         Value used for the running_mean and running_var computation. Can be set to None
         for cumulative moving average (default: 0.1)
-    affine: bool, optional
+    affine: bool, Optional
         When set to True, the module has learnable affine parameter (default: True).
-    track_running_stats: bool, optional
+    track_running_stats: bool, Optional
         When set to True, the module tracks the running mean and variance, when set to false the module
         does not track such statistics and always uses batch statistics in both training and eval modes (default: True).
-
     """
 
     def __init__(self, identifier: str, in_dim: tuple, weight: torch.Tensor = None, bias: torch.Tensor = None,
-                 running_mean: torch.Tensor = None, running_var: torch.Tensor = None, eps: float = 1e-5, momentum: float = 0.1,
+                 running_mean: torch.Tensor = None, running_var: torch.Tensor = None, eps: float = 1e-5,
+                 momentum: float = 0.1,
                  affine: bool = True, track_running_stats: bool = True):
 
         # Since we don't consider the batch dimension in our representation we assume that the first dimension of
@@ -367,7 +348,7 @@ class BatchNormNode(ConcreteLayerNode):
 
 class ConvNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Convolutional layer of a Neural Network.
+    A class used for our internal representation of a Convolutional layer.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for convolution based on the dimensionality of the input considered.
     Moreover, the padding is forced to be symmetric.
@@ -396,11 +377,11 @@ class ConvNode(ConcreteLayerNode):
         Dilation value along each spatial axis of the filter
     groups: int
         Number of groups input channels and output channels are divided into
-    has_bias: bool, optional
+    has_bias: bool, Optional
         Flag True if the convolutional layer has bias, False otherwise (default: False)
-    bias: torch.Tensor, optional
+    bias: torch.Tensor, Optional
         torch.Tensor containing the bias parameter of the Conv Layer (default: None)
-    weight: torch.Tensor, optional
+    weight: torch.Tensor, Optional
         torch.Tensor containing the weight parameters of the Conv layer (default: None)
     """
 
@@ -482,7 +463,7 @@ class ConvNode(ConcreteLayerNode):
 
 class AveragePoolNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a AveragePool layer of a Neural Network.
+    A class used for our internal representation of a AveragePool layer.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for pooling based on the dimensionality of the input considered.
     Moreover, the padding is forced to be symmetric and the parameter divisor_override is present (it is not clear
@@ -503,9 +484,9 @@ class AveragePoolNode(ConcreteLayerNode):
         Padding format should be as follows [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin the number of
         pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis `i`.
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
-    ceil_mode: bool, optional
+    ceil_mode: bool, Optional
         In order to use ceil mode. (default: False)
-    count_include_pad: bool, optional
+    count_include_pad: bool, Optional
         Whether include pad pixels when calculating values for the edges (default: False)
     """
 
@@ -550,7 +531,7 @@ class AveragePoolNode(ConcreteLayerNode):
 
 class MaxPoolNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a MaxPool layer of a Neural Network.
+    A class used for our internal representation of a MaxPool layer.
     Also in this case the pytorch and onnx representation present incompatibilities. As in Batchnorm pytorch
     provide 3 different class for pooling based on the dimensionality of the input considered.
     Moreover, the padding is forced to be symmetric. The dimensionality supported for the input
@@ -573,7 +554,7 @@ class MaxPoolNode(ConcreteLayerNode):
         Should have size equal to two times the number of dimension n (we don't count the channel dimension).
     dilation: tuple
         Dilation value along each spatial axis of the filter
-    ceil_mode: bool, optional
+    ceil_mode: bool, Optional
         In order to use ceil mode. (default: False)
     return_indices: bool
         If True it will return the max indices along with the outputs (default: False)
@@ -626,17 +607,17 @@ class MaxPoolNode(ConcreteLayerNode):
 
 class LRNNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a LocalResponseNormalization Layer of a Neural Network.
+    A class used for our internal representation of a LocalResponseNormalization Layer.
 
     Attributes
     ----------
     size: int
         Amount of neighbouring channels used for normalization
-    alpha: float, optional
+    alpha: float, Optional
         Multiplicative factor (default: 0.0001)
-    beta: float, optional
+    beta: float, Optional
         Exponent. (default: 0.75)
-    k: float, optional
+    k: float, Optional
         Additive factor (default: 1.0)
     """
 
@@ -660,11 +641,11 @@ class LRNNode(ConcreteLayerNode):
 
 class SoftMaxNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a SoftMax Layer of a Neural Network.
+    A class used for our internal representation of a SoftMax Layer.
 
     Attributes
     ----------
-    axis: int, optional
+    axis: int, Optional
         A dimension along which Softmax will be computed (so every slice along dim will sum to 1)
     """
 
@@ -735,13 +716,13 @@ class UnsqueezeNode(ConcreteLayerNode):
 
 class ReshapeNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Reshape layer of a Neural Network.
+    A class used for our internal representation of a Reshape layer.
     We follow the ONNX operator convention for attributes and definitions.
     Attributes
     ----------
     shape: tuple
         tuple which specifies the output shape
-    allow_zero: bool, optional
+    allow_zero: bool, Optional
         By default, when any value in the 'shape' input is equal to zero the corresponding dimension value
         is copied from the input tensor dynamically. allowzero=1 indicates that if any value in the 'shape' input is
         set to zero, the zero value is honored, similar to NumPy. (default: False)
@@ -782,11 +763,11 @@ class ReshapeNode(ConcreteLayerNode):
 
 class FlattenNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Flatten layer of a Neural Network. We follow the ONNX operator
+    A class used for our internal representation of a Flatten layer. We follow the ONNX operator
     convention for attributes and definitions.
     Attributes
     ----------
-    axis: int, optional
+    axis: int, Optional
         Indicate up to which input dimensions (exclusive) should be flattened to the outer dimension of the output.
         The value for axis must be in the range [-r, r], where r is the rank of the input tensor. Negative value
         means counting dimensions from the back. When axis = 0, the shape of the output tensor is
@@ -815,11 +796,11 @@ class FlattenNode(ConcreteLayerNode):
 
 class DropoutNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Dropout Layer of a Neural Network.
+    A class used for our internal representation of a Dropout Layer.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
     Attributes
     ----------
-    p: float, optional
+    p: float, Optional
         Probability of an element to be zeroed (default: 0.5)
     """
 
@@ -837,11 +818,11 @@ class DropoutNode(ConcreteLayerNode):
 
 class TransposeNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Dropout Layer of a Neural Network.
+    A class used for our internal representation of a Dropout Layer.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
     Attributes
     ----------
-    perm: list, optional
+    perm: list, Optional
         Permutation to apply to the input dimensions
     """
 
@@ -864,7 +845,7 @@ class TransposeNode(ConcreteLayerNode):
 
 class ConcatNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Concat Layer of a Neural Network.
+    A class used for our internal representation of a Concat Layer.
     Concatenate two tensors into a single tensor. All input tensors must have the same shape,
     except for the dimension size of the axis to concatenate on.
 
@@ -912,7 +893,7 @@ class ConcatNode(ConcreteLayerNode):
 
 class SumNode(ConcreteLayerNode):
     """
-    A class used for our internal representation of a Sum Layer of a Neural Network.
+    A class used for our internal representation of a Sum Layer.
     Element-wise sum of each of the input tensors.
     All inputs and outputs must have the same data type.
     """

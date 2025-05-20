@@ -1,6 +1,4 @@
-"""
-This module contains the definition and structure of our Neural Network representation
-
+"""This module contains the definition and structure of our Neural Network representation
 """
 
 import abc
@@ -577,7 +575,7 @@ class SequentialNetwork(NeuralNetwork):
 class AcyclicNetwork(NeuralNetwork):
     """
     Concrete child of NeuralNetwork representing an acyclic NeuralNetwork.
-    The computational graph of a AcyclicNetwork must correspond to a standard list.
+    The computational graph of an AcyclicNetwork must correspond to a standard list.
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):

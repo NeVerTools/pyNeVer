@@ -1,7 +1,4 @@
-"""Utility functions collection
-
-This module contains utility functions which may be used throughout the code.
-
+"""This module contains utility functions which may be used throughout the code.
 """
 import copy
 
@@ -31,6 +28,7 @@ def execute_network(network: networks.NeuralNetwork, input_t: Tensor) -> Tensor:
         The network to execute
     input_t: Tensor
         The input value to feed
+
     Returns
     -------
     Tensor
@@ -48,19 +46,19 @@ def execute_network(network: networks.NeuralNetwork, input_t: Tensor) -> Tensor:
 def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.Linear:
     """
     Utility function to combine a BatchNorm1D node with a Linear node in a corresponding Linear node.
+
     Parameters
     ----------
     linear : Linear
         Linear to combine.
     batchnorm : BatchNorm1D
         BatchNorm1D to combine.
+
     Return
     ----------
     Linear
         The Linear resulting from the fusion of the two input nodes.
-
     """
-
     l_weight = linear.weight
     l_bias = linear.bias
     bn_running_mean = batchnorm.running_mean
@@ -93,17 +91,17 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.Neu
     """
     Utilities function to combine all the FullyConnectedNodes followed by BatchNorm1DNodes in corresponding
     FullyConnectedNodes.
+
     Parameters
     ----------
     network : SequentialNetwork
         Sequential Network of interest of which we want to combine the nodes.
+
     Return
     ----------
     SequentialNetwork
         Corresponding Sequential Network with the combined nodes.
-
     """
-
     py_net = PyTorchConverter().from_neural_network(network)
 
     modules = [m for m in py_net.pytorch_network.modules()]
