@@ -1,3 +1,5 @@
+.. _conversion-ref:
+
 Conversion
 ==========
 

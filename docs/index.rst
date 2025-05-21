@@ -15,9 +15,17 @@ NB: this documentation is in progress!
 .. toctree::
    :maxdepth: 1
    :glob:
-   :caption: Setup
+   :caption: Getting started
 
    Setup/*
+
+.. _Usage:
+.. toctree::
+   :maxdepth: 1
+   :glob:
+   :caption: Usage
+
+   Guide/*
 
 .. _API:
 .. toctree::
