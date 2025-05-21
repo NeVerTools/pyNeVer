@@ -1,4 +1,7 @@
-"""This module defines the internal representation of all the currently supported neural network layers
+"""
+This module contains the classes to define and create neural network layers.
+The abstract class ``LayerNode`` represents a generic NN layer, and its child ``ConcreteLayerNode`` defines
+the internal representation of all currently supported layers.
 """
 import abc
 import copy
@@ -16,7 +19,7 @@ class LayerNode(abc.ABC):
     Attributes
     ----------
     identifier: str
-        Identifier of the LayerNode.
+        Identifier of the :class:`~pynever.nodes.LayerNode`.
     """
 
     def __init__(self, identifier: str):
@@ -31,11 +34,11 @@ class ConcreteLayerNode(LayerNode):
     Attributes
     ----------
     identifier: str
-        Identifier of the ConcreteLayerNode.
+        Identifier of the :class:`~pynever.nodes.ConcreteLayerNode`.
     in_dims: list[tuple]
-        Dimension of the input torch.Tensors as a tuples (ndarray.shape like).
+        Dimension of the input Tensor as a list of tuples (ndarray.shape like).
     out_dim: tuple
-        Dimension of the output torch.Tensor as a tuple (ndarray.shape like).
+        Dimension of the output Tensor as a tuple (ndarray.shape like).
     """
 
     def __init__(self, identifier: str, in_dims: list[tuple], out_dim: tuple):
@@ -62,7 +65,13 @@ class ConcreteLayerNode(LayerNode):
         raise NotImplementedError
 
     def get_output_dim(self) -> tuple:
-        """Procedure to get the output dimension of the layer."""
+        """Procedure to get the output dimension of the layer.
+
+        Returns
+        -------
+        tuple
+            The output dimensions of the layer.
+        """
         return self.out_dim
 
 
@@ -194,9 +203,9 @@ class FullyConnectedNode(ConcreteLayerNode):
     out_features: int
         Number of output features of the fully connected layer.
     weight: torch.Tensor, Optional
-        torch.Tensor containing the weight parameters of the fully connected layer.
+        Tensor containing the weight parameters of the fully connected layer.
     bias: torch.Tensor, Optional
-        torch.Tensor containing the bias parameters of the fully connected layer.
+        Tensor containing the bias parameters of the fully connected layer.
     has_bias: bool, Optional
         Flag True if the fully connected layer has bias, False otherwise (default: True)
     """
@@ -271,13 +280,13 @@ class BatchNormNode(ConcreteLayerNode):
     num_features: int
         Number of input and output feature of the Batch Normalization Layer.
     weight: torch.Tensor, Optional
-        torch.Tensor containing the weight parameters of the Batch Normalization Layer. (default: None)
+        Tensor containing the weight parameters of the Batch Normalization Layer. (default: None)
     bias: torch.Tensor, Optional
-        torch.Tensor containing the bias parameter of the Batch Normalization Layer. (default: None)
+        Tensor containing the bias parameter of the Batch Normalization Layer. (default: None)
     running_mean: torch.Tensor, Optional
-        torch.Tensor containing the running mean parameter of the Batch Normalization Layer. (default: None)
+        Tensor containing the running mean parameter of the Batch Normalization Layer. (default: None)
     running_var: torch.Tensor, Optional
-        torch.Tensor containing the running var parameter of the Batch Normalization Layer. (default: None)
+        Tensor containing the running var parameter of the Batch Normalization Layer. (default: None)
     eps: float, Optional
         Value added to the denominator for numerical stability (default: 1e-5).
     momentum: float, Optional
@@ -380,9 +389,9 @@ class ConvNode(ConcreteLayerNode):
     has_bias: bool, Optional
         Flag True if the convolutional layer has bias, False otherwise (default: False)
     bias: torch.Tensor, Optional
-        torch.Tensor containing the bias parameter of the Conv Layer (default: None)
+        Tensor containing the bias parameter of the Conv Layer (default: None)
     weight: torch.Tensor, Optional
-        torch.Tensor containing the weight parameters of the Conv layer (default: None)
+        Tensor containing the weight parameters of the Conv layer (default: None)
     """
 
     def __init__(self, identifier: str, in_dim: tuple, out_channels: int,
@@ -670,6 +679,7 @@ class UnsqueezeNode(ConcreteLayerNode):
     """
     A class used for our internal representation of an Unsqueeze Layer.
     We follow the ONNX operator convention for attributes and definitions.
+
     Attributes
     ----------
     axes: tuple
@@ -718,6 +728,7 @@ class ReshapeNode(ConcreteLayerNode):
     """
     A class used for our internal representation of a Reshape layer.
     We follow the ONNX operator convention for attributes and definitions.
+
     Attributes
     ----------
     shape: tuple
@@ -765,6 +776,7 @@ class FlattenNode(ConcreteLayerNode):
     """
     A class used for our internal representation of a Flatten layer. We follow the ONNX operator
     convention for attributes and definitions.
+
     Attributes
     ----------
     axis: int, Optional
@@ -798,6 +810,7 @@ class DropoutNode(ConcreteLayerNode):
     """
     A class used for our internal representation of a Dropout Layer.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
+
     Attributes
     ----------
     p: float, Optional
@@ -820,6 +833,7 @@ class TransposeNode(ConcreteLayerNode):
     """
     A class used for our internal representation of a Dropout Layer.
     The inplace parameter of pytorch and the seed attribute and training_mode of onnx are not supported.
+
     Attributes
     ----------
     perm: list, Optional

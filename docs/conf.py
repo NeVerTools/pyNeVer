@@ -31,7 +31,8 @@ release = '1.1.4'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.viewcode',
 ]
 
 autodoc_member_order = 'bysource'

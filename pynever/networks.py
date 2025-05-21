@@ -1,6 +1,8 @@
-"""This module contains the definition and structure of our Neural Network representation
 """
-
+This module contains the classes to define and create neural network objects.
+The abstract class ``NeuralNetwork`` represents a generic computational graph with layers as nodes and connections as edges.
+The children of ``NeuralNetwork`` are ``SequentialNetwork`` and ``AcyclicNetwork``, to represent standard feed-forward NNs and residual NNs, respectively.
+"""
 import abc
 import collections
 import copy
@@ -12,23 +14,23 @@ from pynever.nodes import ConcreteLayerNode
 
 class NeuralNetwork(abc.ABC):
     """
-    An abstract class used for our internal representation of a generic NeuralNetwork. It consists of a graph of
-    LayerNodes and a list of AlternativeRepresentations. It should be noted that this data structure it is not able
-    to compute the input-output relation defined by the network. The properties of the computational graph are
-    specialized in the concrete classes.
+    An abstract class used for our internal representation of a generic Neural Network. It consists of a graph of
+    :class:`~pynever.nodes.LayerNode` objects and edges connecting them. It should be noted that this data structure is
+    not able to compute the input-output relation defined by the network.
+    The properties of the computational graph are specialized in the concrete classes.
 
     Attributes
     ----------
     nodes: dict[str, LayerNode]
-        Dictionary containing str keys and LayerNodes values. It contains the nodes of the graph,
-        the identifier of the node of interest is used as a key in the nodes' dictionary.
+        Dictionary containing string keys and :class:`~pynever.nodes.LayerNode` values.
+        It contains the nodes of the graph, the identifier of the node is used as a key in the nodes' dictionary.
     edges: dict[str, list[str]]
-        Dictionary of LayerNode identifiers. It contains for each node identified by the keys, the list of nodes
-        connected to it.
+        Dictionary of :class:`~pynever.nodes.LayerNode` identifiers.
+        It contains for each node identified by the keys, the list of nodes connected to it.
     identifier: str
-        Identifier of the Sequential Neural Network.
+        Identifier of the Neural Network.
     input_ids: dict[str, str | None]
-        Dictionary containing the inputs of the networks as keys and the corresponding layer identifier of the Node of
+        Dictionary containing the inputs of the networks as keys and the corresponding layer identifier of the node of
         which they are the input.
     """
 
@@ -160,7 +162,7 @@ class NeuralNetwork(abc.ABC):
         Returns
         -------
         list[ConcreteLayerNode]
-            The roots of the network as a list of ConcreteLayerNodes.
+            The roots of the network as a list of :class:`~pynever.nodes.ConcreteLayerNode` objects.
         """
         return [root_node
                 for root_node_id, root_node in self.nodes.items()
@@ -172,7 +174,7 @@ class NeuralNetwork(abc.ABC):
         Returns
         -------
         list[ConcreteLayerNode]
-            The leaves of the network as a list of ConcreteLayerNodes.
+            The leaves of the network as a list of :class:`~pynever.nodes.ConcreteLayerNode` objects.
         """
         return [leaf_node
                 for leaf_node_id, leaf_node in self.nodes.items()
@@ -212,7 +214,7 @@ class NeuralNetwork(abc.ABC):
 
     def layers_iterator(self, offset: int = 0) -> collections.abc.Generator[nodes.ConcreteLayerNode | None, None, None]:
         """Procedure to build a generator for the layers of the network in sequential order.
-        It allows to have an iterable interface when needed
+        It allows having an iterable interface when needed
 
         Parameters
         ----------
@@ -547,7 +549,8 @@ class SequentialNetwork(NeuralNetwork):
         Returns
         -------
         bool
-            True if the LayerNode is a ConcreteLayerNode with a single input, False otherwise.
+            True if the :class:`~pynever.nodes.LayerNode` is a :class:`~pynever.nodes.ConcreteLayerNode`
+            with a single input, False otherwise.
         """
         return ((node is not None) and
                 isinstance(node, nodes.ConcreteLayerNode) and
@@ -560,7 +563,7 @@ class SequentialNetwork(NeuralNetwork):
         Parameters
         ----------
         node: ConcreteLayerNode
-            New node to add to the Sequential network.
+            New node to add to the :class:`~pynever.networks.SequentialNetwork`.
         """
         if not SequentialNetwork.__is_single_concrete(node):
             raise InvalidNodeError(f'{node.identifier} is not a ConcreteLayerNode with a single input!')
@@ -588,7 +591,7 @@ class AcyclicNetwork(NeuralNetwork):
         Parameters
         ----------
         node: ConcreteLayerNode
-            The LayerNode to add
+            The :class:`~pynever.nodes.LayerNode` to add
         parents: list[ConcreteLayerNode] | None
             The new node parents, if existing
         children: list[ConcreteLayerNode] | None
