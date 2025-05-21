@@ -1,3 +1,8 @@
+"""
+This module contains the classes to train neural networks. It follows the Strategy design pattern providing the abstract
+interfaces ``TrainingStrategy`` and ``TestingStrategy``.
+At the moment, we provide only a single training and testing strategy using PyTorch.
+"""
 import abc
 import logging
 import math
@@ -20,12 +25,6 @@ logger_name = "pynever.strategies.training"
 class TrainingStrategy(abc.ABC):
     """
     An abstract class used to represent a Training Strategy.
-
-    Methods
-    ----------
-    train(NeuralNetwork, Dataset)
-        Train the neural network of interest using a training strategy determined in the concrete children.
-
     """
 
     @abc.abstractmethod
@@ -53,12 +52,6 @@ class TrainingStrategy(abc.ABC):
 class TestingStrategy(abc.ABC):
     """
     An abstract class used to represent a Testing Strategy.
-
-    Methods
-    ----------
-    test(NeuralNetwork, Dataset)
-        Test the neural network of interest using a testing strategy determined in the concrete children.
-
     """
 
     @abc.abstractmethod
@@ -99,7 +92,7 @@ class PytorchTraining(TrainingStrategy):
 
     loss_function: Callable
         Loss function for the training strategy. We assume it to take as parameters two pytorch Tensor
-        corresponding to the output of the network and the target. Other parameter should be given as attribute of
+        corresponding to the output of the network and the target. Other parameters should be given as attributes of
         the callable object.
 
     n_epochs: int
