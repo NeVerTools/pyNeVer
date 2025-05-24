@@ -12,6 +12,7 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
@@ -32,7 +33,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
-    'sphinx.ext.viewcode',
+    'sphinx.ext.linkcode',
 ]
 
 autodoc_member_order = 'bysource'
@@ -44,7 +45,6 @@ autodoc_member_order = 'bysource'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README*']
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -64,3 +64,14 @@ pygments_style = 'sphinx'
 autodoc_default_options = {
     'show-inheritance': True
 }
+
+
+def linkcode_resolve(domain, info):
+    """Link documentation to Github"""
+    if domain != 'py':
+        return None
+    if not info['module']:
+        return None
+    filename = info['module'].replace('.', '/')
+    ext = "py"
+    return "https://github.com/NeverTools/pynever/blob/main/%s.%s" % (filename, ext)

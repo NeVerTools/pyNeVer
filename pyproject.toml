@@ -47,6 +47,6 @@ packages = ["pynever"]
 
 [project.urls]
 Homepage = "https://neuralverification.org"
-# Documentation = "https://readthedocs.org"
+Documentation = "https://neuralverification.org/pynever"
 Repository = "https://github.com/nevertools/pynever.git"
 Issues = "https://github.com/nevertools/pynever/issues"
