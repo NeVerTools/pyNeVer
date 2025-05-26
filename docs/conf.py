@@ -16,13 +16,14 @@ import sys
 sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
+from pynever import Configuration
 
 project = 'pyNeVer'
-copyright = '2025, NeverTools'
-author = 'NeverTools'
+copyright = f'{Configuration.YEAR}, f{Configuration.AUTHORS}'
+author = Configuration.AUTHORS
 
 # Documentation versioning
-release = '1.1.4'
+release = Configuration.RELEASE
 
 # -- General configuration ---------------------------------------------------
 

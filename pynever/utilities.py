@@ -1,4 +1,5 @@
-"""This module contains utility functions which may be used throughout the code.
+"""
+This module contains utility functions which may be used throughout the code.
 """
 import copy
 
@@ -49,9 +50,9 @@ def combine_batchnorm1d(linear: ptl.Linear, batchnorm: ptl.BatchNorm1d) -> ptl.L
 
     Parameters
     ----------
-    linear : Linear
+    linear: Linear
         Linear to combine.
-    batchnorm : BatchNorm1D
+    batchnorm: BatchNorm1D
         BatchNorm1D to combine.
 
     Return
@@ -94,7 +95,7 @@ def combine_batchnorm1d_net(network: networks.SequentialNetwork) -> networks.Neu
 
     Parameters
     ----------
-    network : SequentialNetwork
+    network: SequentialNetwork
         Sequential Network of interest of which we want to combine the nodes.
 
     Return

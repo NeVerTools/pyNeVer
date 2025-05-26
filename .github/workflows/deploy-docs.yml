@@ -3,7 +3,7 @@ name: Deploy Sphinx Docs to GitHub Pages
 on:
   push:
     branches:
-      - dev  # or your default branch
+      - main  # or your default branch
 
 jobs:
   build-and-deploy:
@@ -31,8 +31,8 @@ jobs:
 
     - name: Clone GitHub Pages repo
       run: |
-        git config --global user.name "sdemarch"
-        git config --global user.email "stefano.demarchi@edu.unige.it"
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
         git clone https://x-access-token:${{ secrets.GH_PAGES_DEPLOY }}@github.com/nevertools/nevertools.github.io.git gh-pages
       env:
         GH_PAGES_DEPLOY_TOKEN: ${{ secrets.GH_PAGES_DEPLOY }}

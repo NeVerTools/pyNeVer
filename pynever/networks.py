@@ -60,7 +60,7 @@ class NeuralNetwork(abc.ABC):
         Returns
         -------
         bool
-            True if network is acyclic, False otherwise.
+            True if the network is acyclic, False otherwise.
         """
         aux_network = copy.deepcopy(self)
         root_nodes = aux_network.get_roots()
