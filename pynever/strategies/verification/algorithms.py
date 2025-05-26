@@ -42,12 +42,6 @@ class VerificationStrategy(abc.ABC):
         Parameters to guide the verification algorithm
     logger: Logger
         Custom logger for the verification package
-
-    Methods
-    ----------
-    verify(NeuralNetwork, NeverProperty)
-        Verify that the neural network of interest satisfy the property given as argument
-        using a verification strategy determined in the concrete children.
     """
 
     def __init__(self, parameters: VerificationParameters):
@@ -85,11 +79,6 @@ class SSLPVerification(VerificationStrategy):
         List of Star objects containing a counterexample
     layers_bounds: dict
         Bounds obtained through bounds propagation to support verification
-
-    Methods
-    ----------
-    get_counterexample_stars()
-        Procedure to obtain the counterexample stars from the output
     """
 
     def __init__(self, params: SSLPVerificationParameters):
@@ -199,17 +188,6 @@ class SSBPVerification(VerificationStrategy):
         The neural network to verify
     prop: NeverProperty
         The property specification
-
-    Methods
-    ----------
-    init_search(SequentialNetwork, NeverProperty)
-        Procedure to initialize the bounds
-    get_bounds(BoundsBackend, BoundsDirection)
-        Procedure to compute the bounds
-    compute_intersection(ExtendedStar, VerboseBounds)
-        Procedure to compute the intersection between the Star and the property
-    get_next_target(ExtendedStar, VerboseBounds)
-        Procedure to compute the next refinement target
     """
 
     def __init__(self, parameters: SSBPVerificationParameters):
