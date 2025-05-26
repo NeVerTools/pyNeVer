@@ -19,11 +19,11 @@ sys.path.insert(0, os.path.abspath('../'))
 from pynever import Configuration
 
 project = 'pyNeVer'
-copyright = f'{Configuration.YEAR}, f{Configuration.AUTHORS}'
-author = Configuration.AUTHORS
+copyright = f'{Configuration.YEAR.value}, f{Configuration.AUTHORS.value}'
+author = Configuration.AUTHORS.value
 
 # Documentation versioning
-release = Configuration.RELEASE
+release = Configuration.RELEASE.value
 
 # -- General configuration ---------------------------------------------------
 
