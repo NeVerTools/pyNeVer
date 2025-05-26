@@ -1,3 +1,9 @@
+"""
+This module defines neural network verification properties. The most general representation
+defines a single input property expressed as a linear combination of input variables, while
+the output property is a list of linear inequalities.
+"""
+
 from fractions import Fraction
 
 import torch
@@ -8,16 +14,30 @@ from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectan
 from pynever.strategies.abstraction.star import Star
 
 
- # TODO handle sets of properties?
- # TODO specify convex properties
+# TODO handle sets of properties?
+# TODO specify convex properties
 
 class NeverProperty:
     """
-    An abstract class used to represent a generic property for a NeuralNetwork.
+    An abstract class used to represent a generic property for a :class:`~pynever.networks.NeuralNetwork`.
+
+    Attributes
+    ----------
+    fpath: str
+        Path to the file containing the property specification.
+    in_coef_mat: torch.Tensor
+        Matrix of the coefficients for the input constraints.
+    in_bias_mat: torch.Tensor
+        Matrix of the biases for the input constraints.
+    out_coef_mat: list[torch.Tensor]
+        Matrices of the coefficients for the output constraints.
+    out_bias_mat: list[torch.Tensor]
+        Matrices of the biases for the output constraints.
     """
 
     def __init__(self, in_coef_mat: torch.Tensor = None, in_bias_mat: torch.Tensor = None,
-                 out_coef_mat: list[torch.Tensor] = None, out_bias_mat: list[torch.Tensor] = None):
+                 out_coef_mat: list[torch.Tensor] = None, out_bias_mat: list[torch.Tensor] = None, path: str = None):
+        self.fpath = path
         self.in_coef_mat = in_coef_mat
         self.in_bias_mat = in_bias_mat
         self.out_coef_mat = out_coef_mat
@@ -25,7 +45,8 @@ class NeverProperty:
 
     def to_numeric_bounds(self) -> HyperRectangleBounds:
         """
-        This method creates a HyperRectangleBounds object from the property specification.
+        This method creates a :class:`~pynever.strategies.abstraction.bounds_propagation.bounds.HyperRectangleBounds`
+        object from the property specification.
         If the property is already a hyper rectangle it just initializes the object, otherwise
         it returns the hyper rectangle approximation of the input property.
 
@@ -62,16 +83,16 @@ class NeverProperty:
 
     def to_smt_file(self, filepath: str, input_id: str = 'X', output_id: str = 'Y'):
         """
-        This method builds the SMT-LIB representation of the NeVerProperty, expressing
-        the variables and the matrices as constraints in the corresponding logic
+        This method builds the SMT-LIB representation of the :class:`~pynever.strategies.verification.properties.NeVerProperty`,
+        expressing the variables and the matrices as constraints in the corresponding logic
 
         Parameters
         ----------
-        input_id : str, Optional
+        input_id: str, Optional
             Identifier of the input node (default: 'X')
-        output_id : str, Optional
+        output_id: str, Optional
             Identifier of the output node (default: 'Y')
-        filepath : str
+        filepath: str
             Path to the SMT-LIB file to create
         """
         with open(filepath, 'w+') as f:
@@ -156,36 +177,25 @@ class NeverProperty:
 
 class VnnLibProperty(NeverProperty):
     """
-    A concrete class used to represent a NeVer property for a NeuralNetwork. We assume that the hyperplane
-    out_coef_mat * y <= out_bias_mat represent the unsafe region (i.e., the negation of the desired property).
-    At present the input set must be defined as in_coef_mat * x <= in_bias_mat
-
-    Attributes
-    ----------
-    in_coef_mat: torch.Tensor
-        Matrix of the coefficients for the input constraints.
-    in_bias_mat: torch.Tensor
-        Matrix of the biases for the input constraints.
-    out_coef_mat: List[torch.Tensor]
-        Matrices of the coefficients for the output constraints.
-    out_bias_mat: List[torch.Tensor]
-        Matrices of the biases for the output constraints.
+    A class used to represent a VNN-LIB property. It directly loads
+    the property from a `.vnnlib` file.
     """
 
     def __init__(self, filepath: str):
         smt_parser = reading.SmtPropertyParser(filepath)
+        in_c, in_b, out_c, out_b = smt_parser.parse_property()
 
-        super().__init__(*smt_parser.parse_property())
+        super().__init__(in_c, in_b, out_c, out_b, filepath)
 
 
 class LocalRobustnessProperty(NeverProperty):
     """
     TODO
 
-    sample : torch.Tensor
-    epsilon : float
-    label : str
-    max_output : bool
+    sample: torch.Tensor
+    epsilon: float
+    label: str
+    max_output: bool
     """
 
     def __init__(self, sample: torch.Tensor, epsilon: float, n_outputs: int, label: int, max_output: bool):

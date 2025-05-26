@@ -5,13 +5,14 @@ from ortools.linear_solver import pywraplp
 from pynever import networks
 from pynever.networks import SequentialNetwork
 from pynever.strategies.abstraction.bounds_propagation import util
-from pynever.strategies.verification.statistics import VerboseBounds
 from pynever.strategies.abstraction.bounds_propagation.manager import BoundsManager
 from pynever.strategies.abstraction.star import ExtendedStar
 from pynever.strategies.verification.parameters import SSBPVerificationParameters
 from pynever.strategies.verification.ssbp import propagation
 from pynever.strategies.verification.ssbp.constants import RefinementTarget, NeuronSplit
 from pynever.strategies.verification.ssbp.refinement import BoundsRefinement
+from pynever.strategies.verification.statistics import VerboseBounds
+from strategies.verification.ssbp.constants import BoundsDirection
 
 
 def get_target_sequential(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork) \
@@ -195,7 +196,7 @@ def get_target_lowest_overapprox(star: ExtendedStar, nn_bounds: VerboseBounds) \
 
 
 def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, network: networks.SequentialNetwork,
-                                 params: SSBPVerificationParameters) -> tuple[RefinementTarget | None, ExtendedStar]:
+                                 bounds_dir: BoundsDirection) -> tuple[RefinementTarget | None, ExtendedStar]:
     """
     """
     # Compute what we believe to be unstable neurons wrt the bounds and what we have fixed so far
@@ -205,10 +206,10 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
     if len(unstable) > 0:
         # initialise input_differences.
         if star.input_differences is None:
-            star.input_differences = BoundsRefinement(params.bounds_direction).compute_refines_input_by(unstable,
-                                                                                                        star.fixed_neurons,
-                                                                                                        nn_bounds,
-                                                                                                        network)
+            star.input_differences = BoundsRefinement(bounds_dir).compute_refines_input_by(unstable,
+                                                                                           star.fixed_neurons,
+                                                                                           nn_bounds,
+                                                                                           network)
 
         candidates = [((layer_id, neuron_n), diff) for (layer_id, neuron_n), diff in star.input_differences
                       if (layer_id, neuron_n) in unstable]
@@ -217,10 +218,10 @@ def get_target_most_input_change(star: ExtendedStar, nn_bounds: VerboseBounds, n
             return RefinementTarget(candidates[0][0][0], candidates[0][0][1]), star
 
         # No candidates. Recompute input_differences again for all unstable neurons
-        candidates = BoundsRefinement(params.bounds_direction).compute_refines_input_by(unstable,
-                                                                                        star.fixed_neurons,
-                                                                                        nn_bounds,
-                                                                                        network)
+        candidates = BoundsRefinement(bounds_dir).compute_refines_input_by(unstable,
+                                                                           star.fixed_neurons,
+                                                                           nn_bounds,
+                                                                           network)
         star.input_differences = candidates
 
         if len(candidates) > 0 and candidates[0][1] != 0:
@@ -281,7 +282,8 @@ def compute_star_after_fixing_target_to_value(star: ExtendedStar, bounds: Verbos
                                     enforced_constraints=star.enforced_constraints,
                                     input_differences=star.input_differences)
 
-    if bounds.statistics.stability_info['stable_count'] - pre_split_bounds.statistics.stability_info['stable_count'] <= 2:
+    if bounds.statistics.stability_info['stable_count'] - pre_split_bounds.statistics.stability_info[
+        'stable_count'] <= 2:
         negative_bounds, positive_bounds = BoundsRefinement(params.bounds_direction).branch_bisect_input(bounds,
                                                                                                          network,
                                                                                                          fixed_so_far)

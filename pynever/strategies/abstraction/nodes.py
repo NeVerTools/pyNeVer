@@ -18,7 +18,7 @@ from pynever.strategies.abstraction.bounds_propagation.layers.affine import comp
 from pynever.strategies.abstraction.bounds_propagation.layers.convolution import LinearizeConv
 from pynever.strategies.abstraction.bounds_propagation.layers.relu import LinearizeReLU
 from pynever.strategies.abstraction.star import AbsElement, Star, StarSet
-from pynever.strategies.verification.parameters import VerificationParameters
+from pynever.strategies.verification.parameters import SSLPVerificationParameters
 
 
 class AbsLayerNode(nodes.LayerNode):
@@ -32,7 +32,7 @@ class AbsLayerNode(nodes.LayerNode):
         Identifier of the AbsLayerNode.
     ref_node: SingleInputLayerNode
         Reference SingleInputLayerNode for the abstract transformer.
-    parameters: VerificationParameters
+    parameters: SSLPVerificationParameters
         Verification parameters for the abstract transformer.
 
     Methods
@@ -45,7 +45,7 @@ class AbsLayerNode(nodes.LayerNode):
     """
 
     def __init__(self, identifier: str, ref_node: nodes.ConcreteLayerNode,
-                 parameters: VerificationParameters | None = None):
+                 parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier)
         self.ref_node = ref_node
         self.parameters = parameters
@@ -105,7 +105,7 @@ class AbsFullyConnectedNode(AbsLayerNode):
     """
 
     def __init__(self, identifier: str, ref_node: nodes.FullyConnectedNode,
-                 parameters: VerificationParameters | None = None):
+                 parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_input: AbsElement | list[AbsElement],
@@ -182,7 +182,7 @@ class AbsConvNode(AbsLayerNode):
     A class used for our internal representation of a Convolutional Abstract transformer.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ConvNode, parameters: VerificationParameters | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.ConvNode, parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_input: AbsElement | list[AbsElement],
@@ -203,7 +203,8 @@ class AbsReshapeNode(AbsLayerNode):
     A class used for our internal representation of a Reshape Abstract transformer.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ReshapeNode, parameters: VerificationParameters | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.ReshapeNode,
+                 parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_input: AbsElement | list[AbsElement],
@@ -223,7 +224,8 @@ class AbsFlattenNode(AbsLayerNode):
     A class used for our internal representation of a Flatten Abstract transformer.
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.FlattenNode, parameters: VerificationParameters | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.FlattenNode,
+                 parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_input: AbsElement | list[AbsElement],
@@ -256,7 +258,7 @@ class AbsReLUNode(AbsLayerNode):
     __mixed_step_relu(Star, int, bool)
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ReLUNode, parameters: VerificationParameters):
+    def __init__(self, identifier: str, ref_node: nodes.ReLUNode, parameters: SSLPVerificationParameters):
         super().__init__(identifier, ref_node, parameters)
         self.layer_bounds = None
         self.n_areas = None
@@ -298,12 +300,8 @@ class AbsReLUNode(AbsLayerNode):
             parallel_results = my_pool.map(self.__mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
-        if hasattr(self.parameters, 'neurons_to_refine'):
-            if self.parameters.neurons_to_refine is not None:
-                self.parameters.neurons_to_refine.pop(0)
-        else:
-            # TODO check exception
-            raise Exception('SSLP parameters must have "neurons_to_refine" attribute!')
+        if self.parameters.neurons_to_refine is not None:
+            self.parameters.neurons_to_refine.pop(0)
 
         abs_output = StarSet()
 
@@ -315,7 +313,7 @@ class AbsReLUNode(AbsLayerNode):
             abs_output.stars = abs_output.stars.union(star_set)
 
             # Perform this code only if necessary
-            if hasattr(self.parameters, 'compute_areas') and self.parameters.compute_areas:
+            if self.parameters.compute_areas:
                 if star_set != set():
                     num_areas = num_areas + 1
                     tot_areas = tot_areas + areas
@@ -452,7 +450,8 @@ class AbsConcatNode(AbsLayerNode):
     ----------
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.ConcatNode, parameters: VerificationParameters | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.ConcatNode,
+                 parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:
@@ -556,7 +555,7 @@ class AbsSumNode(AbsLayerNode):
     ----------
     """
 
-    def __init__(self, identifier: str, ref_node: nodes.SumNode, parameters: VerificationParameters | None = None):
+    def __init__(self, identifier: str, ref_node: nodes.SumNode, parameters: SSLPVerificationParameters | None = None):
         super().__init__(identifier, ref_node, parameters)
 
     def forward_star(self, abs_inputs: list[AbsElement], bounds: AbstractBounds | None = None) -> AbsElement:

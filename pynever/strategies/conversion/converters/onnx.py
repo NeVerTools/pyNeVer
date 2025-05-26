@@ -559,6 +559,7 @@ class ONNXConverter(ConversionStrategy):
 
         identifier = alt_rep.identifier
         network = networks.SequentialNetwork(identifier, alt_rep.onnx_network.graph.input[0].name)
+        network.fpath = alt_rep.path
 
         parameters = {}
         for initializer in alt_rep.onnx_network.graph.initializer:

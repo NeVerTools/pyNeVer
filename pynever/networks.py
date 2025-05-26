@@ -35,6 +35,7 @@ class NeuralNetwork(abc.ABC):
     """
 
     def __init__(self, identifier: str, input_ids: list[str]):
+        self.fpath = None
         self.nodes: dict[str, nodes.ConcreteLayerNode] = {}
         self.edges: dict[str, list[str]] = {}
         self.identifier = identifier
