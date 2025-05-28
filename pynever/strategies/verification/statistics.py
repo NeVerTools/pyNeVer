@@ -14,7 +14,6 @@ class BoundsStats:
         Container for the statistics about neuron stability
     approximation_info: dict[tuple[str, int], float]
         Container for the statistics about the approximation area
-
     """
 
     def __init__(self):
@@ -53,7 +52,6 @@ class VerboseBounds:
         The dictionary of the numeric post-activation bounds for the network
     statistics: BoundsStats
         The data structure of stability and approximation statistics
-
     """
 
     def __init__(self,
