@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyNeVer"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
     "numpy",
     "onnx",
@@ -44,6 +44,9 @@ docs = [
 
 [tool.setuptools]
 packages = ["pynever"]
+
+[tool.setuptools.package-data]
+pynever.config = ["*.ini"]
 
 [project.urls]
 Homepage = "https://neuralverification.org"
