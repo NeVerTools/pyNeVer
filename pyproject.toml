@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools"]
+requires = [
+    "setuptools",
+    "setuptools-scm>=8.0"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -44,9 +47,6 @@ docs = [
 
 [tool.setuptools]
 packages = ["pynever"]
-
-[tool.setuptools.package-data]
-pynever.config = ["*.ini"]
 
 [project.urls]
 Homepage = "https://neuralverification.org"
