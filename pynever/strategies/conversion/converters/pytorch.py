@@ -9,14 +9,6 @@ import pynever.nodes as nodes
 class PyTorchConverter(ConversionStrategy):
     """
     A class used to represent the conversion strategy for PyTorch models.
-
-    Methods
-    ----------
-    from_neural_network(NeuralNetwork)
-        Convert the neural network of interest to a PyTorchNetwork model.
-    to_neural_network(PyTorchNetwork)
-        Convert the PyTorchNetwork of interest to our internal representation of a Neural Network.
-
     """
 
     def from_neural_network(self, network: networks.NeuralNetwork) -> PyTorchNetwork:
@@ -32,7 +24,6 @@ class PyTorchConverter(ConversionStrategy):
         ----------
         PyTorchNetwork
             The PyTorch representation resulting from the conversion of the original network.
-
         """
         pytorch_network = None
         if isinstance(network, networks.SequentialNetwork):
@@ -274,9 +265,7 @@ class PyTorchConverter(ConversionStrategy):
         ----------
         NeuralNetwork
             The Neural Network resulting from the conversion of PyTorch Representation.
-
         """
-
         identifier = alt_rep.identifier
         if hasattr(alt_rep.pytorch_network, 'input_id'):
             input_id = alt_rep.pytorch_network.input_id
