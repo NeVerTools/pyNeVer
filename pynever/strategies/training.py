@@ -233,7 +233,7 @@ class PytorchTraining(TrainingStrategy):
             best_loss_score = checkpoint['best_loss_score']
             epochs_without_decrease = checkpoint['epochs_without_decrease']
             logger.info(f"Loaded Checkpoint: '{checkpoints_path}'")
-            logger.info(f"Epoch: {start_epoch}, Best Loss Score: {best_loss_score}")
+            logger.info(f"Epoch: {start_epoch}, Best Loss Score: {best_loss_score:.6f}")
 
         else:
             # Otherwise we initialize the values of interest
@@ -356,8 +356,8 @@ class PytorchTraining(TrainingStrategy):
             best_checkpoint = torch.load(best_model_path)
             net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
 
-        logger.info(f"Best Training Loss Score: {best_loss_score}")
-        logger.info(f"Training Accuracy: {train_accuracy}")
+        logger.info(f"Best Training Loss Score: {best_loss_score:.6f}")
+        logger.info(f"Training Accuracy: {train_accuracy:.4f}")
 
         return net
 
@@ -452,8 +452,8 @@ class PytorchTesting(TestingStrategy):
         test_loss = test_loss / batch_idx
         test_accuracy = 100 * correct / test_size
 
-        logger.info(f"Best Test Loss Score: {test_loss}")
-        logger.info(f"Accuracy: {test_accuracy}")
+        logger.info(f"Best Test Loss Score: {test_loss:.6f}")
+        logger.info(f"Test Accuracy: {test_accuracy:.4f}")
 
         return test_loss
 
