@@ -11,6 +11,7 @@ import shutil
 from collections.abc import Callable
 
 import torch
+import torch.nn.functional as F
 import torch.optim.lr_scheduler as schedulers
 import torch.utils.data as tdt
 
@@ -150,7 +151,7 @@ class PytorchTraining(TrainingStrategy):
         self.r_split = r_split
         self.network_transform = network_transform
 
-        if device not in ['cpu', 'cuda', 'mps']:
+        if device not in ['cpu', 'cuda']:
             raise Exception
         self.device = torch.device(device)
 
@@ -160,6 +161,8 @@ class PytorchTraining(TrainingStrategy):
         self.train_patience = train_patience
         self.verbose_rate = verbose_rate
         self.checkpoints_root = checkpoints_root
+
+        self.logger = logging.getLogger(logger_name)
 
         # Sanitize checkpoints root as a path
         if len(self.checkpoints_root) > 0 and self.checkpoints_root[-1] != '/':
@@ -193,62 +196,55 @@ class PytorchTraining(TrainingStrategy):
         net.pytorch_network.float()
         net.pytorch_network.to(self.device)
 
-        logger = logging.getLogger(logger_name)
-
         # We build the optimizer and the scheduler
         optimizer = self.optimizer_con(net.pytorch_network.parameters(), **self.opt_params)
-
-        if self.scheduler_con is not None:
-            scheduler = self.scheduler_con(optimizer, **self.sch_params)
-        else:
-            scheduler = None
+        scheduler = self.scheduler_con(optimizer, **self.sch_params) if self.scheduler_con else None
 
         # We split the dataset in training set and validation set.
-        validation_len = int(dataset.__len__() * self.validation_percentage)
-        training_len = dataset.__len__() - validation_len
+        validation_len = int(len(dataset) * self.validation_percentage)
+        training_len = len(dataset) - validation_len
         if self.r_split:
             training_set, validation_set = tdt.random_split(dataset, (training_len, validation_len))
         else:
             training_set = tdt.Subset(dataset, range(training_len))
-            validation_set = tdt.Subset(dataset, range(training_len, dataset.__len__()))
+            validation_set = tdt.Subset(dataset, range(training_len, len(dataset)))
 
         # We instantiate the data loaders
-        train_loader = tdt.DataLoader(training_set, self.train_batch_size)
-        validation_loader = tdt.DataLoader(validation_set, self.validation_batch_size)
+        train_loader = tdt.DataLoader(training_set, self.train_batch_size, shuffle=True)
+        validation_loader = tdt.DataLoader(validation_set, self.validation_batch_size, shuffle=True)
 
         if self.verbose_rate is None:
             self.verbose_rate = int(len(train_loader) / 4)
 
-        # If a checkpoint exist, we load the checkpoint of interest
+        # If a checkpoint exists, we load it
         checkpoints_path = self.checkpoints_root + net.identifier + '.pth.tar'
         best_model_path = self.checkpoints_root + net.identifier + '_best.pth.tar'
 
         if os.path.isfile(checkpoints_path):
-
-            logger.info(f"Loading Checkpoint: '{checkpoints_path}'")
+            self.logger.info(f"Loading Checkpoint: '{checkpoints_path}'")
             checkpoint = torch.load(checkpoints_path)
             start_epoch = checkpoint['epoch']
             net.pytorch_network.load_state_dict(checkpoint['network_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             best_loss_score = checkpoint['best_loss_score']
             epochs_without_decrease = checkpoint['epochs_without_decrease']
-            logger.info(f"Loaded Checkpoint: '{checkpoints_path}'")
-            logger.info(f"Epoch: {start_epoch}, Best Loss Score: {best_loss_score:.6f}")
+            self.logger.info(f"Loaded Checkpoint: '{checkpoints_path}'")
+            self.logger.info(f"Epoch: {start_epoch}, Best Loss Score: {best_loss_score:.6f}")
 
         else:
-            # Otherwise we initialize the values of interest
-            logger.info(f"No Checkpoint was found at '{checkpoints_path}'")
+            # Otherwise we initialize the values
+            self.logger.info(f"No Checkpoint was found at '{checkpoints_path}'")
             # best_loss_score is set to a high number so that the first epoch will replace it
             best_loss_score = 999999
             epochs_without_decrease = 0
             start_epoch = 0
 
-        # history_score is used to keep track of the evolution of training loss and validation loss
+        # history_score is used to keep track of the training and validation loss evolution
         history_score = torch.zeros((self.n_epochs - start_epoch + 1, 2))
         train_accuracy = 0
 
-        # We begin the real and proper training of the network. In the outer cycle we consider the epochs and for each
-        # epoch until termination we consider all the batches
+        # We begin the real and proper training of the network. In the outer cycle we consider the epochs
+        # and for each epoch until termination we consider all the batches
         for epoch in range(start_epoch, self.n_epochs):
 
             train_size = 0
@@ -267,59 +263,50 @@ class PytorchTraining(TrainingStrategy):
             # For each batch we compute one learning step
             for batch_idx, (data, target) in enumerate(train_loader):
 
-                data = data.float()
-                if target.dtype == torch.double:
-                    target = target.float()
+                target = target.squeeze()  # Preserves the correct shape
                 data, target = data.to(self.device), target.to(self.device)
-                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
-                optimizer.zero_grad()
                 output = net.pytorch_network(data)
-                loss = self.loss_function(output, target)
-                avg_loss += loss.data.item()
+
+                if isinstance(self.loss_function, torch.nn.MSELoss):
+                    loss = self.loss_function(output, F.one_hot(target, num_classes=output.shape[1]).float())
+                else:
+                    loss = self.loss_function(output, target)
+
+                avg_loss += loss.item()
+                optimizer.zero_grad()
                 loss.backward()
-
-                if self.network_transform is not None:
-                    self.network_transform(net)
-
                 optimizer.step()
 
                 _, pred = torch.max(output.data, 1)
-                correct += (pred == target).sum().item()
+                correct += (pred == target.squeeze()).sum().item()
                 train_size += self.train_batch_size
 
                 if batch_idx % self.verbose_rate == 0:
-                    logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
+                    self.logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                         epoch, batch_idx * len(data), len(training_set),
                                100. * batch_idx / math.floor(len(training_set) / self.train_batch_size),
                         loss.data.item()))
 
-            # avg_loss = avg_loss / float(math.floor(len(training_set) / self.train_batch_size))
             avg_loss = avg_loss / batch_idx
             history_score[epoch - start_epoch][0] = avg_loss
             train_accuracy = 100 * correct / train_size
 
             # EPOCH TEST
-
             net.pytorch_network.eval()
-            net.pytorch_network.float()
             validation_loss = 0
 
             with torch.no_grad():
-
                 for batch_idx, (data, target) in enumerate(validation_loader):
 
-                    data = data.float()
-                    if target.dtype == torch.double:
-                        target = target.float()
+                    target = target.squeeze()  # Preserves the correct shape
                     data, target = data.to(self.device), target.to(self.device)
-                    data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
                     output = net.pytorch_network(data)
-                    loss = self.precision_metric(output, target)
-                    validation_loss += loss.data.item()
 
-            # validation_loss = validation_loss / float(math.floor(len(validation_set) / self.validation_batch_size))
+                    loss = self.precision_metric(output, target)
+                    validation_loss += loss.item()
+
             validation_loss = validation_loss / batch_idx
-            logger.info('\nValidation Set Metric Value: {:.4f}\n'.format(validation_loss))
+            self.logger.info('\nValidation Set Metric Value: {:.4f}\n'.format(validation_loss))
 
             if validation_loss < best_loss_score:
                 epochs_without_decrease = 0
@@ -327,8 +314,6 @@ class PytorchTraining(TrainingStrategy):
             else:
                 epochs_without_decrease += 1
 
-            # We need to distinguish among different scheduler because not all the pytorch scheduler present the same
-            # interface.
             if scheduler is not None:
                 if isinstance(scheduler, schedulers.ReduceLROnPlateau):
                     scheduler.step(validation_loss)
@@ -336,7 +321,6 @@ class PytorchTraining(TrainingStrategy):
                     scheduler.step()
 
             # CHECKPOINT
-
             history_score[epoch - start_epoch][1] = validation_loss
             is_best = validation_loss < best_loss_score
 
@@ -356,8 +340,8 @@ class PytorchTraining(TrainingStrategy):
             best_checkpoint = torch.load(best_model_path)
             net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
 
-        logger.info(f"Best Training Loss Score: {best_loss_score:.6f}")
-        logger.info(f"Training Accuracy: {train_accuracy:.4f}")
+        self.logger.info(f"Best Training Loss Score: {best_loss_score:.6f}")
+        self.logger.info(f"Training Accuracy: {train_accuracy:.4f}")
 
         return net
 
@@ -382,17 +366,18 @@ class PytorchTesting(TestingStrategy):
     """
 
     def __init__(self, metric: Callable, metric_params: dict, test_batch_size: int, device: str = 'cpu',
-                 save_results: bool = False, mps: bool = False):
+                 save_results: bool = False):
 
         TestingStrategy.__init__(self)
         self.metric = metric
         self.metric_params = metric_params
         self.test_batch_size = test_batch_size
-        if device not in ['cpu', 'cuda', 'mps']:
+        if device not in ['cpu', 'cuda']:
             raise Exception
         self.device = torch.device(device)
-        self.mps = mps
         self.save_results = save_results
+        self.logger = logging.getLogger(logger_name)
+
         if save_results:
             self.outputs = []
             self.targets = []
@@ -411,11 +396,8 @@ class PytorchTesting(TestingStrategy):
 
     def pytorch_testing(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> float:
 
-        logger = logging.getLogger(logger_name)
-        net.pytorch_network.to(self.device)
-
-        # We set all the values of the network to double.
         net.pytorch_network.float()
+        net.pytorch_network.to(self.device)
 
         # We instantiate the data loader
         test_loader = tdt.DataLoader(dataset, self.test_batch_size)
@@ -427,33 +409,32 @@ class PytorchTesting(TestingStrategy):
         with torch.no_grad():
 
             correct = 0
-
             for batch_idx, (data, target) in enumerate(test_loader):
 
-                data = data.float()
-                if target.dtype == torch.double:
-                    target = target.float()
-
                 data, target = data.to(self.device), target.to(self.device)
-                data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
                 output = net.pytorch_network(data)
-                loss = self.metric(output, target, **self.metric_params)
+
+                if isinstance(self.metric, torch.nn.MSELoss):
+                    loss = self.metric(output, F.one_hot(target, num_classes=output.shape[1]).float())
+                else:
+                    loss = self.metric(output, target)
+
                 if self.save_results:
                     self.outputs.append(output.cpu().detach().numpy())
                     self.targets.append(target.cpu().detach().numpy())
                     self.losses.append(loss.item())
-                test_loss += loss.data.item()
+                test_loss += loss.item()
 
                 _, pred = torch.max(output.data, 1)
-                correct += (pred == target).sum().item()
+                correct += (pred == target.squeeze()).sum().item()
                 test_size += self.test_batch_size
 
         # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
         test_loss = test_loss / batch_idx
-        test_accuracy = 100 * correct / test_size
+        test_accuracy = 100 * correct / len(dataset)
 
-        logger.info(f"Best Test Loss Score: {test_loss:.6f}")
-        logger.info(f"Test Accuracy: {test_accuracy:.4f}")
+        self.logger.info(f"Best Test Loss Score: {test_loss:.6f}")
+        self.logger.info(f"Test Accuracy: {test_accuracy:.4f}")
 
         return test_loss
 
