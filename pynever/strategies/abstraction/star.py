@@ -142,8 +142,8 @@ class Star:
         solver, alphas, constraints = self.__get_predicate_lp_solver()
         objective = solver.Objective()
         for j in range(self.basis_matrix.shape[1]):
-            objective.SetCoefficient(alphas[j], self.basis_matrix[i, j])
-        objective.SetOffset(self.center[i, 0])
+            objective.SetCoefficient(alphas[j], self.basis_matrix[i, j].item())
+        objective.SetOffset(self.center[i, 0].item())
 
         objective.SetMinimization()
 
@@ -399,10 +399,10 @@ class Star:
 
         constraints = []
         for k in range(self.predicate_matrix.shape[0]):
-            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0])
+            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0].item())
             for j in range(self.predicate_matrix.shape[1]):
-                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j])
-            new_constraint.SetCoefficient(radius, torch.linalg.vector_norm(self.predicate_matrix[k, :], 2))
+                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j].item())
+            new_constraint.SetCoefficient(radius, torch.linalg.vector_norm(self.predicate_matrix[k, :], 2).item())
             constraints.append(new_constraint)
 
         objective = solver.Objective()
@@ -443,9 +443,9 @@ class Star:
 
         constraints = []
         for k in range(self.predicate_matrix.shape[0]):
-            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0])
+            new_constraint = solver.Constraint(-solver.infinity(), self.predicate_bias[k, 0].item())
             for j in range(self.predicate_matrix.shape[1]):
-                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j])
+                new_constraint.SetCoefficient(alphas[j], self.predicate_matrix[k, j].item())
             constraints.append(new_constraint)
 
         return solver, alphas, constraints

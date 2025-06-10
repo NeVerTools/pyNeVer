@@ -295,7 +295,7 @@ class AbsReLUNode(AbsLayerNode):
     def __starset_forward(self, abs_input: StarSet) -> StarSet:
         """Procedure to compute the StarSet forward in parallel"""
         with multiprocessing.Pool(multiprocessing.cpu_count()) as my_pool:
-            parallel_results = my_pool.map(self.__mixed_single_relu_forward, abs_input.stars)
+            parallel_results = my_pool.map(self._mixed_single_relu_forward, abs_input.stars)
 
         # Here we pop the first element of parameters.neurons_to_refine to preserve the layer ordering
         if hasattr(self.parameters, 'neurons_to_refine'):
@@ -325,7 +325,7 @@ class AbsReLUNode(AbsLayerNode):
 
         return abs_output
 
-    def __mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], torch.Tensor | None]:
+    def _mixed_single_relu_forward(self, star: Star) -> tuple[set[Star], torch.Tensor | None]:
         """
         Utility function for the management of the forward for AbsReLUNode. It is outside
         the class scope since multiprocessing does not support parallelization with
