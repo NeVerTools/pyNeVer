@@ -1,3 +1,10 @@
+"""
+This module contains the classes used to implement the different verification strategies. Following the strategy pattern,
+the class ``VerificationStrategy`` is the abstract class providing a ``verify`` method that requires a neural network and
+a property. The concrete classes ``SSLPVerification`` and ``SSBPVerification`` implement the verification strategies based
+on starsets and symbolic bounds propagation, respectively.
+"""
+
 import abc
 import copy
 import datetime
@@ -51,32 +58,32 @@ class VerificationStrategy(abc.ABC):
     @abc.abstractmethod
     def verify(self, network: networks.NeuralNetwork, prop: NeverProperty) -> tuple[bool, torch.Tensor | None]:
         """
-        Verify that the neural network of interest satisfy the property given as argument
+        Verify that the neural network of interest satisfies the property given as argument
         using a verification strategy determined in the concrete children.
 
         Parameters
         ----------
         network: NeuralNetwork
             The neural network to train.
-        prop: Dataset
+        prop: NeverProperty
             The property which the neural network must satisfy.
 
         Returns
         ----------
         bool
-            True is the neural network satisfy the property, False otherwise.
+            True is the neural network satisfies the property, False otherwise.
         """
         raise NotImplementedError
 
 
 class SSLPVerification(VerificationStrategy):
     """
-    Class used to represent the SSLP verification strategy.
+    Class used to represent the SSLP (Star Sets with Linear Programming) verification strategy.
 
     Attributes
     ----------
     counterexample_stars: list[Star]
-        List of Star objects containing a counterexample
+        List of :class:`~pynever.strategies.abstraction.star.Star` objects containing a counterexample
     layers_bounds: dict
         Bounds obtained through bounds propagation to support verification
     """
@@ -178,13 +185,13 @@ class SSLPVerification(VerificationStrategy):
 
 class SSBPVerification(VerificationStrategy):
     """
-    Class used to represent the search-based verification strategy. It uses
-    star propagation with Symbolic Bounds Propagation and an abstraction-refinement
-    loop for better readability, structure and functionality
+    Class used to represent the SSBP (Star Sets with Bounds Propagation) verification strategy.
+    It uses star propagation with Symbolic Bounds Propagation and an abstraction-refinement
+    loop for better readability, structure and functionality.
 
     Attributes
     ----------
-    network: networks.SequentialNetwork
+    network: NeuralNetwork
         The neural network to verify
     prop: NeverProperty
         The property specification
@@ -199,8 +206,19 @@ class SSBPVerification(VerificationStrategy):
     def init_search(self, network: networks.NeuralNetwork, prop: NeverProperty) \
             -> tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]:
         """
-        Initialize the search algorithm and compute the
-        starting values for the bounds, the star and the target
+        Initialize the search algorithm and compute the starting values for the bounds and the star.
+
+        Parameters
+        ----------
+        network: NeuralNetwork
+            The neural network in use
+        prop: NeverProperty
+            The property specification
+
+        Returns
+        -------
+        ExtendedStar, HyperRectangleBounds, VerboseBounds
+            The starting values for the star and the bounds.
         """
         self.network = network
         self.prop = prop
@@ -237,6 +255,18 @@ class SSBPVerification(VerificationStrategy):
         """
         This method computes the intersection between a star and the output property
         using the intersection algorithm specified by the parameters
+
+        Parameters
+        ----------
+        star: ExtendedStar
+            The :class:`~pynever.strategies.abstraction.star.ExtendedStar` object containing the star to intersect
+        nn_bounds: VerboseBounds
+            The bounds obtained through bounds propagation
+
+        Returns
+        -------
+        bool, torch.Tensor
+            The result of the intersection. If True, a counterexample is returned too.
         """
         match self.parameters.intersection:
             case IntersectionStrategy.STAR_LP:
@@ -255,7 +285,19 @@ class SSBPVerification(VerificationStrategy):
             -> tuple[RefinementTarget | None, ExtendedStar]:
         """
         This method computes the next refinement target for the verification algorithm
-        based on the strategy specified by the parameters
+        based on the strategy specified by the parameters.
+
+        Parameters
+        ----------
+        star: ExtendedStar
+            The :class:`~pynever.strategies.abstraction.star.ExtendedStar` object containing the star to refine
+        nn_bounds: VerboseBounds
+            The bounds obtained through bounds propagation.
+
+        Returns
+        -------
+        RefinementTarget | None, ExtendedStar
+            The next refinement target and the extended star to refine. If no more refinement is needed, None is returned.
         """
         match self.parameters.heuristic:
 
@@ -282,12 +324,12 @@ class SSBPVerification(VerificationStrategy):
         ----------
         network: NeuralNetwork
             The network model in the internal representation
-        prop: Property
+        prop: NeverProperty
             The property specification
 
         Returns
         ----------
-        bool, Optional[torch.Tensor]
+        bool, torch.tensor | None
             True if the network is safe, False otherwise. If the result is False and the
             search is complete it also returns a counterexample
         """

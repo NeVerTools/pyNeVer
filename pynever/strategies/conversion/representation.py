@@ -81,7 +81,7 @@ class PyTorchNetwork(AlternativeRepresentation):
         try:
             self.pytorch_network = torch.load(self.path)
         except Exception:
-            raise ValueError('Incorrect file for ONNX network')
+            raise ValueError('Incorrect file for PyTorch network')
 
     @dispatch(str, torch.nn.Module)
     def __init__(self, identifier: str, model: torch.nn.Module):

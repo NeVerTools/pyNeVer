@@ -20,11 +20,10 @@ Please send a merge request to the main branch. Tests or documentation without b
 - Test your code on Python 3.11.x. A regression test is available by running from the main directory `python test/regression/run_regression_test.py`
 - Create a merge request to merge the changes from your branch to the pyNeVer main branch.
 
-
-
 ### Guidelines
 - Separate code commits from reformatting commits.
 - Provide tests for any newly added code when possible.
+- Document your code following the [documentation guidelines](docs/template.py)
 
 ## Reporting Issues
 When reporting issues, please include code that reproduces the issue and whenever possible, an image that demonstrates the issue. Please upload images to GitHub, not to third-party file hosting sites. If necessary, add the image to a zip or tar archive.

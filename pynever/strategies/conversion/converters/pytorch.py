@@ -9,14 +9,6 @@ import pynever.nodes as nodes
 class PyTorchConverter(ConversionStrategy):
     """
     A class used to represent the conversion strategy for PyTorch models.
-
-    Methods
-    ----------
-    from_neural_network(NeuralNetwork)
-        Convert the neural network of interest to a PyTorchNetwork model.
-    to_neural_network(PyTorchNetwork)
-        Convert the PyTorchNetwork of interest to our internal representation of a Neural Network.
-
     """
 
     def from_neural_network(self, network: networks.NeuralNetwork) -> PyTorchNetwork:
@@ -32,7 +24,6 @@ class PyTorchConverter(ConversionStrategy):
         ----------
         PyTorchNetwork
             The PyTorch representation resulting from the conversion of the original network.
-
         """
         pytorch_network = None
         if isinstance(network, networks.SequentialNetwork):
@@ -274,9 +265,7 @@ class PyTorchConverter(ConversionStrategy):
         ----------
         NeuralNetwork
             The Neural Network resulting from the conversion of PyTorch Representation.
-
         """
-
         identifier = alt_rep.identifier
         if hasattr(alt_rep.pytorch_network, 'input_id'):
             input_id = alt_rep.pytorch_network.input_id
@@ -329,11 +318,11 @@ class PyTorchConverter(ConversionStrategy):
 
             elif isinstance(m, pyt_l.Linear):
                 out_features = m.out_features
-                weight = m.weight.detach().numpy()
+                weight = m.weight
                 bias = None
                 has_bias = False
                 if m.bias is not None:
-                    bias = m.bias.detach().numpy()
+                    bias = m.bias
                     has_bias = True
                 new_node = nodes.FullyConnectedNode(layer_id, layer_in_dim, out_features, weight, bias, has_bias)
 
@@ -345,8 +334,8 @@ class PyTorchConverter(ConversionStrategy):
                 track_running_stats = m.track_running_stats
                 affine = m.affine
 
-                weight = m.weight.detach().numpy()
-                bias = m.bias.detach().numpy()
+                weight = m.weight
+                bias = m.bias
                 running_mean = m.running_mean.numpy()
                 running_var = m.running_var.numpy()
 
@@ -365,13 +354,13 @@ class PyTorchConverter(ConversionStrategy):
                 padding = tuple(temp_padding)
                 dilation = m.dilation
                 groups = m.groups
-                weight = m.weight.detach().numpy()
+                weight = m.weight
                 if m.bias is None:
                     has_bias = False
                     bias = None
                 else:
                     has_bias = True
-                    bias = m.bias.detach().numpy()
+                    bias = m.bias
 
                 new_node = nodes.ConvNode(layer_id, layer_in_dim, out_channels, kernel_size,
                                           stride, padding, dilation, groups, has_bias, bias, weight)

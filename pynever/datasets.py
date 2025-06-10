@@ -4,6 +4,7 @@ import abc
 from collections.abc import Callable
 
 import numpy as np
+import torch
 import torch.utils.data as tdata
 import torchvision as tv
 
@@ -129,8 +130,9 @@ class GenericFileDataset(Dataset, tdata.Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
-        dataset = np.loadtxt(filepath, dtype=self.dtype, delimiter=self.delimiter)
-        self.__data, self.__targets = (dataset[:, 0:self.target_index], dataset[:, self.target_index:])
+        dataset = torch.Tensor(np.loadtxt(filepath, dtype=self.dtype, delimiter=self.delimiter))
+        self.__data = dataset[:, 0:self.target_index]
+        self.__targets = dataset[:, self.target_index:].to(torch.long)
 
     def __getitem__(self, index: int) -> tuple:
 
