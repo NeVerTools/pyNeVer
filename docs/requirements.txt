@@ -2,6 +2,7 @@
 # needed to build python documentation
 Sphinx
 sphinx-rtd-theme
+sphinx-autodoc-typehints
 Pygments
 nbsphinx
 pandoc
