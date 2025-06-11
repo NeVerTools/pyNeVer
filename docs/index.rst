@@ -26,7 +26,6 @@ NB: this documentation is in progress!
    :caption: Usage
 
    Guide/*
-   notebooks/*
 
 .. _API:
 .. toctree::
