@@ -1,11 +1,9 @@
 import logging
 
-import torch
-import torchvision.transforms as tr
 from torch import nn
 from torch.optim import Adam, lr_scheduler
 
-from pynever.datasets import GenericFileDataset, TorchMNIST
+from pynever.datasets import GenericFileDataset
 from pynever.strategies.conversion.converters.onnx import ONNXConverter
 from pynever.strategies.conversion.representation import ONNXNetwork
 from pynever.strategies.training import PytorchTraining, PytorchMetrics

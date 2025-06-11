@@ -41,7 +41,7 @@ class NeuralNetwork(abc.ABC):
         self.input_ids: dict[str, str | None] = {i: None for i in input_ids}
 
     def __repr__(self):
-        body = [self.nodes[k].__str__() for k in self.get_topological_order()]
+        body = '{}' if self.is_empty() else [self.nodes[k].__str__() for k in self.get_topological_order()]
         return f"{self.identifier} : {body}"
 
     def is_empty(self) -> bool:
