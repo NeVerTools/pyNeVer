@@ -42,9 +42,7 @@ classifiers = [
 docs = [
     "sphinx",
     "sphinx-autodoc-typehints",
-    "sphinx-rtd-theme",
-    "nbsphinx",
-    "pandoc"
+    "sphinx-rtd-theme"
 ]
 
 [tool.setuptools]
