@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyNeVer"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
     "numpy",
     "onnx",
@@ -42,7 +42,9 @@ classifiers = [
 docs = [
     "sphinx",
     "sphinx-autodoc-typehints",
-    "sphinx-rtd-theme"
+    "sphinx-rtd-theme",
+    "nbsphinx",
+    "pandoc"
 ]
 
 [tool.setuptools]

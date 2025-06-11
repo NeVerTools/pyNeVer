@@ -1,0 +1,7 @@
+# Packages in addition to test_requirements.txt
+# needed to build python documentation
+Sphinx
+sphinx-rtd-theme
+sphinx-autodoc-typehints
+Pygments
+nbsphinx
