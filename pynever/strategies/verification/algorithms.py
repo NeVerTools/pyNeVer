@@ -166,7 +166,8 @@ class SSLPVerification(VerificationStrategy):
         ver_end_time = time.perf_counter()
 
         self.logger.info(f"The property is satisfiable: {is_satisfied}.")
-        self.logger.info(f"Verification Time: {ver_end_time - ver_start_time}\n")
+        self.logger.info(f"Verification result:         {not is_satisfied}.")
+        self.logger.info(f"Verification Time:           {ver_end_time - ver_start_time:.4f}\n")
 
         return not is_satisfied, counterexample
 
