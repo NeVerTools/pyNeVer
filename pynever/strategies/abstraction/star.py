@@ -315,15 +315,15 @@ class Star:
 
         c_mat_1 = torch.zeros((1, col_c_mat + 1))
         c_mat_1[0, col_c_mat] = -1
-        c_mat_2 = torch.hstack((torch.array([self.basis_matrix[index, :]]), -torch.ones((1, 1))))
+        c_mat_2 = torch.hstack((self.basis_matrix[index, :].unsqueeze(0), -torch.ones((1, 1))))
         coef_3 = - ub / (ub - lb)
-        c_mat_3 = torch.hstack((torch.array([coef_3 * self.basis_matrix[index, :]]), torch.ones((1, 1))))
+        c_mat_3 = torch.hstack((coef_3 * self.basis_matrix[index, :].unsqueeze(0), torch.ones((1, 1))))
         c_mat_0 = torch.hstack((self.predicate_matrix, torch.zeros((row_c_mat, 1))))
 
         d_0 = self.predicate_bias
         d_1 = torch.zeros((1, 1))
         d_2 = -self.center[index] * torch.ones((1, 1))
-        d_3 = torch.array([(ub / (ub - lb)) * (self.center[index] - lb)])
+        d_3 = torch.Tensor([(ub / (ub - lb)) * (self.center[index] - lb)])
 
         new_pred_mat = torch.vstack((c_mat_0, c_mat_1, c_mat_2, c_mat_3))
         new_pred_bias = torch.vstack((d_0, d_1, d_2, d_3))
