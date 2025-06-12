@@ -1,4 +1,4 @@
-Verification
+Stand-alone
 ============
 
 Command-line interface

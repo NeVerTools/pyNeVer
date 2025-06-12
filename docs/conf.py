@@ -34,10 +34,12 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
-    'sphinx.ext.linkcode',
+    'sphinx.ext.linkcode'
 ]
 
 autodoc_member_order = 'bysource'
+# nbsphinx_execute = 'never'
+# nbsphinx_allow_errors = True
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = ['_templates']
@@ -45,7 +47,7 @@ autodoc_member_order = 'bysource'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README*']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README*', '**.ipynb_checkpoints']
 
 # -- Options for HTML output -------------------------------------------------
 
