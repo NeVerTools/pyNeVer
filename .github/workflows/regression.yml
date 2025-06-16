@@ -11,7 +11,7 @@ name: Push-enabled regression test
 on:
   push:
     branches:
-      - main
+      - dev
 
 jobs:
   build:

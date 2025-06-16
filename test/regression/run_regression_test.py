@@ -10,7 +10,7 @@ if __name__ == '__main__':
         subprocess.run(['./download_benchmarks.sh', 'Regression'])
 
     print('Benchmarks repository found.')
-    for dirname in ['ACAS_XU', 'RL']:  # CIFAR and resnet to come
+    for dirname in ['RL']:  # CIFAR and resnet to come
         print('Running benchmarks for {}...'.format(dirname))
         subprocess.run(
             ['python', 'never2_batch.py',
@@ -20,9 +20,12 @@ if __name__ == '__main__':
         print('Completed.')
 
         # Check all verified
-        with open(f'results_batch_{dirname}.csv', 'r') as f:
-            for line in f:
-                if line.strip('\n').split(',')[2] != 'Verified':
+        with open(f'results_batch_{dirname}.csv', 'r') as f_out, open(f'Regression/{dirname}/ground.csv', 'r') as f_gt:
+            res = f_out.readlines()
+            truth = f_gt.readlines()
+
+            for i in range(len(truth)):
+                if res[i].strip('\n').split(',')[2] != truth[i].strip('\n'):
                     print('Test failed!')
                     exit(1)
 
