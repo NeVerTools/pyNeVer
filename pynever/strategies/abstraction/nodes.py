@@ -335,10 +335,11 @@ class AbsReLUNode(AbsLayerNode):
         if star.check_if_empty():
             return set(), None
 
-        n_areas = []
+        n_areas = None
 
         # Perform this code only if necessary
         if self.parameters.compute_areas:
+            n_areas = []
             for i in range(star.n_neurons):
                 if (self.layer_bounds is not None
                         and (self.layer_bounds.get_lower()[i] >= 0 or self.layer_bounds.get_upper()[i] < 0)

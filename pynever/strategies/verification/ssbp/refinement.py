@@ -35,7 +35,7 @@ class BoundsRefinement:
         """
         self.logger.debug("\tTarget {} "
                           "Overapprox. area {:10.4}".format(target,
-                                                            pre_branch_bounds.statistics.overapprox_area['map'][
+                                                            pre_branch_bounds.statistics.approximation_info[
                                                                 target.to_pair()]))
 
         input_bounds = pre_branch_bounds.numeric_pre_bounds[nn.get_id_from_index(0)]
@@ -52,10 +52,11 @@ class BoundsRefinement:
             BoundsManager(nn, input_bounds=negative_branch_input).compute_bounds()
         )
 
-        self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds.statistics.stability_info['stable_count']),
-            None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
-            negative_branch_input))
+        # self.logger.debug("\tNegative Stable count  {}  Volume {} --- {}".format(
+        #     None if negative_bounds is None else "{:4}".format(
+        #         negative_bounds.statistics.stability_info['stable_count']),
+        #     None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
+        #     negative_branch_input))
 
         """
         POSITIVE BRANCH
@@ -69,10 +70,11 @@ class BoundsRefinement:
             BoundsManager(nn, input_bounds=positive_branch_input).compute_bounds()
         )
 
-        self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds.statistics.stability_info['stable_count']),
-            None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
-            positive_branch_input))
+        # self.logger.debug("\tPositive Stable count  {}  Volume {} --- {}".format(
+        #     None if positive_bounds is None else "{:4}".format(
+        #         positive_bounds.statistics.stability_info['stable_count']),
+        #     None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
+        #     positive_branch_input))
 
         return negative_bounds, positive_bounds
 
@@ -134,7 +136,7 @@ class BoundsRefinement:
         return refined_bounds
 
     @staticmethod
-    def _choose_dimensions_to_consider(coef: torch.Tensor) -> torch.Tensor:
+    def _choose_dimensions_to_consider(coef: torch.Tensor) -> list[int]:
         """
         This method performs an optimisation for a high-dimensional input
         """
@@ -151,7 +153,7 @@ class BoundsRefinement:
             mask = (abs(coef) > cutoff_c)
             dimensions_to_consider = torch.Tensor(dimensions_to_consider[mask])
 
-        return dimensions_to_consider
+        return [int(i.item()) for i in dimensions_to_consider]
 
     def _refine_input_bounds_for_equation(self, coef: torch.Tensor, shift: torch.Tensor,
                                           input_bounds: HyperRectangleBounds) \
@@ -193,7 +195,7 @@ class BoundsRefinement:
                 pass
 
             else:
-                self.logger.info(f"!! Bounds refined for branch !!")
+                # self.logger.info(f"!! Bounds refined for branch !!")
                 # Bounds have been refined
 
                 if refined_input_bounds == input_bounds:
@@ -239,7 +241,7 @@ class BoundsRefinement:
                 pass
 
             else:
-                self.logger.info(f"!! Bounds refined for branch !!")
+                # self.logger.info(f"!! Bounds refined for branch !!")
                 # Bounds have been refined
 
                 if refined_input_bounds == input_bounds:
@@ -439,15 +441,17 @@ class BoundsRefinement:
         negative_bounds = BoundsManager(nn, input_bounds=lower_half).compute_bounds()
         positive_bounds = BoundsManager(nn, input_bounds=upper_half).compute_bounds()
 
-        self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
-            None if negative_bounds is None else "{:4}".format(negative_bounds.statistics.stability_info['stable_count']),
-            None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
-            lower_half))
+        # self.logger.debug("\tBisect1 Stable count  {}  Volume {} --- {}".format(
+        #     None if negative_bounds is None else "{:4}".format(
+        #         negative_bounds.statistics.stability_info['stable_count']),
+        #     None if negative_bounds is None else "{:10.4}".format(negative_bounds.statistics.overapprox_area['volume']),
+        #     lower_half))
 
-        self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
-            None if positive_bounds is None else "{:4}".format(positive_bounds.statistics.stability_info['stable_count']),
-            None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
-            upper_half))
+        # self.logger.debug("\tBisect2 Stable count  {}  Volume {} --- {}".format(
+        #     None if positive_bounds is None else "{:4}".format(
+        #         positive_bounds.statistics.stability_info['stable_count']),
+        #     None if positive_bounds is None else "{:10.4}".format(positive_bounds.statistics.overapprox_area['volume']),
+        #     upper_half))
 
         return negative_bounds, positive_bounds
 
@@ -492,7 +496,7 @@ class BoundsRefinement:
             coefs.append(coef)
             shifts.append(shift)
 
-        return LinearFunctions(torch.Tensor(coefs), torch.Tensor(shifts))
+        return LinearFunctions(torch.stack(coefs), torch.stack(shifts))
 
     @staticmethod
     def _get_equation_from_fixed_neuron(target: RefinementTarget, value: int, bounds: VerboseBounds, nn) \
@@ -501,7 +505,7 @@ class BoundsRefinement:
         See _get_equations_from_fixed_neurons
         """
         symbolic_preact_bounds = \
-        BoundsManager.get_symbolic_preactivation_bounds_at(bounds, nn.nodes[target.layer_id], nn)[0]
+            BoundsManager.get_symbolic_preactivation_bounds_at(bounds, nn.nodes[target.layer_id], nn)[0]
 
         if value == 0:
             # The linear equation for the upper bound of the target neuron
@@ -598,7 +602,7 @@ class BoundsRefinement:
         solver = pywraplp.Solver("", pywraplp.Solver.CLP_LINEAR_PROGRAMMING)
 
         input_vars = np.array([
-            solver.NumVar(input_bounds.get_lower()[j], input_bounds.get_upper()[j], f'alpha_{j}')
+            solver.NumVar(input_bounds.get_lower()[j].item(), input_bounds.get_upper()[j].item(), f'alpha_{j}')
             for j in range(n_input_dimensions)])
 
         # The constraints from fixing the neurons
@@ -610,11 +614,11 @@ class BoundsRefinement:
         for constr_n in range(len(equations.matrix)):
             # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
             # -infinity <= eq <= 0
-            worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n],
+            worker_constraints[constr_n] = solver.Constraint(-infinity, -equations.offset[constr_n].item(),
                                                              'c[%i]' % constr_n)
             for input_var_n in range(n_input_dimensions):
                 worker_constraints[constr_n].SetCoefficient(input_vars[input_var_n],
-                                                            equations.matrix[constr_n][input_var_n])
+                                                            equations.matrix[constr_n][input_var_n].item())
 
         ## The actual optimisation part
         new_input_bounds = input_bounds.clone()
@@ -634,7 +638,8 @@ class BoundsRefinement:
             all_dimensions = torch.Tensor(range(n_input_dimensions))
             dimensions_to_consider = all_dimensions[(max_coefs > cutoff_c)]
 
-        for i_dim in dimensions_to_consider:
+        for idx in dimensions_to_consider:
+            i_dim = int(idx)
             solver.Maximize(input_vars[i_dim])
             status = solver.Solve()
 

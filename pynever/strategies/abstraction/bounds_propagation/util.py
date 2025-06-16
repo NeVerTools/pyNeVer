@@ -161,7 +161,7 @@ def compute_layer_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds,
     return [neuron_n for neuron_n in layer_unstable if (layer_id, neuron_n) not in fixed_neurons]
 
 
-def compute_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_neurons: dict) -> list[int]:
+def compute_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_neurons: dict) -> list[tuple]:
     """Procedure to obtain the overall unstable neurons based on bounds and information about neurons.
 
     Parameters
@@ -177,4 +177,4 @@ def compute_unstable_from_bounds_and_fixed_neurons(bounds: VerboseBounds, fixed_
         The list of overall computed unstable neurons and fixed unstable neurons
     """
     unstable = bounds.statistics.stability_info[ReLUStatus.UNSTABLE]
-    return [neuron for neuron in unstable if neuron not in fixed_neurons]
+    return [(layer, neuron) for layer, neurons in unstable.items() for neuron in neurons if (layer, neuron) not in fixed_neurons]
