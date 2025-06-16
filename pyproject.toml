@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyNeVer"
-version = "1.2.5"
+version = "1.2.6"
 dependencies = [
     "numpy",
     "onnx",
