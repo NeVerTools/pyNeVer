@@ -57,9 +57,9 @@ class NeverProperty:
 
         for i in range(self.in_bias_mat.shape[0]):
             if 1 in self.in_coef_mat[i, :]:
-                lbs.append(self.in_bias_mat[i, :])
-            else:
                 ubs.append(self.in_bias_mat[i, :])
+            else:
+                lbs.append(-self.in_bias_mat[i, :])
 
         # debug
         assert len(lbs) == len(ubs) == self.in_bias_mat.shape[0] // 2

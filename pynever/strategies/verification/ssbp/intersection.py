@@ -217,16 +217,16 @@ def intersect_light_milp(star: ExtendedStar, nn: SequentialNetwork, nn_bounds: V
             if value == 0:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, nn.nodes[layer_id], nn)[0]
                         .get_lower().get_matrix()[neuron_n].numpy()) +
-                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, nn.nodes[layer_id], nn)[0]
                     .get_lower().get_offset()[neuron_n].item() <= 0)
             else:
                 solver.Add(
                     input_vars.dot(
-                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                        BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, nn.nodes[layer_id], nn)[0]
                         .get_upper().get_matrix()[neuron_n].numpy()) +
-                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, layer_id, nn)[0]
+                    BoundsManager.get_symbolic_preactivation_bounds_at(nn_bounds, nn.nodes[layer_id], nn)[0]
                     .get_upper().get_offset()[neuron_n].item() >= 0)
 
     # The constraints relating input and output variables

@@ -122,9 +122,9 @@ def optimise_input_bounds_before_moving_to_next_layer(star: ExtendedStar, nn_bou
     for i in range(len(equations.matrix)):
         # solver.Add(input_vars.dot(equations.matrix[i]) + equations.offset[i] <= 0)
         # -infinity <= eq <= 0
-        worker_constraints[i] = solver.Constraint(-infinity, -equations.offset[i], 'c[%i]' % i)
+        worker_constraints[i] = solver.Constraint(-infinity, -equations.offset[i].item(), 'c[%i]' % i)
         for j in range(n_input_dimensions):
-            worker_constraints[i].SetCoefficient(input_vars[j], equations.matrix[i][j])
+            worker_constraints[i].SetCoefficient(input_vars[j], equations.matrix[i][j].item())
 
     new_input_bounds = input_bounds.clone()
     bounds_improved = False
