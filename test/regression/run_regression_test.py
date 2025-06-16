@@ -10,7 +10,7 @@ if __name__ == '__main__':
         subprocess.run(['./download_benchmarks.sh', 'Regression'])
 
     print('Benchmarks repository found.')
-    for dirname in ['RL']:  # CIFAR and resnet to come
+    for dirname in ['ACAS_XU', 'RL']:  # CIFAR and resnet to come
         print('Running benchmarks for {}...'.format(dirname))
         subprocess.run(
             ['python', 'never2_batch.py',
