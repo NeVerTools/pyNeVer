@@ -195,7 +195,7 @@ class BoundsRefinement:
                 pass
 
             else:
-                self.logger.info(f"!! Bounds refined for branch !!")
+                # self.logger.info(f"!! Bounds refined for branch !!")
                 # Bounds have been refined
 
                 if refined_input_bounds == input_bounds:
@@ -241,7 +241,7 @@ class BoundsRefinement:
                 pass
 
             else:
-                self.logger.info(f"!! Bounds refined for branch !!")
+                # self.logger.info(f"!! Bounds refined for branch !!")
                 # Bounds have been refined
 
                 if refined_input_bounds == input_bounds:
