@@ -56,6 +56,15 @@ python never2_batch.py [-o OUTPUT] [-t TIMEOUT] instances.csv {sslp|ssbp}
   * SSLP (Star-set with Linear Programming) is our first algorithm based on star sets presented in [this paper](https://link.springer.com/article/10.1007/s00500-024-09907-5).
   * SSBP (Star-set with Bounds Propagation) enhances SSLP with an abstraction-refinement search and symbolic interval propagation. This is the algorithm used in VNNCOMP 2024.
 
+API
+---------------------
+In the [notebooks](examples/notebooks) directory there are four Jupyter Notebooks that illustrate how to use _pyNever_ as an API to design, train and verify neural networks.
+
+- The [first notebook](examples/notebooks/00%20-%20Networks.ipynb) covers the classes and methods to build networks
+- The [second notebook](examples/notebooks/01%20-%20Training.ipynb) covers the learning strategy to train and test a network
+- The [third notebook](examples/notebooks/02%20-%20Safety%20specifications.ipynb) explains how to build a safety specification to define a verification problem
+- The [fourth notebook](examples/notebooks/03%20-%20Verification.ipynb) explains our verification algorithms and covers how to instantiate and execute verification
+
 Supported layers
 ----------------------
 

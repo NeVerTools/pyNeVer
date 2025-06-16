@@ -1,8 +1,6 @@
-Stand-alone
-============
-
 Command-line interface
-----------------------
+======================
+
 | To verify `VNN-LIB <https://www.vnnlib.org>`_ specifications on ONNX models we provide two scripts:
 | one for single instances and another one for multiple instances.
 
@@ -40,3 +38,13 @@ internal representation used by **pyNeVer**.
 The properties for the verification and abstraction of the networks must be defined either in python code following
 the specification which can be found in the documentation, or via an SMT-LIB file compliant to the
 `VNN-LIB <https://www.vnnlib.org>`_ standard.
+
+API
+============
+
+In the `notebooks <https://github.com/NeVerTools/pyNeVer/tree/main/examples/notebooks>`_ directory there are four Jupyter Notebooks that illustrate how to use *pyNever* as an API to design, train and verify neural networks.
+
+- The `first notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/00%20-%20Networks.ipynb>`_ covers the classes and methods to build networks
+- The `second notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/01%20-%20Training.ipynb>`_ covers the learning strategy to train and test a network
+- The `third notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/02%20-%20Safety%20specifications.ipynb>`_ explains how to build a safety specification to define a verification problem
+- The `fourth notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/03%20-%20Verification.ipynb>`_ explains our verification algorithms and covers how to instantiate and execute verification
