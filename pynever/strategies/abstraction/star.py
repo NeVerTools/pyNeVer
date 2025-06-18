@@ -7,6 +7,7 @@ import uuid
 
 import torch
 from ortools.linear_solver import pywraplp
+from pandas.core.computation.expr import intersection
 
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
@@ -259,6 +260,7 @@ class Star:
 
             direction = torch.randn(self.predicate_matrix.shape[1], 1)
             direction = direction / torch.linalg.vector_norm(direction)
+
             lambdas = []
             for i in range(self.predicate_matrix.shape[0]):
 
@@ -277,7 +279,7 @@ class Star:
                 raise RuntimeError("The current direction does not intersect"
                                    "any of the hyperplanes.")
 
-            increment = torch.FloatTensor().uniform_(lam_lower, lam_upper)
+            increment = torch.FloatTensor(1).uniform_(lam_lower, lam_upper)
             next_point = current_point + increment * direction
             if self.check_alpha_inside(next_point):
                 current_point = next_point

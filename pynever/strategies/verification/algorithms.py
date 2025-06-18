@@ -156,7 +156,7 @@ class SSLPVerification(VerificationStrategy):
 
             all_empty.append(empty)
 
-        is_satisfied = not all(all_empty)
+        sat = not all(all_empty)
 
         counterexample: torch.Tensor | None = None
         if len(unsafe_stars) > 0:
@@ -165,11 +165,11 @@ class SSLPVerification(VerificationStrategy):
 
         ver_end_time = time.perf_counter()
 
-        self.logger.info(f"The property is satisfiable: {is_satisfied}")
-        self.logger.info(f"Verification result:         {not is_satisfied}")
+        self.logger.info(f"The property is satisfiable: {sat}")
+        self.logger.info(f"Verification result:         {'Unsafe' if sat else 'Verified'}")
         self.logger.info(f"Verification Time:           {ver_end_time - ver_start_time:.4f} s\n")
 
-        return not is_satisfied, counterexample
+        return not sat, counterexample
 
     @staticmethod
     def get_counterexample_stars(prop: NeverProperty, unsafe_stars: list[Star]):
