@@ -7,7 +7,6 @@ import uuid
 
 import torch
 from ortools.linear_solver import pywraplp
-from pandas.core.computation.expr import intersection
 
 from pynever.exceptions import InvalidDimensionError, NonOptimalLPError
 from pynever.strategies.abstraction import LOGGER_EMPTY, LOGGER_LP, LOGGER_LB, LOGGER_UB
@@ -17,8 +16,8 @@ from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 class AbsElement(abc.ABC):
     """
-    An abstract class used for our internal representation of a generic Abstract Element (e.g., interval, zonotope,
-    polyhedra etc.)
+    An abstract class used for our internal representation of a generic Abstract Element
+    (e.g., interval, zonotope, polyhedra etc.)
 
     Attributes
     ----------
