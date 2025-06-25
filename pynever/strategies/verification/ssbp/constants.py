@@ -1,18 +1,30 @@
+"""
+This module defines utility enumerators suppoorting the SSBP verification algorithm
+"""
+
 import enum
 
 
 class RefinementTarget:
     """
     This class represents the refinement target for the verification.
+
+    Attributes
+    ----------
+    layer_id: str
+        Identifier of the target layer
+    neuron_idx: int
+        Index of the target neuron
     """
-    def __init__(self, layer_id: str, neuron_n: int):
+
+    def __init__(self, layer_id: str, neuron_idx: int):
         self.layer_id = layer_id
-        self.neuron_idx = neuron_n
+        self.neuron_idx = neuron_idx
 
     def __repr__(self):
         return f'({self.layer_id}, {self.neuron_idx})'
 
-    def to_pair(self):
+    def to_pair(self) -> tuple[str, int]:
         return self.layer_id, self.neuron_idx
 
 
