@@ -220,7 +220,7 @@ class SSBPVerification(VerificationStrategy):
 
         Returns
         -------
-        ExtendedStar, HyperRectangleBounds, VerboseBounds
+        tuple[ExtendedStar, HyperRectangleBounds, VerboseBounds]
             The starting values for the star and the bounds.
         """
         self.network = network
@@ -268,7 +268,7 @@ class SSBPVerification(VerificationStrategy):
 
         Returns
         -------
-        bool, torch.Tensor
+        tuple[bool, torch.Tensor]
             The result of the intersection. If True, a counterexample is returned too.
         """
         match self.parameters.intersection:
@@ -299,7 +299,7 @@ class SSBPVerification(VerificationStrategy):
 
         Returns
         -------
-        RefinementTarget | None, ExtendedStar
+        tuple[RefinementTarget | None, ExtendedStar]
             The next refinement target and the extended star to refine. If no more refinement is needed, None is returned.
         """
         match self.parameters.heuristic:
