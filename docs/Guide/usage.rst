@@ -42,7 +42,7 @@ the specification which can be found in the documentation, or via an SMT-LIB fil
 API
 ============
 
-In the `notebooks <https://github.com/NeVerTools/pyNeVer/tree/main/examples/notebooks>`_ directory there are four Jupyter Notebooks that illustrate how to use *pyNever* as an API to design, train and verify neural networks.
+In the `notebooks <https://github.com/NeVerTools/pyNeVer/tree/main/examples/notebooks>`_ directory there are four Jupyter Notebooks that illustrate how to use **pyNeVer** as an API to design, train and verify neural networks.
 
 - The `first notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/00%20-%20Networks.ipynb>`_ covers the classes and methods to build networks
 - The `second notebook <https://github.com/NeVerTools/pyNeVer/blob/main/examples/notebooks/01%20-%20Training.ipynb>`_ covers the learning strategy to train and test a network
