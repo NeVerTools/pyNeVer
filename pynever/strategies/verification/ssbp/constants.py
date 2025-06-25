@@ -29,7 +29,7 @@ class RefinementTarget:
 
         Returns
         -------
-        str, int
+        tuple[str, int]
             A tuple representation of the object
         """
         return self.layer_id, self.neuron_idx

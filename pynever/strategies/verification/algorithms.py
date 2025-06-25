@@ -70,7 +70,7 @@ class VerificationStrategy(abc.ABC):
 
         Returns
         ----------
-        bool, torch.Tensor | None
+        tuple[bool, torch.Tensor | None]
             True is the neural network satisfies the property, False otherwise.
             If False, also returns a counterexample
         """
@@ -108,7 +108,7 @@ class SSLPVerification(VerificationStrategy):
 
         Returns
         ----------
-        bool, torch.Tensor | None
+        tuple[bool, torch.Tensor | None]
             True is the neural network satisfies the property, False otherwise.
             If False, also returns a counterexample
         """
@@ -332,7 +332,7 @@ class SSBPVerification(VerificationStrategy):
 
         Returns
         ----------
-        bool, torch.Tensor | None
+        tuple[bool, torch.Tensor | None]
             True if the network is safe, False otherwise. If the result is False and the
             search is complete it also returns a counterexample
         """
