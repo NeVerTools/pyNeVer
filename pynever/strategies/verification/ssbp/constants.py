@@ -25,6 +25,7 @@ class RefinementTarget:
         return f'({self.layer_id}, {self.neuron_idx})'
 
     def to_pair(self) -> tuple[str, int]:
+        """Procedure to convert the object to a tuple"""
         return self.layer_id, self.neuron_idx
 
 
