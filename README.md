@@ -90,9 +90,10 @@ the help of __Elena Botoeva__.
 
 _Other contributors_:
 
-* __Andrea Gimelli__ - Bound propagation integration
+* __Andrea Gimelli__ - Bounds propagation integration
 * __Pedro Henrique Simão Achete__ - Command-line interface and convolutional linearization
 * __Karim Pedemonte__ - Design and refactoring
+* __Marco Sanfilippo__ - VNN-LIB parser
 
 To contribute to this project, start by looking at the [CONTRIBUTING](CONTRIBUTING.md) file!
 
