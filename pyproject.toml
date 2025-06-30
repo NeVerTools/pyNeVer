@@ -14,7 +14,6 @@ dependencies = [
     "torch",
     "torchvision",
     "ortools",
-    "pysmt",
     "multipledispatch"
 ]
 requires-python = ">=3.11"

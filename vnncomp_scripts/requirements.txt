@@ -3,5 +3,4 @@ onnx
 torch
 torchvision
 ortools
-pysmt
 multipledispatch

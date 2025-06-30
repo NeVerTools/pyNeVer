@@ -11,5 +11,4 @@ dependencies:
       - torch
       - torchvision
       - ortools
-      - pysmt
       - multipledispatch

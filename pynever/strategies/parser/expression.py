@@ -17,17 +17,6 @@ class ExprNode:
         The left sub-node, if empty this node is a leaf.
     node_right: ExprNode
         The right sub-node, if empty this node is a leaf.
-
-    Methods
-    ----------
-    is_leaf()
-        Procedure to check whether the node is a leaf or not.
-    as_prefix()
-        Procedure to create the prefix string describing the tree.
-    as_infix()
-        Procedure to create the infix string describing the tree.
-    get_disjunctions_infix()
-        Procedure to return the list of disjunct atoms, if present.
     """
 
     def __init__(self, char: str):
@@ -38,6 +27,7 @@ class ExprNode:
     def is_leaf(self) -> bool:
         """
         This method checks whether the node is a leaf or not.
+
         Returns
         ----------
         bool
@@ -48,6 +38,7 @@ class ExprNode:
     def as_prefix(self) -> str:
         """
         This method converts the Expression Tree in a prefix string
+
         Returns
         ----------
         str
@@ -68,6 +59,7 @@ class ExprNode:
     def as_infix(self) -> str:
         """
         This method converts the Expression Tree in an infix string
+
         Returns
         ----------
         str
@@ -85,6 +77,7 @@ class ExprNode:
         """
         This method is used in order to separate OR statements in
         the input file
+
         Returns
         ----------
         list
@@ -106,6 +99,7 @@ class ExpressionTreeConverter:
     """
     Class for converting infix expressions to expression trees.
     Courtesy of Nikhil Kumar Singh(nickzuck_007) and aashish1995.
+
     Attributes
     ----------
     precedence: dict
@@ -114,26 +108,36 @@ class ExpressionTreeConverter:
         Stack for operands, needed in the conversion routine.
     nodeStack: list
         Stack for operators, needed in the conversion routine.
-    Methods
-    ----------
-    build_from_infix(str)
-        Procedure to generate an expression tree from an infix string.
     """
 
     def __init__(self):
-        self.precedence = {'+': 1, '-': 1, '*': 2, '/': 2, '>=': 3, '<=': 3, '>': 3, '<': 3, '=': 3, '&': 4, '|': 4}
+        self.precedence = {
+            '+': 1,
+            '-': 1,
+            '*': 2,
+            '/': 2,
+            '>=': 3,
+            '<=': 3,
+            '>': 3,
+            '<': 3,
+            '=': 3,
+            '&': 4,
+            '|': 4
+        }
         self.charStack = []
         self.nodeStack = []
 
     def build_from_infix(self, infix: str) -> ExprNode:
         """
         This method builds an Expression Tree using the ExprNode class.
+
         Parameters
         ----------
         infix: str
             The infix-notated string to be converted.
+
         Returns
-        ----------
+        -------
         ExprNode
             The root node containing the Expression Tree.
         """
@@ -529,12 +533,14 @@ class SmtPropertyParser:
 def is_operator(c: str):
     """
     Utility for checking operators.
+
     Parameters
     ----------
     c: str
         The character or string to check.
+
     Returns
-    ----------
+    -------
     bool
         True if c is part of the operators set, False otherwise.
     """
@@ -545,13 +551,15 @@ def is_operator(c: str):
 
 def read_smt_num(val: str):
     """
-    Procedure to convert a SMTLIB string to a number.
+    Procedure to convert an SMT-LIB string to a number.
+
     Parameters
     ----------
     val: str
-        A string containing a number from a SMT file.
+        A string containing a number from an SMT file.
+
     Returns
-    ----------
+    -------
     Any
         int if the given string represents an integer,
         float if it represents a float or
@@ -572,10 +580,12 @@ def read_smt_num(val: str):
 def prefix2infix(prefix: str) -> str:
     """
     Procedure for converting a prefix string to an infix string.
+
     Parameters
     ----------
     prefix: str
         The prefix string that should be converted.
+
     Returns
     ----------
     str
@@ -592,6 +602,7 @@ def prefix2infix(prefix: str) -> str:
         if not is_operator(prefix[i]):
             stack.append(prefix[i])
             i -= 1
+
         # Symbol is operator
         else:
             res = '(' + stack.pop() + ' ' + prefix[i] + ' ' + stack.pop() + ')'
@@ -603,15 +614,16 @@ def prefix2infix(prefix: str) -> str:
 
 def refine_smt_statement(assertion: str, vec_name: str) -> str:
     """
-    This method refines a SMTLIB statement by intercepting
-    malformed Normal Form formulas and rewriting them
-    correctly.
+    This method refines an SMT-LIB statement by intercepting
+    malformed Normal Form formulas and rewriting them correctly.
+
     Parameters
     ----------
     assertion
         The SMT formula to verify.
     vec_name
         The variable name in use
+
     Returns
     -------
     str
@@ -655,31 +667,33 @@ def refine_smt_statement(assertion: str, vec_name: str) -> str:
             idx.append(line.index(elem))
 
     for i in idx:
-        before = line[i - 1]
-        if before == '(':
-            # Try to evaluate the token as a number
-            post = read_smt_num(line[i + 2])
-            if post is not None:
-                if line[i + 1] == '+':
+        match line[i - 1]:
+            case '(':
+                # Try to evaluate the token as a number
+                post = read_smt_num(line[i + 2])
+                if post is not None:
+                    if line[i + 1] == '+':
+                        acc += post
+                        line.pop(i + 1)
+                        line.pop(i + 1)
+                    elif line[i + 1] == '-':
+                        acc -= post
+                        line.pop(i + 1)
+                        line.pop(i + 1)
+            case '+':
+                post = read_smt_num(line[i - 2])
+                if post is not None:
                     acc += post
-                    line.pop(i + 1)
-                    line.pop(i + 1)
-                elif line[i + 1] == '-':
+                    line.pop(i - 1)
+                    line.pop(i - 1)
+            case '-':
+                post = read_smt_num(line[i - 2])
+                if post is not None:
                     acc -= post
-                    line.pop(i + 1)
-                    line.pop(i + 1)
-        elif before == '+':
-            post = read_smt_num(line[i - 2])
-            if post is not None:
-                acc += post
-                line.pop(i - 1)
-                line.pop(i - 1)
-        elif before == '-':
-            post = read_smt_num(line[i - 2])
-            if post is not None:
-                acc -= post
-                line.pop(i - 1)
-                line.pop(i - 1)
+                    line.pop(i - 1)
+                    line.pop(i - 1)
+            case _:
+                continue
 
     # If extra bias coefficients have been found, sum up the right hand side
     if acc > 0:

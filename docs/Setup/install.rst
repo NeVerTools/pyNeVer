@@ -9,7 +9,6 @@ The packages required for the correct execution are the following:
 * *onnx*
 * *torch*
 * *torchvision*
-* *pysmt*
 * *multipledispatch*
 
 To install **pyNeVer** as an API, run the command:

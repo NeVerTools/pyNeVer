@@ -132,7 +132,7 @@ class SSLPVerification(VerificationStrategy):
 
         abst_network.set_bounds(self.layers_bounds.numeric_pre_bounds)
 
-        input_star = Star(prop.in_coef_mat, prop.in_bias_mat)
+        input_star = Star(prop.in_matrix, prop.in_bias)
         input_starset = StarSet({input_star})
 
         output_starset = abst_network.forward(input_starset)
@@ -144,12 +144,9 @@ class SSLPVerification(VerificationStrategy):
         # one non-void intersection between the output starset and the halfspaces and SAFE = NOT SAT.
         unsafe_stars = []
         all_empty = []
-        for i in range(len(prop.out_coef_mat)):
-
+        for out_coef, out_bias in zip(prop.out_matrix_list, prop.out_bias_list):
             empty = True
             for star in output_starset.stars:
-                out_coef = prop.out_coef_mat[i]
-                out_bias = prop.out_bias_mat[i]
                 temp_star = star.intersect_with_halfspace(out_coef, out_bias)
                 if not temp_star.check_if_empty():
                     empty = False
@@ -163,7 +160,12 @@ class SSLPVerification(VerificationStrategy):
         counterexample: torch.Tensor | None = None
         if len(unsafe_stars) > 0:
             self.counterexample_stars = SSLPVerification.get_counterexample_stars(prop, unsafe_stars)
-            counterexample = self.counterexample_stars[0].get_samples(num_samples=1)[0]
+
+            try:
+                counterexample = self.counterexample_stars[0].get_samples(num_samples=1)[0]
+            except RuntimeError:
+                counterexample = None
+                self.logger.warning(f"Warning: failed to sample the counterexample star.")
 
         ver_end_time = time.perf_counter()
 
@@ -178,7 +180,7 @@ class SSLPVerification(VerificationStrategy):
 
         counterexample_stars = []
         for unsafe_star in unsafe_stars:
-            temp_star = Star(prop.in_coef_mat, prop.in_bias_mat)
+            temp_star = Star(prop.in_matrix, prop.in_bias)
             temp_star.predicate_matrix = copy.deepcopy(unsafe_star.predicate_matrix)
             temp_star.predicate_bias = copy.deepcopy(unsafe_star.predicate_bias)
             counterexample_stars.append(temp_star)

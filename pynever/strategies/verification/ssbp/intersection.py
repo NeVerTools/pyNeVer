@@ -31,7 +31,11 @@ def intersect_star_lp(star: ExtendedStar, prop: NeverProperty, network: Sequenti
     if len(unsafe_stars) == 0:
         return intersects, None
 
-    return intersects, unsafe_stars[0].get_samples(num_samples=1)[0]
+    try:
+        return intersects, unsafe_stars[0].get_samples(num_samples=1)[0]
+    except RuntimeError:
+        print('Warning: failed to sample the counterexample star.')
+        return intersects, None
 
 
 def check_star_intersection(star: ExtendedStar, prop: NeverProperty) -> tuple[bool, list[ExtendedStar]]:
@@ -60,8 +64,8 @@ def check_star_intersection(star: ExtendedStar, prop: NeverProperty) -> tuple[bo
     unsafe_stars = []
 
     # Loop possible disjunctions
-    for i in range(len(prop.out_coef_mat)):
-        intersection = star.intersect_with_halfspace(prop.out_coef_mat[i], prop.out_bias_mat[i])
+    for i in range(len(prop.out_matrix_list)):
+        intersection = star.intersect_with_halfspace(prop.out_matrix_list[i], prop.out_bias_list[i])
         if not intersection.check_if_empty():
             intersects = True
             unsafe_stars.append(intersection)
@@ -299,7 +303,7 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
     output_bounds
     output_vars
     """
-    n_disjunctions = len(prop.out_coef_mat)
+    n_disjunctions = len(prop.out_matrix_list)
 
     # binary variables for each of the disjunctions
     # delta_i = 1 means disjunct i is satisfied
@@ -309,15 +313,15 @@ def _encode_output_property_constraints(solver: pywraplp.Solver, prop: NeverProp
     # For each disjunction in the output property, add the constraints conditioned by deltas
     for i in range(n_disjunctions):
         conjunction = []
-        for j in range(len(prop.out_coef_mat[i])):
+        for j in range(len(prop.out_matrix_list[i])):
             # the big M constant as not clear how to do indicator constraints
-            bigM = util.compute_max(prop.out_coef_mat[i][j], output_bounds) - prop.out_bias_mat[i][j][0]
+            bigM = util.compute_max(prop.out_matrix_list[i][j], output_bounds) - prop.out_bias_list[i][j][0]
 
             # when delta_i = 0, the constraint is automatically satisfied because of the bigM
             conjunction.append(solver.Add(
-                output_vars.dot(prop.out_coef_mat[i][j].numpy())
+                output_vars.dot(prop.out_matrix_list[i][j].numpy())
                 - (1 - deltas[i]) * bigM.item()
-                - prop.out_bias_mat[i][j][0].item() <= 0
+                - prop.out_bias_list[i][j][0].item() <= 0
             ))
 
 
@@ -385,14 +389,14 @@ def _create_variables_and_constraints(solver, nn, nn_bounds: VerboseBounds):
 
 
 def check_bounds_satisfy_property(output_bounds, prop, nn, star, nn_bounds: VerboseBounds):
-    n_disjunctions = len(prop.out_coef_mat)
+    n_disjunctions = len(prop.out_matrix_list)
 
     possible_counter_example = False
 
     # For each disjunction in the output property, check none is satisfied by output_bounds.
     # If one disjunction is satisfied, then it represents a potential counter-example.
     for i in range(n_disjunctions):
-        disj_res = check_disjunct_satisfied(output_bounds, prop.out_coef_mat[i], prop.out_bias_mat[i])
+        disj_res = check_disjunct_satisfied(output_bounds, prop.out_matrix_list[i], prop.out_bias_list[i])
         if disj_res == PropertySatisfied.Yes:
             # We are 100% sure there is a counter-example.
             # It can be any point from the input space.
@@ -470,14 +474,14 @@ def check_valid_counterexample(candidate_cex: torch.Tensor, nn: SequentialNetwor
         return False
 
     candidate_output = utilities.execute_network(nn, candidate_cex)
-    n_disjunctions = len(prop.out_coef_mat)
+    n_disjunctions = len(prop.out_matrix_list)
 
     # For each disjunction in the output property, check at least one is satisfied
     for i in range(n_disjunctions):
         # Every condition
         satisfied = True
-        for j in range(len(prop.out_coef_mat[i])):
-            if torch.matmul(prop.out_coef_mat[i][j], candidate_output) - prop.out_bias_mat[i][j][0] > GUARD:
+        for j in range(len(prop.out_matrix_list[i])):
+            if torch.matmul(prop.out_matrix_list[i][j], candidate_output) - prop.out_bias_list[i][j][0] > GUARD:
                 # this conjunct is not satisfied, as it should be <= 0
                 satisfied = False
                 break

@@ -21,7 +21,6 @@ The packages required for the correct execution are the following:
 * _onnx_
 * _torch_
 * _torchvision_
-* _pysmt_
 * _multipledispatch_
 
 To install __pyNeVer__ as an API, run the command:
