@@ -5,7 +5,7 @@ from pysmt.smtlib.parser import SmtLibParser
 from torch import Tensor
 
 
-class ExprNode:
+class ExpressionNode:
     """
     Class representing a binary Expression Tree in form of a recursive node.
 
@@ -13,9 +13,9 @@ class ExprNode:
     ----------
     data: str
         This node content, may be a number or an algebraic operator.
-    node_left: ExprNode
+    node_left: ExpressionNode
         The left sub-node, if empty this node is a leaf.
-    node_right: ExprNode
+    node_right: ExpressionNode
         The right sub-node, if empty this node is a leaf.
     """
 
@@ -127,7 +127,7 @@ class ExpressionTreeConverter:
         self.charStack = []
         self.nodeStack = []
 
-    def build_from_infix(self, infix: str) -> ExprNode:
+    def build_from_infix(self, infix: str) -> ExpressionNode:
         """
         This method builds an Expression Tree using the ExprNode class.
 
@@ -138,7 +138,7 @@ class ExpressionTreeConverter:
 
         Returns
         -------
-        ExprNode
+        ExpressionNode
             The root node containing the Expression Tree.
         """
         infix = '(' + infix + ')'  # Redundancy for correctness
@@ -154,7 +154,7 @@ class ExpressionTreeConverter:
             # Expression end
             elif char == ')':
                 while len(self.charStack) > 0 and self.charStack[-1] != '(':
-                    t = ExprNode(self.charStack.pop())
+                    t = ExpressionNode(self.charStack.pop())
                     t1 = self.nodeStack.pop()
                     t2 = self.nodeStack.pop()
 
@@ -166,7 +166,7 @@ class ExpressionTreeConverter:
 
             # Operand
             elif not is_operator(char):
-                t = ExprNode(char)
+                t = ExpressionNode(char)
                 self.nodeStack.append(t)
 
             # Operator
@@ -174,7 +174,7 @@ class ExpressionTreeConverter:
                 while len(self.charStack) > 0 and self.charStack[-1] != '(' and \
                         self.precedence[self.charStack[-1]] >= self.precedence[char]:
                     # Assign nodes
-                    t = ExprNode(self.charStack.pop())
+                    t = ExpressionNode(self.charStack.pop())
                     t1 = self.nodeStack.pop()
                     t2 = self.nodeStack.pop()
 

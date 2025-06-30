@@ -6,8 +6,8 @@ Contains ``Node`` classes and some constants to be used by parser and visitor.
 from Constants import id2word
 
 
-INVAR : int = 0 #Input Variable node type
-OUTVAR : int = 1 #Output variable node type
+IN_VAR : int = 0 #Input Variable node type
+OUT_VAR : int = 1 #Output variable node type
 CONST : int = 2 #Constant node type
 ASSERTION : int = 3 #Assertion node type
 OPERATION : int = 4 #Operation node type (and, or, >=, +, -, *, /, change sign)
@@ -56,14 +56,14 @@ class InputVariableNode(Node):
     Attributes
     ----------
     type: int
-        It is INVAR (0) for input variable nodes.
+        It is IN_VAR (0) for input variable nodes.
     value: int
         It stores the variable number (e.g. 0 for X_0, 1 for X_1, etc.).
     """
     def __init__(self, value):
         super().__init__(int(value))
         #self.value = value #Value stores the variable number
-        self.type = INVAR
+        self.type = IN_VAR
 
 #Children is empty
 class OutputVariableNode(Node):
@@ -73,14 +73,14 @@ class OutputVariableNode(Node):
     Attributes
     ----------
     type: int
-        It is OUTVAR (1) for input variable nodes.
+        It is OUT_VAR (1) for input variable nodes.
     value: int
         It stores the variable number (e.g. 0 for X_0, 1 for X_1, etc.).
     """
     def __init__(self, value):
         super().__init__(int(value))
         #self.value = value #Value stores the variable number
-        self.type = OUTVAR
+        self.type = OUT_VAR
 
 # Children is empty, only carries the contstant value
 class ConstantNode(Node):

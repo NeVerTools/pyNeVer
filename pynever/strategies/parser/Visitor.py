@@ -162,10 +162,10 @@ def visitSimple(operationNode, varNumber):
     if operationNode.type != Node.OPERATION:
         raise ValueError(f"Node {operationNode} is not an operation node, cannot evaluate it.")
 
-    if operationNode.value not in (Constants.LSE, Constants.GRE):
+    if operationNode.value not in (Constants.LE, Constants.GE):
         raise ValueError(f"Node {operationNode} is not a >= or <= operation, cannot evaluate it.")
 
-    if operationNode.value == Constants.GRE:
+    if operationNode.value == Constants.GE:
         changeSignFlag = True
 
     # Get the two operands of the operation node
@@ -329,7 +329,7 @@ def visitComplex(node, varNumber):
         TensorA = torch.zeros((1, varNumber), dtype=torch.float32)
         TensorB = torch.zeros((1, 1), dtype=torch.float32)
         # Check if the child is a constraint or an and and act accordingly (they should be operation nodes, so the operation is stored in value)
-        if singleConstraint.value in (Constants.GRE, Constants.LSE):
+        if singleConstraint.value in (Constants.GE, Constants.LE):
             # Call visitOperation and return the matrix built on the coefficients and known member returned
             coeff, known = visitSimple(singleConstraint, varNumber)
             # Make a tensor out of the coefficients and known member and return it
@@ -371,7 +371,7 @@ def visitComplex(node, varNumber):
 
 
 # This function has to iterate through the assertion nodes and evaluate them, returning the input and output matrices => tensors
-def visit(nodes, inputVarNumber, outputVarNumber):
+def visit(nodes, inputVarNumber, outputVarNumber) -> tuple[torch.Tensor, torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
     """
         Main method to visit the nodes and evaluate them, returning the input and output matrices.
 

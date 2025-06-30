@@ -8,7 +8,9 @@ Main file that manages workflow and calls all functions
 import sys
 #uso per assicurarmi che il file esista e sia leggibile
 import pathlib
-import Tokenizer
+from pynever.strategies.parser import Tokenizer_OLD
+from pynever.strategies.parser import Parser
+from pynever.strategies.parser import Visitor
 
 import time
 
@@ -50,9 +52,7 @@ else:
 
 
 #Parse the tokens (syntactic analysis)
-from Parser import parse  
-nodes, inputVarNumber, outputVarNumber = parse(tokens)
-
+nodes, inputVarNumber, outputVarNumber = Parser.parse(tokens)
 end_parsing = time.perf_counter()
 
 print(f"Time of parsing: ({end_parsing - end_tokenize}) seconds")
@@ -69,10 +69,9 @@ print(f"Time of parsing: ({end_parsing - end_tokenize}) seconds")
 print(f"Input variables: {inputVarNumber}, Output variables: {outputVarNumber}")
 
 # Visitor (Semantic analysis)
-from Visitor import visit
 
 #Visit returns A and B of input and a list of output tensors in tuples (each A and B are in a single tuple)
-InputA, InputB, OutputList = visit(nodes, inputVarNumber, outputVarNumber)
+InputA, InputB, OutputList = Visitor.visit(nodes, inputVarNumber, outputVarNumber)
 
 end = time.perf_counter()
 

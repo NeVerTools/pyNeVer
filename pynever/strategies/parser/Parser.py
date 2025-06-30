@@ -63,13 +63,13 @@ def parseDeclaration(TokenItr, i, token, inputVarNum, outputVarNum):
     match token.tag:
 
         case Constants.IN :
-            varNumber = int(token.word)
+            varNumber = int(token.value)
             if varNumber == inputVarNum:
                 inputVarNum += 1
             else: 
                 raise SyntaxError(f"Input variable number {varNumber} does not match the expected input variable number {inputVarNum}")
         case Constants.OUT:
-            varNumber = int(token.word)
+            varNumber = int(token.value)
             if varNumber == outputVarNum:
                 outputVarNum += 1
             else:
@@ -124,7 +124,7 @@ def parseConstant(token, TokenItr, i):
         token, i = safe_next(TokenItr, i)
         if token.tag != Constants.NUM:
             raise SyntaxError(f"Expected number after division token (expected fraction form number), found {Token.id2word[token.tag]}, row {token.row}")
-        denominator = float(token.word)
+        denominator = float(token.value)
         temp = float(numerator / denominator)
 
         token, i = safe_next(TokenItr, i)  # Get the next token after the number
@@ -304,7 +304,7 @@ def parseOperation(TokenItr, i: int, inputVarNum, outputVarNum, isInput : bool =
 
     #If it is and AND operation, it should be an >= or <= operation
     else: 
-       if token.tag not in (Constants.GRE, Constants.LSE):
+       if token.tag not in (Constants.GE, Constants.LE):
            raise SyntaxError(f"Expected >= or <= token as AND operand, found {Token.id2word[token.tag]}, row {token.row}")
 
     # Save the operation tag for later use and get the next token
@@ -487,7 +487,7 @@ def parse(tokens : list) -> list :
             opTag = token.tag
 
             #Check if the assertion is valid
-            if opTag not in ( Constants.LSE, Constants.GRE, Constants.OR):
+            if opTag not in (Constants.LE, Constants.GE, Constants.OR):
                 raise SyntaxError(f"Expected disequality or OR token at the beginning of assertion, found {Token.id2word[opTag]}, row {token.row}")
 
 
