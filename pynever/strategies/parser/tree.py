@@ -2,8 +2,8 @@
 
 import uuid
 
-from pynever.strategies.parser.util import NodeType
 from pynever.strategies.parser.util import Assertion
+from pynever.strategies.parser.util import NodeType
 
 
 class InfoNode:
@@ -22,21 +22,21 @@ class InfoNode:
         The classification of this node
     """
 
-    def __init__(self, value: int | float):
+    def __init__(self, value):
         self.id = uuid.uuid4()
         self.value = value
         self.children = []
-        self.type: NodeType =  None
+        self.type = None
 
     def add_child(self, child: 'InfoNode'):
         self.children.append(child)
 
     def __str__(self):
-        return f'InfoNode(type: {self.type if self.type else '-'}, # children: {len(self.children)})'
-    
+        return f'InfoNode(type: {self.type if self.type else "-"}, # children: {len(self.children)})'
+
     def __repr__(self):
         return str(self)
-    
+
 
 class InputVariableNode(InfoNode):
     """
@@ -49,7 +49,7 @@ class InputVariableNode(InfoNode):
     """
 
     def __init__(self, value: int):
-        super(value)
+        super().__init__(value)
         self.type = NodeType.IN_VAR
 
 
@@ -64,7 +64,7 @@ class OutputVariableNode(InfoNode):
     """
 
     def __init__(self, value: int):
-        super(value)
+        super().__init__(value)
         self.type = NodeType.OUT_VAR
 
 
@@ -79,7 +79,7 @@ class ConstantNode(InfoNode):
     """
 
     def __init__(self, value: float):
-        super(value)
+        super().__init__(value)
         self.type = NodeType.CONST
 
 
@@ -94,7 +94,7 @@ class AssertionNode(InfoNode):
     """
 
     def __init__(self, value: Assertion):
-        super(value)
+        super().__init__(value)
         self.type = NodeType.ASSERTION
 
 
@@ -109,9 +109,8 @@ class OperationNode(InfoNode):
     """
 
     def __init__(self, value: str):
-        super(value)
+        super().__init__(value)
         self.type = NodeType.OPERATION
-        
 
     def __str__(self):
         msg = f'Operation Node(Operation: {self.value}, # children: {len(self.children)})\n'
