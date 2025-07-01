@@ -4,18 +4,31 @@ and creates a list of ``Token`` objects
 """
 from io import TextIOWrapper
 
-from strategies.parser import PARSER_LOGGER
-from strategies.parser.util import Operation
+from pynever.strategies.parser import PARSER_LOGGER
+from pynever.strategies.parser.util import Operation
 
 
 class Token:
+    """
+    A class to represent a token to parse.
+
+    Attributes
+    ----------
+    tag: Operation
+        The token type
+    line: int
+        The line of the file where the token is read
+    value: str
+        The value of the token, if it is a variable name or a number
+    """
+
     def __init__(self, tag: Operation, line: int = 0, value: str = ''):
         self.tag = tag
         self.line = line
         self.value = value
 
     def __str__(self):
-        return f"Token(tag='{self.tag.value}', word='{self.value}', line='{self.line}')"
+        return f"Token(tag: '{self.tag.value}', value: '{self.value}', line: '{self.line}')"
 
     def __repr__(self):
         return str(self)
@@ -58,12 +71,12 @@ class Tokenizer:
 
     def tokenize(self) -> list[Token]:
         """
-        Procedure to create the list of `Token` objects for the Parser to process.
+        Procedure to create the list of :class:`~pynever.strategies.parser.tokenizer.Token` objects for the Parser to process.
 
         Returns
         -------
         list[Token]
-            List of `Token` objects
+            List of :class:`~pynever.strategies.parser.tokenizer.Token` objects
         """
         tokens = []
 
