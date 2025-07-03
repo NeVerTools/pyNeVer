@@ -12,7 +12,7 @@ from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
 from pynever.strategies.abstraction.star import Star
 from pynever.strategies.parser import expression
-from strategies.abstraction.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.linearfunctions import LinearFunctions
 
 
 # TODO handle sets of properties?

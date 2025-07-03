@@ -133,7 +133,8 @@ class Tokenizer:
                     case _ if ch.isdigit():
                         tokens.append(self.read_num(ch, file))
                     case _:
-                        token, is_variable_id = self.read_alpha(ch, file, is_variable_id)
+                        new_tokens, is_variable_id = self.read_alpha(ch, file, is_variable_id)
+                        tokens.extend(new_tokens)
 
         return tokens
 
