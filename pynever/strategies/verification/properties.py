@@ -10,9 +10,9 @@ import torch
 
 from pynever.exceptions import InvalidDimensionError
 from pynever.strategies.abstraction.bounds_propagation.bounds import HyperRectangleBounds
-from pynever.strategies.abstraction.star import Star
-from pynever.strategies.parser import expression
 from pynever.strategies.abstraction.linearfunctions import LinearFunctions
+from pynever.strategies.abstraction.star import Star
+from pynever.strategies.parser import expression, vnnlib
 
 
 # TODO handle sets of properties?
@@ -196,9 +196,8 @@ class VnnLibProperty(NeverProperty):
     """
 
     def __init__(self, filepath: str):
-        smt_parser = expression.SmtPropertyParser(filepath)
-
-        super().__init__(*smt_parser.parse_property())
+        smt_parser = vnnlib.VnnlibParser()
+        super().__init__(*smt_parser.parse_property(filepath))
 
 
 class LocalRobustnessProperty(NeverProperty):
