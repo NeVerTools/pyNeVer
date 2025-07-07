@@ -10,7 +10,7 @@ import sys
 import pathlib
 from pynever.strategies.parser import Tokenizer_OLD
 from pynever.strategies.parser import Parser
-from pynever.strategies.parser import Visitor
+from pynever.strategies.parser import Visitor_marco
 
 import time
 

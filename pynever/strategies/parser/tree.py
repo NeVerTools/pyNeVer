@@ -2,7 +2,7 @@
 
 import uuid
 
-from pynever.strategies.parser.util import Assertion
+from pynever.strategies.parser.util import Assertion, Operation
 from pynever.strategies.parser.util import NodeType
 
 
@@ -108,12 +108,12 @@ class OperationNode(InfoNode):
         The operation symbol
     """
 
-    def __init__(self, value: str):
+    def __init__(self, value: Operation):
         super().__init__(value)
         self.type = NodeType.OPERATION
 
     def __str__(self):
-        msg = f'Operation Node(Operation: {self.value}, # children: {len(self.children)})\n'
+        msg = f'Operation Node(Operation: {self.value.value}, # children: {len(self.children)})\n'
         for i, child in enumerate(self.children):
-            msg += f'\n - Child {i} of {self.value}: {child}'
+            msg += f'\n - Child {i} of {self.value.value}: {child}'
         return msg + '\n'

@@ -37,7 +37,7 @@ class Token:
 class Tokenizer:
     """
     A class to tokenize a file for the VNN-LIB parser.
-    It reads the input file and converts it into a list of `Token` objects. It also handles lexical errors.
+    It reads the input file and converts it into a list of ``Token`` objects. It also handles lexical errors.
     Until the file is not empty, it reads the file character by character and converts valid keywords
     into tokens.
 
@@ -154,7 +154,7 @@ class Tokenizer:
         Returns
         -------
         tuple[list[Token], bool]
-            A list of new Tokens and the updated flag `is_variable_id`
+            A list of new Tokens and the updated flag ``is_variable_id``
         """
         identifier = ch
         new_tokens = []
