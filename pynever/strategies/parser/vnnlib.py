@@ -3,8 +3,9 @@
 import torch
 
 from pynever.strategies.parser.tokenizer import Token, Tokenizer
-from pynever.strategies.parser.tree import InfoNode, OperationNode, AssertionNode
-from pynever.strategies.parser.util import Operation, Assertion, NodeType
+from pynever.strategies.parser.tree import InfoNode, OperationNode, AssertionNode, ConstantNode
+from pynever.strategies.parser.util import Operation, Assertion
+from pynever.utilities import xor
 
 
 class VnnlibParser:
@@ -140,9 +141,7 @@ class VnnlibParser:
                     self.parse_declaration()
 
                 case Operation.ASS:  # Assertion
-                    a_node = self.parse_assertion()
-                    if a_node is not None:
-                        nodes.append(a_node)
+                    nodes.append(self.parse_assertion())
 
                 case _:
                     raise SyntaxError(f'Expected declaration or assertion statement, found "{token.tag.value}" instead')
@@ -184,66 +183,27 @@ class VnnlibParser:
         if token.tag != Operation.RP:
             raise SyntaxError(f'Expected ")" at line {token.line}, found "{token.tag.value}" instead')
 
-    def parse_assertion(self) -> InfoNode | None:
+    def parse_assertion(self) -> InfoNode:
         """
         Procedure to parse an assertion tree.
 
         Returns
         -------
-        InfoNode | None
-            The new InfoNode tree representing the assertion, if possible
+        InfoNode
+            The new InfoNode tree representing the assertion
         """
         token = self.read_par()
         operation = token.tag
 
         # Two possible cases: OR as the root of output property...
-        # TODO self.parse_or
         if operation == Operation.OR:
-            and_nodes = []  # Potential operations in and
-
-            l = token.line
-            token = self.read_par()
-            if token is None:
-                raise SyntaxError(f'Expected output constraints, but the file has ended at line {l}')
-
-            if token.tag == Operation.AND:
-                # If no AND statement is found we interpret it as a single output constraint
-                temp = self.parse_op(output=True, root=True)
-                and_nodes.append(temp)
-
-                # Read next token as a closing parenthesis
-                self.read_par(start=False)
-
-            else:
-                # Here we handle the AND statement
-                while True:
-                    # Parse and add the AND
-                    token = self.safe_next()
-                    and_nodes.append(self.parse_and(token))
-
-                    # Loop until the closing parenthesis is found
-                    token = self.safe_next()
-                    if token.tag == Operation.LP:  # Another statement
-                        continue
-                    elif token.tag == Operation.RP:
-                        break
-
-            # This is the end of the OR statement
-            self.read_par(start=False, progress=False)
-
-            # Build the OR tree
-            or_node = OperationNode(Operation.OR)
-            for and_node in and_nodes:
-                or_node.add_child(and_node)
-
             assertion_node = AssertionNode(Assertion.OUT_COMPLEX)
-            assertion_node.add_child(or_node)
+            assertion_node.add_child(self.parse_or(token))
 
         # ...or a constraint
         else:
-            self.safe_next()
-            left_node, right_node, token, input_flag = self.parse_operands(token)
-
+            token = self.safe_next()
+            left_node, right_node, token, input_flag = self.parse_constraint(token)
             n_type = Assertion.INPUT if input_flag else Assertion.OUT_SIMPLE
 
             if token.tag != Operation.RP:
@@ -259,3 +219,208 @@ class VnnlibParser:
             assertion_node.add_child(child_node)
 
         return assertion_node
+
+    def parse_or(self, token: Token) -> InfoNode:
+        """
+        Procedure to parse the output OR tree from the property file.
+
+        Parameters
+        ----------
+        token: Token
+            The current token to parse
+
+        Returns
+        -------
+        InfoNode
+            The InfoNode tree representing the OR
+        """
+        and_nodes = []  # Potential operations in and
+
+        l = token.line
+        token = self.read_par()
+        if token is None:
+            raise SyntaxError(f'Expected output constraints, but the file has ended at line {l}')
+
+        if token.tag != Operation.AND:
+            # If no AND statement is found we interpret it as a single output constraint
+            node, _ = self.parse_operation(input_flag=False, root=False)
+            and_nodes.append(node)
+
+            # Read next token as a closing parenthesis
+            self.read_par(start=False)
+
+        else:
+            # Here we handle the AND statement
+            while True:
+                # Parse and add the AND
+                token = self.safe_next()
+                and_nodes.append(self.parse_and(token))
+
+                # Loop until the closing parenthesis is found
+                token = self.safe_next()
+                if token.tag == Operation.LP:  # Another statement
+                    continue
+                elif token.tag == Operation.RP:
+                    break
+
+        # This is the end of the OR statement
+        self.read_par(start=False, progress=False)
+
+        # Build the OR tree
+        or_node = OperationNode(Operation.OR)
+        for and_node in and_nodes:
+            or_node.add_child(and_node)
+
+        return or_node
+
+    def parse_and(self, token: Token) -> InfoNode:
+        """
+
+        Parameters
+        ----------
+        token
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def parse_constraint(self, token: Token, input_flag: bool = True) -> tuple[InfoNode, InfoNode, Token, bool]:
+        """
+        Procedure to parse a constraint assertion tree
+
+        Parameters
+        ----------
+        token: Token
+            The current token being parsed
+        input_flag: bool
+            Flag indicating if the constraint is expected to be on the input
+
+        Returns
+        -------
+        tuple[InfoNode, InfoNode, Token, bool]
+            The LHS and RHS nodes of the assertion, the new token and a flag
+            to tell whether the constraint operates on the input variables or not
+        """
+        left, _, flag_left = self.parse_operand(token, input_flag)
+        right, token, flag_right = self.parse_operand(token, input_flag)
+
+        if xor(flag_left, flag_right):
+            raise SyntaxError(f'Expected only input or output variables in constraint at line {token.line}')
+
+        return left, right, token, flag_left
+
+    def parse_operation(self, input_flag: bool = True, root: bool = False) -> tuple[InfoNode, bool]:
+        """
+
+        Parameters
+        ----------
+        input_flag: bool
+            Flag indicating if the operation is expected to be on the input
+        root: bool
+            Flag indicating if the operation is a root one, i.e.,
+            not part of a conjunction of AND statements
+
+        Returns
+        -------
+        tuple[InfoNode, bool]
+            The InfoNode corresponding to the operation and the updated flag
+        """
+
+        token = self.safe_next()
+
+        if token.tag == Operation.RP:
+            raise SyntaxError(f'Unexpected ")" at line {token.line}')
+
+        if root:
+            if token.tag not in [Operation.ADD, Operation.SUB, Operation.MUL, Operation.DIV]:
+                raise SyntaxError(f'Expected operation in assertion at line {token.line}, '
+                                  f'found "{token.tag.value}" instead')
+        else:
+            if token.tag not in [Operation.GE, Operation.LE]:
+                raise SyntaxError(f'Expected "<=" or ">=" in assertion at line {token.line}, '
+                                  f'found "{token.tag.value}" instead')
+
+        operation = token.tag
+        token = self.safe_next()
+        left_node, right_node, token, input_flag = self.parse_constraint(token, input_flag)
+
+        if token.tag != Operation.RP:
+            raise SyntaxError(f'Expected ")" at line {token.line}, found "{token.tag.value}" instead')
+
+        # Create and return the node
+        node = OperationNode(operation)
+        node.add_child(left_node)
+        node.add_child(right_node)
+
+        return node, input_flag
+
+    def parse_operand(self, token: Token, input_flag: bool = True) -> tuple[InfoNode, Token, bool]:
+        """
+        Procedure to parse two operands from a constraint
+
+        Parameters
+        ----------
+        token: Token
+            The current token being parsed
+        input_flag: bool
+            Flag indicating if the constraint is expected to be on the input
+
+        Returns
+        -------
+        tuple[InfoNode, Token, bool]
+            The new node representing the operand, the new token to process and the updated flag
+        """
+        match token.tag:
+            case Operation.LP:
+                node, input_flag = self.parse_operation(input_flag, root=True)
+                token = self.safe_next()
+
+            case _ if token.tag == Operation.IN or token.tag == Operation.OUT:
+                node, input_flag = self.parse_var(token)
+                token = self.safe_next()
+
+            case Operation.NUM:
+                token, value = self.parse_const(token)
+                node = ConstantNode(value)
+
+            case Operation.SUB:
+                token = self.safe_next()
+                if token.tag == Operation.NUM:
+                    token, value = self.parse_const(token)
+                else:
+                    raise SyntaxError(f'Expected numeric value at line {token.line} after "-", '
+                                      f'found "{token.tag.value}" instead')
+                node = ConstantNode(-value)
+
+            case _:
+                raise SyntaxError(f'Unexpected "{token.tag.value}" at line {token.line}, expected operand instead')
+
+        return node, token, input_flag
+
+    def parse_var(self, token: Token) -> tuple[InfoNode, bool]:
+        """
+
+        Parameters
+        ----------
+        token
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def parse_const(self, token: Token) -> tuple[Token, float]:
+        """
+
+        Parameters
+        ----------
+        token
+
+        Returns
+        -------
+
+        """
+        pass
