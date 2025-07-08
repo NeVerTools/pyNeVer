@@ -244,11 +244,12 @@ class VnnlibParser:
 
         if token.tag != Operation.AND:
             # If no AND statement is found we interpret it as a single output constraint
+            self.safe_next()
             node, _ = self.parse_operation(input_flag=False, root=False)
             and_nodes.append(node)
 
             # Read next token as a closing parenthesis
-            self.read_par(start=False)
+            self.read_par(start=False, progress=False)
 
         else:
             # Here we handle the AND statement
@@ -336,7 +337,7 @@ class VnnlibParser:
             The LHS and RHS nodes of the assertion, the new token and a flag
             to tell whether the constraint operates on the input variables or not
         """
-        left, _, flag_left = self.parse_operand(token, input_flag)
+        left, token, flag_left = self.parse_operand(token, input_flag)
         right, token, flag_right = self.parse_operand(token, input_flag)
 
         if xor(flag_left, flag_right):

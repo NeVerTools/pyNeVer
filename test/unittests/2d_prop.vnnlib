@@ -9,4 +9,6 @@
 (assert (<= X_1 1.0))
 (assert (>= X_1 -1.0))
 
-(assert (>= Y_0 2.1))
+(assert (or
+    (assert (>= Y_0 2.1))
+)
