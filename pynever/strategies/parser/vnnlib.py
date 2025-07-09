@@ -74,6 +74,9 @@ class VnnlibParser:
         """
         token = self.safe_next()
 
+        if token is None:
+            return token
+
         # All statements are inside '(' and ')'
         op = Operation.LP if start else Operation.RP
         if token.tag != op:
@@ -255,12 +258,13 @@ class VnnlibParser:
             # Here we handle the AND statement
             while True:
                 # Parse and add the AND
-                token = self.safe_next()
+                # token = self.safe_next()
                 and_nodes.append(self.parse_and(token))
 
                 # Loop until the closing parenthesis is found
                 token = self.safe_next()
                 if token.tag == Operation.LP:  # Another statement
+                    token = self.safe_next()
                     continue
                 elif token.tag == Operation.RP:
                     break
@@ -411,7 +415,7 @@ class VnnlibParser:
                 node, input_flag = self.parse_operation(input_flag, root=True)
                 token = self.safe_next()
 
-            case _ if token.tag == Operation.IN or token.tag == Operation.OUT:
+            case Operation.IN | Operation.OUT:
                 node = self.parse_var(token, input_flag)
                 token = self.safe_next()
 

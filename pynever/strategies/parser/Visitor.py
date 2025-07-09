@@ -115,11 +115,11 @@ class Visitor:
         rhs = node.children[1]
 
         coefs = [0] * n_var
-        bias = 0.0
+        bias = 0
 
         # Check the left-hand side
         match lhs.type:
-            case NodeType.IN_VAR:
+            case NodeType.IN_VAR | NodeType.OUT_VAR:
                 coefs[lhs.value] += 1
 
             case NodeType.CONST:
@@ -176,7 +176,7 @@ class Visitor:
             raise ValueError(f'Expected node {node} to have a single OR statement, multiple found.')
 
         or_node = node.children[0]
-        if or_node.type != Operation.OR:
+        if or_node.value != Operation.OR:
             raise ValueError(f'Node {node} is not an OR node, cannot evaluate it.')
 
         out_matrices, out_biases = [], []
@@ -195,9 +195,9 @@ class Visitor:
 
                 match single_constraint.value:
 
-                    case _ if single_constraint.value in [Operation.GE, Operation.LE]:
+                    case Operation.GE | Operation.LE:
                         # Visit single
-                        c, b = self.visit_single(single_constraint)
+                        c, b = self.visit_single(single_constraint, pre=False)
                         coefs[0, :] = torch.Tensor(c)
                         bias[0, 0] = b
 
@@ -256,3 +256,109 @@ class Visitor:
             bias[i, 0] = b
 
         return coefs, bias
+
+    def visit_op(self, node: InfoNode, pre: bool = True) -> tuple[list[float], float, bool]:
+        """
+
+        Parameters
+        ----------
+        node
+        pre
+
+        Returns
+        -------
+        tuple[list[float], float, bool]
+            The list of coefficients, the bias and a flag indicating if the operator is on a variable or not
+        """
+        n_var = self.n_inputs if pre else self.n_outputs
+        coefs = [0] * n_var
+        right_coefs = [0] * n_var
+        bias = 0
+        right_bias = 0
+
+        if node.value not in [Operation.ADD, Operation.SUB, Operation.MUL, Operation.DIV]:
+            raise ValueError(f'Node {node} is not a valid operator, cannot evaluate it.')
+
+        if len(node.children) != 2:
+            raise ValueError(f'Expected node {node} to have two children.')
+
+        lhs = node.children[0]
+        rhs = node.children[1]
+
+        # Flag to signal there is a variable on either side
+        var_left = False
+        var_right = False
+
+        match lhs.type:
+            case NodeType.IN_VAR | NodeType.OUT_VAR:
+                coefs[lhs.value] += 1
+                var_left = True
+
+            case NodeType.CONST:
+                bias = lhs.value
+
+            case NodeType.OPERATION:
+                coefs, bias, var_left = self.visit_op(lhs, pre)
+
+            case _:
+                raise ValueError(f'LHS of node {node} is not valid, cannot evaluate it.')
+
+        match rhs.type:
+            case NodeType.IN_VAR | NodeType.OUT_VAR:
+                right_coefs[rhs.value] += 1
+                var_right = True
+
+            case NodeType.CONST:
+                right_bias = rhs.value
+
+            case NodeType.OPERATION:
+                right_coefs, right_bias, var_right = self.visit_op(rhs, pre)
+
+            case _:
+                raise ValueError(f'RHS of node {node} is not valid, cannot evaluate it.')
+
+        # Now update the coefficients based on the LHS and RHS
+        match node.value:
+            case Operation.ADD:
+                if var_left and var_right:
+                    for i in range(n_var):
+                        coefs[i] += right_coefs[i]
+                elif var_right:
+                    for i in range(n_var):
+                        coefs[i] = right_coefs[i]
+                bias += right_bias
+
+            case Operation.SUB:
+                if var_left and var_right:
+                    for i in range(n_var):
+                        coefs[i] -= right_coefs[i]
+                elif var_right:
+                    for i in range(n_var):
+                        coefs[i] = -right_coefs[i]
+                bias -= right_bias
+
+            case Operation.MUL:
+                if var_left and var_right:
+                    raise ValueError('Multiplication of two variables not supported')
+                elif var_left:
+                    for i in range(n_var):
+                        coefs[i] *= right_bias
+                elif var_right:
+                    for i in range(n_var):
+                        coefs[i] = right_coefs[i] * bias
+                bias += right_bias
+
+            case Operation.DIV:
+                if var_left and var_right:
+                    raise ValueError('Division of two variables not supported')
+                elif var_left:
+                    for i in range(n_var):
+                        coefs[i] /= right_bias
+                elif var_right:
+                    raise ValueError('Division by a variables not supported')
+                bias /= right_bias
+
+            case _:
+                raise ValueError(f'Node {node} is not valid, cannot evaluate it.')
+
+        return coefs, bias, (var_left or var_right)
