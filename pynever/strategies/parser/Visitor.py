@@ -65,7 +65,7 @@ class Visitor:
                     if op_node.type != NodeType.OPERATION:
                         raise ValueError(f'Node {node} is not an operation node, cannot evaluate it.')
 
-                    coefs, bias = self.visit_input(op_node)
+                    coefs, bias = self.visit_single(op_node)
                     in_matrix[in_cnt, :] = torch.Tensor(coefs)
                     in_bias[in_cnt, 0] = bias
                     in_cnt += 1
@@ -85,14 +85,16 @@ class Visitor:
 
         return in_matrix, in_bias, out_matrices, out_biases
 
-    def visit_input(self, node: InfoNode) -> tuple[list[float], float]:
+    def visit_single(self, node: InfoNode, pre: bool = True) -> tuple[list[float], float]:
         """
-        Procedure to visit a single input constraint defined by a node
+        Procedure to visit a single constraint defined by a node
 
         Parameters
         ----------
         node: InfoNode
             Node representing a single constraint
+        pre: bool
+            Flag indicating if the constraint is on the input or the output
 
         Returns
         -------
@@ -100,6 +102,7 @@ class Visitor:
             The list of coefficients and the bias term for the constraint
         """
         switch_sign = False  # Flag for >= constraints
+        n_var = self.n_inputs if pre else self.n_outputs
 
         if node.type != NodeType.OPERATION:
             raise ValueError(f'Node {node} is not an operation node, cannot evaluate it.')
@@ -111,7 +114,7 @@ class Visitor:
         lhs = node.children[0]
         rhs = node.children[1]
 
-        coefs = [0] * self.n_inputs
+        coefs = [0] * n_var
         bias = 0.0
 
         # Check the left-hand side
@@ -123,9 +126,9 @@ class Visitor:
                 bias -= lhs.value
 
             case NodeType.OPERATION:
-                c, b, is_variable = self.visit_op(lhs)
+                c, b, is_variable = self.visit_op(lhs, pre)
                 if is_variable:
-                    for i in range(self.n_inputs):
+                    for i in range(n_var):
                         coefs[i] += c[i]  # TODO check se può sostituire
                     bias -= b
 
@@ -141,9 +144,9 @@ class Visitor:
                 bias += rhs.value
 
             case NodeType.OPERATION:
-                c, b, is_variable = self.visit_op(rhs)
+                c, b, is_variable = self.visit_op(rhs, pre)
                 if is_variable:
-                    for i in range(self.n_inputs):
+                    for i in range(n_var):
                         coefs[i] -= c[i]
                     bias += b
 
@@ -156,7 +159,7 @@ class Visitor:
 
         return coefs, bias
 
-    def visit_output(self, node: InfoNode) -> tuple[list[list[float]], list[float]]:
+    def visit_output(self, node: InfoNode) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """
 
         Parameters
@@ -166,7 +169,90 @@ class Visitor:
 
         Returns
         -------
-        tuple[list[list[float]], list[float]]
+        tuple[list[torch.Tensor], list[torch.Tensor]]
             The list of output matrices and biases for the constraints
         """
-        pass
+        if len(node.children) != 1:
+            raise ValueError(f'Expected node {node} to have a single OR statement, multiple found.')
+
+        or_node = node.children[0]
+        if or_node.type != Operation.OR:
+            raise ValueError(f'Node {node} is not an OR node, cannot evaluate it.')
+
+        out_matrices, out_biases = [], []
+        disjuncts = len(or_node.children)
+
+        match disjuncts:
+            case 0:
+                raise ValueError(f'Node {node} has no children.')
+
+            case 1:  # TODO function
+                # Single disjunct case
+                single_constraint = or_node.children[0]
+
+                coefs = torch.zeros((1, self.n_inputs))
+                bias = torch.zeros((1, 1))
+
+                match single_constraint.value:
+
+                    case _ if single_constraint.value in [Operation.GE, Operation.LE]:
+                        # Visit single
+                        c, b = self.visit_single(single_constraint)
+                        coefs[0, :] = torch.Tensor(c)
+                        bias[0, 0] = b
+
+                    case Operation.AND:
+                        # Visit AND
+                        coefs, bias = self.visit_and(single_constraint)
+
+                    case _:
+                        raise ValueError(f'Node {node} is not a constraint, cannot evaluate it.')
+
+                out_matrices.append(coefs)
+                out_biases.append(bias)
+
+            case _:
+                for child in or_node.children:
+                    if len(child.children) == 0:
+                        raise ValueError(f'Node {node} is not a constraint, cannot evaluate it.')
+
+                    # Children are expected to be AND nodes
+                    if child.value != Operation.AND:
+                        raise ValueError(f'Node {node} is not an AND, cannot evaluate it.')
+
+                    coefs, bias = self.visit_and(child)
+                    out_matrices.append(coefs)
+                    out_biases.append(bias)
+
+        return out_matrices, out_biases
+
+    def visit_and(self, node: InfoNode) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Procedure to visit an AND node and return the coefficients and biases.
+
+        Parameters
+        ----------
+        node: InfoNode
+            The AND node to visit
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor]
+            The list of values for the coefficients and biases in the AND statement
+        """
+        rows = len(node.children)
+        if rows == 0:
+            raise ValueError(f'Node {node} is not a valid AND node, cannot evaluate it.')
+
+        coefs = torch.zeros((rows, self.n_outputs))
+        bias = torch.zeros((rows, 1))
+
+        for i, child in enumerate(node.children):
+            if child.type != NodeType.OPERATION:
+                raise ValueError(f'Node {node} is not an assertion node, cannot evaluate it.')
+
+            c, b = self.visit_single(child, pre=False)
+            coefs[i, :] = torch.Tensor(c)
+            bias[i, 0] = b
+
+        return coefs, bias
