@@ -137,7 +137,7 @@ class Visitor:
 
         # Check the right-hand side
         match rhs.type:
-            case NodeType.IN_VAR:
+            case NodeType.IN_VAR | NodeType.OUT_VAR:
                 coefs[rhs.value] -= 1
 
             case NodeType.CONST:
@@ -346,7 +346,7 @@ class Visitor:
                 elif var_right:
                     for i in range(n_var):
                         coefs[i] = right_coefs[i] * bias
-                bias += right_bias
+                bias *= right_bias
 
             case Operation.DIV:
                 if var_left and var_right:
