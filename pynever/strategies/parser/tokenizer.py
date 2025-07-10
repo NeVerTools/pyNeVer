@@ -90,6 +90,11 @@ class Tokenizer:
                 if not ch:
                     break  # EOF
 
+                # Filter comments
+                if ch == ';':
+                    while ch != '\n':
+                        ch = file.read(1)
+
                 # Update line counter
                 if ch.isspace():
                     if ch == '\n':
