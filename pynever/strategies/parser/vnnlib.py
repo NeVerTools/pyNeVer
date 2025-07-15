@@ -270,7 +270,7 @@ class VnnlibParser:
                     break
 
         # This is the end of the OR statement
-        self.read_par(start=False, progress=False)
+        self.read_par(start=False, progress=True)
 
         # Build the OR tree
         or_node = OperationNode(Operation.OR)
