@@ -15,6 +15,7 @@ if __name__ == '__main__':
         subprocess.run(
             ['python', 'never2_batch.py',
              '-o', f'results_batch_{dirname}.csv',
+             '-t', '60',
              f'Regression/{dirname}/instances.csv',
              'ssbp'])
         print('Completed.')
