@@ -190,7 +190,7 @@ class Visitor:
                 # Single disjunct case
                 single_constraint = or_node.children[0]
 
-                coefs = torch.zeros((1, self.n_inputs))
+                coefs = torch.zeros((1, self.n_outputs))
                 bias = torch.zeros((1, 1))
 
                 match single_constraint.value:
