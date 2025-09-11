@@ -151,7 +151,7 @@ class PytorchTraining(TrainingStrategy):
         self.r_split = r_split
         self.network_transform = network_transform
 
-        if device not in ['cpu', 'cuda']:
+        if device not in ['cpu', 'cuda', 'mps']:
             raise Exception
         self.device = torch.device(device)
 
@@ -372,7 +372,7 @@ class PytorchTesting(TestingStrategy):
         self.metric = metric
         self.metric_params = metric_params
         self.test_batch_size = test_batch_size
-        if device not in ['cpu', 'cuda']:
+        if device not in ['cpu', 'cuda', 'mps']:
             raise Exception
         self.device = torch.device(device)
         self.save_results = save_results
