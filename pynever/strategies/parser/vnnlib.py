@@ -104,7 +104,10 @@ class VnnlibParser:
         """
 
         # Step 1 - tokenizer
-        tokens = Tokenizer(filepath).tokenize()
+        tokenizer = Tokenizer(filepath)
+        tokens = tokenizer.tokenize()
+        self.input_name = tokenizer.input_name
+        self.output_name = tokenizer.output_name
 
         # Step 2 - parser
         nodes = self.parse_tokens(tokens)
