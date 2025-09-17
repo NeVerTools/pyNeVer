@@ -40,6 +40,24 @@ class NeverProperty:
         self.in_bias = input_bias
         self.out_matrix_list = out_matrix_list
         self.out_bias_list = out_bias_list
+        self.input_name = ''
+        self.output_name = ''
+
+    def get_variables_dict(self) -> dict[str, list[str]]:
+        """
+        This method creates a dictionary with keys 'Input' and 'Output' which map
+        to the corresponding lists of variables
+
+        Returns
+        -------
+        dict[str, list[str]]
+            The variables names in a dictionary mapping 'Input' and 'Output'
+        """
+
+        return {
+            'Input': [f'{self.input_name}_{i}' for i in range(self.in_matrix.shape[1])],
+            'Output': [f'{self.output_name}_{i}' for i in range(self.out_matrix_list[0].shape[1])]
+        }
 
     def to_numeric_bounds(self) -> HyperRectangleBounds:
         """
@@ -79,28 +97,65 @@ class NeverProperty:
         """
         return Star(self.in_matrix, self.in_bias)
 
-    def to_smt_file(self, filepath: str, input_id: str = 'X', output_id: str = 'Y'):
+    def get_smt_input_constraints(self, var_list: list[str]) -> str:
+
+        infix_in_constraints = NeverProperty.create_infix_constraints(var_list,
+                                                                      LinearFunctions(self.in_matrix, self.in_bias))
+        txt = ''
+        for c in infix_in_constraints:
+            prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+            txt += f"(assert {prefix_smt_row})\n"
+        return txt
+
+    def get_smt_output_constraints(self, var_list: list[str]) -> str:
+
+        infix_output_properties = []
+        for out_mat, out_bias in zip(self.out_matrix_list, self.out_bias_list):
+            infix_constraints = NeverProperty.create_infix_constraints(var_list,
+                                                                       LinearFunctions(out_mat, out_bias))
+            infix_output_properties.append(infix_constraints)
+
+        txt = ''
+        if len(infix_output_properties) == 1:
+            for c in infix_output_properties[0]:
+                prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                txt += f"(assert {prefix_smt_row})\n"
+        else:
+            s = '(assert (or '
+            for p in infix_output_properties:
+                if len(p) == 1:
+                    prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(p[0]).as_prefix()
+                    s = s + '\n' + prefix_smt_row
+                else:
+                    s = s + '(and '
+                    for c in p:
+                        prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
+                        s = s + '\n' + prefix_smt_row
+                    s = s + ')\n'
+            s = s + '))'
+            txt += s
+
+        return txt
+
+    def to_smt_file(self, filepath: str):
         """
         This method builds the SMT-LIB representation of the :class:`~pynever.strategies.verification.properties.NeVerProperty`,
         expressing the variables and the matrices as constraints in the corresponding logic
 
         Parameters
         ----------
-        input_id: str, Optional
-            Identifier of the input node (default: 'X')
-        output_id: str, Optional
-            Identifier of the output node (default: 'Y')
         filepath: str
             Path to the SMT-LIB file to create
         """
-        with open(filepath, 'w+') as f:
-            # Variables definition
-            input_vars = [f"{input_id}_{i}" for i in range(self.in_matrix.shape[1])]
-            if self.out_matrix_list:
-                output_vars = [f"{output_id}_{i}" for i in range(self.out_matrix_list[0].shape[1])]
-            else:
-                output_vars = []
 
+        # Variables definition
+        input_vars = [f"{self.input_name}_{i}" for i in range(self.in_matrix.shape[1])]
+        if self.out_matrix_list:
+            output_vars = [f"{self.output_name}_{i}" for i in range(self.out_matrix_list[0].shape[1])]
+        else:
+            output_vars = []
+
+        with open(filepath, 'w+') as f:
             f.write(';; --- INPUT VARIABLES ---\n')
             for v_name in input_vars:
                 f.write(f"(declare-const {v_name} Real)\n")
@@ -111,40 +166,10 @@ class NeverProperty:
 
             # Constraints definition
             f.write('\n;; --- INPUT CONSTRAINTS ---\n')
-
-            infix_in_constraints = NeverProperty.create_infix_constraints(input_vars,
-                                                                          LinearFunctions(self.in_matrix, self.in_bias))
-            for c in infix_in_constraints:
-                prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
-                f.write(f"(assert {prefix_smt_row})\n")
+            f.write(self.get_smt_input_constraints(input_vars))
 
             f.write('\n;; --- OUTPUT CONSTRAINTS ---\n')
-
-            # Allow multiple output properties
-            infix_output_properties = []
-            for out_mat, out_bias in zip(self.out_matrix_list, self.out_bias_list):
-                infix_constraints = NeverProperty.create_infix_constraints(output_vars,
-                                                                           LinearFunctions(out_mat, out_bias))
-                infix_output_properties.append(infix_constraints)
-
-            if len(infix_output_properties) == 1:
-                for c in infix_output_properties[0]:
-                    prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
-                    f.write(f"(assert {prefix_smt_row})\n")
-            else:
-                s = '(assert (or '
-                for p in infix_output_properties:
-                    if len(p) == 1:
-                        prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(p[0]).as_prefix()
-                        s = s + '\n' + prefix_smt_row
-                    else:
-                        s = s + '(and '
-                        for c in p:
-                            prefix_smt_row = expression.ExpressionTreeConverter().build_from_infix(c).as_prefix()
-                            s = s + '\n' + prefix_smt_row
-                        s = s + ')\n'
-                s = s + '))'
-                f.write(s)
+            f.write(self.get_smt_output_constraints(output_vars))
 
     @staticmethod
     def create_infix_constraints(variables: list[str], coefs: LinearFunctions) -> list[str]:
@@ -198,6 +223,8 @@ class VnnLibProperty(NeverProperty):
     def __init__(self, filepath: str):
         parser = vnnlib.VnnlibParser()
         super().__init__(*parser.parse_property(filepath))
+        self.input_name = parser.input_name
+        self.output_name = parser.output_name
 
 
 class LocalRobustnessProperty(NeverProperty):
