@@ -95,13 +95,13 @@ class ONNXConverter(ConversionStrategy):
                                                                [current_node.out_features,
                                                                 current_node.in_features])
 
-        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy().T, input_weight)
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.detach().numpy().T, input_weight)
 
         if current_node.has_bias:
             input_bias = current_node.identifier + "_bias"
             bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  [current_node.out_features])
-            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.detach().numpy(), input_bias)
 
             onnx_node = onnx.helper.make_node(
                 'Gemm',
@@ -149,10 +149,10 @@ class ONNXConverter(ConversionStrategy):
         var_value_info = onnx.helper.make_tensor_value_info(input_var, onnx.TensorProto.DOUBLE,
                                                             [current_node.num_features])
 
-        scale_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy(), input_scale)
-        bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
-        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean.numpy(), input_mean)
-        var_tensor = onnx.numpy_helper.from_array(current_node.running_var.numpy(), input_var)
+        scale_tensor = onnx.numpy_helper.from_array(current_node.weight.detach().numpy(), input_scale)
+        bias_tensor = onnx.numpy_helper.from_array(current_node.bias.detach().numpy(), input_bias)
+        mean_tensor = onnx.numpy_helper.from_array(current_node.running_mean.detach().numpy(), input_mean)
+        var_tensor = onnx.numpy_helper.from_array(current_node.running_var.detach().numpy(), input_var)
 
         onnx_node = onnx.helper.make_node(
             'BatchNormalization',
@@ -185,7 +185,7 @@ class ONNXConverter(ConversionStrategy):
         weight_value_info = onnx.helper.make_tensor_value_info(input_weight, onnx.TensorProto.DOUBLE,
                                                                weight_size)
 
-        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.numpy(), input_weight)
+        weight_tensor = onnx.numpy_helper.from_array(current_node.weight.detach().numpy(), input_weight)
 
         if current_node.has_bias:
 
@@ -194,7 +194,7 @@ class ONNXConverter(ConversionStrategy):
 
             bias_value_info = onnx.helper.make_tensor_value_info(input_bias, onnx.TensorProto.DOUBLE,
                                                                  bias_size)
-            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.numpy(), input_bias)
+            bias_tensor = onnx.numpy_helper.from_array(current_node.bias.detach().numpy(), input_bias)
 
             onnx_node = onnx.helper.make_node(
                 'Conv',
