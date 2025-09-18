@@ -124,15 +124,18 @@ class PytorchTraining(TrainingStrategy):
         Where to store the checkpoints of the training strategy. (default: '')
     verbose_rate: int, Optional
         After how many batch the strategy prints information about how the training is going.
+    task: str, Optional
+        Which task the training procedure is expecting between classification and regression. (default: classification)
     """
 
     def __init__(self, optimizer_con: type, opt_params: dict, loss_function: Callable, n_epochs: int,
                  validation_percentage: float, train_batch_size: int, validation_batch_size: int, r_split: bool = True,
                  scheduler_con: type = None, sch_params: dict = None, precision_metric: Callable = None,
                  network_transform: Callable = None, device: str = 'cpu', train_patience: int = None,
-                 checkpoints_root: str = '', verbose_rate: int = None):
+                 checkpoints_root: str = '', verbose_rate: int = None, task: str = 'classification'):
 
         TrainingStrategy.__init__(self)
+        self.task = task
 
         self.optimizer_con = optimizer_con
         self.opt_params = opt_params
@@ -174,6 +177,34 @@ class PytorchTraining(TrainingStrategy):
         py_net = self.pytorch_training(pytorch_converter.from_neural_network(network), dataset)
 
         return pytorch_converter.to_neural_network(py_net)
+
+    def compute_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the selected loss function for the given output and target.
+
+        Parameters
+        ----------
+        output: torch.Tensor
+            Output of the neural network
+        target: torch.Tensor
+            Target output to match
+
+        Returns
+        -------
+        torch.Tensor
+            The computed loss
+        """
+
+        if self.task == 'classification':
+            if isinstance(self.loss_function, torch.nn.MSELoss):
+                # One-hot encoding required for MSE classification
+                target_1h = F.one_hot(target.long(), num_classes=output.shape[1]).float()
+                return self.loss_function(output, target_1h)
+            else:
+                # Standard CrossEntropyLoss etc.
+                return self.loss_function(output, target.long())
+        else:  # regression
+            return self.loss_function(output, target.float().view_as(output))
 
     def pytorch_training(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> PyTorchNetwork:
         """
@@ -267,19 +298,17 @@ class PytorchTraining(TrainingStrategy):
                 data, target = data.to(self.device), target.to(self.device)
                 output = net.pytorch_network(data)
 
-                if isinstance(self.loss_function, torch.nn.MSELoss):
-                    loss = self.loss_function(output, F.one_hot(target, num_classes=output.shape[1]).float())
-                else:
-                    loss = self.loss_function(output, target)
-
-                avg_loss += loss.item()
+                loss = self.compute_loss(output, target)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-                _, pred = torch.max(output.data, 1)
-                correct += (pred == target.squeeze()).sum().item()
-                train_size += self.train_batch_size
+                avg_loss += loss.item()
+
+                if self.task == 'classification':
+                    _, pred = torch.max(output.data, 1)
+                    correct += (pred == target.squeeze()).sum().item()
+                    train_size += self.train_batch_size
 
                 if batch_idx % self.verbose_rate == 0:
                     self.logger.info('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
@@ -289,7 +318,9 @@ class PytorchTraining(TrainingStrategy):
 
             avg_loss = avg_loss / batch_idx
             history_score[epoch - start_epoch][0] = avg_loss
-            train_accuracy = 100 * correct / train_size
+
+            if self.task == 'classification':
+                train_accuracy = 100 * correct / train_size
 
             # EPOCH TEST
             net.pytorch_network.eval()
@@ -297,7 +328,6 @@ class PytorchTraining(TrainingStrategy):
 
             with torch.no_grad():
                 for batch_idx, (data, target) in enumerate(validation_loader):
-
                     target = target.squeeze()  # Preserves the correct shape
                     data, target = data.to(self.device), target.to(self.device)
                     output = net.pytorch_network(data)
@@ -340,8 +370,9 @@ class PytorchTraining(TrainingStrategy):
             best_checkpoint = torch.load(best_model_path)
             net.pytorch_network.load_state_dict(best_checkpoint['network_state_dict'])
 
-        self.logger.info(f"Best Training Loss Score: {best_loss_score:.6f}")
-        self.logger.info(f"Training Accuracy: {train_accuracy:.4f}")
+        self.logger.info(f"Best Validation Loss Score: {best_loss_score:.6f}")
+        if self.task == 'classification':
+            self.logger.info(f"Training Accuracy: {train_accuracy:.4f}")
 
         return net
 
@@ -363,12 +394,16 @@ class PytorchTesting(TestingStrategy):
         Dimension for the test batch size for the testing procedure
     save_results: bool, Optional
         Whether to save outputs, targets and losses as attributes.
+    task: str, Optional
+        Which task the training procedure is expecting between classification and regression. (default: classification)
     """
 
     def __init__(self, metric: Callable, metric_params: dict, test_batch_size: int, device: str = 'cpu',
-                 save_results: bool = False):
+                 save_results: bool = False, task: str = 'classification'):
 
         TestingStrategy.__init__(self)
+
+        self.task = task
         self.metric = metric
         self.metric_params = metric_params
         self.test_batch_size = test_batch_size
@@ -394,6 +429,34 @@ class PytorchTesting(TestingStrategy):
 
         return measure
 
+    def compute_metric(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the selected metric for the given output and target.
+
+        Parameters
+        ----------
+        output: torch.Tensor
+            Output of the neural network
+        target: torch.Tensor
+            Target output to match
+
+        Returns
+        -------
+        torch.Tensor
+            The computed loss
+        """
+
+        if self.task == 'classification':
+            if isinstance(self.metric, torch.nn.MSELoss):
+                # One-hot encoding required for MSE classification
+                target_1h = F.one_hot(target.long(), num_classes=output.shape[1]).float()
+                return self.metric(output, target_1h)
+            else:
+                # Standard CrossEntropyLoss etc.
+                return self.metric(output, target.long())
+        else:  # regression
+            return self.metric(output, target.float().view_as(output))
+
     def pytorch_testing(self, net: PyTorchNetwork, dataset: datasets.Dataset) -> float:
 
         net.pytorch_network.float()
@@ -414,10 +477,7 @@ class PytorchTesting(TestingStrategy):
                 data, target = data.to(self.device), target.to(self.device)
                 output = net.pytorch_network(data)
 
-                if isinstance(self.metric, torch.nn.MSELoss):
-                    loss = self.metric(output, F.one_hot(target, num_classes=output.shape[1]).float())
-                else:
-                    loss = self.metric(output, target)
+                loss = self.compute_metric(output, target)
 
                 if self.save_results:
                     self.outputs.append(output.cpu().detach().numpy())
@@ -425,16 +485,18 @@ class PytorchTesting(TestingStrategy):
                     self.losses.append(loss.item())
                 test_loss += loss.item()
 
-                _, pred = torch.max(output.data, 1)
-                correct += (pred == target.squeeze()).sum().item()
-                test_size += self.test_batch_size
+                if self.task == 'classification':
+                    _, pred = torch.max(output.data, 1)
+                    correct += (pred == target.squeeze()).sum().item()
+                    test_size += self.test_batch_size
 
         # test_loss = test_loss / float(math.floor(len(dataset)) / self.test_batch_size)
         test_loss = test_loss / batch_idx
-        test_accuracy = 100 * correct / len(dataset)
 
         self.logger.info(f"Best Test Loss Score: {test_loss:.6f}")
-        self.logger.info(f"Test Accuracy: {test_accuracy:.4f}")
+        if self.task == 'classification':
+            test_accuracy = 100 * correct / len(dataset)
+            self.logger.info(f"Test Accuracy: {test_accuracy:.4f}")
 
         return test_loss
 
